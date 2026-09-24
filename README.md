@@ -31,58 +31,84 @@ skills-files/  ── preview ── back up ── install
 
 ## Why
 
-Most agent workflows are either no process (freeform prompting, scope creep, silent drift) or too much process (constitutions, templates, a status report after every command). Agentic SDD picks a narrow middle: draft everything up front, get **one** human decision, then implement in small batches that each stop for review. It doesn't replace your judgment — it makes sure the agent actually waits for it.
+AI can generate changes faster than you can understand and review them. Agentic SDD organizes that work around your review capacity: agree on the feature, implement a manageable batch, verify it, then decide what happens next.
 
-- **You're using Claude Code, Codex, or Antigravity CLI** and want the same review discipline in all of them, not a different ad-hoc process per client.
-- **You've been burned by an agent that kept going** past what you approved — batches exist so a green test run is never mistaken for permission to continue.
-- **You want spec-driven development without the ceremony** — `spec.md` → `plan.md` → `tasks.md`, one combined approval, no separate sign-off per document, no constitution to maintain.
-- **You maintain multiple repos** and want the same discipline everywhere without copy-pasting instructions — `agentic-sdd apply` keeps one canonical copy in sync.
+- **One main agent, manageable review.** Follow one implementation and one set of decisions at a time. The agent loads specialist guidance as needed; separate agents are used only when you request them.
+- **Review the complete approach before coding.** Read the feature's requirements, design, and tasks together, then give one combined approval.
+- **Control the pace.** Each implementation batch ends with verification and a review summary. You choose when the next batch begins.
+- **Reuse your existing work.** Start from your SRS, technical specification, roadmap, and repository conventions. Read relevant sections and create supporting documents only when they serve a purpose.
+- **Carry the same workflow across clients.** Keep a shared set of skills for Claude Code, Codex, and Antigravity CLI, with client-specific settings kept separate.
+
+The goal is useful progress you can explain, verify, and maintain.
 
 ## The workflow
 
-The design goal is **manageable human review**: you see complete, reconciled work at a small number of decision points instead of approving fragments or waking up to a finished feature you never sanctioned.
+### 1. Select the next feature
 
-**One feature, one approval.** A feature is one coherent outcome. The agent drafts `spec.md`, then `plan.md`, then `tasks.md` — each using the previous draft as input, no waiting in between — reconciles them, and presents all three together for **one combined human approval**. Nothing is implemented before that.
+Choose one coherent outcome from your existing project documents or request. Draft this feature in detail; leave future work in the roadmap.
 
-```text
-spec.md ──▶ plan.md ──▶ tasks.md ──▶ [ combined human approval ]
-                                              │
-                                              ▼
-                                     batch 1 ──▶ verify ──▶ [ your review ] ──▶ batch 2 ─ ...
-```
+A feature may span several sessions. Its implementation batches should be small enough for focused work and comfortable review.
 
-**One batch at a time.** `tasks.md` groups tasks into explicit execution batches — batch ID, task IDs, outcome, verification, state, next action. After approval *and* your authorization, the agent runs exactly one batch, verifies it, records `awaiting human review`, and stops. A green test run is not permission to continue. On resume, an approved feature and a passing batch do not start the next one; you do.
+### 2. Prepare three connected documents
 
-**A feature may span several sessions.** Batches are sized for focused execution and comfortable review; the feature is not split just because it holds several dependent tasks.
+The agent drafts these in order inside `specs/<number>-<feature>/`:
 
-**Direct fixes skip all of it.** A change with clear scope, understood consequences, and meaningful verification goes straight to implement-and-verify — no `specs/` directory, no plan assignment, no batch state. Production code does not disqualify a fix; consequence does. Permissions, data integrity, public contracts, migrations, and live-system operations need planning and their own authorization.
+| Document | What you review |
+| :--- | :--- |
+| `spec.md` | Outcome, scope, exclusions, and acceptance criteria |
+| `plan.md` | Technical approach, design decisions, relevant risks, specialist skills, and tools |
+| `tasks.md` | Ordered tasks, dependencies, implementation batches, and verification |
 
-**Approval is not execution authority.** Approving Terraform or migration code never authorizes applying it.
+The agent reconciles the three drafts and presents them together. **One combined human approval is required before implementation.**
 
-**Review-only means read-only.** Ask for a review and you get findings plus a recommended next action — no edits to code, documents, approval records, task status, or batch state.
+### 3. Implement one batch
 
-**Specialists are loaded, not name-dropped.** `plan.md` assigns real installed skills and the tools the work needs; `tasks.md` records only the exceptions that override those defaults. At implementation the agent loads the guidance the current task actually needs. "No additional specialist needed" is a valid, explicit answer. Unavailable skills and tools are reported, never silently substituted. One main agent does the work; subagents only when you ask.
+Authorize a selected batch. The main agent loads the specialist guidance needed for its tasks, implements the changes, and runs relevant checks.
+
+Specialization does not require another agent: the same agent can use Go, React, Kubernetes, or Terraform guidance as the work requires. Tools are selected for concrete needs, and simple tasks may need no additional specialist.
+
+### 4. Review the result and continue
+
+The agent summarizes the changes, verification, deviations, and remaining issues, records `awaiting human review`, and stops.
+
+You can request corrections or authorize the next batch. On resume, the agent checks the recorded state and current code before continuing. Passing tests alone do not start another batch.
+
+**For smaller work:** clearly scoped fixes with understood consequences can go directly to implementation and verification, without feature documents.
+
+**For reviews:** a review-only request produces findings without changing code, documents, or workflow status.
+
+**For live operations:** approving infrastructure or migration code does not authorize applying it to real systems.
 
 ## The skill set
 
-Ten skills, all manually invocable. Start with the router if you want help choosing a phase — or call any skill directly. Direct invocation and router-driven execution follow identical rules.
+Start with **`agentic-sdd-router`** when beginning or resuming work. Use **`agentic-sdd-implement`** when you already know which approved batch or direct fix to execute.
 
-| Skill | Role |
+All ten skills are manually invocable. You do not need to call every skill for every change.
+
+| Skill | When to use it |
 | :--- | :--- |
-| `agentic-sdd-router` | Route intake, feature work, and direct fixes; resume at the recorded state |
-| `agentic-sdd-bootstrap` | Establish project pointers and conventions, on request only |
-| `agentic-sdd-spec` | Draft the outcome, scope, exclusions, and acceptance criteria |
-| `agentic-sdd-plan` | Draft the approach, design decisions, risks, specialists, and tools |
-| `agentic-sdd-tasks` | Draft ordered tasks, dependencies, and execution batches |
-| `agentic-sdd-implement` | Implement one approved batch, or one direct fix |
-| `agentic-sdd-verification-review` | Verify a batch or fix against acceptance criteria |
-| `agentic-sdd-architecture-review` | Review consequential architecture and operational risk |
-| `agentic-sdd-research-spec` | Resolve a specific fact blocking a draft or a fix |
-| `agentic-sdd-drift-retro` | Handle material drift; capture lessons worth keeping |
+| `agentic-sdd-router` | Start, resume, or choose the appropriate next step |
+| `agentic-sdd-bootstrap` | Add missing project pointers and conventions when requested |
+| `agentic-sdd-spec` | Define a feature's outcome and acceptance criteria |
+| `agentic-sdd-plan` | Design the approach and assign specialist guidance and tools |
+| `agentic-sdd-tasks` | Turn the approach into tasks and reviewable batches |
+| `agentic-sdd-implement` | Execute one authorized batch or direct fix |
+| `agentic-sdd-verification-review` | Check the actual changes against requirements and evidence |
+| `agentic-sdd-architecture-review` | Examine consequential design or operational decisions |
+| `agentic-sdd-research-spec` | Resolve a specific question blocking progress |
+| `agentic-sdd-drift-retro` | Address meaningful drift or capture a useful lesson |
 
-Shared rules live once in [`agentic-sdd-router/references/workflow-policy.md`](skills-files/agentic-sdd-router/references/workflow-policy.md); specialist and tool selection lives in [`specialists.md`](skills-files/agentic-sdd-router/references/specialists.md). Every skill links to both, so install the directories together.
+Invoke the relevant skill through your client, then give it a concrete request:
 
-The skills reference your repository's own documents — commonly `Docs/SRS.md`, `Docs/High Level Spec.md`, and `Docs/Tasks.md`, or whatever your equivalents are called — and feature documents in `specs/<nnn-slug>/`. They create no constitutions, templates, or routine status reports.
+- **Start:** "Use the relevant documents in `Docs/` to draft the next feature's spec, plan, and tasks. Stop for my combined review."
+- **Implement:** "I approve this feature's documents. Implement batch B1, verify it, and stop for my review."
+- **Resume:** "Check the current feature and batch state. Tell me the next action; preserve any pending review."
+- **Direct fix:** "Fix this validation bug and run focused checks."
+- **Review:** "Review this diff against the approved feature. Report findings only."
+
+Requesting only a spec, plan, or review keeps the work limited to that request.
+
+Shared workflow rules live in [`workflow-policy.md`](skills-files/agentic-sdd-router/references/workflow-policy.md), and specialist/tool selection lives in [`specialists.md`](skills-files/agentic-sdd-router/references/specialists.md). Install the skill directories together so these references remain available.
 
 ## Install
 
