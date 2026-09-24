@@ -1,0 +1,68 @@
+version: 2
+
+project_name: agentic-sdd
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: agentic-sdd
+    main: ./cmd/agentic-sdd
+    binary: agentic-sdd
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - >-
+        -s -w
+        -X agentic-sdd/internal/version.Version={{ .Version }}
+        -X agentic-sdd/internal/version.Commit={{ .ShortCommit }}
+        -X agentic-sdd/internal/version.Date={{ .Date }}
+        -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
+
+# Merges darwin/amd64 + darwin/arm64 into a single lipo universal binary and
+# drops the single-arch archives (replace: true), so the Homebrew formula
+# below only ever needs one download URL instead of branching on arch.
+universal_binaries:
+  - replace: true
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+brews:
+  - repository:
+      owner: nawodyaishan
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/nawodyaishan/agentic-sdd"
+    description: "Spec-driven development workflow skills, kept in sync across Codex, Claude Code, and Antigravity CLI"
+    license: MIT
+    test: |
+      system "#{bin}/agentic-sdd", "--help"
+      system "#{bin}/agentic-sdd", "version"
+    install: |
+      bin.install "agentic-sdd"

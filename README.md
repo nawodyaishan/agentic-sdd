@@ -63,6 +63,14 @@ Shared rules live once in [`agentic-sdd-router/references/workflow-policy.md`](s
 
 The skills reference your repository's own documents — commonly `Docs/SRS.md`, `Docs/High Level Spec.md`, and `Docs/Tasks.md`, or whatever your equivalents are called — and feature documents in `specs/<nnn-slug>/`. They create no constitutions, templates, or routine status reports.
 
+## Install
+
+```sh
+brew install nawodyaishan/tap/agentic-sdd
+```
+
+The published binary embeds `skills-files/`, so `agentic-sdd preview`/`apply` work from any directory with no repository checkout needed. Run `agentic-sdd version` to check what you have installed.
+
 ## Quick start
 
 Requires **Go 1.23+**. `make` is optional.
@@ -93,11 +101,12 @@ Before applying to your real home, `make docker-e2e` builds and exercises the CL
 | :--- | :--- |
 | `agentic-sdd` / `agentic-sdd preview` | Print one line per skill per client — `install`, `replace + back up`, or `up to date` — then stop without writing. |
 | `agentic-sdd apply` | Back up every skill it will replace, stage the new copies, then install. A second apply is a no-op. |
+| `agentic-sdd version` | Print version, commit, build date, and Go version. `--version` works too. |
 | `agentic-sdd help [preview\|apply]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
 
 | Flag | Meaning |
 | :--- | :--- |
-| `--repo PATH` | Repository containing `skills-files/` (default: current directory) |
+| `--repo PATH` | Repository containing `skills-files/` (default: skills embedded in the binary; pass this to source from a checkout instead) |
 | `--home PATH` | Home directory holding the client skill directories (default: your home) |
 | `--apply` | Legacy form of the `apply` command; cannot be combined with a named command |
 
@@ -128,7 +137,7 @@ Preview and apply plan identically, so a preview tells you exactly what an apply
 
 **Change detection is exact**: directory structure, file permissions, and SHA-256 of every file. Identical trees are reported `up to date`, are not backed up, and are not rewritten. When nothing differs, apply prints `All skills are up to date.` and creates no backup.
 
-**Backups come first.** An apply with changes creates a UTC-stamped directory in the repository:
+**Backups come first.** An apply with changes creates a UTC-stamped directory: under `<repo>/backups` when `--repo` is set, or `<home>/.agentic-sdd/backups` when sourcing from the embedded skills (e.g. a Homebrew install):
 
 ```text
 backups/20260924T201717.833575000Z/
@@ -137,7 +146,7 @@ backups/20260924T201717.833575000Z/
 └── claude/agentic-sdd-plan/...
 ```
 
-Only skills that already existed are copied there. `backups/` is git-ignored because your previous skills may contain private content — keep or prune it on your own terms.
+Only skills that already existed are copied there. A repository-local `backups/` directory is git-ignored because your previous skills may contain private content — keep or prune it on your own terms.
 
 **Installation is staged.** Every replacement is built in a temporary directory beside its destination before any installed skill is touched; installs then happen as renames. If one fails partway, the CLI restores what it already moved and removes what it already installed, and the backup remains for manual recovery.
 
@@ -152,7 +161,11 @@ Keep shared rules in `workflow-policy.md` rather than repeating them in each `SK
 ```text
 cmd/agentic-sdd/       CLI parsing, defaults, exit codes
 internal/skillsync/    Planning, comparison, backup, staged install, rollback
+internal/version/      Build-time version metadata, injected via -ldflags at release
+skillsfiles.go         go:embed of skills-files/, so an installed binary needs no checkout
 skills-files/          The ten Agentic SDD skills and shared references
+.goreleaser.yml        Darwin build, universal binary, Homebrew formula publishing
+.github/workflows/     release.yml (tag-triggered publish), ci.yml (build/test/vet)
 tests/                 Docker end-to-end scripts
 config/                Local inventory and client overlay notes
 docs/                  Background research
@@ -162,6 +175,18 @@ backups/               Git-ignored copies from changed installations
 ```
 
 The CLI stays small; all filesystem behavior lives in `internal/skillsync`. `internal/skillsync/sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `cmd/agentic-sdd/main_test.go` covers help, usage errors, and preview/apply compatibility. Run `make test` and `make vet` after changing the installer, and `make docker-e2e` before trusting an apply.
+
+## Releasing
+
+Releases are built by [GoReleaser](https://goreleaser.com) from `.goreleaser.yml` and published to `nawodyaishan/homebrew-tap` by `.github/workflows/release.yml` on every `v*` tag push:
+
+```sh
+make verify              # mod-verify, tidy-check, vet, test, build-darwin
+make tag V=vX.Y.Z MSG="release message"
+git push origin vX.Y.Z   # triggers .github/workflows/release.yml
+```
+
+`make release` runs a local snapshot build (`goreleaser release --snapshot --clean`, no tag or publish required) to check the formula and archive output before tagging.
 
 ## Contributing and license
 
