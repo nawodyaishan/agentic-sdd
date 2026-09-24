@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -32,18 +33,28 @@ type manifest struct {
 	Skills  []string `json:"skills"`
 }
 
-// Sync previews or installs agentic-sdd skills from repo into user skill directories.
+// Sync previews or installs agentic-sdd skills into user skill directories.
+// When repo is empty, skills are read from the tree embedded in the binary
+// (skillsfiles.Files), so an installed binary needs no repository checkout;
+// an explicit repo overrides this with an on-disk "<repo>/skills-files"
+// checkout, and backups are then kept alongside it at "<repo>/backups" as
+// before. With no explicit repo, backups go under "<home>/.agentic-sdd/backups".
 func Sync(repo, home string, apply bool, out io.Writer) error {
 	var err error
-	repo, err = filepath.Abs(repo)
-	if err != nil {
-		return err
+	if repo != "" {
+		repo, err = filepath.Abs(repo)
+		if err != nil {
+			return err
+		}
 	}
 	home, err = filepath.Abs(home)
 	if err != nil {
 		return err
 	}
-	source := filepath.Join(repo, "skills-files")
+	source, err := sourceFS(repo)
+	if err != nil {
+		return err
+	}
 	names, err := discoverSkills(source)
 	if err != nil {
 		return err
@@ -66,11 +77,17 @@ func Sync(repo, home string, apply bool, out io.Writer) error {
 		fmt.Fprintln(out, "All skills are up to date.")
 		return nil
 	}
-	return installChanges(repo, source, names, targets, changes, out)
+	backupRoot := filepath.Join(home, ".agentic-sdd", "backups")
+	sourceLabel := "embedded"
+	if repo != "" {
+		backupRoot = filepath.Join(repo, "backups")
+		sourceLabel = filepath.Join(repo, "skills-files")
+	}
+	return installChanges(backupRoot, sourceLabel, source, names, targets, changes, out)
 }
 
-func discoverSkills(source string) ([]string, error) {
-	entries, err := os.ReadDir(source)
+func discoverSkills(source fs.FS) ([]string, error) {
+	entries, err := fs.ReadDir(source, ".")
 	if err != nil {
 		return nil, err
 	}
@@ -83,10 +100,11 @@ func discoverSkills(source string) ([]string, error) {
 		if !entry.IsDir() {
 			return nil, fmt.Errorf("source skill %s is not a directory", name)
 		}
-		if err := checkTree(filepath.Join(source, name)); err != nil {
+		if err := checkTreeFS(source, name); err != nil {
 			return nil, err
 		}
-		if info, err := os.Lstat(filepath.Join(source, name, "SKILL.md")); err != nil || !info.Mode().IsRegular() {
+		info, err := fs.Stat(source, name+"/SKILL.md")
+		if err != nil || !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("%s requires a regular SKILL.md", name)
 		}
 		names = append(names, name)
@@ -98,7 +116,7 @@ func discoverSkills(source string) ([]string, error) {
 	return names, nil
 }
 
-func planChanges(source, home string, names []string, targets []target, out io.Writer) ([]change, error) {
+func planChanges(source fs.FS, home string, names []string, targets []target, out io.Writer) ([]change, error) {
 	var changes []change
 	for _, t := range targets {
 		if err := checkParents(t.path, home); err != nil {
@@ -118,7 +136,7 @@ func planChanges(source, home string, names []string, targets []target, out io.W
 				if err := checkTree(path); err != nil {
 					return nil, err
 				}
-				same, err := sameTree(filepath.Join(source, name), path)
+				same, err := sameSourceTarget(source, name, path)
 				if err != nil {
 					return nil, err
 				}
@@ -138,9 +156,8 @@ func planChanges(source, home string, names []string, targets []target, out io.W
 	return changes, nil
 }
 
-func installChanges(repo, source string, names []string, targets []target, changes []change, out io.Writer) error {
+func installChanges(backupRoot, sourceLabel string, source fs.FS, names []string, targets []target, changes []change, out io.Writer) error {
 	stamp := time.Now().UTC().Format("20060102T150405.000000000Z")
-	backupRoot := filepath.Join(repo, "backups")
 	if info, err := os.Lstat(backupRoot); err == nil && !info.IsDir() {
 		return fmt.Errorf("refusing non-directory backup path %s", backupRoot)
 	} else if err != nil && !os.IsNotExist(err) {
@@ -161,7 +178,7 @@ func installChanges(repo, source string, names []string, targets []target, chang
 			return fmt.Errorf("backup %s/%s: %w", c.target.name, c.skill, err)
 		}
 	}
-	m := manifest{Created: stamp, Source: source, Skills: names}
+	m := manifest{Created: stamp, Source: sourceLabel, Skills: names}
 	for _, t := range targets {
 		m.Targets = append(m.Targets, t.path)
 	}
@@ -184,16 +201,11 @@ func installChanges(repo, source string, names []string, targets []target, chang
 			cleanupStages(changes)
 			return err
 		}
-		if err := copyContents(filepath.Join(source, c.skill), c.stage); err != nil {
+		if err := copyFromSource(source, c.skill, c.stage); err != nil {
 			cleanupStages(changes)
 			return err
 		}
-		sourceInfo, err := os.Stat(filepath.Join(source, c.skill))
-		if err != nil {
-			cleanupStages(changes)
-			return err
-		}
-		if err := os.Chmod(c.stage, sourceInfo.Mode().Perm()); err != nil {
+		if err := os.Chmod(c.stage, installedDirMode); err != nil {
 			cleanupStages(changes)
 			return err
 		}
