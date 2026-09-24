@@ -1,8 +1,11 @@
-# Agentic SDD · skill sync
+# Agentic SDD
 
-**One source for the Agentic SDD skills you use across Codex, Claude Code, and Antigravity CLI.**
+**A spec-driven development workflow for coding agents, and a small Go CLI that keeps one copy of it in sync across Codex, Claude Code, and Antigravity CLI.**
 
-Edit a skill in [`skills-files/`](skills-files/), preview the changes, then install it everywhere with one command. Existing copies are saved inside this repository before anything is replaced.
+Two things live here:
+
+- [`skills-files/`](skills-files/) — ten skills that define the workflow. This is the product.
+- `cmd/` + `internal/` — a single-purpose installer that copies those skills into your client skill directories, backing up whatever it replaces.
 
 ```text
 skills-files/  ── preview ── back up ── install
@@ -12,108 +15,154 @@ skills-files/  ── preview ── back up ── install
                                     └── ~/.gemini/antigravity-cli/skills
 ```
 
-## Get started
+---
+
+## The workflow
+
+The design goal is **manageable human review**: you see complete, reconciled work at a small number of decision points instead of approving fragments or waking up to a finished feature you never sanctioned.
+
+**One feature, one approval.** A feature is one coherent outcome. The agent drafts `spec.md`, then `plan.md`, then `tasks.md` — each using the previous draft as input, no waiting in between — reconciles them, and presents all three together for **one combined human approval**. Nothing is implemented before that.
+
+```text
+spec.md ──▶ plan.md ──▶ tasks.md ──▶ [ combined human approval ]
+                                              │
+                                              ▼
+                                     batch 1 ──▶ verify ──▶ [ your review ] ──▶ batch 2 ─ ...
+```
+
+**One batch at a time.** `tasks.md` groups tasks into explicit execution batches — batch ID, task IDs, outcome, verification, state, next action. After approval *and* your authorization, the agent runs exactly one batch, verifies it, records `awaiting human review`, and stops. A green test run is not permission to continue. On resume, an approved feature and a passing batch do not start the next one; you do.
+
+**A feature may span several sessions.** Batches are sized for focused execution and comfortable review; the feature is not split just because it holds several dependent tasks.
+
+**Direct fixes skip all of it.** A change with clear scope, understood consequences, and meaningful verification goes straight to implement-and-verify — no `specs/` directory, no plan assignment, no batch state. Production code does not disqualify a fix; consequence does. Permissions, data integrity, public contracts, migrations, and live-system operations need planning and their own authorization.
+
+**Approval is not execution authority.** Approving Terraform or migration code never authorizes applying it.
+
+**Review-only means read-only.** Ask for a review and you get findings plus a recommended next action — no edits to code, documents, approval records, task status, or batch state.
+
+**Specialists are loaded, not name-dropped.** `plan.md` assigns real installed skills and the tools the work needs; `tasks.md` records only the exceptions that override those defaults. At implementation the agent loads the guidance the current task actually needs. "No additional specialist needed" is a valid, explicit answer. Unavailable skills and tools are reported, never silently substituted. One main agent does the work; subagents only when you ask.
+
+## The skill set
+
+Ten skills, all manually invocable. Start with the router if you want help choosing a phase — or call any skill directly. Direct invocation and router-driven execution follow identical rules.
+
+| Skill | Role |
+| :--- | :--- |
+| `agentic-sdd-router` | Route intake, feature work, and direct fixes; resume at the recorded state |
+| `agentic-sdd-bootstrap` | Establish project pointers and conventions, on request only |
+| `agentic-sdd-spec` | Draft the outcome, scope, exclusions, and acceptance criteria |
+| `agentic-sdd-plan` | Draft the approach, design decisions, risks, specialists, and tools |
+| `agentic-sdd-tasks` | Draft ordered tasks, dependencies, and execution batches |
+| `agentic-sdd-implement` | Implement one approved batch, or one direct fix |
+| `agentic-sdd-verification-review` | Verify a batch or fix against acceptance criteria |
+| `agentic-sdd-architecture-review` | Review consequential architecture and operational risk |
+| `agentic-sdd-research-spec` | Resolve a specific fact blocking a draft or a fix |
+| `agentic-sdd-drift-retro` | Handle material drift; capture lessons worth keeping |
+
+Shared rules live once in [`agentic-sdd-router/references/workflow-policy.md`](skills-files/agentic-sdd-router/references/workflow-policy.md); specialist and tool selection lives in [`specialists.md`](skills-files/agentic-sdd-router/references/specialists.md). Every skill links to both, so install the directories together.
+
+The skills reference your repository's own documents — commonly `Docs/SRS.md`, `Docs/High Level Spec.md`, and `Docs/Tasks.md`, or whatever your equivalents are called — and feature documents in `specs/<nnn-slug>/`. They create no constitutions, templates, or routine status reports.
+
+## Quick start
 
 Requires **Go 1.23+**. `make` is optional.
 
 ```sh
-cd agentic-sdd
-make help           # see every command
-make preview        # inspect installs and replacements; changes nothing
-make docker-e2e     # test preview and apply in an isolated Docker container
-make apply          # save existing skills, then install the new copies
+make help           # list every command
+make preview        # show what would change; writes nothing
+make docker-e2e     # exercise preview and apply in an isolated container
+make apply          # back up existing skills, then install
 make test           # run the safety and behavior tests
-make vet            # run Go static analysis
-make hooks-install  # install the pre-commit hook
+make vet            # run go vet
+make hooks-install  # install the Lefthook pre-commit hook
 ```
 
-Prefer Go directly? Run `go run ./cmd/agentic-sdd preview` to preview and `go run ./cmd/agentic-sdd apply` to install. The default is always a preview, so an invocation without a command still previews. Existing `--apply` scripts remain supported. Run `go run ./cmd/agentic-sdd --help` for the full CLI help.
+Preview is always the default, so a bare invocation is safe. Prefer Go directly:
 
-Before applying to your real home, run `make docker-e2e`. This builds and tests the CLI inside a Go container using a temporary repository and home. It checks preview, backup and install, repeated apply, and invalid input; it never mounts your home. Docker must be running and the `golang:1.25-alpine` image available.
+```sh
+go run ./cmd/agentic-sdd                    # preview
+go run ./cmd/agentic-sdd apply              # install
+go run ./cmd/agentic-sdd --help             # full CLI help
+```
 
-## CLI commands
+Before applying to your real home, `make docker-e2e` builds and exercises the CLI inside `golang:1.25-alpine` with the repository mounted read-only, no network, and a throwaway home. It checks preview, backup and install, a repeated apply, and an invalid command. It never touches your home directory. Docker must be running.
 
-| Command | Behavior |
+## CLI reference
+
+| Invocation | Behavior |
 | :--- | :--- |
-| `agentic-sdd` or `agentic-sdd preview` | Show each install, replacement, or up-to-date skill without writing files. |
-| `agentic-sdd apply` | Back up changed existing skills and install only the changes. A second apply is a no-op. |
-| `agentic-sdd help` or `agentic-sdd --help` | Show commands, flags, defaults, and safety behavior. `preview --help` and `apply --help` also work. |
+| `agentic-sdd` / `agentic-sdd preview` | Print one line per skill per client — `install`, `replace + back up`, or `up to date` — then stop without writing. |
+| `agentic-sdd apply` | Back up every skill it will replace, stage the new copies, then install. A second apply is a no-op. |
+| `agentic-sdd help [preview\|apply]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
 
-Use `--repo PATH` to choose the repository and `--home PATH` to choose the destination home. Put flags after a named command, as in `agentic-sdd preview --home /tmp/test-home`. For existing scripts, flag-only invocations still work: no `--apply` means preview, and `--apply` means install. Do not combine `--apply` with a named command.
+| Flag | Meaning |
+| :--- | :--- |
+| `--repo PATH` | Repository containing `skills-files/` (default: current directory) |
+| `--home PATH` | Home directory holding the client skill directories (default: your home) |
+| `--apply` | Legacy form of the `apply` command; cannot be combined with a named command |
 
-The CLI exits with status `0` on success or help, `2` for invalid commands or flags, and `1` for filesystem or sync failures. Usage errors go to stderr. A preview that lists replacements is still successful; it does not install them.
+Put flags after the command: `agentic-sdd preview --home /tmp/test-home`. Older flag-only scripts still work — no `--apply` previews, `--apply` installs.
+
+Exit codes: **0** success or help, **2** unknown command, bad flag, stray argument, or `--apply` combined with a command, **1** filesystem or sync failure. Usage errors go to stderr; everything else goes to stdout. A preview that lists replacements is a success — it just didn't install them.
 
 ## Where the skills go
 
-| Client | User skill directory | Purpose |
-| :--- | :--- | :--- |
-| Shared agents | `~/.agents/skills` | Codex user skills and shared agent discovery |
-| Codex local | `~/.codex/skills` | Existing local Codex catalog |
-| Claude Code | `~/.claude/skills` | Personal Claude skills |
-| Antigravity CLI (`agy`) | `~/.gemini/antigravity-cli/skills` | Global CLI skills |
-
-The installer copies **the complete skill directory**, so a skill's `references/` and other supporting files travel with its `SKILL.md`. It selects directories named `agentic-sdd-*` and leaves all other skills alone.
-
-These destinations follow the [Codex](https://developers.openai.com/codex/skills), [Claude Code](https://code.claude.com/docs/en/skills.md), and [Antigravity](https://antigravity.google/docs/skills/) skill documentation. Antigravity IDE's legacy `~/.gemini/antigravity/skills` directory is separate from the CLI directory used here.
-
-## The skill set
-
-The ten skills cover a bounded SDD workflow. Start with the router when you want help choosing the right phase.
-
-A feature is drafted as `spec.md`, `plan.md` and `tasks.md` in that order, presented together for **one combined human approval**. Implementation then runs **one batch at a time**, stopping for human review after each. Small, clearly scoped fixes skip the feature documents entirely.
-
-| Skill | Role |
+| Client | Skill directory |
 | :--- | :--- |
-| `agentic-sdd-router` | Route intake, feature work and direct fixes through the workflow |
-| `agentic-sdd-bootstrap` | Establish the initial project pointers and conventions |
-| `agentic-sdd-research-spec` | Resolve a specific fact blocking a draft or a fix |
-| `agentic-sdd-spec` | Draft the feature outcome, scope and acceptance criteria |
-| `agentic-sdd-architecture-review` | Review consequential architecture and operational risks |
-| `agentic-sdd-plan` | Draft the approach, specialists and tools from the spec draft |
-| `agentic-sdd-tasks` | Draft ordered tasks and explicit execution batches |
-| `agentic-sdd-implement` | Implement one approved batch, or one direct fix |
-| `agentic-sdd-verification-review` | Verify a batch or fix against acceptance criteria |
-| `agentic-sdd-drift-retro` | Handle material drift and capture useful lessons |
+| Shared agents | `~/.agents/skills` |
+| Codex | `~/.codex/skills` |
+| Claude Code | `~/.claude/skills` |
+| Antigravity CLI (`agy`) | `~/.gemini/antigravity-cli/skills` |
 
-## Backups and safe replacement
+All four are written every run. The installer selects only directories named `agentic-sdd-*` and copies **the complete directory**, so `references/` and any other supporting files travel with `SKILL.md`. Every other skill you have is left untouched.
 
-An apply with changes creates a UTC timestamped directory such as:
+These destinations follow the [Codex](https://developers.openai.com/codex/skills), [Claude Code](https://code.claude.com/docs/en/skills.md), and [Antigravity](https://antigravity.google/docs/skills/) documentation. Antigravity IDE's legacy `~/.gemini/antigravity/skills` is a different directory and is not used here.
+
+Client-specific invocation settings stay out of the portable skill text; local notes live in `config/`.
+
+## Safety model
+
+Preview and apply plan identically, so a preview tells you exactly what an apply would do.
+
+**Before writing anything**, the installer walks both the source and destination skill trees and refuses symlinks, special files, a non-directory where a skill directory belongs, a non-directory component anywhere between the destination and your home, and a source skill without a regular `SKILL.md`. It stops if no `agentic-sdd-*` skill is found at all.
+
+**Change detection is exact**: directory structure, file permissions, and SHA-256 of every file. Identical trees are reported `up to date`, are not backed up, and are not rewritten. When nothing differs, apply prints `All skills are up to date.` and creates no backup.
+
+**Backups come first.** An apply with changes creates a UTC-stamped directory in the repository:
 
 ```text
 backups/20260924T201717.833575000Z/
-├── manifest.json
+├── manifest.json        # created, source, target directories, skill names
 ├── agents/agentic-sdd-plan/...
 └── claude/agentic-sdd-plan/...
 ```
 
-Only skills that already existed appear in the backup. The `manifest.json` records the source, target directories, and skill names. `backups/` is in `.gitignore` because previous skills may contain personal content; keep or archive it according to your own retention needs.
+Only skills that already existed are copied there. `backups/` is git-ignored because your previous skills may contain private content — keep or prune it on your own terms.
 
-If every destination already matches the source, `make apply` reports that the skills are up to date and creates no backup. Only changed or missing skills are installed.
+**Installation is staged.** Every replacement is built in a temporary directory beside its destination before any installed skill is touched; installs then happen as renames. If one fails partway, the CLI restores what it already moved and removes what it already installed, and the backup remains for manual recovery.
 
-Before installation, the program checks source and destination skill trees, rejects symlinks and special files, and stages every new copy. It then replaces matching skill directories and attempts to restore earlier copies if a later replacement fails. A backup remains available for manual recovery.
+## Working on the skills
 
-## Use another home or repository
+Edit the files in `skills-files/`, run `make preview` to confirm the intended clients pick them up, then `make apply`. Because `up to date` skills are skipped, iterating on one skill only rewrites that skill.
 
-The program accepts `--home` and `--repo` for an isolated installation or a different source checkout:
-
-```sh
-go run ./cmd/agentic-sdd --repo /path/to/agentic-sdd --home /path/to/test-home
-go run ./cmd/agentic-sdd apply --repo /path/to/agentic-sdd --home /path/to/test-home
-```
+Keep shared rules in `workflow-policy.md` rather than repeating them in each `SKILL.md`, keep specialist and tool guidance in `specialists.md`, and keep machine-specific inventory and client configuration in `config/` — not in the portable skill text.
 
 ## Repository layout
 
 ```text
-cmd/agentic-sdd/       CLI flags, defaults, and error reporting
-internal/skillsync/    Sync workflow, filesystem helpers, and tests
-skills-files/          Canonical Agentic SDD skill directories
+cmd/agentic-sdd/       CLI parsing, defaults, exit codes
+internal/skillsync/    Planning, comparison, backup, staged install, rollback
+skills-files/          The ten Agentic SDD skills and shared references
+tests/                 Docker end-to-end scripts
 config/                Local inventory and client overlay notes
+docs/                  Background research
 audits/                Workflow audits
-backups/               Local, Git-ignored copies from changed installations
+specs/                 Feature documents produced by the workflow itself
+backups/               Git-ignored copies from changed installations
 ```
 
-The CLI stays small; filesystem behavior lives in `internal/skillsync`. Run `make test` after changing the installer.
+The CLI stays small; all filesystem behavior lives in `internal/skillsync`. `internal/skillsync/sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `cmd/agentic-sdd/main_test.go` covers help, usage errors, and preview/apply compatibility. Run `make test` and `make vet` after changing the installer, and `make docker-e2e` before trusting an apply.
 
 ## Contributing and license
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and pull request guidance. The pre-commit hook is configured in `lefthook.yml` and installed locally with `make hooks-install`. This project is available under the [MIT License](LICENSE).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and pull request guidance. The pre-commit hook is configured in `lefthook.yml` and installed with `make hooks-install`. Available under the [MIT License](LICENSE).
