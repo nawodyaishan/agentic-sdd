@@ -1,9 +1,9 @@
-.PHONY: help preview apply test
+.PHONY: help preview apply test vet hooks-install
 
-GOCACHE ?= /private/tmp/agentic-sdd-go-cache
+GOCACHE ?= $(CURDIR)/.cache/go-build
 
 help: ## Show available commands
-	@awk 'BEGIN {FS = ":.*## "; print "Commands:"} /^[a-zA-Z_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "; print "Commands:"} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 preview: ## Show skill installs and replacements without changing files
 	GOCACHE=$(GOCACHE) go run ./cmd/agentic-sdd
@@ -13,3 +13,9 @@ apply: ## Back up existing skills and install source skills
 
 test: ## Run Go tests
 	GOCACHE=$(GOCACHE) go test ./...
+
+vet: ## Run Go static analysis
+	GOCACHE=$(GOCACHE) go vet ./...
+
+hooks-install: ## Install Lefthook Git hooks locally
+	lefthook install

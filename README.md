@@ -18,10 +18,12 @@ Requires **Go 1.23+**. `make` is optional.
 
 ```sh
 cd agentic-sdd
-make help       # see every command
-make preview    # inspect installs and replacements; changes nothing
-make apply      # save existing skills, then install the new copies
-make test       # run the safety and behavior tests
+make help           # see every command
+make preview        # inspect installs and replacements; changes nothing
+make apply          # save existing skills, then install the new copies
+make test           # run the safety and behavior tests
+make vet            # run Go static analysis
+make hooks-install  # install the pre-commit hook
 ```
 
 Prefer Go directly? Run `go run ./cmd/agentic-sdd` to preview and `go run ./cmd/agentic-sdd --apply` to install. The default is always a preview.
@@ -94,3 +96,7 @@ backups/               Local, Git-ignored copies from changed installations
 ```
 
 The CLI stays small; filesystem behavior lives in `internal/skillsync`. Run `make test` after changing the installer.
+
+## Contributing and license
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and pull request guidance. The pre-commit hook is configured in `lefthook.yml` and installed locally with `make hooks-install`. This project is available under the [MIT License](LICENSE).

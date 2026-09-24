@@ -23,4 +23,4 @@ Keep client destinations and skill selection together in `internal/skillsync`. P
 
 ## Verification
 
-Run `make test`, `go vet ./...`, and `git diff --check` after Go changes. Use a temporary home in tests. `make preview` is a useful read-only check against the local installation.
+Run `make test`, `make vet`, and `git diff --check` after Go changes. Use a temporary home in tests. `make preview` is a useful read-only check against the local installation. Install the repository's Lefthook checks with `make hooks-install`.
