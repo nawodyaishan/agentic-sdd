@@ -44,9 +44,35 @@ func Sync(repo, home string, apply bool, out io.Writer) error {
 		return err
 	}
 	source := filepath.Join(repo, "skills-files")
-	entries, err := os.ReadDir(source)
+	names, err := discoverSkills(source)
 	if err != nil {
 		return err
+	}
+	targets := []target{
+		{"agents", filepath.Join(home, ".agents", "skills")},
+		{"codex", filepath.Join(home, ".codex", "skills")},
+		{"claude", filepath.Join(home, ".claude", "skills")},
+		{"agy", filepath.Join(home, ".gemini", "antigravity-cli", "skills")},
+	}
+	changes, err := planChanges(source, home, names, targets, out)
+	if err != nil {
+		return err
+	}
+	if !apply {
+		fmt.Fprintln(out, "Preview only. Run with apply (or --apply) to install.")
+		return nil
+	}
+	if len(changes) == 0 {
+		fmt.Fprintln(out, "All skills are up to date.")
+		return nil
+	}
+	return installChanges(repo, source, names, targets, changes, out)
+}
+
+func discoverSkills(source string) ([]string, error) {
+	entries, err := os.ReadDir(source)
+	if err != nil {
+		return nil, err
 	}
 	var names []string
 	for _, entry := range entries {
@@ -55,48 +81,46 @@ func Sync(repo, home string, apply bool, out io.Writer) error {
 			continue
 		}
 		if !entry.IsDir() {
-			return fmt.Errorf("source skill %s is not a directory", name)
+			return nil, fmt.Errorf("source skill %s is not a directory", name)
 		}
 		if err := checkTree(filepath.Join(source, name)); err != nil {
-			return err
+			return nil, err
 		}
 		if info, err := os.Lstat(filepath.Join(source, name, "SKILL.md")); err != nil || !info.Mode().IsRegular() {
-			return fmt.Errorf("%s requires a regular SKILL.md", name)
+			return nil, fmt.Errorf("%s requires a regular SKILL.md", name)
 		}
 		names = append(names, name)
 	}
 	if len(names) == 0 {
-		return errors.New("no agentic-sdd skills found")
+		return nil, errors.New("no agentic-sdd skills found")
 	}
 	sort.Strings(names)
-	targets := []target{
-		{"agents", filepath.Join(home, ".agents", "skills")},
-		{"codex", filepath.Join(home, ".codex", "skills")},
-		{"claude", filepath.Join(home, ".claude", "skills")},
-		{"agy", filepath.Join(home, ".gemini", "antigravity-cli", "skills")},
-	}
+	return names, nil
+}
+
+func planChanges(source, home string, names []string, targets []target, out io.Writer) ([]change, error) {
 	var changes []change
 	for _, t := range targets {
 		if err := checkParents(t.path, home); err != nil {
-			return err
+			return nil, err
 		}
 		for _, name := range names {
 			path := filepath.Join(t.path, name)
 			info, err := os.Lstat(path)
 			if err != nil && !os.IsNotExist(err) {
-				return err
+				return nil, err
 			}
 			old := err == nil
 			if old && !info.IsDir() {
-				return fmt.Errorf("refusing non-directory target %s", path)
+				return nil, fmt.Errorf("refusing non-directory target %s", path)
 			}
 			if old {
 				if err := checkTree(path); err != nil {
-					return err
+					return nil, err
 				}
 				same, err := sameTree(filepath.Join(source, name), path)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				if same {
 					fmt.Fprintf(out, "up to date %s/%s\n", t.name, name)
@@ -111,14 +135,10 @@ func Sync(repo, home string, apply bool, out io.Writer) error {
 			fmt.Fprintf(out, "%s %s/%s\n", verb, t.name, name)
 		}
 	}
-	if !apply {
-		fmt.Fprintln(out, "Preview only. Run with --apply to install.")
-		return nil
-	}
-	if len(changes) == 0 {
-		fmt.Fprintln(out, "All skills are up to date.")
-		return nil
-	}
+	return changes, nil
+}
+
+func installChanges(repo, source string, names []string, targets []target, changes []change, out io.Writer) error {
 	stamp := time.Now().UTC().Format("20060102T150405.000000000Z")
 	backupRoot := filepath.Join(repo, "backups")
 	if info, err := os.Lstat(backupRoot); err == nil && !info.IsDir() {
