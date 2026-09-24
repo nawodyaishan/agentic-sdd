@@ -3,3 +3,5 @@
 backups/
 lefthook-local.yml
 *.test
+bin/
+dist/
