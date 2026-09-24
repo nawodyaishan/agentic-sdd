@@ -1,4 +1,4 @@
-package main
+package skillsync
 
 import (
 	"bytes"
@@ -32,7 +32,7 @@ func TestSyncBacksUpAndReplaces(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := syncSkills(repo, home, false, &out); err != nil {
+	if err := Sync(repo, home, false, &out); err != nil {
 		t.Fatal(err)
 	}
 	if got := read(t, filepath.Join(old, "SKILL.md")); got != "old" {
@@ -41,7 +41,7 @@ func TestSyncBacksUpAndReplaces(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(repo, "backups")); !os.IsNotExist(err) {
 		t.Fatalf("preview created backup: %v", err)
 	}
-	if err := syncSkills(repo, home, true, &out); err != nil {
+	if err := Sync(repo, home, true, &out); err != nil {
 		t.Fatal(err)
 	}
 	if got := read(t, filepath.Join(old, "SKILL.md")); got != "new" {
@@ -68,6 +68,45 @@ func TestSyncBacksUpAndReplaces(t *testing.T) {
 	if got := read(t, filepath.Join(repo, "backups", backups[0].Name(), "claude", "agentic-sdd-plan", "old-only.md")); got != "keep in backup" {
 		t.Fatalf("old-only backup %q", got)
 	}
+	out.Reset()
+	if err := Sync(repo, home, true, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "All skills are up to date.") {
+		t.Fatalf("repeated apply did not report no changes: %s", out.String())
+	}
+	backups, err = os.ReadDir(filepath.Join(repo, "backups"))
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("repeated apply created another backup: %v %v", backups, err)
+	}
+}
+
+func TestSyncRefusesSymlinkedBackupDirectory(t *testing.T) {
+	root := t.TempDir()
+	repo, home := filepath.Join(root, "repo"), filepath.Join(root, "home")
+	source := filepath.Join(repo, "skills-files", "agentic-sdd-plan")
+	if err := os.MkdirAll(source, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "SKILL.md"), []byte("new"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(root, "outside")
+	if err := os.MkdirAll(outside, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(repo, "backups")); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	err := Sync(repo, home, true, &out)
+	if err == nil || !strings.Contains(err.Error(), "refusing non-directory backup path") {
+		t.Fatalf("expected backup symlink refusal, got %v", err)
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("backup wrote outside repository: %v %v", entries, err)
+	}
 }
 
 func TestSyncRefusesSourceSymlinkBeforeChanges(t *testing.T) {
@@ -84,7 +123,7 @@ func TestSyncRefusesSourceSymlinkBeforeChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	err := syncSkills(repo, home, true, &out)
+	err := Sync(repo, home, true, &out)
 	if err == nil || !strings.Contains(err.Error(), "refusing special file or symlink") {
 		t.Fatalf("expected source symlink refusal, got %v", err)
 	}
@@ -111,7 +150,7 @@ func TestSyncRefusesConflictingTargetBeforeChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	err := syncSkills(repo, home, true, &out)
+	err := Sync(repo, home, true, &out)
 	if err == nil || !strings.Contains(err.Error(), "refusing non-directory target") {
 		t.Fatalf("expected target conflict refusal, got %v", err)
 	}
@@ -145,12 +184,43 @@ func TestSyncRefusesSymlinkBeforeChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	err := syncSkills(repo, home, true, &out)
+	err := Sync(repo, home, true, &out)
 	if err == nil || !strings.Contains(err.Error(), "non-directory path component") {
 		t.Fatalf("expected symlink refusal, got %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(repo, "backups")); !os.IsNotExist(err) {
 		t.Fatalf("backup created: %v", err)
+	}
+}
+
+func TestRollbackRestoresOriginalAndRemovesNewSkill(t *testing.T) {
+	root := t.TempDir()
+	targetRoot := filepath.Join(root, "skills")
+	if err := os.MkdirAll(targetRoot, 0755); err != nil {
+		t.Fatal(err)
+	}
+	oldName, newName := "agentic-sdd-plan", "agentic-sdd-spec"
+	undo := filepath.Join(targetRoot, ".agentic-sdd-undo-test")
+	for _, dir := range []string{undo, filepath.Join(targetRoot, oldName), filepath.Join(targetRoot, newName)} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(undo, "SKILL.md"), []byte("original"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	changes := []change{
+		{target: target{path: targetRoot}, skill: oldName, old: true, undo: undo},
+		{target: target{path: targetRoot}, skill: newName},
+	}
+	if err := rollback(changes, []int{0, 1}); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, filepath.Join(targetRoot, oldName, "SKILL.md")); got != "original" {
+		t.Fatalf("restored %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(targetRoot, newName)); !os.IsNotExist(err) {
+		t.Fatalf("new skill survived rollback: %v", err)
 	}
 }
 

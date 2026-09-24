@@ -1,12 +1,10 @@
-package main
+package skillsync
 
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -34,28 +32,8 @@ type manifest struct {
 	Skills  []string `json:"skills"`
 }
 
-func main() {
-	var repo, home string
-	var apply bool
-	flag.StringVar(&repo, "repo", ".", "repository containing skills-files")
-	flag.StringVar(&home, "home", "", "user home (defaults to os.UserHomeDir)")
-	flag.BoolVar(&apply, "apply", false, "back up and install skills; default is preview")
-	flag.Parse()
-	if home == "" {
-		var err error
-		home, err = os.UserHomeDir()
-		if err != nil {
-			fatal(err)
-		}
-	}
-	if err := syncSkills(repo, home, apply, os.Stdout); err != nil {
-		fatal(err)
-	}
-}
-
-func fatal(err error) { fmt.Fprintln(os.Stderr, "error:", err); os.Exit(1) }
-
-func syncSkills(repo, home string, apply bool, out io.Writer) error {
+// Sync previews or installs agentic-sdd skills from repo into user skill directories.
+func Sync(repo, home string, apply bool, out io.Writer) error {
 	var err error
 	repo, err = filepath.Abs(repo)
 	if err != nil {
@@ -116,6 +94,14 @@ func syncSkills(repo, home string, apply bool, out io.Writer) error {
 				if err := checkTree(path); err != nil {
 					return err
 				}
+				same, err := sameTree(filepath.Join(source, name), path)
+				if err != nil {
+					return err
+				}
+				if same {
+					fmt.Fprintf(out, "up to date %s/%s\n", t.name, name)
+					continue
+				}
 			}
 			changes = append(changes, change{target: t, skill: name, old: old})
 			verb := "install"
@@ -129,9 +115,22 @@ func syncSkills(repo, home string, apply bool, out io.Writer) error {
 		fmt.Fprintln(out, "Preview only. Run with --apply to install.")
 		return nil
 	}
+	if len(changes) == 0 {
+		fmt.Fprintln(out, "All skills are up to date.")
+		return nil
+	}
 	stamp := time.Now().UTC().Format("20060102T150405.000000000Z")
-	backup := filepath.Join(repo, "backups", stamp)
-	if err := os.MkdirAll(backup, 0700); err != nil {
+	backupRoot := filepath.Join(repo, "backups")
+	if info, err := os.Lstat(backupRoot); err == nil && !info.IsDir() {
+		return fmt.Errorf("refusing non-directory backup path %s", backupRoot)
+	} else if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(backupRoot, 0700); err != nil {
+		return err
+	}
+	backup := filepath.Join(backupRoot, stamp)
+	if err := os.Mkdir(backup, 0700); err != nil {
 		return err
 	}
 	for _, c := range changes {
@@ -169,6 +168,15 @@ func syncSkills(repo, home string, apply bool, out io.Writer) error {
 			cleanupStages(changes)
 			return err
 		}
+		sourceInfo, err := os.Stat(filepath.Join(source, c.skill))
+		if err != nil {
+			cleanupStages(changes)
+			return err
+		}
+		if err := os.Chmod(c.stage, sourceInfo.Mode().Perm()); err != nil {
+			cleanupStages(changes)
+			return err
+		}
 	}
 	var done []int
 	for i := range changes {
@@ -177,26 +185,26 @@ func syncSkills(repo, home string, apply bool, out io.Writer) error {
 		if c.old {
 			c.undo, err = os.MkdirTemp(c.target.path, ".agentic-sdd-undo-")
 			if err != nil {
-				rollback(changes, done)
+				err = errors.Join(err, rollback(changes, done))
 				cleanupStages(changes)
 				return err
 			}
 			if err = os.Remove(c.undo); err != nil {
-				rollback(changes, done)
+				err = errors.Join(err, rollback(changes, done))
 				cleanupStages(changes)
 				return err
 			}
 			if err = os.Rename(path, c.undo); err != nil {
-				rollback(changes, done)
+				err = errors.Join(err, rollback(changes, done))
 				cleanupStages(changes)
 				return err
 			}
 		}
 		if err = os.Rename(c.stage, path); err != nil {
 			if c.old {
-				_ = os.Rename(c.undo, path)
+				err = errors.Join(err, os.Rename(c.undo, path))
 			}
-			rollback(changes, done)
+			err = errors.Join(err, rollback(changes, done))
 			cleanupStages(changes)
 			return err
 		}
@@ -212,15 +220,22 @@ func syncSkills(repo, home string, apply bool, out io.Writer) error {
 	return nil
 }
 
-func rollback(changes []change, done []int) {
+func rollback(changes []change, done []int) error {
+	var errs []error
 	for i := len(done) - 1; i >= 0; i-- {
 		c := changes[done[i]]
 		path := filepath.Join(c.target.path, c.skill)
-		_ = os.RemoveAll(path)
+		if err := os.RemoveAll(path); err != nil {
+			errs = append(errs, fmt.Errorf("remove installed %s: %w", path, err))
+			continue
+		}
 		if c.old {
-			_ = os.Rename(c.undo, path)
+			if err := os.Rename(c.undo, path); err != nil {
+				errs = append(errs, fmt.Errorf("restore %s: %w", path, err))
+			}
 		}
 	}
+	return errors.Join(errs...)
 }
 
 func cleanupStages(changes []change) {
@@ -229,89 +244,4 @@ func cleanupStages(changes []change) {
 			_ = os.RemoveAll(c.stage)
 		}
 	}
-}
-
-func checkParents(path, home string) error {
-	for p := path; ; p = filepath.Dir(p) {
-		info, err := os.Lstat(p)
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		if err == nil && !info.IsDir() {
-			return fmt.Errorf("refusing non-directory path component %s", p)
-		}
-		if p == home {
-			break
-		}
-	}
-	return nil
-}
-
-func checkTree(root string) error {
-	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && !info.Mode().IsRegular() {
-			return fmt.Errorf("refusing special file or symlink %s", path)
-		}
-		return nil
-	})
-}
-
-func copyTree(src, dst string) error {
-	info, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(dst, info.Mode().Perm()); err != nil {
-		return err
-	}
-	return copyContents(src, dst)
-}
-
-func copyContents(src, dst string) error {
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		from, to := filepath.Join(src, entry.Name()), filepath.Join(dst, entry.Name())
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			if err := copyTree(from, to); err != nil {
-				return err
-			}
-			continue
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("refusing special file %s", from)
-		}
-		in, err := os.Open(from)
-		if err != nil {
-			return err
-		}
-		file, err := os.OpenFile(to, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
-		if err != nil {
-			_ = in.Close()
-			return err
-		}
-		_, copyErr := io.Copy(file, in)
-		closeErr := file.Close()
-		_ = in.Close()
-		if copyErr != nil {
-			return copyErr
-		}
-		if closeErr != nil {
-			return closeErr
-		}
-	}
-	return nil
 }
