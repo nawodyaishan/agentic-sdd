@@ -1,0 +1,22 @@
+{
+  "claude": {
+    "bootstrap_frontmatter": {
+      "disable-model-invocation": true,
+      "user-invocable": true
+    },
+    "router_visibility": "on",
+    "phase_visibility": "name-only",
+    "bootstrap_visibility": "user-invocable-only",
+    "mapped_specialist_visibility": "name-only"
+  },
+  "codex": {
+    "bootstrap_agents_openai_yaml": {
+      "policy": {"allow_implicit_invocation": false}
+    },
+    "include_instructions": true,
+    "router_visibility": "on",
+    "phase_visibility": "name-only",
+    "bootstrap_visibility": "user-invocable-only",
+    "mapped_specialist_visibility": "name-only"
+  }
+}

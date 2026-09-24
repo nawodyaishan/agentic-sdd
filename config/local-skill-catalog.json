@@ -1,0 +1,72 @@
+{
+  "kind": "local inventory; not native client configuration",
+  "observed_on": "2026-09-24",
+  "copied_sdd_source": "/Users/nawodyaishan/.agents/skills",
+  "revised_sdd_destination": "skills-files",
+  "roots": {
+    "agents": "/Users/nawodyaishan/.agents/skills",
+    "codex": "/Users/nawodyaishan/.codex/skills",
+    "claude": "/Users/nawodyaishan/.claude/skills"
+  },
+  "specialists": {
+    "golang-pro": {
+      "agents": "/Users/nawodyaishan/.agents/skills/golang-pro/SKILL.md",
+      "claude": "/Users/nawodyaishan/.claude/skills/golang-pro/SKILL.md"
+    },
+    "backend-dev-guidelines": {
+      "agents": "/Users/nawodyaishan/.agents/skills/backend-dev-guidelines/SKILL.md",
+      "claude": "/Users/nawodyaishan/.claude/skills/backend-dev-guidelines/SKILL.md"
+    },
+    "react-patterns": {
+      "agents": "/Users/nawodyaishan/.agents/skills/react-patterns/SKILL.md",
+      "claude": "/Users/nawodyaishan/.claude/skills/react-patterns/SKILL.md"
+    },
+    "kubernetes-architect": {
+      "agents": "/Users/nawodyaishan/.agents/skills/kubernetes-architect/SKILL.md",
+      "claude": "/Users/nawodyaishan/.claude/skills/kubernetes-architect/SKILL.md"
+    },
+    "terraform-specialist": {
+      "agents": "/Users/nawodyaishan/.agents/skills/terraform-specialist/SKILL.md",
+      "claude": "/Users/nawodyaishan/.claude/skills/terraform-specialist/SKILL.md"
+    },
+    "nodejs-backend-patterns": {
+      "codex": "/Users/nawodyaishan/.codex/skills/nodejs-backend-patterns/SKILL.md"
+    },
+    "k8s-manifest-generator": {
+      "codex": "/Users/nawodyaishan/.codex/skills/k8s-manifest-generator/SKILL.md"
+    }
+  },
+  "native_configuration": {
+    "changed": true,
+    "client_versions": {
+      "claude": "2.1.267",
+      "codex": "0.156.1"
+    },
+    "overlays": "config/client-overlays.json",
+    "tool_permissions_changed": false,
+    "mcp_configuration_changed": false,
+    "resolved_sdd_duplicates": 10,
+    "resolved_mapped_specialist_duplicates": [
+      "golang-pro",
+      "backend-dev-guidelines",
+      "react-patterns",
+      "kubernetes-architect",
+      "terraform-specialist"
+    ],
+    "unresolved": [
+      "Claude lacks nodejs-backend-patterns and k8s-manifest-generator; use broader skills only if suitable.",
+      "Claude has no configured Context7 server.",
+      "Exa local endpoint tools/list returned HTTP 403; Codex Context7 tools/list timed out.",
+      "Claude Exa allow rule names mcp__claude_ai_exa__web_search_exa, not the configured exa server.",
+      "Codex config contains managed-by=usync; a future sync may replace local changes.",
+      "Codex initial skill prompt includes the revised router but omits several mapped specialists under its large catalog budget; verify availability with /skills and invoke those specialists explicitly when needed.",
+      "Codex model setting changed from gpt-6-astra in the pre-install backup to gpt-6-sol after installation during an external model switch; no model setting was part of the prepared overlay."
+    ]
+  },
+  "activated_at": "20260924T150615Z",
+  "backup": "/Users/nawodyaishan/.local/state/agentic-sdd/backups/20260924T150615Z",
+  "active_sdd_roots": {
+    "claude": "/Users/nawodyaishan/.claude/skills",
+    "codex": "/Users/nawodyaishan/.agents/skills"
+  }
+}
