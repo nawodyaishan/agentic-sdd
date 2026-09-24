@@ -103,6 +103,50 @@ func TestRunPreviewAndApplyCompatibility(t *testing.T) {
 	}
 }
 
+func TestRunVersion(t *testing.T) {
+	for _, args := range []string{"version", "--version"} {
+		t.Run(args, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code := run(strings.Fields(args), &stdout, &stderr)
+			if code != 0 {
+				t.Fatalf("exit code %d; stderr: %s", code, stderr.String())
+			}
+			if !strings.Contains(stdout.String(), "agentic-sdd dev") {
+				t.Fatalf("output %q missing default version", stdout.String())
+			}
+		})
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"version", "extra"}, &stdout, &stderr); code != 2 {
+		t.Fatalf("exit code %d, want 2; stderr: %s", code, stderr.String())
+	}
+}
+
+func TestRunPreviewAndApplyFromEmbeddedSource(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home")
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"preview", "--home", home}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("preview exited %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "install claude/agentic-sdd-plan") {
+		t.Fatalf("preview output %q missing embedded skill install", stdout.String())
+	}
+	stdout.Reset()
+	code = run([]string{"apply", "--home", home}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("apply exited %d: %s", code, stderr.String())
+	}
+	installed := filepath.Join(home, ".claude", "skills", "agentic-sdd-plan", "SKILL.md")
+	if _, err := os.Stat(installed); err != nil {
+		t.Fatalf("expected %s to exist: %v", installed, err)
+	}
+	backups, err := os.ReadDir(filepath.Join(home, ".agentic-sdd", "backups"))
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("expected one backup under .agentic-sdd/backups, got %v, %v", backups, err)
+	}
+}
+
 func TestRunOperationalFailureUsesExitOne(t *testing.T) {
 	root := t.TempDir()
 	var stdout, stderr bytes.Buffer
