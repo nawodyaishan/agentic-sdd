@@ -1,6 +1,18 @@
 # Agentic SDD
 
-**A spec-driven development workflow for coding agents, and a small Go CLI that keeps one copy of it in sync across Codex, Claude Code, and Antigravity CLI.**
+[![Release](https://img.shields.io/github/v/release/nawodyaishan/agentic-sdd?label=release)](https://github.com/nawodyaishan/agentic-sdd/releases/latest)
+[![Homebrew](https://img.shields.io/badge/homebrew-nawodyaishan%2Ftap%2Fagentic--sdd-fbb040)](https://github.com/nawodyaishan/homebrew-tap)
+[![Go Report](https://img.shields.io/badge/go-1.23%2B-00ADD8)](go.mod)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+**A spec-driven development workflow for coding agents — one feature, one human approval, one batch at a time — kept in sync across Codex, Claude Code, and Antigravity CLI by a small Go CLI.**
+
+If you've ever had an agent "helpfully" finish a whole feature you never approved, or drift three files past what you asked for, this is the guardrail: agents draft, you approve once, agents implement in reviewable batches, you stay the one who says go.
+
+```sh
+brew install nawodyaishan/tap/agentic-sdd
+agentic-sdd apply   # installs the skills into every client you have
+```
 
 Two things live here:
 
@@ -16,6 +28,15 @@ skills-files/  ── preview ── back up ── install
 ```
 
 ---
+
+## Why
+
+Most agent workflows are either no process (freeform prompting, scope creep, silent drift) or too much process (constitutions, templates, a status report after every command). Agentic SDD picks a narrow middle: draft everything up front, get **one** human decision, then implement in small batches that each stop for review. It doesn't replace your judgment — it makes sure the agent actually waits for it.
+
+- **You're using Claude Code, Codex, or Antigravity CLI** and want the same review discipline in all of them, not a different ad-hoc process per client.
+- **You've been burned by an agent that kept going** past what you approved — batches exist so a green test run is never mistaken for permission to continue.
+- **You want spec-driven development without the ceremony** — `spec.md` → `plan.md` → `tasks.md`, one combined approval, no separate sign-off per document, no constitution to maintain.
+- **You maintain multiple repos** and want the same discipline everywhere without copy-pasting instructions — `agentic-sdd apply` keeps one canonical copy in sync.
 
 ## The workflow
 
@@ -191,3 +212,5 @@ git push origin vX.Y.Z   # triggers .github/workflows/release.yml
 ## Contributing and license
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and pull request guidance. The pre-commit hook is configured in `lefthook.yml` and installed with `make hooks-install`. Available under the [MIT License](LICENSE).
+
+If this matches how you already want to work with agents, `brew install nawodyaishan/tap/agentic-sdd` and try it on your next feature. Issues, skill improvements, and reports of where the workflow gets in your way are all welcome — [open an issue](https://github.com/nawodyaishan/agentic-sdd/issues) or a PR.
