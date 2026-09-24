@@ -2,26 +2,68 @@
 
 Applies to all ten skills, including direct manual invocation. Read once while unchanged. Install the sibling skill directories together so their relative references resolve. Use one main coding agent; load one principal specialist on demand and another only across a real domain boundary. Do not delegate unless the user explicitly requests it.
 
-## Sources, packets and context
+## Sources, features and context
 
-Resolve actual repository paths and case. Common top-level sources are `Docs/SRS.md` for product intent, `Docs/High Level Spec.md` for major technical decisions and `Docs/Tasks.md` for the roadmap. Treat their established equivalents as canonical; do not rename or copy them to fit a template. At intake, use a compact packet index, the relevant top-level sections and repository instructions. During a stage, read only the current packet files and sections needed to answer that stage's questions, plus targeted code/tests. Reuse unchanged context; refresh changed or uncertain sources. Flag material conflicts instead of creating a new canonical document.
+Resolve actual repository paths and case. Common top-level sources are `Docs/SRS.md` for product intent, `Docs/High Level Spec.md` for major technical decisions and `Docs/Tasks.md` for the roadmap. Treat their established equivalents as canonical; do not rename or copy them to fit a template. At intake, use a compact feature index, the relevant top-level sections and repository instructions. During a stage, read only the feature files and sections needed to answer that stage's questions, plus targeted code/tests. Reuse unchanged context; refresh changed or uncertain sources. Flag material conflicts instead of silently changing an approved decision or creating a new canonical document.
 
-For each selected feature/workload, create or reuse a bounded `specs/<nnn-slug>/` packet. Its `spec.md` captures slice-specific requirements and acceptance; `plan.md` captures design, boundaries, specialist assignments and checks; `tasks.md` is the execution ledger. Link relevant top-level sections rather than copying them. Missing packet files matter once a packet is selected: top-level SRS/spec/tasks do not replace the packet trio. Size a packet by dependencies, verification, implementation and review cost, not a model-context target. Split unrelated architecture or large dependent work into smaller packets/tasks. Do not reconstruct an entire existing application for one bounded change.
+For each selected feature/workload, create or reuse `specs/<nnn-slug>/`. Its `spec.md` states the outcome, scope, exclusions, acceptance criteria and source references; `plan.md` states approach, affected components, design decisions, relevant risks and specialist/tool assignments; `tasks.md` is the execution ledger with ordered tasks, dependencies, batches, completion conditions, verification and continuation state. Link relevant top-level sections rather than copying them. Detail only the next selected feature; future work stays in the existing roadmap.
 
-The ordinary packet sequence is spec draft → human spec decision → plan draft → human plan decision → task draft → human task decision → one approved task/small group → verification. Do not write later stage files before their prerequisite decision unless an explicit prior authorization covers that exact stage/scope. A user may approve a defined set of stages in advance; honor that evidence and do not repeat ceremonies. For an explicitly requested trivial direct fix, use the request, relevant code and focused verification without a packet. Bootstrap is manual and optional.
+## Feature size versus batch size
 
-Other artifacts—clarification, research, architecture review, verification, test plan, data model, contracts, ADR, drift report, retrospective and release notes—are conditional on a distinct consumer, actual risk, repository convention or explicit request. No automatic packet extras. Keep compact continuation state in the current packet task at milestones: task, decisions/source links, approval references, changed paths, checks tied to code state and next issue. A new focused session after a completed task may reduce irrelevant context; changing phases in a long thread does not clear previously loaded instructions.
+A feature is one coherent outcome and may span several sessions. Do not split it merely because it contains several dependent tasks. Split when it covers independent outcomes, unrelated architectures, or a review burden a person cannot hold at once.
 
-## Human approval and execution authority
+Size *implementation batches*, not the feature, for focused execution, verification and comfortable human review. Avoid rigid file, line or token limits; judge by dependencies, blast radius and review cost.
 
-Use one authoritative approval record **per packet stage**: the approval section of its `spec.md`, `plan.md` or `tasks.md`, or a single established tracker entry for that stage. Other documents reference it; do not maintain competing approval flags in review and plan. Record decision (`draft/pending`, `approved`, `changes requested` or `rejected`), actual human actor and evidence pointer, and the exact substantive document revision/scope covered. A message/decision ID or content revision excluding the approval metadata can identify the text. Do not invent an approver, approval date or consent. A user instruction is authorization only for the stage and scope it actually covers. Preserve prior approval for unchanged scope, including after compaction or architecture review. If substance changes materially, revisit the affected stage; do not reset unrelated signoffs. An agent's `Ready` verdict is a technical assessment, never human approval. A genuine human approval in a legacy `review.md` is evidence for its actual scope; a legacy agent-only `Approved` is not.
+## Drafting sequence and one combined approval
 
-Spec, plan and task signoffs authorize the relevant workflow stage and approved implementation scope. They do not by themselves authorize a live Terraform apply, deployment, migration against real data, destructive operation or publication. For consequential execution, confirm actual human authorization for action, environment and material effects; retain it for the same scope until changed or revoked. Draft designs, patches and checks before requesting a missing execution authorization. Runtime sandbox, repository rules and client permissions remain authoritative; skill text cannot grant tool permissions.
+Draft `spec.md`, then `plan.md`, then `tasks.md` in dependency order, using the preceding drafts as input. No stage waits for its own separate approval. Reconcile material inconsistencies across the three, then present the complete set for **one combined human approval**. No implementation before that approval.
+
+A request to draft only one document stays limited to that document. Material unanswered questions may legitimately block dependent drafting: record the assumption or the blocking question honestly rather than inventing an answer.
+
+Record the combined approval once — an approval section in one existing feature document (by convention `spec.md`) or one established tracker entry — tied to the reviewed scope and document revisions. The other documents reference that record; do not maintain competing approval flags. Record decision (`draft/pending`, `approved`, `changes requested`, `rejected`), the actual human actor, an evidence pointer and the exact revisions/scope covered. Do not invent an approver, date or consent. An agent's `Ready` verdict is a technical assessment, never human approval; a legacy agent-only `Approved` label is not approval, while a genuine human approval in a legacy `review.md` is evidence for its actual scope.
+
+Progress updates and ordinary implementation detail do not invalidate approval. Material changes to requirements, design or batch scope need review of the affected changes and reconciliation of the dependent documents; approval for unaffected work is preserved, including after compaction or architecture review.
+
+## Execution batches and resume
+
+`tasks.md` defines each batch explicitly: batch ID, included task IDs, outcome, verification, state and next action. After combined approval **and** authorization to implement, execute ONE selected batch, verify it, then stop for human review.
+
+Persist `awaiting human review` plus the next action in `tasks.md`. On resume, do not start another batch merely because the feature is approved, a previous batch passed its checks, or tests are green. Continue when the user authorizes the next batch. Feature approval and batch-completion review are distinct decisions.
+
+Verify current code state before trusting continuation notes or old test results.
+
+## Direct fixes
+
+A small, clearly scoped fix may bypass feature documents entirely. Judge eligibility by three things: the scope is clear, the consequences are understood, and meaningful verification is available. A small diff alone does not establish low risk, and touching production code alone does not disqualify a fix — a bounded bug fix in a live application is an ordinary direct fix.
+
+Consequential change needs planning and its own authorization instead: permissions and access control, data integrity, public or cross-service contracts, migrations, and operations against live systems. The dividing line is consequence, not file location or line count.
+
+The direct-fix inputs are the user's request, the relevant code and constraints, the actual diff and verification evidence — nothing more. A direct fix never requires a `specs/` directory, `plan.md` assignments, `tasks.md`, a batch ID or a batch-state write, and never creates `spec.md`, `plan.md` or `tasks.md` to satisfy a downstream skill. Router, implementation, verification, research and drift handling all support this path identically whether reached through the router or by direct skill invocation.
+
+## Execution authority
+
+Approval of spec, plan and tasks authorizes the approved implementation scope. It does not by itself authorize a live Terraform apply, deployment, migration against real data, destructive operation or publication. Drafting infrastructure code is not authorization to execute it. For consequential execution, confirm actual human authorization for the action, environment and material effects; retain it for the same scope until changed or revoked. Draft designs, patches and checks before requesting a missing execution authorization. Runtime sandbox, repository rules and client permissions remain authoritative; skill text cannot grant tool permissions.
 
 ## Specialists and tools
 
-Plan names real installed specialist skills and why they fit; tasks assign applicable specialists and checks. At implementation, check the active client's catalog and invoke the chosen skill in the main agent. A task label does not load it. Respect native invocation restrictions and report unavailable/unsuitable skills. Do not install or silently substitute one, change models automatically, or let a specialist redefine approved scope.
+`plan.md` names real installed specialist skills and the tools their work needs, and says why each applies. Keep shared assignments once in `plan.md`; put only task-specific exceptions in `tasks.md`. "No additional specialist needed" is a valid, explicit assignment when repository guidance is adequate.
 
-Use MCP only for a concrete unanswered question. In repos with `.codegraph/`, follow their CodeGraph instructions for code discovery; otherwise use targeted local search. Use versioned library docs or external search only when needed; bound returned context and reuse still-valid evidence. Do not assume a provider's tool identifier or network availability. Keep machine-specific paths, MCP configuration, client invocation controls and permission rules outside portable skill text.
+At implementation, resolve the feature's default assignments from `plan.md` together with any task-specific exception in `tasks.md`, then check the active client's catalog and load only the guidance the current task actually needs. A task-specific exception overrides the feature default for that task. A written role label does not load anything.
 
-Verification evidence is reusable only for matching code, relevant dependencies/config, inputs and environment. Rerun affected or repository-required checks and state omissions honestly. This workflow has not been shown to save a measured number of tokens or subscription units; compare real packet sessions before making such a claim.
+For a direct fix there is no `plan.md` to consult: choose specialist guidance from the request, repository context and the available catalog when it would help, and otherwise work from repository guidance alone. Respect native invocation restrictions. Report an unavailable or unsuitable specialist and continue with an adequate, transparently stated fallback; do not install one, silently substitute a broader one, change models automatically, or let a specialist redefine approved scope.
+
+Select MCPs and CLIs conditionally, by concrete need — never a mandatory call to every tool, and never an invented tool identifier. In repos with `.codegraph/`, follow their CodeGraph instructions for code discovery; otherwise use targeted local search. Bound returned context and reuse still-valid evidence. Keep machine-specific paths, MCP configuration, client invocation controls and permission rules outside portable skill text.
+
+## Review behavior and evidence
+
+An explicitly requested review returns findings and changes nothing: no edits to code, documentation, approval records, task status or batch state. Report the recommended next action in the response instead of performing it. Fix defects, and update workflow state, only when the surrounding request already authorizes implementation, fixes or that state change.
+
+Verification compares behavior against acceptance criteria. Prior evidence is reusable only when code, relevant dependencies/config, inputs and environment still match; rerun affected, failed or repository-required checks and state omissions honestly. Keep the agent's verdict separate from human approval.
+
+## Documentation and context
+
+Keep routine progress, decisions and verification in the existing documents. Other artifacts — clarification, research, architecture review, verification, test plan, data model, contracts, ADR, drift report, retrospective, release notes — are conditional on a distinct consumer, actual risk, repository convention or explicit request. No automatic extras. Bootstrap is manual and optional.
+
+Keep compact continuation state in `tasks.md` at batch boundaries: batch and task IDs, approval reference, changed paths, checks tied to a code state, state and next action. Do not mandate clearing context after every task; choose session boundaries by whether loaded context is still relevant. Changing phases within a long thread does not clear previously loaded instructions.
+
+This workflow has not been shown to save a measured number of tokens or subscription units; compare real sessions before making such a claim.

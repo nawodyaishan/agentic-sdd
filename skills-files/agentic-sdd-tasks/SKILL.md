@@ -1,20 +1,32 @@
 ---
 name: agentic-sdd-tasks
-description: "Draft packet execution tasks from an approved plan, assign specialists and checks, then obtain human task signoff."
+description: "Draft ordered feature tasks and explicit execution batches, then present spec, plan and tasks for one combined approval."
 ---
 
 # Agentic SDD Tasks
 
-Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
+Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist and tool map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
 
-Use for `specs/<nnn-slug>/tasks.md` after the packet's `plan.md` has applicable human approval. The top-level `Docs/Tasks.md` remains the project roadmap, not the packet execution ledger.
+Use for `specs/<nnn-slug>/tasks.md`, drafted from this feature's `spec.md` and `plan.md` drafts — no separate plan approval is required first. The top-level `Docs/Tasks.md` remains the project roadmap, not this feature's execution ledger.
 
-Read the approved packet spec and plan, relevant roadmap item and verification conventions. Create or refine a sequence of small, independently verifiable tasks. Each task needs an objective, acceptance result, dependency/order, status, focused verification and actual installed specialist skill(s) with a reason. Put shared constraints, source/approval pointers and execution boundaries once at packet level; repeat only task-specific exceptions. Identify likely modules, but do not invent exact file ownership before design makes it knowable.
+Read the spec and plan drafts, the relevant roadmap item and the repository's verification conventions. Write ordered, independently verifiable tasks: objective, acceptance result, dependencies/order, status and focused verification. Identify likely modules; do not invent exact file ownership before design makes it knowable. Specialist and tool assignments live once in `plan.md`; record only task-specific exceptions here, including an explicit "no additional specialist needed" where that differs from the plan. An exception overrides the feature default for that task alone, so state which default it replaces and why.
 
-Choose the first ready task or small approved group that fits a focused session. Split a broad workload across packets or tasks when dependencies, unrelated areas or review cost warrant it. Do not generate parallel-agent groups by default. A role or skill name written in `tasks.md` does not load it; the implementer must invoke the relevant installed skill in the main agent.
+## Batches
 
-Mark the substantive task-list revision draft and record its human approval once in `tasks.md` or an established tracker, separate from spec and plan signoffs. Stop for the user's task decision before implementation unless explicit prior authorization covers this exact stage/scope. Human approval for design does not authorize live deployment, Terraform apply or migration execution.
+Group tasks into explicit execution batches sized for focused execution, verification and comfortable human review — not by file, line or token limits, and not by splitting the feature itself. Each batch records:
 
-At milestones, keep compact continuation state in the packet task section: current task, source/approval pointers, changed paths, checks with code state and next issue. Update the global roadmap at meaningful packet status changes, not after every command.
+- Batch ID and the task IDs it includes
+- Outcome and completion conditions
+- Verification for that batch
+- State, including `awaiting human review`
+- Next action
 
-Output task path, first ready task, specialist availability, verification and approval status.
+After combined approval and authorization to implement, exactly one batch executes, is verified, and then stops for the user's review. Completed checks never advance the batch automatically.
+
+## Approval and continuation
+
+Reconcile the three documents, then present spec, plan and tasks together for ONE combined human approval. Record it once in this feature's agreed location (by convention `spec.md`) or an established tracker entry, tied to the reviewed revisions and scope; reference it from here rather than keeping a second approval flag. Do not implement before that approval. Approval of these documents does not authorize a live deployment, Terraform apply or migration execution.
+
+At batch boundaries, keep compact continuation state here: current batch and task IDs, approval reference, changed paths, checks with the code state they were run against, current state and next action. Update the global roadmap at meaningful feature status changes, not after every command. Verify current code state before trusting these notes.
+
+Output the task path, batch list, the first ready batch, specialist/tool exceptions, verification and approval status.
