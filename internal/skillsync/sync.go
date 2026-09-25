@@ -71,12 +71,7 @@ func Sync(repo, home string, apply bool, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	targets := []target{
-		{"agents", filepath.Join(home, ".agents", "skills")},
-		{"codex", filepath.Join(home, ".codex", "skills")},
-		{"claude", filepath.Join(home, ".claude", "skills")},
-		{"agy", filepath.Join(home, ".gemini", "antigravity-cli", "skills")},
-	}
+	targets := clientTargets(home)
 	changes, err := planChanges(source, home, names, targets, out)
 	if err != nil {
 		return err
@@ -89,13 +84,31 @@ func Sync(repo, home string, apply bool, out io.Writer) error {
 		fmt.Fprintln(out, "All skills are up to date.")
 		return nil
 	}
-	backupRoot := filepath.Join(home, ".agentic-sdd", "backups")
-	sourceLabel := "embedded"
-	if repo != "" {
-		backupRoot = filepath.Join(repo, "backups")
-		sourceLabel = filepath.Join(repo, "skills-files")
-	}
+	backupRoot, sourceLabel := backupRootFor(repo, home)
 	return installChanges(backupRoot, home, sourceLabel, source, names, targets, changes, operation{kind: "apply"}, out)
+}
+
+// clientTargets returns the four client skill directories under home, in
+// the fixed order Sync and Restore both plan against and record in a
+// manifest's targets/entries.
+func clientTargets(home string) []target {
+	return []target{
+		{"agents", filepath.Join(home, ".agents", "skills")},
+		{"codex", filepath.Join(home, ".codex", "skills")},
+		{"claude", filepath.Join(home, ".claude", "skills")},
+		{"agy", filepath.Join(home, ".gemini", "antigravity-cli", "skills")},
+	}
+}
+
+// backupRootFor returns the backup root and source label for repo/home,
+// matching Sync's existing rule: an explicit repo keeps backups alongside
+// it at "<repo>/backups"; otherwise they live under home's own
+// ".agentic-sdd/backups" (e.g. when sourcing from the embedded skills).
+func backupRootFor(repo, home string) (root, sourceLabel string) {
+	if repo != "" {
+		return filepath.Join(repo, "backups"), filepath.Join(repo, "skills-files")
+	}
+	return filepath.Join(home, ".agentic-sdd", "backups"), "embedded"
 }
 
 func discoverSkills(source fs.FS) ([]string, error) {

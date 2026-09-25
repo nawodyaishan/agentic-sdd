@@ -92,7 +92,25 @@ Done when isolated-home tests show:
 `make test`, `make vet` and `git diff --check` must be clean.
 
 **B2 verification:** `make test`, `make vet`, `git diff --check`, all in temporary homes only.
-**B2 state:** not started. **Next action:** after B1's human review, wait for explicit authorization to implement B2.
+
+## Batch B2 result — state: awaiting human review
+
+Implemented per the user's "proceed" authorization following B1's review.
+
+Changed paths:
+- `internal/skillsync/sync.go` — lifted `clientTargets(home)` and `backupRootFor(repo, home)` out of `Sync` into shared helpers (`Sync`'s own behavior and output are unchanged; it now calls them instead of repeating the same logic inline).
+- `internal/skillsync/restore.go` (new) — `ValidateBackupID` (exported; the stamp-format regexp itself rules out path separators and `..`, so there is no separate traversal check); `Backup`/`restoreRecord` types; `ListBackups` (newest first; a missing root reports zero backups, not an error; a malformed entry is included with `Unusable` set to why); `summarizeRecords`; `loadBackup` (the manifest read, id-match check, targets/home match, the top-level allowlist walk with an `Lstat` on every backup/client/skill directory before any `fs.WalkDir`, the one-to-one cross-check between format 2 `replaced` entries and saved trees including per-entry digest verification, and the legacy fallback that treats every saved tree as a replaceable record); `Restore` (plans one line per record — `restore`/`replace + back up`/`up to date` for a `replaced` record, `remove + back up`/`up to date` for an `installed` one, plus a legacy notice — then, on apply, routes the resulting changes through the same `installChanges` B1 already generalized, with `operation{kind: "restore", restoredFrom: id}` and the restored backup itself as the new backup's `source` label).
+- `internal/skillsync/restore_test.go` (new) — `TestListBackupsEmptyOrMissingRoot`, `TestListBackupsOrderingLegacyAndSummary` (ordering, the `legacy` marker, and the summary text), `TestRestorePreviewWritesNothing`, `TestRestoreFormat2RoundTrip` (apply → restore reverts the replaced skill and removes the fresh installs → the pre-restore backup's entries are all `replaced` → a repeated restore is a no-op → restoring the pre-restore backup returns the exact post-apply state), `TestRestoreFormat1PutsBackOnlySavedTrees` (a hand-built legacy manifest; restore puts back only the saved tree and leaves an unrecorded fresh install alone), `TestRestoreInstallRollsBackMixedReplaceAndRemove` (a mixed replace+remove change set built from a real `loadBackup` result, with a deliberately engineered `installChanges` failure — see its doc comment for why this is exercised at that level rather than through `Restore` itself, which structurally cannot reach that state), `TestRestoreRefusesNonDirectoryTarget`, `TestRestoreRefusesSymlinkInInstalledTree`, and `TestLoadBackupRejections` (a table of 16 distinct malformed/hostile backups: bad ID syntax, ID traversal, home mismatch, missing manifest, unparseable JSON, mismatched `id`, an unknown top-level entry, a non-`agentic-sdd-*` entry, a symlinked backup/client/skill directory, a symlink inside a skill, a missing `SKILL.md`, an entry without a saved tree, a saved tree without an entry, an entry `path` mismatch, and a digest mismatch).
+
+Deviation from `plan.md`/`tasks.md`, noted for review: `validateBackupID` is exported as `ValidateBackupID`. B3's CLI needs to run the ID-syntax check on its own, separately from a full `Restore`/`ListBackups` call, so it can give a bad ID its own exit-2 status (per spec Acceptance 8) while every other `loadBackup`/`Restore` failure exits 1. Everything else matches the plan as drafted.
+
+Checks (all against this code state, in temporary directories only):
+- `go build ./...`, `go vet ./...`, `gofmt -l .` (no output) — clean.
+- `go test ./...` — all pass, including the 12 new B2 tests (2 of them table-driven, 16 sub-cases) and every pre-existing test with unchanged expectations.
+- `git diff --check` — clean.
+- `make build-darwin` — cross-compiles cleanly.
+
+Next action: human review of the restore core (`ListBackups`, `loadBackup`'s validation, `Restore`'s planning and the `ValidateBackupID` export) before authorizing Batch B3 (the CLI commands, interactive selection, docs, Makefile and Docker e2e).
 
 ## Batch B3: CLI commands and selection, docs and end-to-end check
 
