@@ -232,6 +232,7 @@ skills-files/          The ten Agentic SDD skills and shared references
 .github/workflows/     release.yml (tag-triggered publish), ci.yml (build/test/vet)
 tests/                 Docker end-to-end scripts
 config/                Local inventory and client overlay notes
+ROADMAP.md             Product direction: Now / Next / Later, what we won't do, kill criteria
 docs/                  Background research
 audits/                Workflow audits
 specs/                 Feature documents produced by the workflow itself

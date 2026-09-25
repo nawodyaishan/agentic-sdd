@@ -32,7 +32,7 @@ Run `make test`, `make vet`, and `git diff --check` after Go changes. Use a temp
 
 ## SDD feature conventions
 
-This repository has no top-level product SRS, technical spec, or roadmap document. Each feature lives in `specs/<nnn-slug>/` (`spec.md`, `plan.md`, `tasks.md`); see `specs/001-cli-quality/` for the current one. The combined human approval for a feature's spec/plan/tasks is recorded once, in that feature's `spec.md` under `## Approval`. Batch state and continuation notes live in that feature's `tasks.md`.
+This repository has no top-level product SRS or technical spec. The global roadmap is `ROADMAP.md`: select the next feature from its "Recommended roadmap" section (Now / Next / Later / Explicitly not doing) and check its "Kill criteria and signals to watch" before starting one. Each feature lives in `specs/<nnn-slug>/` (`spec.md`, `plan.md`, `tasks.md`); the latest is `specs/003-restore-backups/`, and the next number is 004. The combined human approval for a feature's spec/plan/tasks is recorded once, in that feature's `spec.md` under `## Approval`. Batch state and continuation notes live in that feature's `tasks.md`.
 
 `preview` (default) versus `apply`/`--apply` is this repo's dev-versus-live boundary: approval to develop or test installer code never authorizes running `apply` against a real user home; only an explicit, separately authorized real-home apply does.
 
