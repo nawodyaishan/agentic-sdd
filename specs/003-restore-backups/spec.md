@@ -1,81 +1,159 @@
 # Restore skill backups
 
-Revision: r1 (draft, 2026-09-25) — first draft of spec, plan and tasks together.
+Revision: r2 (draft, 2026-09-25). This revision applies the user's decisions on r1's open questions:
+- Q1: backups now record location, tool version and timestamps, and each skill's action.
+- Q2: the list shows each backup's ID; the user picks one from the list or passes the ID.
+- Q3: both command shapes are provided.
+
+r1 was never approved, so r2 replaces it entirely.
 
 ## Outcome and sources
 
-Let a user who ran `agentic-sdd apply` put their previous skills back. They list the backups the installer has made, pick one from the CLI (by ID, or from a numbered list when running interactively), preview what the restore would change, and restore it with an explicit `--apply`. The restore follows the same safety contract as install: it previews by default, backs up what it replaces, stages each copy before touching an installed skill, rolls back on failure, and leaves unrelated skills alone.
+Let a user who ran `agentic-sdd apply` put their previous skills back easily and exactly. Every backup records what it holds, where each skill came from, which version of `agentic-sdd` wrote it and when. The user lists the backups, sees each one's ID, picks one from the list (or passes its ID directly), previews the restore and applies it. The restore follows the same safety contract as install: it previews by default, backs up what it changes, stages each copy before touching an installed skill, rolls back on failure and leaves unrelated skills alone.
 
 Sources:
-- `AGENTS.md`: Safe changes (preview default, `--apply` is the only installing mode, back up before replacing, reject symlinks/special files, no-op behavior, keep README and Makefile in step with the CLI), Verification, and the preview-versus-apply dev/live boundary.
+- `AGENTS.md`: Safe changes (preview default, back up before replacing, reject symlinks/special files, no-op behavior, keep README and Makefile in step with the CLI), Verification, and the preview-versus-apply dev/live boundary.
 - `README.md`: Safety model (backup location and layout, `manifest.json`), CLI reference (commands, flags, exit codes), and Where the skills go (the four client targets).
-- `internal/skillsync/sync.go`: `Sync`, `installChanges` (backup root selection, timestamp format `20060102T150405.000000000Z`, `manifest{Created, Source, Targets, Skills}`, backup layout `<stamp>/<client>/<skill>/`), `rollback`.
+- `internal/skillsync/sync.go`: `Sync`, `installChanges` (backup root selection, stamp format `20060102T150405.000000000Z`, current `manifest{Created, Source, Targets, Skills}`, layout `<stamp>/<client>/<skill>/`), `rollback`.
+- `internal/version/version.go`: `Version`, `Commit`, `Date` and `GoVersion`, injected at release build time.
 - `cmd/agentic-sdd/main.go`: the command switch, flag handling and exit-code conventions.
 - `specs/001-cli-quality/spec.md` (the CLI command and exit-code contract) and `specs/002-homebrew-publishing/spec.md` (the embedded source, and backups under `<home>/.agentic-sdd/backups` when `--repo` is unset).
 
 This repository has no top-level product SRS or roadmap, so this spec is the requirement source for this feature.
 
-## What a backup contains today (the existing contract)
+## Backup records
 
-An apply that replaces at least one existing skill creates `<backup root>/<stamp>/`. The backup root is `<repo>/backups` with `--repo`, and `<home>/.agentic-sdd/backups` otherwise. The backup holds:
+### What exists today (format 1)
 
-- `manifest.json`, which records `created` (the stamp), `source` (`embedded` or the `skills-files` path), `targets` (the absolute paths of the four client skill directories at the time) and `skills` (every source skill name in that run, not only those backed up).
-- `<client>/<skill>/`, a copy of each skill as it was before that apply replaced it. `<client>` is one of `agents`, `codex`, `claude` or `agy`. Skills that apply installed fresh have no entry, because nothing existed to back up.
+An apply that changes anything creates `<backup root>/<stamp>/`. The backup root is `<repo>/backups` with `--repo`, and `<home>/.agentic-sdd/backups` otherwise. The backup holds:
 
-This feature reads that format and does not change it.
+- `manifest.json`, with `created` (the stamp), `source`, `targets` (the four client directories as absolute paths) and `skills` (every source skill name in the run);
+- a `<client>/<skill>/` copy of each skill that apply replaced.
+
+Format 1 does not record which skills that apply installed fresh, which version of the tool wrote it, or a readable time.
+
+### What this feature adds (format 2)
+
+Every new backup, whether written by `apply` or by `restore --apply`, keeps the same directory layout. It writes a `manifest.json` that keeps every format 1 field unchanged and adds these:
+
+| Field | Meaning |
+| :--- | :--- |
+| `format` | `2` |
+| `id` | The backup ID, the same as the directory name and `created` stamp |
+| `created_at` | The creation time in RFC 3339 UTC, with nanoseconds |
+| `operation` | `apply` or `restore` |
+| `restored_from` | For `operation: restore`, the ID of the backup that was restored |
+| `tool` | `version`, `commit`, `date` and `go_version` of the `agentic-sdd` binary that wrote it (`dev`/`none`/`unknown` for local builds) |
+| `home` | The absolute home directory the operation ran against |
+| `backup_root` | The absolute backup root the backup was written to |
+| `entries` | One record per skill directory the operation changed (see below) |
+
+Each entry records these fields:
+- `client`: `agents`, `codex`, `claude` or `agy`.
+- `skill`: the `agentic-sdd-*` name.
+- `path`: the absolute destination that was changed.
+- `action`: either `replaced` (the skill existed, and its previous tree is in the backup) or `installed` (the skill did not exist before this operation, so nothing is backed up).
+- For `replaced` entries: `backup`, the relative path of the saved copy (`<client>/<skill>`), and `sha256`, a digest over the saved tree's relative paths and file contents.
+
+Format 1 backups stay listable and restorable, with the limits described under Restore.
 
 ## Scope
 
-- **List backups.** A read-only `agentic-sdd backups` command shows the backups in the backup root (the same root `apply` would use for the given `--repo`/`--home`), newest first. Each row shows a selection number, the backup ID (the stamp directory name), the recorded source, and what the backup holds (the number of skill directories and the clients they came from). A directory that is not a well-formed backup is listed as unusable with a reason and cannot be selected. An empty or missing root prints a clear "no backups" message and exits 0.
-- **Select a backup.** `agentic-sdd restore <BACKUP_ID>` selects a backup by its exact ID. `agentic-sdd restore` with no ID, when stdin is a terminal, shows the same list and asks for a number. A blank answer cancels. When stdin is not a terminal, a missing ID is a usage error that points to `agentic-sdd backups`.
-- **Preview a restore (default).** Restore lists one line per backed-up skill: `restore <client>/<skill>` (the skill is missing now, so it is installed from the backup), `replace + back up <client>/<skill>` (the current skill differs from the backup), or `up to date <client>/<skill>` (identical). It then stops without writing, as `preview` does.
-- **Apply a restore.** `agentic-sdd restore <BACKUP_ID> --apply` does the same planning, then:
-  - backs up every current skill it will replace into a new timestamped backup in the same root, in the same format, with `source` recording the restored backup (for example `restore:<BACKUP_ID>`), so a restore can itself be undone by restoring that new backup;
-  - stages each restored copy beside its destination before touching an installed skill, installs by rename, and rolls back fully on failure, as `apply` does.
+- **Record** format 2 manifests on every `apply` and `restore --apply` that changes anything. Backup layout, backup root rules and the no-op rule (nothing changed means no backup) stay as they are.
+- **List backups.** Two equivalent read-only commands, `agentic-sdd backups` and `agentic-sdd restore list`, list the backups in the backup root for the given `--repo`/`--home`, newest first. Each row shows:
+  - a selection number and the backup ID;
+  - `created_at` (or the stamp, for format 1);
+  - the operation (`apply` or `restore from <ID>`);
+  - the tool version;
+  - the source;
+  - a summary such as `3 replaced, 2 installed across claude, codex`.
 
-  If nothing differs, the restore prints that everything is already up to date and creates no backup. In interactive selection with `--apply`, the plan is shown and the user must confirm with `y` before anything is written. Any other answer cancels with no changes.
-- **Restore is scoped to the backup's contents.** Only the `<client>/<skill>` directories in the selected backup are touched. Skills that apply installed fresh (so they have no backup entry), non-`agentic-sdd-*` skills, and clients the backup does not mention stay as they are. The backup being restored is never modified or deleted.
-- Update the CLI help, the `README.md` CLI reference and safety model, the `Makefile` (a read-only `backups` target), `AGENTS.md` Go layout (if a new file is added), and the Docker end-to-end script so they cover restore.
+  Format 1 backups are marked `legacy`. A directory that is not a usable backup is listed as unusable, with a reason, and cannot be selected. An empty or missing root prints a clear "no backups" message and exits 0.
+- **Select a backup** by passing its exact ID, or by choosing its number from the list:
+  - `agentic-sdd restore <ID>` and `agentic-sdd restore preview <ID>` preview the restore of that backup.
+  - `agentic-sdd restore <ID> --apply` and `agentic-sdd restore apply <ID>` apply it.
+  - Without an ID (`restore`, `restore preview`, `restore --apply`, `restore apply`), when stdin is a terminal, the CLI shows the list and asks for a number. A blank answer cancels. When stdin is not a terminal, a missing ID is a usage error that points to `agentic-sdd backups`.
+  - As with the top-level commands, `--apply` cannot be combined with `restore preview` or `restore apply`.
+- **Restore returns the recorded skills to their pre-operation state.** For a format 2 backup:
+  - a `replaced` entry puts the saved tree back;
+  - an `installed` entry removes the skill that operation installed fresh, if it is still present.
+
+  For a format 1 backup, only the saved `<client>/<skill>` trees are put back. Fresh installs are not recorded, so they are left in place. Preview says this for legacy backups. Unrelated skills, skills the backup has no record of, and the selected backup itself are never modified.
+- **Preview a restore (default).** Restore prints one line per affected skill, then stops without writing:
+  - `restore <client>/<skill>`: the skill is missing now and will be installed from the backup;
+  - `replace + back up <client>/<skill>`: the current skill differs from the saved tree;
+  - `remove + back up <client>/<skill>`: the skill was installed fresh by the recorded operation and will be removed;
+  - `up to date <client>/<skill>`: already identical, or already absent for a removal.
+- **Apply a restore.**
+  1. Verify each `replaced` entry's `sha256` against the saved tree.
+  2. Back up every current skill that will be replaced or removed into a new format 2 backup (`operation: restore`, `restored_from: <ID>`), whose entries record exactly what this restore changed. Restoring that new backup undoes the restore.
+  3. Stage each restored copy beside its destination, then install by rename, removing by rename-away as well, and roll back fully on failure, as `apply` does.
+
+  If nothing differs, the restore prints that everything is already up to date and creates no backup. With interactive selection and apply, the plan is shown and the user must confirm with `y` before anything is written. Any other answer cancels with no changes.
+- Update the CLI help, the `README.md` CLI reference and safety model (including the format 2 manifest), the `Makefile` (a read-only `backups` target), the `AGENTS.md` Go layout, and the Docker end-to-end script.
 
 ## Safety and validation
 
-- Preview is the default for `restore`. Only `--apply` writes. `backups` never writes.
+- `backups` and `restore list` never write. `restore` previews unless `--apply` or `restore apply` is used.
 - A backup ID must match the stamp format exactly, and it must name a direct child directory of the backup root. Path separators, `..`, absolute paths, and symlinked or non-directory entries are refused before anything is read from them.
-- A backup is usable only when its `manifest.json` parses, its top-level entries are `manifest.json` plus known client directories, every entry under a client directory is an `agentic-sdd-*` directory, and every tree passes the existing symlink/special-file check (with a regular `SKILL.md` in each skill).
-- **Home match.** The manifest's recorded `targets` must match the client directories computed from the current `--home`. If they differ (for example, the backup was made with `--home /tmp/test-home` and is being restored into the real home), the restore is refused with both paths named. Destinations always come from the current `--home` and the client name, never from paths in the manifest, so a restore cannot write outside the current home's four client directories.
-- Current destinations get the same checks as `apply`: parent components, non-directory targets, and symlinks or special files in an installed skill tree are all refused before any change.
-- Restored files get the installer's normal modes (`0755` directories, `0644` files). Comparison uses structure and content, as the embedded-source comparison does today.
-- Running `restore --apply` against a real user home is a live operation. Approving this feature authorizes developing and testing restore in temporary homes only (see `AGENTS.md`).
+- A backup is usable only when all of the following hold:
+  - its `manifest.json` parses, and a format 2 manifest's `id` equals its directory name;
+  - its top-level entries are `manifest.json` plus known client directories;
+  - every saved tree is an `agentic-sdd-*` directory with a regular `SKILL.md` that passes the existing symlink/special-file check;
+  - for format 2, the saved trees and the `replaced` entries match one to one, each entry's `client`/`skill` is valid, and its `path` equals the destination computed for that client and skill.
+- A `sha256` mismatch is reported in the list (as unusable) and refuses the restore.
+- **Home match.** The manifest's recorded `targets` (and, for format 2, `home`) must match those computed from the current `--home`. Otherwise the restore is refused with both paths named. Destinations always come from the current `--home` plus the client and skill name, never from paths in the manifest, so a restore cannot write or remove outside the current home's four client directories.
+- Current destinations get the same checks as `apply`: parent components, non-directory targets, and symlinks or special files in an installed skill tree (including a skill about to be removed) are all refused before any change.
+- Restored files get the installer's normal modes (`0755` directories, `0644` files). Tree comparison uses structure and content, as the embedded-source comparison does today.
+- Running `restore --apply`/`restore apply` or `apply` against a real user home is a live operation. Approving this feature authorizes developing and testing in temporary homes only (see `AGENTS.md`).
 
 ## Acceptance
 
-1. `agentic-sdd backups` (with `--home` and optionally `--repo`) lists every well-formed backup newest first, with selection number, ID, source and contents. It marks malformed entries as unusable with a reason, prints a clear message for an empty or missing root, and writes nothing.
-2. `agentic-sdd restore <ID>` prints the per-skill plan (`restore` / `replace + back up` / `up to date`) and then `Preview only. Run with --apply to restore.`. It changes no skill directory and creates no backup.
-3. `agentic-sdd restore <ID> --apply` restores exactly the backed-up `<client>/<skill>` trees into the current home's client directories. It first creates a new backup of every current skill it replaces, and that new backup's `manifest.json` names the restored ID. Skills not in the backup, unrelated skills and the selected backup are unchanged. Restoring that new backup afterwards returns the skills to their pre-restore state.
-4. Repeating the same `restore <ID> --apply` is a no-op: it prints that everything is up to date and creates no new backup.
-5. A failure partway through an applied restore leaves every destination as it was before the restore, like `apply`'s rollback. The pre-restore backup remains for manual recovery.
-6. Refusals exit before any write: an ID that does not match the stamp format or that traverses paths exits 2. A well-formed ID that does not exist, a malformed backup, a home mismatch, or symlinks/special files in the backup or destination exit 1. Each prints an actionable message to stderr.
-7. With no ID, `restore` shows the numbered list and prompt on an interactive stdin. It accepts a valid number, treats blank input as a cancel (exit 0, no changes), and rejects an out-of-range or non-numeric answer (exit 2). With `--apply`, nothing is written unless the answer to the confirmation is `y`. On a non-interactive stdin, a missing ID exits 2 and names `agentic-sdd backups`. Tests drive this through injected input, not a real terminal.
-8. `agentic-sdd help`, `--help`, `README.md` (CLI reference and safety model), and `Makefile` describe `backups` and `restore`. The Docker end-to-end script exercises apply → backups → restore preview → restore apply → repeat restore in an isolated home. `make test`, `make vet`, `git diff --check` and `make docker-e2e` (when Docker is available) pass.
+1. `apply` writes a format 2 `manifest.json` that keeps the format 1 fields plus `format`, `id`, `created_at`, `operation: apply`, `tool` (the values from `internal/version`), `home`, `backup_root` and one entry per changed skill. Each entry has the correct `action`, `path`, and (for `replaced`) `backup` and `sha256`. A no-op apply still creates no backup. Existing `apply` output and the install results are otherwise unchanged.
+2. `agentic-sdd backups` and `agentic-sdd restore list` print the same listing, newest first. Each row has a selection number, ID, time, operation, tool version, source and change summary. Format 1 backups are marked `legacy`; unusable entries (including a digest mismatch) show a reason. An empty or missing root prints a clear message. Neither command writes anything.
+3. `restore <ID>` and `restore preview <ID>` print the per-skill plan (`restore` / `replace + back up` / `remove + back up` / `up to date`, plus a legacy notice for format 1), then `Preview only. Run with --apply (or restore apply) to restore.`. They change no skill directory and create no backup.
+4. `restore <ID> --apply` and `restore apply <ID>` behave identically on a format 2 backup of an apply. `replaced` skills get their saved trees back, and `installed` skills are removed. The first step is a new format 2 backup (`operation: restore`, `restored_from: <ID>`) holding every skill replaced or removed, with entries recording exactly what the restore changed. Unrelated skills and the selected backup are unchanged. Restoring the new backup then returns every affected skill to its pre-restore state, including reinstalling the removed ones and removing any that the restore installed.
+5. For a format 1 backup, a restore puts back only the saved trees, leaves other skills in place, and says so in both preview and apply output.
+6. Repeating the same restore apply is a no-op: it prints that everything is up to date and creates no new backup.
+7. A failure partway through an applied restore leaves every destination as it was before the restore, like `apply`'s rollback. The pre-restore backup remains for manual recovery.
+8. Refusals exit before any write:
+   - exit 2: an ID that does not match the stamp format or that traverses paths; `--apply` combined with `restore preview`/`restore apply`; a stray argument;
+   - exit 1: a well-formed ID that does not exist; a malformed backup; a digest mismatch; a home mismatch; symlinks or special files in the backup or destination.
+
+   Each prints an actionable message to stderr.
+9. Without an ID on an interactive stdin, `restore`/`restore preview`/`restore --apply`/`restore apply` show the numbered list and prompt. They accept a valid number, treat blank input as a cancel (exit 0, no changes) and reject an out-of-range or non-numeric answer (exit 2). The apply forms write nothing unless the confirmation answer is `y`. On a non-interactive stdin, a missing ID exits 2 and names `agentic-sdd backups`. Tests drive this through injected input.
+10. `agentic-sdd help`, `--help`, `README.md` (CLI reference, safety model and format 2 manifest) and the `Makefile` describe `backups` and every `restore` form. The Docker end-to-end script runs this sequence in an isolated home:
+    1. an `apply` that both replaces and installs;
+    2. `backups`;
+    3. `restore preview`;
+    4. `restore apply`, which restores the replaced skills and removes the installed ones;
+    5. a repeated restore (no-op);
+    6. a restore of the pre-restore backup, which returns the post-apply state.
+
+    `make test`, `make vet`, `git diff --check` and `make docker-e2e` (when Docker is available) pass.
 
 ## Outside scope
 
-- Removing skills that a later apply installed fresh. Restore puts back the backed-up versions; it is not a full undo of an apply (see Q1).
-- Restoring part of a backup (per client or per skill filters), restoring into a different home than the backup's recorded targets, and restoring across backup roots in one command.
+- Restoring part of a backup (per client or per skill filters), restoring into a different home than the backup's recorded one, and restoring across backup roots in one command.
 - Pruning, deleting, renaming, exporting or compressing backups; retention policies.
-- Changing the backup directory layout or `manifest.json` fields. The new pre-restore backup uses the existing format, with only the `source` value distinguishing it.
+- Rewriting or upgrading existing format 1 manifests. They are read as they are, never modified.
+- Changing the backup directory layout or backup root rules.
+- Accepting a list number as a command-line argument. List numbers change as soon as a new backup exists, so the number is only accepted as an answer to the interactive prompt; scripts pass the ID.
 - A third-party TUI/prompt library, fuzzy selection, and a `latest` alias.
 - Concurrency control between simultaneous `apply`/`restore` runs.
-- Running `restore --apply` against any real user home. That needs separate, explicit authorization.
+- Running `apply` or a restore apply against any real user home. That needs separate, explicit authorization.
 
-## Open questions (resolve at combined approval)
+## Resolved decisions (from r1)
 
-The draft proceeds on these defaults. Changing one changes behavior, so each is up to you:
-
-- **Q1 — fresh installs after the backup.** Default: leave them in place, because the backup does not record which skills that apply installed fresh. The alternative is to remove `agentic-sdd-*` skills that are absent from the backup but listed in the manifest's `skills`. That is a destructive heuristic and could remove skills a later apply legitimately installed.
-- **Q2 — selection UX.** Default: exact ID argument plus a numbered stdin prompt on a TTY, in the standard library only. The alternative is ID-only, with no interactive prompt, which removes the TTY and confirmation handling from B2.
-- **Q3 — command shape.** Default: a separate `backups` list command, plus `restore [ID] [--apply]`, keeping `--apply` as the one writing switch per `AGENTS.md`. The alternative is `restore list` / `restore preview ID` / `restore apply ID`, mirroring the top-level `preview`/`apply` commands.
+- **Q1 → records.** Backups record location (`home`, `backup_root`, per-entry `path`), tool version (`tool`), timestamps (`id`, `created_at`) and each skill's `action`. With those records, restore can return fresh installs to their pre-operation state as well. Only format 1 backups keep the limited behavior.
+- **Q2 → list or ID.** The CLI lists each backup's ID. The user picks a number from the list interactively or passes the ID to `restore`.
+- **Q3 → both shapes.** `backups` plus `restore [ID] [--apply]`, and `restore list` / `restore preview [ID]` / `restore apply [ID]`, which are equivalent aliases.
 
 ## Approval
 
-Decision: **draft/pending**. No human approval has been recorded yet. Scope under review: `spec.md`, `plan.md` and `tasks.md` at revision r1 (2026-09-25), covering Batch B1 (restore core in `internal/skillsync`) and Batch B2 (CLI selection, docs, Makefile, Docker e2e). Approval would not authorize running `restore --apply` or `apply` against a real user home.
+Decision: **draft/pending**. No human approval has been recorded yet. Scope under review: `spec.md`, `plan.md` and `tasks.md` at revision r2 (2026-09-25), covering:
+- Batch B1: format 2 backup records written by `apply`.
+- Batch B2: the restore core in `internal/skillsync`.
+- Batch B3: the CLI commands, selection, docs, Makefile and Docker e2e.
+
+Approval would not authorize running `apply` or a restore apply against a real user home.
