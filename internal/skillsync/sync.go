@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"agentic-sdd/internal/version"
 )
 
 type target struct {
@@ -18,19 +20,29 @@ type target struct {
 	path string
 }
 
+// change describes one destination skill directory to install, replace or
+// remove. src is the corresponding path within the operation's source tree;
+// for a plain apply it always equals skill, but a restore's source is
+// rooted at the backup directory, where the path is "<client>/<skill>".
+// remove is set only by a restore undoing a fresh install: there is no
+// source content to stage, so the destination is simply backed up and
+// deleted rather than replaced.
 type change struct {
 	target target
 	skill  string
+	src    string
 	old    bool
+	remove bool
 	stage  string
 	undo   string
 }
 
-type manifest struct {
-	Created string   `json:"created"`
-	Source  string   `json:"source"`
-	Targets []string `json:"targets"`
-	Skills  []string `json:"skills"`
+// operation identifies which command is writing a backup, so installChanges
+// can record it in the manifest and pick matching wording. restoredFrom is
+// set only when kind is "restore".
+type operation struct {
+	kind         string
+	restoredFrom string
 }
 
 // Sync previews or installs agentic-sdd skills into user skill directories.
@@ -83,7 +95,7 @@ func Sync(repo, home string, apply bool, out io.Writer) error {
 		backupRoot = filepath.Join(repo, "backups")
 		sourceLabel = filepath.Join(repo, "skills-files")
 	}
-	return installChanges(backupRoot, sourceLabel, source, names, targets, changes, out)
+	return installChanges(backupRoot, home, sourceLabel, source, names, targets, changes, operation{kind: "apply"}, out)
 }
 
 func discoverSkills(source fs.FS) ([]string, error) {
@@ -145,7 +157,7 @@ func planChanges(source fs.FS, home string, names []string, targets []target, ou
 					continue
 				}
 			}
-			changes = append(changes, change{target: t, skill: name, old: old})
+			changes = append(changes, change{target: t, skill: name, src: name, old: old})
 			verb := "install"
 			if old {
 				verb = "replace + back up"
@@ -156,8 +168,9 @@ func planChanges(source fs.FS, home string, names []string, targets []target, ou
 	return changes, nil
 }
 
-func installChanges(backupRoot, sourceLabel string, source fs.FS, names []string, targets []target, changes []change, out io.Writer) error {
-	stamp := time.Now().UTC().Format("20060102T150405.000000000Z")
+func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []string, targets []target, changes []change, op operation, out io.Writer) error {
+	now := time.Now().UTC()
+	stamp := now.Format("20060102T150405.000000000Z")
 	if info, err := os.Lstat(backupRoot); err == nil && !info.IsDir() {
 		return fmt.Errorf("refusing non-directory backup path %s", backupRoot)
 	} else if err != nil && !os.IsNotExist(err) {
@@ -178,7 +191,40 @@ func installChanges(backupRoot, sourceLabel string, source fs.FS, names []string
 			return fmt.Errorf("backup %s/%s: %w", c.target.name, c.skill, err)
 		}
 	}
-	m := manifest{Created: stamp, Source: sourceLabel, Skills: names}
+	entries := make([]entry, 0, len(changes))
+	for _, c := range changes {
+		e := entry{
+			Client: c.target.name,
+			Skill:  c.skill,
+			Path:   filepath.Join(c.target.path, c.skill),
+		}
+		if c.old {
+			e.Action = actionReplaced
+			e.Backup = filepath.Join(c.target.name, c.skill)
+			digest, err := treeDigest(os.DirFS(backup), e.Backup)
+			if err != nil {
+				return fmt.Errorf("digest %s: %w", e.Backup, err)
+			}
+			e.SHA256 = digest
+		} else {
+			e.Action = actionInstalled
+		}
+		entries = append(entries, e)
+	}
+	m := manifest{
+		Created: stamp, Source: sourceLabel, Skills: names,
+		Format: 2, ID: stamp, CreatedAt: now.Format(time.RFC3339Nano),
+		Operation: op.kind, RestoredFrom: op.restoredFrom,
+		Tool: &toolInfo{
+			Version:   version.Version,
+			Commit:    version.Commit,
+			Date:      version.Date,
+			GoVersion: version.GoVersion,
+		},
+		Home:       home,
+		BackupRoot: backupRoot,
+		Entries:    entries,
+	}
 	for _, t := range targets {
 		m.Targets = append(m.Targets, t.path)
 	}
@@ -189,19 +235,24 @@ func installChanges(backupRoot, sourceLabel string, source fs.FS, names []string
 	if err := os.WriteFile(filepath.Join(backup, "manifest.json"), append(data, '\n'), 0600); err != nil {
 		return err
 	}
-	// Build every replacement before touching an installed skill.
+	// Build every replacement before touching an installed skill. A remove
+	// change has no source content to stage: it is only backed up above and
+	// deleted below.
 	for i := range changes {
 		c := &changes[i]
 		if err := os.MkdirAll(c.target.path, 0755); err != nil {
 			cleanupStages(changes)
 			return err
 		}
+		if c.remove {
+			continue
+		}
 		c.stage, err = os.MkdirTemp(c.target.path, ".agentic-sdd-stage-")
 		if err != nil {
 			cleanupStages(changes)
 			return err
 		}
-		if err := copyFromSource(source, c.skill, c.stage); err != nil {
+		if err := copyFromSource(source, c.src, c.stage); err != nil {
 			cleanupStages(changes)
 			return err
 		}
@@ -232,15 +283,17 @@ func installChanges(backupRoot, sourceLabel string, source fs.FS, names []string
 				return err
 			}
 		}
-		if err = os.Rename(c.stage, path); err != nil {
-			if c.old {
-				err = errors.Join(err, os.Rename(c.undo, path))
+		if !c.remove {
+			if err = os.Rename(c.stage, path); err != nil {
+				if c.old {
+					err = errors.Join(err, os.Rename(c.undo, path))
+				}
+				err = errors.Join(err, rollback(changes, done))
+				cleanupStages(changes)
+				return err
 			}
-			err = errors.Join(err, rollback(changes, done))
-			cleanupStages(changes)
-			return err
+			c.stage = ""
 		}
-		c.stage = ""
 		done = append(done, i)
 	}
 	for _, i := range done {
@@ -248,7 +301,11 @@ func installChanges(backupRoot, sourceLabel string, source fs.FS, names []string
 			_ = os.RemoveAll(changes[i].undo)
 		}
 	}
-	fmt.Fprintln(out, "Installed", len(changes), "skills; backup:", backup)
+	verb := "Installed"
+	if op.kind == "restore" {
+		verb = "Restored"
+	}
+	fmt.Fprintln(out, verb, len(changes), "skills; backup:", backup)
 	return nil
 }
 

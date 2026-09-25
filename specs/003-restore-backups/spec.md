@@ -151,9 +151,9 @@ Format 1 backups stay listable and restorable, with the limits described under R
 
 ## Approval
 
-Decision: **draft/pending**. No human approval has been recorded yet. Scope under review: `spec.md`, `plan.md` and `tasks.md` at revision r2 (2026-09-25), covering:
+Decision: **approved for implementation**. Evidence: the user's "implement" message in this conversation, following the r2 redraft that incorporated their decisions on backup records, selection and command shape. Scope: this spec and its linked `plan.md`/`tasks.md` at revision r2 (2026-09-25), covering:
 - Batch B1: format 2 backup records written by `apply`.
 - Batch B2: the restore core in `internal/skillsync`.
 - Batch B3: the CLI commands, selection, docs, Makefile and Docker e2e.
 
-Approval would not authorize running `apply` or a restore apply against a real user home.
+Batches execute one at a time, each stopping for human review before the next begins. No real `apply` or restore apply against a real user home is authorized.

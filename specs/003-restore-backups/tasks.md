@@ -31,7 +31,27 @@ Done when isolated-home tests show:
 - `readManifest` loads both a format 1 fixture and a format 2 manifest.
 
 **B1 verification:** `make test`, `make vet`, `git diff --check`, all in temporary homes only.
-**B1 state:** not started. **Next action:** wait for combined approval of r2, then explicit authorization to implement B1.
+
+## Batch B1 result — state: awaiting human review
+
+Implemented per the user's "implement" authorization following the r2 redraft; combined approval recorded in `spec.md`.
+
+Changed paths:
+- `internal/skillsync/sync.go` — `change` gained `src` (source-relative path; `Sync` sets it to the skill name) and `remove` (no stage; backup, rename to undo, delete on success, rename back on rollback — the rename-phase `os.Rename(c.stage, path)` step is now skipped for `remove` changes, and `rollback`/the success cleanup needed no change since `os.RemoveAll` on an already-absent path is a no-op); added the `operation` type (`kind`, `restoredFrom`); `Sync` now passes `home` and `operation{kind: "apply"}` through; `installChanges` takes `home` and `op operation`, builds one `entry` per change (`replaced` when `old`, with `backup` and a `treeDigest` `sha256`; `installed` otherwise) and writes them into a format 2 manifest alongside the unchanged format 1 fields; the summary line's verb switches to "Restored" for `op.kind == "restore"` (unused until B2/B3, but exercised by the new unit test).
+- `internal/skillsync/manifest.go` (new) — the `manifest` struct extended additively with `format`, `id`, `created_at`, `operation`, `restored_from`, `tool`, `home`, `backup_root`, `entries` (all `omitempty`, so a legacy manifest round-trips unchanged); `toolInfo` and `entry` types; `isLegacy()` (`Format < 2`); `readManifest`; `treeDigest` (SHA-256 over an `fs.FS` subtree's relative paths, entry kinds and file contents, walked in `fs.WalkDir`'s stable lexical order).
+- `internal/skillsync/manifest_test.go` (new) — `TestApplyWritesFormat2Manifest` (a mixed replace+install apply; checks every format 2 field, the four-target entry set, and that the recorded `sha256` matches a recomputed `treeDigest` of the saved backup tree) and `TestReadManifestDetectsLegacyVersusFormat2` (a hand-built format 1 JSON object with the format 2 keys stripped, and a format 2 manifest, both round-tripped through `readManifest`).
+- `internal/skillsync/sync_test.go` — added `TestInstallChangesRollsBackRemoveOnLaterFailure`: a `remove` change is committed (renamed to its undo dir) before a second, unrelated change fails at its own rename step (forced by a pre-existing non-empty directory at that destination); asserts the removed skill's original content is restored via `rollback`, the failed change's original directory is untouched, and no `.agentic-sdd-stage-`/`.agentic-sdd-undo-` directories are left behind.
+
+Checks (all against this code state, in temporary directories only):
+- `go build ./...`, `go vet ./...`, `gofmt -l .` (no output) — clean.
+- `go test ./...` — all pass, including the three new tests; every pre-existing `internal/skillsync` and `cmd/agentic-sdd` test passes with unchanged expectations, confirming `Sync`'s output and on-disk results are unaffected by the generalization.
+- `git diff --check` — clean.
+- `make build-darwin` — cross-compiles cleanly (darwin amd64+arm64), confirming the new `internal/version` import and manifest code build for the release target.
+- Manual smoke test: built the CLI and ran `apply --home <tmp>` with one pre-existing skill; inspected the written `manifest.json` — format 2 fields, four-target entry set (one `replaced` with `backup`/`sha256`, three `installed`) all correct; `tool` fields read `dev`/`none`/`unknown` as expected for an unldflagged local build.
+
+Deviations from `plan.md`: none of substance. `rollback` needed no source change, as anticipated in `plan.md`'s risk note — proven by the new test rather than assumed.
+
+Next action: human review of the manifest-format extension and the install-path generalization (including the new `remove`/`src` fields, unused by any command yet) before authorizing Batch B2 (the restore core in `internal/skillsync`).
 
 ## Batch B2: restore core in `internal/skillsync`
 
