@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 func TestSyncBacksUpAndReplaces(t *testing.T) {
@@ -231,4 +232,62 @@ func read(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+func TestInstallChangesRollsBackRemoveOnLaterFailure(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	targetPath := filepath.Join(home, ".claude", "skills")
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+	removeName, failName := "agentic-sdd-remove-me", "agentic-sdd-fail"
+	removeDir := filepath.Join(targetPath, removeName)
+	if err := os.MkdirAll(removeDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(removeDir, "SKILL.md"), []byte("keep me"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// failDir already exists and is non-empty, so the rename that would
+	// install the staged replacement over it fails partway through the
+	// install loop, after the remove change above has already been
+	// committed (renamed to its undo directory).
+	failDir := filepath.Join(targetPath, failName)
+	if err := os.MkdirAll(failDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(failDir, "marker.md")
+	if err := os.WriteFile(marker, []byte("pre-existing"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	source := fstest.MapFS{
+		failName + "/SKILL.md": &fstest.MapFile{Data: []byte("new"), Mode: 0644},
+	}
+	tgt := target{name: "claude", path: targetPath}
+	changes := []change{
+		{target: tgt, skill: removeName, old: true, remove: true},
+		{target: tgt, skill: failName, src: failName, old: false},
+	}
+	backupRoot := filepath.Join(root, "backups")
+	var out bytes.Buffer
+	err := installChanges(backupRoot, home, "test-source", source, []string{failName}, []target{tgt}, changes, operation{kind: "restore", restoredFrom: "20260101T000000.000000000Z"}, &out)
+	if err == nil {
+		t.Fatal("expected a failure from renaming over a non-empty directory")
+	}
+	if got := read(t, filepath.Join(removeDir, "SKILL.md")); got != "keep me" {
+		t.Fatalf("removed skill not restored by rollback: %q", got)
+	}
+	if got := read(t, marker); got != "pre-existing" {
+		t.Fatalf("failed change's original directory was modified: %q", got)
+	}
+	entries, err := os.ReadDir(targetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".agentic-sdd-stage-") || strings.HasPrefix(e.Name(), ".agentic-sdd-undo-") {
+			t.Fatalf("leftover staging/undo directory after rollback: %s", e.Name())
+		}
+	}
 }
