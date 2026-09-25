@@ -150,7 +150,32 @@ Add a read-only `backups` Makefile target and no restore-apply target. Add `mani
 Done when the docs match the implemented help text, and `make docker-e2e` passes. If Docker is unavailable, record that and run `tests/e2e-in-container.sh` with a temporary home instead.
 
 **B3 verification:** `make test`, `make vet`, `git diff --check`, `make docker-e2e` (or the stated fallback). No `apply` or restore apply against a real home.
-**B3 state:** not started. **Next action:** after B2's human review, wait for explicit authorization to implement B3.
+
+## Batch B3 result — state: awaiting human review
+
+Implemented per the user's "proceed" authorization following B2's review.
+
+Changed paths:
+- `cmd/agentic-sdd/main.go` — added `backups` and `restore` to the command switch; `run` gained `stdin io.Reader` and `interactive bool` parameters (wired from `os.Stdin` and a `ModeCharDevice` check in `main`); `runBackups` (the read-only listing, shared by `agentic-sdd backups` and `agentic-sdd restore list`); `runRestore` (sub-word dispatch for `list`/`preview`/`apply`, interspersed flag/positional parsing so an ID and `--apply` can appear in either order, `--apply` rejected when combined with an explicit `preview`/`apply` sub-word, a non-interactive missing ID naming `agentic-sdd backups`, and the interactive numbered-list-then-confirm flow); `selectBackup` and `readLine` (a single shared `bufio.Reader` per invocation, so the selection prompt and the apply confirmation read from the same stream in order); `printBackups` (id, `created_at`/`created`, operation — `restore from <id>` when applicable — tool version, source, and the per-backup summary, with a `[legacy]` marker and an `unusable: <reason>` line); `resolveHome` (a small shared helper, also now used by the original preview/apply path); usage text and `help`'s topic check extended to `backups`/`restore`.
+- `cmd/agentic-sdd/main_test.go` — added a `runNonInteractive` helper and updated the 7 pre-existing `run(...)` call sites to use it (no behavior change); added `setupBackupCLI`, `read`, and `normalizeBackupLine` test helpers; added `TestRunBackupsEqualsRestoreList`, `TestRunRestorePreviewEqualsBareID`, `TestRunRestoreApplyFormsEquivalent` (all three apply forms produce the same result and, once the backup path suffix is normalized away, the same output), `TestRunRestoreUsageErrors` (table: `--apply` combined with an explicit sub-word, a stray extra argument, an undefined flag, and a malformed id both bare and under `restore preview`), `TestRunRestoreStateErrorsExitOne` (not found, digest mismatch, home mismatch), `TestRunRestoreNonInteractiveMissingID`, and `TestRunRestoreInteractiveFlow` (select-then-preview, select-then-`y`-applies, select-then-`n`-cancels, blank-cancels, a bad number, and an empty backup list).
+- `README.md` — CLI reference rows for `backups` and every `restore` form, updated exit codes, a format 2 manifest field table, and a "Restoring a backup" paragraph (exact inverse for a format 2 backup; saved-trees-only for a `[legacy]` one); repository layout and test-coverage paragraph updated for `manifest.go`/`restore.go`/`restore_test.go`/`manifest_test.go`.
+- `AGENTS.md` — Go layout entries for `manifest.go` and `restore.go`.
+- `Makefile` — a read-only `backups` target (`go run ./cmd/agentic-sdd backups`); deliberately no restore-apply target, so no one-keystroke path writes to a real home.
+- `tests/e2e-in-container.sh` — extended with the spec's full sequence: apply (replace + fresh installs) → `backups` (asserted equal to `restore list`) → `restore preview` (no change) → `restore --apply` (reverts the replace, removes the fresh installs, asserts the new backup's `operation`/`restored_from` via `grep`) → repeated restore (no-op, no third backup) → `restore apply` of the pre-restore backup (returns to the post-apply state) → the existing invalid-command check.
+
+Deviation from `plan.md`, noted for review: `plan.md` sketched a `printRestoreUsage` distinct from the top-level usage text; implemented instead by reusing `printUsage` everywhere `--help`/`-h` is requested (on `backups`, `restore`, and every existing command alike), matching the CLI's existing convention that any command's `--help` prints the same full usage rather than a per-command one. Everything else matches the plan as drafted.
+
+Checks (all against this code state; `make docker-e2e` fell back to running the same script directly, noted below):
+- `go build ./...`, `go vet ./...`, `gofmt -l .` (no output) — clean.
+- `go test ./...` — all pass, including 12 new `cmd/agentic-sdd` tests (several table/sub-test driven) and every pre-existing test with unchanged expectations.
+- `git diff --check` — clean.
+- `make build-darwin` — cross-compiles cleanly.
+- `make docker-e2e` — the Docker **daemon** is not running in this environment (client present, `dial unix /var/run/docker.sock: ... no such file or directory`), so per this task's stated fallback, `sh tests/e2e-in-container.sh` was run directly against a real built binary in a temporary repo/home instead; it printed `Docker end to end checks passed.`. The containerized run itself (`golang:1.25-alpine`, read-only mount, no network) has not been exercised in this session and should be re-checked wherever Docker is available before relying on it.
+- Manual smoke test: built the CLI and ran `apply` → `backups` → `restore preview` → `restore --apply` → `backups` again, inspecting real output (shown in the batch's implementation transcript) — the second listing correctly shows the pre-restore backup as `restore from <id>` with `40 replaced, 0 installed`.
+
+A pre-existing, unrelated issue was noticed and left untouched (not part of this feature): `make help`'s `awk` pattern (`[a-zA-Z_-]+`) excludes digits, so `docker-e2e` has always been silently missing from `make help`'s printed list even though the target itself works. Flagged for a separate direct fix; not corrected here.
+
+Next action: human review of the CLI surface, docs, and the direct (non-Docker) e2e run before this feature is considered done. Re-run `make docker-e2e` in an environment with a running Docker daemon when convenient. No real `apply` or restore apply has been run against a real user home.
 
 ## Continuation
 

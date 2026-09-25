@@ -140,7 +140,7 @@ go run ./cmd/agentic-sdd apply              # install
 go run ./cmd/agentic-sdd --help             # full CLI help
 ```
 
-Before applying to your real home, `make docker-e2e` builds and exercises the CLI inside `golang:1.25-alpine` with the repository mounted read-only, no network, and a throwaway home. It checks preview, backup and install, a repeated apply, and an invalid command. It never touches your home directory. Docker must be running.
+Before applying to your real home, `make docker-e2e` builds and exercises the CLI inside `golang:1.25-alpine` with the repository mounted read-only, no network, and a throwaway home. It checks preview, backup and install, a repeated apply, listing and restoring a backup, and an invalid command. It never touches your home directory. Docker must be running.
 
 ## CLI reference
 
@@ -149,17 +149,20 @@ Before applying to your real home, `make docker-e2e` builds and exercises the CL
 | `agentic-sdd` / `agentic-sdd preview` | Print one line per skill per client — `install`, `replace + back up`, or `up to date` — then stop without writing. |
 | `agentic-sdd apply` | Back up every skill it will replace, stage the new copies, then install. A second apply is a no-op. |
 | `agentic-sdd version` | Print version, commit, build date, and Go version. `--version` works too. |
-| `agentic-sdd help [preview\|apply]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
+| `agentic-sdd backups` | List backups newest first: id, time, operation, tool version, source, and what each holds. Read-only. |
+| `agentic-sdd restore [ID]` / `restore preview [ID]` | Show what restoring backup `ID` would change, without writing. With no `ID` on a terminal, list backups and prompt for a number. |
+| `agentic-sdd restore ID --apply` / `restore apply ID` | Restore backup `ID`: back up whatever it's about to change into a new backup, then install the saved skills and remove any it freshly installed. Interactive selection asks `[y/N]` before writing. |
+| `agentic-sdd help [preview\|apply\|backups\|restore]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
 
 | Flag | Meaning |
 | :--- | :--- |
 | `--repo PATH` | Repository containing `skills-files/` (default: skills embedded in the binary; pass this to source from a checkout instead) |
 | `--home PATH` | Home directory holding the client skill directories (default: your home) |
-| `--apply` | Legacy form of the `apply` command; cannot be combined with a named command |
+| `--apply` | Legacy form of the `apply` command, or the writing flag for `restore`; cannot be combined with a named command |
 
 Put flags after the command: `agentic-sdd preview --home /tmp/test-home`. Older flag-only scripts still work — no `--apply` previews, `--apply` installs.
 
-Exit codes: **0** success or help, **2** unknown command, bad flag, stray argument, or `--apply` combined with a command, **1** filesystem or sync failure. Usage errors go to stderr; everything else goes to stdout. A preview that lists replacements is a success — it just didn't install them.
+Exit codes: **0** success, a completed preview or cancel, **2** unknown command, bad flag, stray argument, a malformed backup id, or `--apply` combined with a command, **1** filesystem/sync failure, a backup that fails validation (home mismatch, digest mismatch, missing), or a not-found id. Usage errors go to stderr; everything else goes to stdout. A preview that lists replacements is a success — it just didn't install them.
 
 ## Where the skills go
 
@@ -184,18 +187,32 @@ Preview and apply plan identically, so a preview tells you exactly what an apply
 
 **Change detection is exact**: directory structure, file permissions, and SHA-256 of every file. Identical trees are reported `up to date`, are not backed up, and are not rewritten. When nothing differs, apply prints `All skills are up to date.` and creates no backup.
 
-**Backups come first.** An apply with changes creates a UTC-stamped directory: under `<repo>/backups` when `--repo` is set, or `<home>/.agentic-sdd/backups` when sourcing from the embedded skills (e.g. a Homebrew install):
+**Backups come first.** An apply (or restore) with changes creates a UTC-stamped directory: under `<repo>/backups` when `--repo` is set, or `<home>/.agentic-sdd/backups` when sourcing from the embedded skills (e.g. a Homebrew install):
 
 ```text
 backups/20260924T201717.833575000Z/
-├── manifest.json        # created, source, target directories, skill names
+├── manifest.json        # what this backup holds and where it came from
 ├── agents/agentic-sdd-plan/...
 └── claude/agentic-sdd-plan/...
 ```
 
 Only skills that already existed are copied there. A repository-local `backups/` directory is git-ignored because your previous skills may contain private content — keep or prune it on your own terms.
 
+**The manifest records what happened, not just what's saved.** Alongside the original `created`/`source`/`targets`/`skills` fields, every backup written by this version records:
+
+| Field | Meaning |
+| :--- | :--- |
+| `id` / `created_at` | The backup's directory name, and the same moment as an RFC 3339 timestamp |
+| `operation` | `apply`, or `restore` (with `restored_from` naming the backup that was restored) |
+| `tool` | The version, commit, build date, and Go version of the binary that wrote it |
+| `home` / `backup_root` | The absolute home and backup root the operation ran against |
+| `entries` | One record per changed skill: client, skill, destination path, and `replaced` (with a saved-copy path and a SHA-256 digest) or `installed` (nothing to save — it didn't exist before) |
+
+A backup written by an older version of the CLI has none of these extra fields; `agentic-sdd backups` marks it `[legacy]` and restores it on a best-effort basis (see below). The digest is checked before every restore, so a truncated or hand-edited backup is refused rather than silently applied.
+
 **Installation is staged.** Every replacement is built in a temporary directory beside its destination before any installed skill is touched; installs then happen as renames. If one fails partway, the CLI restores what it already moved and removes what it already installed, and the backup remains for manual recovery.
+
+**Restoring a backup** follows the same contract. `agentic-sdd restore <ID>` previews; `--apply` (or `restore apply <ID>`) backs up whatever it's about to change — into a new backup you can restore to undo the restore itself — then puts back every skill that backup recorded as `replaced`, and removes every skill it recorded as `installed` (a fresh install that apply made, which restoring should undo too). Destinations always come from your current `--home`, never from paths recorded in the manifest, so a restore cannot write outside your four client skill directories, and it refuses a backup made for a different home. A `[legacy]` backup has no `installed` records, so restoring it only puts back the skills it actually saved — anything a later apply installed fresh is left as is. Either way, restoring is a no-op if nothing differs, and a failure partway through rolls back exactly like apply's does.
 
 ## Working on the skills
 
@@ -206,8 +223,8 @@ Keep shared rules in `workflow-policy.md` rather than repeating them in each `SK
 ## Repository layout
 
 ```text
-cmd/agentic-sdd/       CLI parsing, defaults, exit codes
-internal/skillsync/    Planning, comparison, backup, staged install, rollback
+cmd/agentic-sdd/       CLI parsing, defaults, exit codes, interactive backup selection
+internal/skillsync/    Planning, comparison, backup, staged install, rollback, restore
 internal/version/      Build-time version metadata, injected via -ldflags at release
 skillsfiles.go         go:embed of skills-files/, so an installed binary needs no checkout
 skills-files/          The ten Agentic SDD skills and shared references
@@ -221,7 +238,7 @@ specs/                 Feature documents produced by the workflow itself
 backups/               Git-ignored copies from changed installations
 ```
 
-The CLI stays small; all filesystem behavior lives in `internal/skillsync`. `internal/skillsync/sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `cmd/agentic-sdd/main_test.go` covers help, usage errors, and preview/apply compatibility. Run `make test` and `make vet` after changing the installer, and `make docker-e2e` before trusting an apply.
+The CLI stays small; all filesystem behavior lives in `internal/skillsync`. `sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `manifest_test.go` covers the format 2 manifest and its digest; `restore_test.go` covers listing, backup validation (including every kind of malformed or tampered backup), and restore's preview/apply/rollback behavior. `cmd/agentic-sdd/main_test.go` covers help, usage errors, preview/apply compatibility, and every `backups`/`restore` form, including the interactive prompt. Run `make test` and `make vet` after changing the installer, and `make docker-e2e` before trusting an apply or a restore.
 
 ## Releasing
 

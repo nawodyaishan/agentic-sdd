@@ -6,10 +6,12 @@ This repository holds the canonical Agentic SDD skill files and a Go CLI that in
 
 ## Go layout
 
-- `cmd/agentic-sdd/main.go`: CLI flags, home-directory default, and process exit behavior.
-- `internal/skillsync/sync.go`: planning, backup, installation, and rollback.
+- `cmd/agentic-sdd/main.go`: CLI flags, home-directory default, process exit behavior, and interactive backup selection (`backups`, `restore`).
+- `internal/skillsync/sync.go`: planning, backup, installation, and rollback (shared by apply and restore).
 - `internal/skillsync/files.go`: path checks, tree comparison, and copying.
-- `internal/skillsync/sync_test.go`: isolated-home tests; never write to real user skill directories in tests.
+- `internal/skillsync/manifest.go`: the backup manifest format (additive: format 1 fields plus format 2's location, tool version, timestamps and per-skill entries) and its tree digest.
+- `internal/skillsync/restore.go`: listing and validating backups, and restore's planning/apply.
+- `internal/skillsync/sync_test.go`, `manifest_test.go`, `restore_test.go`: isolated-home tests; never write to real user skill directories in tests.
 - `internal/skillsync/source.go`: `fs.FS`-based source resolution (embedded `skills-files/` by default, `--repo` on disk otherwise).
 - `internal/version/version.go`: build-time version metadata, injected via `-ldflags` at release build time; `dev`/`none`/`unknown` defaults for local builds.
 - `skillsfiles.go`: root-level `go:embed all:skills-files`, so an installed binary (e.g. via Homebrew) needs no repository checkout.
