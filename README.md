@@ -127,6 +127,7 @@ make help           # list every command
 make preview        # show what would change; writes nothing
 make docker-e2e     # exercise preview and apply in an isolated container
 make apply          # back up existing skills, then install
+make logs           # show the latest apply or restore log
 make test           # run the safety and behavior tests
 make vet            # run go vet
 make hooks-install  # install the Lefthook pre-commit hook
@@ -137,6 +138,7 @@ Preview is always the default, so a bare invocation is safe. Prefer Go directly:
 ```sh
 go run ./cmd/agentic-sdd                    # preview
 go run ./cmd/agentic-sdd apply              # install
+go run ./cmd/agentic-sdd logs               # show latest apply or restore log
 go run ./cmd/agentic-sdd --help             # full CLI help
 ```
 
@@ -148,11 +150,12 @@ Before applying to your real home, `make docker-e2e` builds and exercises the CL
 | :--- | :--- |
 | `agentic-sdd` / `agentic-sdd preview` | Print one line per skill per client — `install`, `replace + back up`, or `up to date` — then stop without writing. |
 | `agentic-sdd apply` | Back up every skill it will replace, stage the new copies, then install. A second apply is a no-op. |
+| `agentic-sdd logs` | Show the latest apply or restore log and its path. |
 | `agentic-sdd version` | Print version, commit, build date, and Go version. `--version` works too. |
 | `agentic-sdd backups` | List backups newest first: id, time, operation, tool version, source, and what each holds. Read-only. |
 | `agentic-sdd restore [ID]` / `restore preview [ID]` | Show what restoring backup `ID` would change, without writing. With no `ID` on a terminal, list backups and prompt for a number. |
 | `agentic-sdd restore ID --apply` / `restore apply ID` | Restore backup `ID`: back up whatever it's about to change into a new backup, then install the saved skills and remove any it freshly installed. Interactive selection asks `[y/N]` before writing. |
-| `agentic-sdd help [preview\|apply\|backups\|restore]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
+| `agentic-sdd help [preview\|apply\|backups\|logs\|restore]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
 
 | Flag | Meaning |
 | :--- | :--- |
@@ -162,7 +165,9 @@ Before applying to your real home, `make docker-e2e` builds and exercises the CL
 
 Put flags after the command: `agentic-sdd preview --home /tmp/test-home`. Older flag-only scripts still work — no `--apply` previews, `--apply` installs.
 
-Exit codes: **0** success, a completed preview or cancel, **2** unknown command, bad flag, stray argument, a malformed backup id, or `--apply` combined with a command, **1** filesystem/sync failure, a backup that fails validation (home mismatch, digest mismatch, missing), or a not-found id. Usage errors go to stderr; everything else goes to stdout. A preview that lists replacements is a success — it just didn't install them.
+Every `apply` and writing `restore` creates a timestamped, private text log under `<home>/.agentic-sdd/logs/`, including its actions, result, and any error. The same action lines still appear on the terminal. `agentic-sdd logs` (or `make logs`) prints the latest log; use `--home PATH` to inspect an isolated home. Preview remains read-only and creates no log. Logs use the home directory even when `--repo` selects a repository backup location.
+
+Exit codes: **0** success, a completed preview or cancel, **2** unknown command, bad flag, stray argument, a malformed backup id, or `--apply` combined with a command, **1** filesystem, logging, or sync failure, a backup that fails validation (home mismatch, digest mismatch, missing), or a not-found id. Usage errors and failures go to stderr; action output goes to stdout. A preview that lists replacements is a success — it just didn't install them.
 
 ## Where the skills go
 

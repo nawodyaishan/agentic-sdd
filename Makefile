@@ -1,7 +1,7 @@
 BINARY_NAME := agentic-sdd
 CMD_DIR := ./cmd/agentic-sdd
 
-.PHONY: help preview apply backups test vet docker-e2e hooks-install mod-verify tidy-check build build-darwin verify tag release
+.PHONY: help preview apply backups logs test vet docker-e2e hooks-install mod-verify tidy-check build build-darwin verify tag release
 
 GOCACHE ?= $(CURDIR)/.cache/go-build
 
@@ -16,6 +16,9 @@ apply: ## Back up existing skills and install source skills
 
 backups: ## List backups newest first (read-only; use "agentic-sdd restore" to restore one)
 	GOCACHE=$(GOCACHE) go run ./cmd/agentic-sdd backups
+
+logs: ## Show the latest apply or restore log
+	GOCACHE=$(GOCACHE) go run ./cmd/agentic-sdd logs
 
 test: ## Run Go tests
 	GOCACHE=$(GOCACHE) go test ./...

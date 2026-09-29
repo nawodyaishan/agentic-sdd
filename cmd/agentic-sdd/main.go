@@ -44,13 +44,15 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 			return 0
 		case "help":
 			if len(args) > 2 || (len(args) == 2 && !isHelpTopic(args[1])) {
-				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|restore]")
+				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|logs|restore]")
 				return 2
 			}
 			printUsage(stdout)
 			return 0
 		case "backups":
 			return runBackups(args[1:], stdout, stderr)
+		case "logs":
+			return runLogs(args[1:], stdout, stderr)
 		case "restore":
 			return runRestore(args[1:], stdout, stderr, stdin, interactive)
 		default:
@@ -103,7 +105,10 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 		fmt.Fprintln(stderr, "error:", err)
 		return 1
 	}
-	if err := skillsync.Sync(repo, home, command == "apply", stdout); err != nil {
+	if command == "apply" {
+		return runApplyWithLog(repo, home, stdout, stderr)
+	}
+	if err := skillsync.Sync(repo, home, false, stdout); err != nil {
 		fmt.Fprintln(stderr, "error:", err)
 		return 1
 	}
@@ -112,7 +117,7 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 
 func isHelpTopic(s string) bool {
 	switch s {
-	case "preview", "apply", "backups", "restore":
+	case "preview", "apply", "backups", "logs", "restore":
 		return true
 	}
 	return false
@@ -300,7 +305,10 @@ func runRestore(args []string, stdout, stderr io.Writer, stdin io.Reader, intera
 		}
 	}
 
-	if err := skillsync.Restore(repo, home, id, applyRestore, stdout); err != nil {
+	if applyRestore {
+		return runRestoreWithLog(repo, home, id, stdout, stderr)
+	}
+	if err := skillsync.Restore(repo, home, id, false, stdout); err != nil {
 		fmt.Fprintln(stderr, "error:", err)
 		return 1
 	}
@@ -351,15 +359,17 @@ func printUsage(out io.Writer) {
 	fmt.Fprint(out, `Usage: agentic-sdd [preview|apply] [--repo PATH] [--home PATH]
        agentic-sdd version
        agentic-sdd backups [--repo PATH] [--home PATH]
+       agentic-sdd logs [--home PATH]
        agentic-sdd restore [ID] [--apply] [--repo PATH] [--home PATH]
        agentic-sdd restore list|preview|apply [ID] [--repo PATH] [--home PATH]
-       agentic-sdd help [preview|apply|backups|restore]
+       agentic-sdd help [preview|apply|backups|logs|restore]
 
 Commands:
   preview        Show planned changes without writing files (default).
   apply          Back up changed existing skills, then install them.
   version        Print version, commit, and build date information.
   backups        List backups newest first (same as "restore list").
+  logs           Show the latest apply or restore log.
   restore        Preview or restore a backup, selected by id or number.
 
 restore forms:

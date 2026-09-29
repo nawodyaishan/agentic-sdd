@@ -449,3 +449,102 @@ func TestRunRestoreInteractiveFlow(t *testing.T) {
 		}
 	})
 }
+
+func TestApplyLogAndLogsCommand(t *testing.T) {
+	root := t.TempDir()
+	repo, home := filepath.Join(root, "repo"), filepath.Join(root, "home")
+	skill := filepath.Join(repo, "skills-files", "agentic-sdd-plan")
+	if err := os.MkdirAll(skill, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skill, "SKILL.md"), []byte("current"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := runNonInteractive([]string{"preview", "--repo", repo, "--home", home}, &stdout, &stderr); code != 0 {
+		t.Fatalf("preview exited %d: %s", code, stderr.String())
+	}
+	if _, err := os.Stat(logsDir(home)); !os.IsNotExist(err) {
+		t.Fatalf("preview created logs: %v", err)
+	}
+	stdout.Reset()
+	if code := runNonInteractive([]string{"apply", "--repo", repo, "--home", home}, &stdout, &stderr); code != 0 {
+		t.Fatalf("apply exited %d: %s", code, stderr.String())
+	}
+	entries, err := os.ReadDir(logsDir(home))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("apply logs: %v, %v", entries, err)
+	}
+	logPath := filepath.Join(logsDir(home), entries[0].Name())
+	info, err := os.Stat(logPath)
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Fatalf("log permissions: %v, %v", info, err)
+	}
+	data, err := os.ReadFile(logPath)
+	if err != nil || !strings.Contains(string(data), "install codex/agentic-sdd-plan") || !strings.Contains(string(data), "Result: success") {
+		t.Fatalf("log content: %q, %v", data, err)
+	}
+	stdout.Reset()
+	if code := runNonInteractive([]string{"logs", "--home", home}, &stdout, &stderr); code != 0 {
+		t.Fatalf("logs exited %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), string(data)) {
+		t.Fatalf("logs output missing latest log: %q", stdout.String())
+	}
+}
+
+func TestApplyFailureLog(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	var stdout, stderr bytes.Buffer
+	code := runNonInteractive([]string{"apply", "--repo", filepath.Join(root, "missing"), "--home", home}, &stdout, &stderr)
+	if code != 1 || !strings.Contains(stderr.String(), "error:") {
+		t.Fatalf("apply exited %d, stderr %q", code, stderr.String())
+	}
+	entries, err := os.ReadDir(logsDir(home))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("failure logs: %v, %v", entries, err)
+	}
+	data, err := os.ReadFile(filepath.Join(logsDir(home), entries[0].Name()))
+	if err != nil || !strings.Contains(string(data), "Result: failure") {
+		t.Fatalf("failure log: %q, %v", data, err)
+	}
+}
+
+func TestRestoreApplyLog(t *testing.T) {
+	repo, home, id := setupBackupCLI(t)
+	var stdout, stderr bytes.Buffer
+	if code := runNonInteractive([]string{"restore", "apply", id, "--repo", repo, "--home", home}, &stdout, &stderr); code != 0 {
+		t.Fatalf("restore exited %d: %s", code, stderr.String())
+	}
+	stdout.Reset()
+	if code := runNonInteractive([]string{"logs", "--home", home}, &stdout, &stderr); code != 0 {
+		t.Fatalf("logs exited %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Command: restore "+id) || !strings.Contains(stdout.String(), "Result: success") {
+		t.Fatalf("latest log does not describe restore: %q", stdout.String())
+	}
+}
+
+func TestApplyRefusesSymlinkedLogDirectory(t *testing.T) {
+	root := t.TempDir()
+	home, outside := filepath.Join(root, "home"), filepath.Join(root, "outside")
+	if err := os.MkdirAll(home, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(outside, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(home, ".agentic-sdd")); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := runNonInteractive([]string{"apply", "--home", home}, &stdout, &stderr)
+	if code != 1 || !strings.Contains(stderr.String(), "refusing non-directory log path") {
+		t.Fatalf("apply exited %d, stderr %q", code, stderr.String())
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("log wrote through symlink: %v, %v", entries, err)
+	}
+}
