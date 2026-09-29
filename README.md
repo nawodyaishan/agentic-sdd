@@ -19,13 +19,7 @@ Two things live here:
 - [`skills-files/`](skills-files/) — ten skills that define the workflow. This is the product.
 - `cmd/` + `internal/` — a single-purpose installer that copies those skills into your client skill directories, backing up whatever it replaces.
 
-```text
-skills-files/  ── preview ── back up ── install
-                                    ├── ~/.agents/skills
-                                    ├── ~/.codex/skills
-                                    ├── ~/.claude/skills
-                                    └── ~/.gemini/antigravity-cli/skills
-```
+![Agentic SDD architecture: the spec-driven workflow and Go CLI skill distribution](docs/agentic-sdd-architecture.png)
 
 ---
 
