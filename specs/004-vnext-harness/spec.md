@@ -180,4 +180,6 @@ The later plan must make consequential design choices explicit; tasks must map a
 - Reviewed document SHA-256 identities, before this approval/state update: spec `cbf9342fe3e9043d7a1517a69b05b2c4b74d31626a377ccdd1f4f9e0ca21bc44`; plan `7c3d48b3222027b5a9ac84d79bd4d06258482ceea7e0c2f5be8ba33846c0f8e5`; tasks `a5a1bdcff77d4cbe7a92c2eb045a8f58f9ff9f0709ef4920b5d03e10729ca83f`.
 - Implementation authorization: **B1 / T01–T02**, approved 2026-10-28, plus **B2 / T03**, authorized 2026-10-28 after B1 review. No later batch, real-home installation or unrelated live operation is authorized.
 
-Next action: execute B1, then stop for human review; continuation evidence is in `tasks.md`.
+- B4 authorization: user said **“start b4”** after selecting all three pre-B4 remediation options. Scope is **B4 / T07 only**, deterministic runner development/verification. Sandbox access was restricted per the user's later **Restrict and defer** decision; dedicated-key cap/rotation remain pending user actions. This authorizes neither B5 nor additional model usage, account changes, runtime-config installation or sandbox deletion.
+
+Next action: review B4 / T07 and its Linux-only execution boundary. B3/remediation blockers remain; B5 needs separate authorization. Continuation evidence is in `tasks.md`.

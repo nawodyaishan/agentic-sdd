@@ -230,6 +230,9 @@ skills-files/          The ten Agentic SDD skills and shared references
 .goreleaser.yml        Darwin build, universal binary, Homebrew formula publishing
 .github/workflows/     release.yml (tag-triggered publish), ci.yml (build/test/vet)
 tests/                 Docker end-to-end scripts
+cmd/sdd-check/         Deterministic check CLI (source checkout; no model runtime)
+internal/harnesscheck/ Check contract validation, execution, bounded logs and cancellation
+harness/               Portable check contracts and evidence guidance
 config/                Local inventory and client overlay notes
 docs/                  Background research
 audits/                Workflow audits
@@ -237,7 +240,40 @@ specs/                 Feature documents produced by the workflow itself
 backups/               Git-ignored copies from changed installations
 ```
 
-The CLI stays small; all filesystem behavior lives in `internal/skillsync`. `sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `manifest_test.go` covers the format 2 manifest and its digest; `restore_test.go` covers listing, backup validation (including every kind of malformed or tampered backup), and restore's preview/apply/rollback behavior. `cmd/agentic-sdd/main_test.go` covers help, usage errors, preview/apply compatibility, and every `backups`/`restore` form, including the interactive prompt. Run `make test` and `make vet` after changing the installer, and `make docker-e2e` before trusting an apply or a restore.
+The installer CLI stays small; its filesystem behavior lives in `internal/skillsync`. `sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `manifest_test.go` covers the format 2 manifest and its digest; `restore_test.go` covers listing, backup validation (including every kind of malformed or tampered backup), and restore's preview/apply/rollback behavior. `cmd/agentic-sdd/main_test.go` covers help, usage errors, preview/apply compatibility, and every `backups`/`restore` form, including the interactive prompt. Run `make test` and `make vet` after changing the installer, and `make docker-e2e` before trusting an apply or a restore.
+
+### Deterministic checks (source checkout)
+
+`make verify` now runs the six required checks in [harness/checks.json](harness/checks.json),
+including whitespace checks and Darwin builds of both CLIs. Existing individual
+Make target names remain available. Runner-backed `verify`/`tidy-check` currently
+execute only on Linux; Darwin execution is explicitly blocked pending native
+cancellation validation (cross-compilation is not runtime certification).
+No LLM, provider key or OpenCode process is used
+by the shipped runner/contract. The check runner is not added to the Homebrew
+formula or release artifacts by this change.
+
+```sh
+make verify SDD_OUTPUT=/absolute/external/new-private-run
+go run ./cmd/sdd-check --scope focused --check test \
+  --workspace . --contract harness/checks.json \
+  --output /absolute/external/another-new-private-run
+```
+
+Without `SDD_OUTPUT`, Make creates an owner-only temporary evidence directory.
+Evidence includes `result.json` and logs (up to 10 MiB/check). Use a fresh output
+directory per run; existing evidence is never overwritten. `make tidy-check`
+uses the same runner and detects new untracked `go.sum` as well as changed or
+deleted module files. It compares pre/post content, not a staged Git index.
+
+Make's runner entry points disable automatic Go toolchain/module downloads;
+missing cached dependencies fail visibly rather than being fetched. Direct
+component Make targets retain their existing execution behavior. Commands can
+write caches, module files and build outputs; candidate tests can do more.
+**The runner is not a sandbox or a protected CI gate**: use a trusted contract,
+and OS isolation without secrets/network for untrusted candidate code. Logs may
+contain sensitive check output; keep them private and out of Git. Full flags,
+status/exit semantics, retention and cancellation limits: [harness/README.md](harness/README.md).
 
 ## Releasing
 

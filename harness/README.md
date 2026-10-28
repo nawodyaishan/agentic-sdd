@@ -1,6 +1,10 @@
 # Portable harness contract — version 1
 
-Status: B1 contract and baseline artifacts. The runner, native profiles, behavioral validation and CI integration are not implemented here. Approval and execution state live in [feature 004](../specs/004-vnext-harness/spec.md#approval) and its [tasks](../specs/004-vnext-harness/tasks.md), not in receipts.
+Status: B4 adds a deterministic Go check runner; B3's native adapter templates
+remain inactive and acceptance-blocked. Full receipts/freshness, recovery,
+connected behavioral validation and trusted CI integration remain later work.
+Approval and execution state live in [feature 004](../specs/004-vnext-harness/spec.md#approval)
+and its [tasks](../specs/004-vnext-harness/tasks.md), not in results/receipts.
 
 ## Authority and modes
 
@@ -10,7 +14,7 @@ Direct fixes have null feature/batch and no task IDs. Review never changes proje
 
 ## Check contract
 
-[`checks.json`](checks.json) describes current repository commands; [`checks.schema.json`](checks.schema.json) defines their shape. The contract is executable data: choose it from a trusted revision, not an untrusted candidate. B1 does not add an executor or change Make/CI.
+[`checks.json`](checks.json) describes current repository commands; [`checks.schema.json`](checks.schema.json) defines their shape. The contract is executable data: choose it from a trusted revision, not an untrusted candidate. B4 implements local execution; T10 still owns independent CI trust/adoption.
 
 - `version` is exactly 1. Reject unknown fields/versions and duplicate check IDs.
 - `cwd` is `.` or a repository-relative directory. Resolve symlinks and reject paths escaping the selected workspace before execution.
@@ -36,7 +40,7 @@ Execution and review are separate:
 | `cancelled` | Cancellation observed; uncertain remaining effects stay explicit. |
 | `failed` | Executed operation failed. |
 
-Check results use `passed`, `failed`, `blocked`, `incomplete`, `cancelled`, `not_run`. An executed nonzero check fails; a missing executable blocks; a timeout is incomplete; interruption is cancelled; later skipped checks are not_run. Zero process exit alone does not establish acceptance. Proposed runner exit codes remain 0 (all selected checks pass), 1 (failure/incomplete/cancelled), 2 (invalid input/blocked prerequisites).
+Check results use `passed`, `failed`, `blocked`, `incomplete`, `cancelled`, `not_run`. An executed nonzero check fails; a missing executable blocks; a timeout is incomplete; interruption is cancelled; later skipped checks are not_run. Zero process exit alone does not establish acceptance. Runner exit codes are 0 (all selected checks pass), 1 (failure/incomplete/cancelled), 2 (invalid input/blocked prerequisites).
 
 Technical review is null until performed, otherwise `Ready`, `Needs changes` or `Blocked`. Ready requires fresh required evidence plus actual requirements/engineering review. A stopped batch can be `awaiting human review` with a Blocked verdict. Implementation owns one completion review and the authorized state write. Review-only changes nothing in the project.
 
@@ -63,4 +67,88 @@ Retention: external owner-only raw logs 7 days, sanitized receipts 30 days, manu
 - [Scenario definitions](../tests/harness/scenarios.json): independently expected behavior, with no simulated pass claims.
 - Schema checks on a host with Python 3 and `jsonschema` 4.x already available: `python3 tests/harness/validate_contracts.py`. This is development validation only; no production Python runtime or package installation is required. Runtime/semantic checks belong to T07/T08 and native boundary checks to T05/T09.
 
-Before B2, collect the missing frozen-baseline behavioral observations under explicitly permitted provider access. Do not modify the canonical skills and then reconstruct a supposed before-result.
+Historical B1/B2 observations are in the baseline record. Do not reconstruct
+a before-result after tuning. Future comparisons require separately bounded
+authorization and unchanged model/fixture conditions; local native-adapter and
+incident-remediation work is not part of this B4 commit.
+
+## B4 runner usage and limitations
+
+```sh
+go run ./cmd/sdd-check --scope required --workspace . \
+  --contract harness/checks.json --output /absolute/external/new-run
+go run ./cmd/sdd-check --scope focused --check vet --check test \
+  --workspace . --contract harness/checks.json --output /absolute/external/another-run
+make verify SDD_OUTPUT=/absolute/external/required-run
+make tidy-check SDD_OUTPUT=/absolute/external/tidy-run
+```
+
+`--scope` and `--output` are required. `--workspace` defaults to `.`;
+`--contract` defaults to `harness/checks.json`, resolved from the invocation
+directory, not from a different target workspace. Choose a trusted contract
+explicitly when checking an untrusted candidate. `--check` repeats only for
+focused scope; baseline/required select every eligible check in contract order.
+`--deadline` is a positive Go duration (default `15m`) covering the run; each
+check also has its own positive whole-check timeout, not a fresh timeout per
+step. Deadline stops new work; bounded termination/evidence cleanup may follow.
+The runner stops scheduling after any selected non-pass and marks later
+checks `not_run`. No automatic retry, install, model call or provider fallback
+is implemented. Arbitrary trusted argv can still execute arbitrary programs:
+review the contract and isolate candidate code rather than treating this CLI
+as a billing/permission firewall.
+
+Output must be new or empty and owner-only, must not overlap the checkout,
+and must have no symlink components (on macOS use canonical physical paths).
+Log paths are validated relative paths; output is reserved without overwriting
+existing evidence. Full command output is drained but only the first bounded
+10 MiB/check is retained, with a truncation marker and `truncated: true`.
+Truncation or an output-pipe/evidence failure makes an otherwise passing check
+`incomplete`. Log names may be nested but cannot collide with another log or
+the reserved `result.json` path. The contract must be regular JSON, at most
+1 MiB, with known fields/version, unique IDs, non-null fields and valid ordered
+steps/environment overrides. Relative PATH entries are not used for executable
+lookup. No implicit shell expansion occurs; a deliberately configured `sh -c`
+remains executable code, not a safe data value.
+
+`result.json` and stdout contain the same structured execution result: version,
+canonical workspace, SHA-256 of the exact loaded contract, selection scope/IDs,
+run/check timestamps, execution/status/exit, evidence paths, truncation and
+reasons. It is **not** T08's full observation receipt or a freshness proof, and
+contains no review verdict or authority/task-state write. Flag/input errors can
+occur before any safe output directory exists and are reported to the caller
+without creating evidence. Compiled CLI exits: 0 for all selected passes, 1 for
+failure/incomplete/cancelled execution or result-write failure, 2 for invalid
+input/blocked prerequisites. `go run`/Make may wrap a nonzero executable exit;
+inspect the structured result for the authoritative execution distinction.
+
+Executables are looked up without installing anything. The two current named
+capabilities are `running Docker daemon` and `preloaded golang:1.25-alpine image`;
+they use bounded metadata probes. Unknown capability phrases block. The Docker
+recipe also uses `--pull=never`, closing the race after image preflight. The
+reserved `tidy-check` ID snapshots regular `go.mod`/`go.sum` files before and
+after all steps, including absence/new files, without undoing any change. This
+replaces its old staged-index-dependent Git diff; using a different ID would
+lose the invariant and is a contract change requiring review. CI protection
+against candidate contract/runner weakening is still T10, not this local gate.
+
+Linux and Darwin have process-group implementations; only Linux execution is
+enabled. Darwin is cross-compiled but deliberately returns blocked until native
+cancellation tests are observed; other hosts also block before execution.
+Each enabled command owns a new process group;
+on cancellation/deadline it receives TERM then bounded KILL, and direct wait /
+output pipes are bounded. A leader exiting with remaining group activity cannot
+pass. Remaining membership (including possible zombies) is reported as uncertain.
+Children deliberately escaping the group, external effects and a stalled
+filesystem are outside this mechanism; use an isolated execution boundary for
+untrusted/daemonizing commands. It never kills unrelated process groups. No
+concurrent untrusted filesystem writer is permitted: Go 1.23 path validation
+is not a race-proof sandbox. Native OpenCode cancellation is separate T09 work.
+
+Make creates private temporary output when `SDD_OUTPUT` is omitted; set
+`TMPDIR` to an approved external location to choose its parent. Keep raw logs
+7 days by default and clean up manually, retaining explicitly accepted evidence
+with an owner/expiry. Do not commit logs or copy native credential databases.
+Go downloads are disabled at the Make runner entry points, but candidate code
+can still use the host network/credentials unless OS-isolated. Pending account
+caps/key rotation do not prevent these provider-free deterministic checks and
+remain separate from authorization to run any LLM.

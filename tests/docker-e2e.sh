@@ -2,7 +2,7 @@
 set -eu
 
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-docker run --rm \
+docker run --rm --pull=never \
   --network none \
   --mount "type=bind,src=$repo,dst=/src,readonly" \
   --workdir /src \

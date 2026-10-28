@@ -9,3 +9,17 @@ The legacy restore variant is reserved from tuning. It is not genuinely unseen t
 `contracts.json` separates schema assertions from future semantic/runtime assertions. Run `python3 tests/harness/validate_contracts.py` with the already available Python `jsonschema` 4.x package. It validates both schemas/examples and rejects malformed versions, paths, timeout, argv, costs, direct-fix state and timestamps. **It does not implement T07/T08's runner or semantic checks**, and passing it does not prove agent compliance, policy denial or runtime cancellation.
 
 Behavioral runs require a frozen model/variant, permissions/tools, isolated execution context, budget and actual authorization. The scenario definitions themselves grant none. Reserve two repetitions for critical boundary/recovery cases when authorized, record failed attempts too, and report sample counts rather than reliability claims.
+
+## B4 deterministic runner tests
+
+`go test ./internal/harnesscheck ./cmd/sdd-check` executes small synthetic
+subprocess fixtures only, never the complete required runner from its own test
+suite. Cases cover contract/selection rejection, literal argv/environment lookup,
+safe external/private evidence, real exit failure, missing prerequisites,
+skipped later work, truncation, missing/deleted evidence, whole-check/run deadlines,
+cancellation, new untracked module files and refusal to overwrite old results.
+Linux-specific tests exercise ordinary owned descendants, leader exit with live
+children, and survival of an unrelated process. `go test -race` is a useful
+additional check. macOS runtime cancellation remains unobserved; cross-builds
+are not native execution evidence. Full receipt/freshness/redaction acceptance
+still belongs to T08, and protected CI bootstrap to T10.

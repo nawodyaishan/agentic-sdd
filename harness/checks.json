@@ -10,9 +10,9 @@
     },
     {
       "id": "tidy-check", "cwd": ".", "scopes": ["baseline", "focused", "required"],
-      "prerequisites": ["go", "git", "Git index matching candidate inputs"], "timeout_seconds": 120,
+      "prerequisites": ["go"], "timeout_seconds": 120,
       "effects": {"writes": ["go.mod", "go.sum", "Go module/cache directories"], "network": "Possible dependency retrieval unless disabled"},
-      "steps": [{"argv": ["go", "mod", "tidy"], "env": {}}, {"argv": ["git", "diff", "--exit-code", "--", "go.mod", "go.sum"], "env": {}}],
+      "steps": [{"argv": ["go", "mod", "tidy"], "env": {}}],
       "local_recipe": ["make", "tidy-check"], "expected_exit": 0, "evidence": "tidy-check.log"
     },
     {
@@ -32,10 +32,12 @@
     {
       "id": "build-darwin", "cwd": ".", "scopes": ["baseline", "focused", "required"],
       "prerequisites": ["go"], "timeout_seconds": 180,
-      "effects": {"writes": ["bin/agentic-sdd_darwin_amd64", "bin/agentic-sdd_darwin_arm64", "Go cache"], "network": "Possible toolchain/module retrieval unless disabled"},
+      "effects": {"writes": ["bin/agentic-sdd_darwin_amd64", "bin/agentic-sdd_darwin_arm64", "bin/sdd-check_darwin_amd64", "bin/sdd-check_darwin_arm64", "Go cache"], "network": "Possible toolchain/module retrieval unless disabled"},
       "steps": [
         {"argv": ["go", "build", "-trimpath", "-o", "bin/agentic-sdd_darwin_amd64", "./cmd/agentic-sdd"], "env": {"GOOS": "darwin", "GOARCH": "amd64"}},
-        {"argv": ["go", "build", "-trimpath", "-o", "bin/agentic-sdd_darwin_arm64", "./cmd/agentic-sdd"], "env": {"GOOS": "darwin", "GOARCH": "arm64"}}
+        {"argv": ["go", "build", "-trimpath", "-o", "bin/agentic-sdd_darwin_arm64", "./cmd/agentic-sdd"], "env": {"GOOS": "darwin", "GOARCH": "arm64"}},
+        {"argv": ["go", "build", "-trimpath", "-o", "bin/sdd-check_darwin_amd64", "./cmd/sdd-check"], "env": {"GOOS": "darwin", "GOARCH": "amd64"}},
+        {"argv": ["go", "build", "-trimpath", "-o", "bin/sdd-check_darwin_arm64", "./cmd/sdd-check"], "env": {"GOOS": "darwin", "GOARCH": "arm64"}}
       ],
       "local_recipe": ["make", "build-darwin"], "expected_exit": 0, "evidence": "build-darwin.log"
     },
