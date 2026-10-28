@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "run_id": "example-only-not-an-observed-run",
+  "session_id": null,
+  "mode": "direct-fix",
+  "workspace": "/fixture/project",
+  "request_ref": "synthetic request: diagnose known regression",
+  "authorization_ref": "synthetic request: fix this regression in disposable checkout",
+  "feature": null,
+  "batch": null,
+  "task_ids": [],
+  "allowed_effects": ["fixture source edits", "authorized fixture checks"],
+  "profile": "synthetic-build",
+  "tools": [],
+  "limits": {"deadline_seconds": 900, "steps": 20, "transient_retries": 2, "paid_authorized": false, "spend_usd": 0},
+  "identity": {
+    "base_revision": "synthetic-base",
+    "diff": null,
+    "config": "synthetic-config",
+    "skills": "synthetic-skills",
+    "environment": "synthetic-environment",
+    "runtime": null,
+    "harness": "synthetic-harness",
+    "contract": "synthetic-contract"
+  },
+  "model": {"provider": null, "id": null, "variant": null},
+  "selection": {"scope": "focused", "check_ids": ["test"]},
+  "checks": [{
+    "id": "test", "status": "blocked", "exit_code": null,
+    "started_at": null, "ended_at": "2026-10-28T00:00:00Z",
+    "evidence": "external-fixture-root/prerequisite.log", "truncated": false,
+    "reason": "Synthetic missing executable; no process started."
+  }],
+  "execution": "blocked",
+  "review": "Blocked",
+  "workflow_state": null,
+  "findings": [],
+  "affected_files": [],
+  "next_action": "Resolve fixture prerequisites; do not claim a pass.",
+  "cost_usd": null,
+  "unknowns": {
+    "/session_id": "Synthetic schema example; no native session.",
+    "/identity/diff": "No code identity measured; evidence cannot be reused.",
+    "/identity/runtime": "No runtime was executed.",
+    "/model/provider": "No model request made.",
+    "/model/id": "No model request made.",
+    "/model/variant": "No model request made.",
+    "/cost_usd": "No measured billing data; unknown is not zero."
+  }
+}

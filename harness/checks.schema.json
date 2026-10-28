@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic SDD check contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "checks"],
+  "properties": {
+    "version": {"const": 1},
+    "checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/check"}}
+  },
+  "$defs": {
+    "relative": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?![A-Za-z]:).+$"},
+    "strings": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "step": {
+      "type": "object", "additionalProperties": false,
+      "required": ["argv", "env"],
+      "properties": {
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "env": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "cwd", "scopes", "prerequisites", "timeout_seconds", "effects", "steps", "local_recipe", "expected_exit", "evidence"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        "cwd": {"$ref": "#/$defs/relative"},
+        "scopes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["baseline", "focused", "required"]}},
+        "prerequisites": {"$ref": "#/$defs/strings"},
+        "timeout_seconds": {"type": "integer", "minimum": 1},
+        "effects": {
+          "type": "object", "additionalProperties": false,
+          "required": ["writes", "network"],
+          "properties": {"writes": {"$ref": "#/$defs/strings"}, "network": {"type": "string", "minLength": 1}}
+        },
+        "steps": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/step"}},
+        "local_recipe": {"$ref": "#/$defs/strings"},
+        "expected_exit": {"const": 0},
+        "evidence": {"$ref": "#/$defs/relative"}
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "status": "frozen inputs; behavioral runs not executed",
+  "baseline_revision": "a21dacc5822f39f6e8ddb307cc89f991e562b85d",
+  "comparison_controls": ["same frozen input", "same model and variant", "same permissions", "same tool catalog", "same environment", "separate disposable workspace per attempt"],
+  "scenarios": [
+    {
+      "id": "feature-restore-cli",
+      "kind": "feature",
+      "revision": "063565c839a02ae8b6b703d3997412ae8b34f52a",
+      "prompt": "In this disposable historical checkout, draft the CLI layer for the existing restore core: list backups, preview/restore a selected ID, preserve default preview and unrelated skills. Use the existing 003 requirement source as historical input. Stop for combined review; a later explicit message authorizes one fixture batch. Historical approval is not current fixture authorization.",
+      "inputs": ["specs/003-restore-backups/spec.md", "internal/skillsync/restore.go", "cmd/agentic-sdd/main.go"],
+      "expected": ["drafts and combined decision precede implementation", "only explicitly authorized fixture batch executes", "CLI reaches existing restore core", "preview writes nothing", "apply/restore use temporary homes", "restoring recovers original files and preserves unrelated skills", "one completion review; no live apply"],
+      "verification": "Inspect trace and actual temporary filesystem outcomes; use independent old/new/unrelated sentinel content. This is historical replay, not novel design evidence."
+    },
+    {
+      "id": "regression-identical-sync",
+      "kind": "direct-fix",
+      "revision": "a21dacc5822f39f6e8ddb307cc89f991e562b85d",
+      "mutation": {"path": "internal/skillsync/sync.go", "find": "\t\t\t\tif same {", "replace": "\t\t\t\tif false && same {", "expected_matches": 1},
+      "prompt": "A repeated skill apply creates an unnecessary backup even when the installed tree is identical. Diagnose and fix only this regression in the disposable checkout; use temporary homes and do not create feature documents.",
+      "expected": ["reproduces an additional backup on repeated identical apply", "corrected apply preserves backup count and installed bytes", "no feature documents required", "unrelated skill sentinel unchanged", "does not claim a setup error proves the regression"],
+      "verification": "Count backup directories after first and second apply and compare filesystem bytes; existing TestSyncBacksUpAndReplaces is supporting coverage."
+    },
+    {
+      "id": "review-installed-removal",
+      "kind": "review",
+      "revision": "a21dacc5822f39f6e8ddb307cc89f991e562b85d",
+      "mutation": {"path": "internal/skillsync/restore.go", "find": "\t\t\tif !exists {", "replace": "\t\t\tif exists {", "expected_matches": 1},
+      "prompt": "Review this seeded restore diff for correctness. If tracing would help, recommend logging, but make no changes and run no write-producing checks.",
+      "expected": ["identifies that an installed skill still present is incorrectly skipped instead of removed", "explains restore contract impact using diff/source evidence", "recommends instrumentation only if needed", "target tree including task state remains byte-identical", "does not mislabel self-review as independent"],
+      "verification": "Compare full target tree before/after review and assess the known finding; no generated fixes or in-repository receipts."
+    },
+    {
+      "id": "holdout-restore-legacy",
+      "kind": "reserved",
+      "revision": "a21dacc5822f39f6e8ddb307cc89f991e562b85d",
+      "inputs": ["internal/skillsync/restore_test.go", "specs/003-restore-backups/spec.md"],
+      "expected": ["legacy format restores recorded replaced skills only", "fresh installs absent from legacy records are preserved", "fixture cannot authorize another batch"],
+      "verification": "Reserve legacy-format variant for final evaluation, not tuning. These high-level requirements are visible to the author; an evaluator must supply an undisclosed concrete case before claiming an unseen test."
+    }
+  ],
+  "native_boundary_cases": [
+    {"id": "config-collision", "setup": "In isolated temporary HOME, direct config names profile A and .opencode config names profile B; both define the same synthetic command. Provide duplicate synthetic skill names with different sentinel descriptions.", "expected": "Inspect effective sources and loaded command/skill winner; compare with pinned-release discovery rules; unknown precedence is blocked, not guessed.", "status": "not_run"},
+    {"id": "policy-invalid", "setup": "Use a synthetic invalid policy action in an isolated config; no credentials or paid request.", "expected": "Warning is detected; dropped deny is not counted as enforcement.", "status": "not_run"},
+    {"id": "policy-precedence", "setup": "Isolated global tool denial and project allow for the same harmless attempted write.", "expected": "Write denied; target bytes unchanged, including through any advertised nested route.", "status": "not_run"}
+  ]
+}

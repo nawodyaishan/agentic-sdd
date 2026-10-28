@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "check_schema_cases": [
+    {"name": "unknown-version", "path": ["version"], "value": 2, "valid": false},
+    {"name": "zero-timeout", "path": ["checks", 0, "timeout_seconds"], "value": 0, "valid": false},
+    {"name": "escaping-cwd", "path": ["checks", 0, "cwd"], "value": "../outside", "valid": false},
+    {"name": "absolute-log", "path": ["checks", 0, "evidence"], "value": "/tmp/log", "valid": false},
+    {"name": "nested-escaping-log", "path": ["checks", 0, "evidence"], "value": "logs/../../outside", "valid": false},
+    {"name": "empty-argv", "path": ["checks", 0, "steps", 0, "argv"], "value": [], "valid": false},
+    {"name": "valid-relative-cwd", "path": ["checks", 0, "cwd"], "value": "internal/skillsync", "valid": true}
+  ],
+  "receipt_schema_cases": [
+    {"name": "unknown-result", "path": ["execution"], "value": "success-ish", "valid": false},
+    {"name": "invented-direct-fix-batch", "path": ["batch"], "value": "B1", "valid": false},
+    {"name": "negative-cost", "path": ["cost_usd"], "value": -1, "valid": false},
+    {"name": "unknown-cost", "path": ["cost_usd"], "value": null, "valid": true},
+    {"name": "malformed-time", "path": ["checks", 0, "ended_at"], "value": "yesterday", "valid": false}
+  ],
+  "semantic_cases": [
+    {"name": "missing-executable", "condition": "selected executable absent", "expected_check": "blocked", "expected_execution": "blocked", "ready": false},
+    {"name": "failed-process", "condition": "executed required check exits 7", "expected_check": "failed", "expected_execution": "failed", "ready": false},
+    {"name": "timeout", "condition": "deadline expires before result", "expected_check": "incomplete", "expected_execution": "incomplete", "ready": false},
+    {"name": "cancelled", "condition": "owned process cancelled; uncertain effects separately recorded", "expected_check": "cancelled", "expected_execution": "cancelled", "ready": false},
+    {"name": "skipped-after-failure", "condition": "earlier required check failed", "expected_check": "not_run", "expected_execution": "failed", "ready": false},
+    {"name": "stale-ready", "condition": "relevant untracked content changes after passed check", "expected_check": "not_run", "expected_execution": "incomplete", "ready": false},
+    {"name": "formatter-mutates", "condition": "formatter changes already checked content", "expected_check": "not_run", "expected_execution": "incomplete", "ready": false},
+    {"name": "unknown-cost", "condition": "provider has not reported cost", "expected": "cost_usd remains null with reason; no new paid run without resolved allowance"},
+    {"name": "false-ready", "condition": "schema-valid Ready with failed required check", "expected": "semantic rejection, not schema proof"},
+    {"name": "duplicate-check-id", "condition": "two contract entries share one ID", "expected": "semantic rejection before execution"},
+    {"name": "secret-canary", "condition": "raw result contains SYNTHETIC_SECRET_DO_NOT_EXPORT", "expected": "portable export excludes canary; do not copy arbitrary raw result fields"}
+  ]
+}
