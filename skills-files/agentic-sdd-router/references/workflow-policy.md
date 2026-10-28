@@ -2,6 +2,12 @@
 
 Applies to all ten skills, including direct manual invocation. Read once while unchanged. Install the sibling skill directories together so their relative references resolve. Use one main coding agent; load one principal specialist on demand and another only across a real domain boundary. Do not delegate unless the user explicitly requests it.
 
+## Action-first routing
+
+Classify the requested action before feature intake: an explicitly limited document request, review-only, direct fix, research, resume, or feature drafting. Load only the documents that mode needs. Only a feature-scoped document or feature outcome selects or creates a feature folder; the other modes must not inherit feature setup accidentally.
+
+A direct fix remains document-light. A review-only request changes no project state. A limited document request stops after that document and does not create downstream documents. Research answers a named uncertainty and returns to the stage that invoked it. Resume reconciles the recorded state with the latest explicit authorization before choosing an action.
+
 ## Sources, features and context
 
 Resolve actual repository paths and case. Common top-level sources are `Docs/SRS.md` for product intent, `Docs/High Level Spec.md` for major technical decisions and `Docs/Tasks.md` for the roadmap. Treat their established equivalents as canonical; do not rename or copy them to fit a template. At intake, use a compact feature index, the relevant top-level sections and repository instructions. During a stage, read only the feature files and sections needed to answer that stage's questions, plus targeted code/tests. Reuse unchanged context; refresh changed or uncertain sources. Flag material conflicts instead of silently changing an approved decision or creating a new canonical document.
@@ -20,15 +26,21 @@ Draft `spec.md`, then `plan.md`, then `tasks.md` in dependency order, using the 
 
 A request to draft only one document stays limited to that document. Material unanswered questions may legitimately block dependent drafting: record the assumption or the blocking question honestly rather than inventing an answer.
 
+Use observable acceptance references. Add a concrete acceptance example only where prose permits materially different interpretations. Mark a consequential assumption as unresolved or as the agent's proposal rather than presenting it as a user decision.
+
 Record the combined approval once — an approval section in one existing feature document (by convention `spec.md`) or one established tracker entry — tied to the reviewed scope and document revisions. The other documents reference that record; do not maintain competing approval flags. Record decision (`draft/pending`, `approved`, `changes requested`, `rejected`), the actual human actor, an evidence pointer and the exact revisions/scope covered. Do not invent an approver, date or consent. An agent's `Ready` verdict is a technical assessment, never human approval; a legacy agent-only `Approved` label is not approval, while a genuine human approval in a legacy `review.md` is evidence for its actual scope.
 
 Progress updates and ordinary implementation detail do not invalidate approval. Material changes to requirements, design or batch scope need review of the affected changes and reconciliation of the dependent documents; approval for unaffected work is preserved, including after compaction or architecture review.
+
+Planning and task drafting must make implementation possible without consequential guessing. State a shared boundary contract once in the plan or the repository's canonical API/schema source. Give tasks references to acceptance criteria and contracts rather than copying definitions. Before combined approval, reconcile acceptance ownership, producer/consumer agreement, dependency order, verification ownership and material assumptions. This is one readiness check owned by `agentic-sdd-tasks`, not another approval gate; see [task and readiness contracts](task-contracts.md).
 
 ## Execution batches and resume
 
 `tasks.md` defines each batch explicitly: batch ID, included task IDs, outcome, verification, state and next action. After combined approval **and** authorization to implement, execute ONE selected batch, verify it, then stop for human review.
 
-Persist `awaiting human review` plus the next action in `tasks.md`. On resume, do not start another batch merely because the feature is approved, a previous batch passed its checks, or tests are green. Continue when the user authorizes the next batch. Feature approval and batch-completion review are distinct decisions.
+Persist `awaiting human review` plus the next action in `tasks.md`. On resume, reconcile that state with the latest explicit authorization. A clearly scoped new batch authorization may advance past an earlier review checkpoint, but it does not authorize later batches. A bare "continue" is not authorization for the next batch; report the next action and wait for an explicit decision. Feature approval and batch-completion review are distinct decisions.
+
+Keep the technical outcome separate from workflow position. `Ready`, `Needs changes` and `Blocked` describe review findings; execution may be `completed`, `incomplete`, `blocked`, `cancelled` or `failed`; and the workflow may be waiting for the user. A stopped batch with unresolved findings is not successfully finished, and a stale Ready verdict does not survive relevant changes.
 
 Verify current code state before trusting continuation notes or old test results.
 
@@ -58,7 +70,13 @@ Select MCPs and CLIs conditionally, by concrete need — never a mandatory call 
 
 An explicitly requested review returns findings and changes nothing: no edits to code, documentation, approval records, task status or batch state. Report the recommended next action in the response instead of performing it. Fix defects, and update workflow state, only when the surrounding request already authorizes implementation, fixes or that state change.
 
+Implementation owns the complete authorized-batch lifecycle and invokes completion review once for its current result. The router invokes implementation and consumes that result; it does not schedule a second review of unchanged work. A correction can justify scoped re-review of the changed code and affected findings. Standalone verification review remains manually invocable.
+
 Verification compares behavior against acceptance criteria. Prior evidence is reusable only when code, relevant dependencies/config, inputs and environment still match; rerun affected, failed or repository-required checks and state omissions honestly. Keep the agent's verdict separate from human approval.
+
+## Research routing
+
+A named factual uncertainty may block feature drafting, implementation, review or a direct fix. Route it to `agentic-sdd-research-spec`, record the evidence where that work lives, then return to the invoking stage with the mode's restrictions intact. Research is conditional; it does not require a particular MCP or external search.
 
 ## Documentation and context
 

@@ -13,9 +13,11 @@ Read the relevant SRS and global-roadmap sections, applicable existing decisions
 
 Create or refine `spec.md` with the outcome, in-scope and explicitly excluded work, observable acceptance criteria, source-section references, actors or permissions where relevant, important edge cases and unresolved material questions. Include only this feature's requirements; keep design, tasks and batches out of it. Mark the substantive revision.
 
+Give acceptance criteria stable labels when later tasks need to reference them; for a tiny feature, existing headings or bullet references are sufficient. Add a concrete acceptance example only where prose permits materially different interpretations. Mark a consequential assumption as unresolved or as the agent's proposal rather than presenting it as a user decision.
+
 Ask only questions that change behavior, scope, acceptance, permissions, data or compatibility; at most three at once. Do not silently assume risky facts. If user-visible intent conflicts with the SRS, surface it for a canonical-source decision rather than changing an approved decision silently.
 
-Once the draft is sufficiently clear, continue to `agentic-sdd-plan` and then `agentic-sdd-tasks`: all three are presented together for ONE combined human approval. Do not stop here for a separate spec approval, and do not implement. If the user asked only for a spec, deliver only the spec. If a material unanswered question genuinely blocks the plan, record the assumption or the blocking question and say so honestly.
+Once the draft is sufficiently clear, continue to `agentic-sdd-plan` and then `agentic-sdd-tasks`: all three are presented together for ONE combined human approval. Do not stop here for a separate spec approval, and do not implement. If the user asked only for a spec, deliver only the spec and do not create the downstream documents. If a material unanswered question genuinely blocks the plan, record the assumption or the blocking question and say so honestly.
 
 Record the combined approval once, in this file's approval section or one established tracker entry, tied to the reviewed revisions and scope; the other documents reference it.
 

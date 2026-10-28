@@ -1,6 +1,6 @@
 ---
 name: agentic-sdd-research-spec
-description: "Resolve a named fact blocking a feature draft or a direct fix, and keep the evidence where that work lives."
+description: "Resolve a named fact blocking drafting, implementation, review or a direct fix, then return to the invoking stage."
 ---
 
 # Agentic SDD Research Spec
