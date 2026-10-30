@@ -3,7 +3,8 @@
 Status: B4 adds a deterministic Go check runner; B6 adds optional offline
 receipt/freshness/redaction validators and recovery fixtures. B3's native adapter
 templates remain inactive and acceptance-blocked. B7 adds a [trusted CI adapter](trusted-ci.md)
-and anti-weakening fixtures; trusted-branch adoption/hosted execution remain pending.
+and anti-weakening fixtures; a hosted main-push run has passed, while the fork/PR
+entry and remote required-check policy remain unobserved.
 Native correlation, agent recovery and connected behavioral validation remain unproven.
 Approval and execution state live in [feature 004](../specs/004-vnext-harness/spec.md#approval)
 and its [tasks](../specs/004-vnext-harness/tasks.md), not in results/receipts.

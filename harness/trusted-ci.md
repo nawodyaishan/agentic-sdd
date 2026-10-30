@@ -19,11 +19,11 @@ Missing inputs block before candidate execution. Source hashes/Git commits do
 not themselves prove human approval. Manifests identify actual staged bytes,
 including local untracked files; they do not make a dirty tree implicitly trusted.
 
-**Adoption action:** review B7, then separately authorize commit/merge/push onto
-the trusted main branch before relying on the new remote gate. Development
-fixtures combine frozen B4 with explicitly supplied B7 code as a test reference,
-not a deployed trust anchor. No remote run/branch rule is established by editing
-these files.
+**Adoption action:** B7 was reviewed and published to `main` on 2026-10-30, and
+the resulting main-push run passed. Development fixtures still combine frozen B4
+with explicitly supplied B7 code as a test reference, not a deployed trust
+anchor. The fork/PR entry and remote required-check policy remain unadopted and
+unobserved; nothing here administers branch rules.
 
 ### Workflow source and privileges
 
@@ -149,8 +149,10 @@ Explicit container fixtures test bootstrap refusal, contract weakening, known
 defect/deleted coverage/empty Make/forged receipt, worker boundary, owned cleanup
 and interruption, and local Make versus CI-style entry on identical candidate
 bytes. Comparison uses IDs/statuses and canonical contract/candidate identities;
-temporary paths/times differ. This is **not a hosted GitHub Actions observation**.
-Hosted activation and remote required-check policy remain adoption evidence/actions.
+temporary paths/times differ. Local fixtures are **not** a hosted GitHub Actions
+observation. One hosted main-push run has since passed (candidate bytes equal to
+the base); the fork/PR entry, uploaded artifact contents and remote
+required-check policy remain adoption evidence/actions.
 
 Observations/logs remain under the printed private external fixture directory.
 CI uploads only `evidence/`, never private staging/caches. Logs are untrusted
