@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "source": "User-selected model usage in this conversation; availability and privacy assertions are not independently certified",
+  "execution_enabled": false,
+  "automatic_fallbacks": [],
+  "default_model": "opencode/deepseek-v4.1-flash-free",
+  "initial_profiles": {
+    "Economy": "opencode/deepseek-v4.1-flash-free",
+    "Standard": "opencode/deepseek-v4.1-flash-free",
+    "Deep": "opencode/deepseek-v4.1-flash-free"
+  },
+  "models": [
+    {
+      "role": "everyday",
+      "id": "opencode/deepseek-v4.1-flash-free",
+      "usage": "Default coding and evaluation; hold model fixed between baseline and candidate",
+      "cost_class": "user-reported-free; current price unverified",
+      "data_scope": "synthetic-until-privacy-verified",
+      "private_data_evidence": "User reports a documented privacy policy; policy text and endpoint eligibility not independently checked here",
+      "capability_verified": false,
+      "execution_enabled": false
+    },
+    {
+      "role": "quick",
+      "id": "opencode/glm-5.3-flash-free",
+      "usage": "Manually selected quick actions; the one proposed free alternative, not automatic fallback or delegation",
+      "cost_class": "user-reported-free; current price unverified",
+      "data_scope": "synthetic-until-privacy-verified",
+      "private_data_evidence": "User reports a documented privacy policy; policy text and endpoint eligibility not independently checked here",
+      "capability_verified": false,
+      "execution_enabled": false
+    },
+    {
+      "role": "harder",
+      "id": "openrouter/xiaomi/mimo-v2.6-pro",
+      "usage": "Proposed paid harder-work choice; separate per-run authorization, dedicated key cap and verified privacy required before promotion",
+      "cost_class": "paid; current endpoint price unverified",
+      "data_scope": "synthetic-until-privacy-verified",
+      "private_data_evidence": "Require endpoint eligibility, no-training and ZDR controls verified on the actual request path",
+      "capability_verified": false,
+      "execution_enabled": false
+    },
+    {
+      "role": "experimental-reasoning",
+      "id": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "usage": "Separate synthetic-fixture experiment only; not an enabled initial profile or a verified intelligence upgrade",
+      "cost_class": "user-reported-free; current endpoint price unverified",
+      "data_scope": "synthetic-only",
+      "private_data_evidence": "Not eligible for private inputs under this catalog",
+      "capability_verified": false,
+      "execution_enabled": false
+    }
+  ],
+  "deferred_upgrade_candidates": [
+    "openrouter/deepseek/deepseek-v4.1-flash-1017",
+    "openrouter/z-ai/glm-5.3-flash"
+  ],
+  "excluded_evaluation_routes": ["openai/*", "openrouter/openai/*"],
+  "selection_rule": "An exact candidate ID is not permission to execute. No :free suffix removal, router/auto selection, provider substitution or paid upgrade on failure. Stop with Blocked.",
+  "limits": {
+    "b3_additional_model_requests": 0,
+    "monthly_ceiling_usd": 10,
+    "prior_spend": "B2 incident reconciled approximately USD 0.825; account/month remaining allowance is unknown",
+    "paid_execution": "Blocked until current price, allowance and a dedicated provider-side cap are verified for an explicitly bounded run"
+  }
+}

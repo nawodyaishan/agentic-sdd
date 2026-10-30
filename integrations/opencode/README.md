@@ -1,6 +1,26 @@
 # OpenCode adapter preflight
 
-Status: B1 inventory/contracts only. No active project configuration, profile, command, plugin, model mapping or installer change is delivered yet. The [supported-version record](supported-version.md) distinguishes an observed release from tested support.
+Status: B3 inactive templates and credential-free native fixtures delivered;
+**support/adoption still Blocked**. No active project/global configuration or
+shared service is changed. The [supported-version record](supported-version.md)
+distinguishes observations from certified support.
+
+## B3 artifacts
+
+- [Native template](opencode.jsonc): draft/build/review primaries and prompt-only
+  current-session commands; one selected feature/build path, providers denied.
+- [Higher-authority lockdown example](policy-lockdown.jsonc): separate, inactive;
+  never installed automatically by a project/skill installer.
+- [Usage catalog](model-usage.json): user-selected DeepSeek/GLM free roles,
+  dormant paid MiMo and synthetic-only Nemotron; all execution disabled.
+- [Manual adoption/rollback](adoption.md), [incident-derived spending/credential
+  safeguards](safety.md), and [verification limits](verification.md).
+- [Manual recovery procedure](recovery.md): B6 offline reconciliation and
+  deterministic-check evidence only; native agent recovery remains unobserved.
+
+Both `.jsonc` templates deliberately use the JSON subset for dependency-free
+static checks. They are examples, not automatically discovered configuration
+at this location. Their references to free models are not price/access proofs.
 
 ## Inspected setup — 2026-10-28
 
@@ -20,11 +40,11 @@ Allowed projections only were printed: version, source paths, field names, agent
 | Service default model | provider `openrouter`, model `openai/gpt-6.1-terra-pro` | Observed for repository location; no selection change made. |
 | Current session model | `openai/gpt-6-astra`, supplied by this session's harness | Different from service default. Variant/access/cost not inferred. |
 | Model catalog | Home-location query returned 418 entries across cerebras/google/groq/openai/opencode/openrouter | Availability listing only; do not treat home catalog as verified repository-specific access. Repository-default lookup was explicitly scoped. |
-| Explicit provider routes | `openrouter/openai/gpt-5.6-sol` and `openrouter/openai/gpt-6.1-terra-pro` completed bounded fixture requests; the same prefix for `openai/gpt-6-astra` exceeded the key's affordable-token limit. IDs without the explicit provider prefix returned `provider.no-route` for Terra/Astra and a ChatGPT sharing limit for `openai/gpt-5.6-sol`. | Provider prefixes and authorization state materially affect routing. Use the explicit provider/model form and verify one tiny smoke request; never infer access from the catalog. |
+| Historical explicit provider routes | Sol/Terra OpenRouter routes made paid requests in B2; Astra route hit an affordable-token error. Other routes returned no-route or subscription sharing-limit errors. | Incident finding, not a recommended smoke procedure. These OpenAI evaluation routes are excluded from the new usage catalog; no automatic probing or fallback. See safety guidance. |
 | Skills | Ten installed SDD bodies plus two references under `~/.agents/skills` exactly match canonical bytes | API skill response is truncated/unparseable; complete effective duplicate precedence unresolved. Loaded router's supplied path confirms that invocation's source only. |
 | Instructions | Repository `AGENTS.md` and global OpenCode `AGENTS.md` supplied in session context | Their hashes are in the baseline; complete native instruction-discovery verification remains pending. |
 | Startup/log observation | Last 3,000 lines: 0 warning/error matches for policy/invalid/ignored; 4 for config | Keyword counts only, not exhaustive startup validation or proof of valid policy. Raw lines were not exported. |
-| Isolation | Docker client/server 29.9.1 available; required `golang:1.25-alpine` image absent | Container fixtures blocked; image not pulled. Trusted baseline checks used a disposable host checkout, not a claimed sandbox. |
+| Isolation | B1 initially lacked the Go image; the separately authorized pull and Docker e2e later passed. B3 uses an already local pinned Python image, no network, no credential/home mounts and fresh tmpfs. | B3 native API probes pass within their limited scope; no new image pulled. See verification record. |
 
 ## Pending before support/adoption
 
@@ -32,7 +52,7 @@ Allowed projections only were printed: version, source paths, field names, agent
 2. Exercise config collisions, invalid policies and precedence in a clean isolated environment; do not attach synthetic config to the live service or real home.
 3. Verify model selection/tool compatibility, allowed providers/data destinations and actual price/allowance under separately authorized access. Do not map Economy/Standard/Deep from catalog names alone.
 4. Pin runtime and integration/package revisions after tests. Keep config examples inert under this directory until T05's opt-in adoption procedure exists and is authorized.
-5. Establish a reproducible baseline for the frozen behavioral scenarios before canonical skill tuning. No paid comparison or new agent session is authorized by B1 alone.
+5. Historical baseline observations and their incident correction are in `harness/baseline.md`. They show no measured improvement and are not permission for further paid work. Follow safety prerequisites even when a future model test is authorized.
 
 Future project configuration uses `.opencode/opencode.jsonc`; manual staged diff/backup/digest-checked rollback is the approved delivery approach. Skill backup/restore remains separate. All future review routes begin disabled except proven native observation; commands may not contain shell blocks.
 
