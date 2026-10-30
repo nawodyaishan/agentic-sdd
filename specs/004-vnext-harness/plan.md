@@ -93,6 +93,19 @@ Initial run limits proposed for fixtures: one active session, zero children, 15-
 
 The additional monthly ceiling is US$10; paid evaluation remains disabled until explicitly authorized. If authorized later, cap the first comparison allocation at US$1 and include all failed/retried work. Unknown price, remaining allowance or provider billing limits block additional paid execution until resolved. Use provider-side controls where available; otherwise report the absence of a hard cap and obtain an explicit bounded-run decision rather than claim one.
 
+B3 incident follow-up (user-requested, no acceptance waiver): the incident
+reconciles approximately $0.825 OpenRouter spend, not the earlier $0.706 event
+estimate. Do not clone primary credential databases for evaluations. Offline
+tests use no provider egress/credentials; future paid execution requires a
+dedicated user-provisioned capped key, verified pricing/allowance and bounded
+requests including auxiliary/in-flight work. An environment opt-in alone is
+insufficient. The user's selected DeepSeek/GLM free roles and dormant MiMo/
+Nemotron candidates live in `integrations/opencode/model-usage.json`; model,
+free-price, tool capability and privacy eligibility are distinct observations.
+All shipped provider routes remain denied; native permission API probes do not
+substitute for real tool/selection acceptance. These constraints implement the
+existing fail-closed C2 boundary; they do not expand deployment/model scope.
+
 Do not enable an MCP merely because it exists in the user's setup. An enabled integration's record specifies actual tool/resource IDs, mode, destination, credentials by reference, bounded output, startup/catalog/execution timeout and cancellation/retry semantics. Review keeps these disabled until an independently tested read-only route is warranted. Native Code Mode is preferred for permitted build/draft integrations, with nested permissions verified.
 
 ## C3 — Portable deterministic check contract
@@ -115,6 +128,19 @@ For pull requests, run the check runner and required command definitions from th
 
 Candidate tests still execute code: use no publish tokens, persist no checkout credentials, set minimal read permissions, bound execution and isolate dependencies/test execution. The gate is not proof that all tests are good; T10 supplies a known weakened-check fixture and human/agent review covers legitimate test changes. New required checks enter the trusted contract only through reviewed adoption. Remote branch-protection setup is outside this feature; do not claim local workflow files enforce merge rules. B1 must identify a trusted pre-change reference; if none contains the new runner yet, report bootstrap trust as a release prerequisite rather than trusting a PR's runner by default.
 
+B7 implementation uses a base-owned stdlib Python bootstrap and the existing Go
+runner, a pinned Go container per check, and an independent base-owned no-op
+probe in disposable candidate staging. Local trusted-Make and CI use the same
+adapter. Proposed `pull_request_target` loads the main-base workflow; read-only
+checkout tokens are not persisted and candidate code never runs on the host.
+No host candidate Make/install hook, credential mount, shared trusted cache or
+remote branch administration is allowed. B4 supplies the committed runner;
+the B7 launcher/workflow/probe still require reviewed trusted-branch adoption.
+Architecture self-review: consistent with C3 within this boundary; shared-kernel,
+disk-DoS, uncatchable cancellation and actual hosted activation remain limits,
+not stronger guarantees. Details and official-source references are in
+`harness/trusted-ci.md`; native correlation stays unresolved.
+
 ## C4 — Evidence, freshness and retention
 
 Use one versioned JSON receipt schema in `harness/evidence/`. Fields include native session/run ID when available, task IDs, C1 input/result, runtime/config/skill revision identities, actual model/variant, base commit, staged/unstaged/untracked relevant-content identity, check IDs/results/times/log references, findings and unknowns. Direct-fix feature fields are null, not synthetic tasks. Schema validation checks shape and internal consistency, not truth or approval.
@@ -124,6 +150,15 @@ Diff identity covers both file paths and content, deletions and untracked releva
 Use existing native exports when adequate, otherwise fill the portable receipt from observed events/check output; no plugin or automatic completion ledger. Persist run evidence under user-owned external storage (proposed default `$XDG_STATE_HOME/agentic-sdd/runs`, or `~/.local/state/agentic-sdd/runs`). Use owner-only access. Commit only sanitized synthetic fixtures and deliberate sanitized baseline/comparison summaries, not raw user traces.
 
 Default retention proposal: raw logs/exports 7 days, sanitized receipts 30 days, manual cleanup documented; never prune native OpenCode databases/snapshots automatically. Explicitly retained acceptance evidence is exempt and has a recorded owner/expiry. Allowlist exported fields, redact before writing portable artifacts, and use secret-canary fixtures to test redaction. Sensitive full native logs remain under their host's access/retention policy, not copied blindly.
+
+B6 offline implementation uses the existing optional Python/jsonschema fixture
+tooling for a reference consumer (`tests/harness/receipt_tools.py`), not a new
+Go/runtime dependency. Schema v1 stays unchanged. Scoped Git identities include
+HEAD/index and current/untracked/deleted file observations; callers separately
+supply current metadata and previously captured result/log identities. This
+checks consistency, not authenticity of a candidate-provided observation or
+human authority. Native export correlation remains blocked. See
+`harness/evidence/README.md` for scope, bounds, trust assumptions and safe export.
 
 ## C5 — Recovery and review behavior
 

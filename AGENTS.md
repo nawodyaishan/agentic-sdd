@@ -30,11 +30,47 @@ Keep client destinations and skill selection together in `internal/skillsync`. P
 
 Run `make test`, `make vet`, and `git diff --check` after Go changes. Use a temporary home in tests. `make preview` is a useful read-only check against the local installation. Install the repository's Lefthook checks with `make hooks-install`.
 
+## Evaluation spending and credentials
+
+- Additional model calls through CLI subprocesses, SDKs, HTTP, smoke probes,
+  retries, titles or summaries are external usage, not ordinary deterministic
+  tests. Batch approval does not authorize them. Require explicit authorization
+  for the exact provider/model, data scope and bounded request/token/deadline
+  limits. A general suggestion that models are cheap/free is not a billing cap.
+- Never clone, export or seed an evaluation workspace from the primary OpenCode
+  database/auth store. Use a fresh credential-free environment for offline
+  checks; any separately authorized online fixture needs a dedicated scoped
+  evaluation credential, supplied by the user through a secret reference.
+- No paid fallback, provider probing, suffix removal from `:free`, model
+  escalation, warming or background inference. Use the exact reviewed model ID;
+  free price, tool capability and private-data eligibility are independent checks.
+  Failure or uncertainty stops the affected run.
+- Paid evaluation requires verified current prices, remaining allowance and a
+  dedicated provider-side key cap within the run/month allocation. Include all
+  requests and in-flight work. Missing/delayed usage is unknown, not zero; stop
+  rather than rely on JSON event totals or a mental estimate. Subscription usage
+  also requires limits even when it produces no per-token bill.
+- Keep provider controls/config adoption, key rotation/logout and removal of old
+  credential-bearing sandboxes user-controlled. Do not change the real home or
+  shared service while developing this adapter. See
+  `integrations/opencode/safety.md` for incident-derived controls and open actions.
+
 ## SDD feature conventions
 
 This repository has no top-level product SRS, technical spec, or roadmap document. Each feature lives in `specs/<nnn-slug>/` (`spec.md`, `plan.md`, `tasks.md`); see `specs/001-cli-quality/` for the current one. The combined human approval for a feature's spec/plan/tasks is recorded once, in that feature's `spec.md` under `## Approval`. Batch state and continuation notes live in that feature's `tasks.md`.
 
 `preview` (default) versus `apply`/`--apply` is this repo's dev-versus-live boundary: approval to develop or test installer code never authorizes running `apply` against a real user home; only an explicit, separately authorized real-home apply does.
+
+## Session handovers
+
+Every session that advances a feature writes one handover to `docs/handovers/<YYYY-MM-DD>_<spec-no>.md` (for example `docs/handovers/2026-10-29_004.md`) before it ends or before another agent picks the work up. A second session on the same day for the same feature appends a letter: `<date>_<spec-no>b.md`.
+
+Structure, in this order: batch position and next authorized batch; what the session did; decisions the user made; decisions still open with what each blocks; verified facts the next session must not re-derive; open blockers by ID; the next permitted action; guardrails to preserve; the first commands to run.
+
+- One file per session, not an append-only log. `specs/<nnn-slug>/tasks.md` stays the authoritative batch ledger and `spec.md` §`## Approval` the only approval record; a handover never creates approval, changes batch state or substitutes for a continuation note.
+- Link to specs, tasks, evidence and out-of-repo reports by path; do not restate them.
+- Never copy credentials, tokens, account records, raw forensic traces or other secret material into a handover.
+- Keep it readable in a couple of minutes; delete or fold a handover once its open decisions are resolved.
 
 ## Release and publish
 

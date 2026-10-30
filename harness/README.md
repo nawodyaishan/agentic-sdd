@@ -1,8 +1,10 @@
 # Portable harness contract — version 1
 
-Status: B4 adds a deterministic Go check runner; B3's native adapter templates
-remain inactive and acceptance-blocked. Full receipts/freshness, recovery,
-connected behavioral validation and trusted CI integration remain later work.
+Status: B4 adds a deterministic Go check runner; B6 adds optional offline
+receipt/freshness/redaction validators and recovery fixtures. B3's native adapter
+templates remain inactive and acceptance-blocked. B7 adds a [trusted CI adapter](trusted-ci.md)
+and anti-weakening fixtures; trusted-branch adoption/hosted execution remain pending.
+Native correlation, agent recovery and connected behavioral validation remain unproven.
 Approval and execution state live in [feature 004](../specs/004-vnext-harness/spec.md#approval)
 and its [tasks](../specs/004-vnext-harness/tasks.md), not in results/receipts.
 
@@ -14,7 +16,7 @@ Direct fixes have null feature/batch and no task IDs. Review never changes proje
 
 ## Check contract
 
-[`checks.json`](checks.json) describes current repository commands; [`checks.schema.json`](checks.schema.json) defines their shape. The contract is executable data: choose it from a trusted revision, not an untrusted candidate. B4 implements local execution; T10 still owns independent CI trust/adoption.
+[`checks.json`](checks.json) describes current repository commands; [`checks.schema.json`](checks.schema.json) defines their shape. The contract is executable data: choose it from a trusted revision, not an untrusted candidate. B4 implements local execution; [B7's adapter](trusted-ci.md) adds independent-base execution, with CI adoption still explicit.
 
 - `version` is exactly 1. Reject unknown fields/versions and duplicate check IDs.
 - `cwd` is `.` or a repository-relative directory. Resolve symlinks and reject paths escaping the selected workspace before execution.
@@ -46,7 +48,7 @@ Technical review is null until performed, otherwise `Ready`, `Needs changes` or 
 
 ## Receipts and semantic validation
 
-[`evidence/receipt.schema.json`](evidence/receipt.schema.json) and synthetic [fixtures](../tests/harness/contracts.json) define the portable observation shape. Schemas check syntax and bounded enums, not truth or authorization. The future consumer must additionally enforce:
+[`evidence/receipt.schema.json`](evidence/receipt.schema.json) and synthetic [fixtures](../tests/harness/contracts.json) define the portable observation shape. Schemas check syntax and bounded enums, not truth or authorization. The [offline reference consumer](evidence/README.md) now exercises the following consistency rules; native correlation and trusted provenance remain unverified:
 
 1. Unique check/task/finding IDs; check IDs belong to the selected trusted contract, and required coverage is complete before a required pass claim.
 2. Null observations have nonempty explanations in `unknowns` keyed by JSON Pointer. Direct-fix null feature/batch/workflow state, absent review verdict, and not-executed check exit code/start time are structural absence, not unknown measurements. `workflow_state` observes canonical tasks; it never owns that state.
@@ -67,10 +69,10 @@ Retention: external owner-only raw logs 7 days, sanitized receipts 30 days, manu
 - [Scenario definitions](../tests/harness/scenarios.json): independently expected behavior, with no simulated pass claims.
 - Schema checks on a host with Python 3 and `jsonschema` 4.x already available: `python3 tests/harness/validate_contracts.py`. This is development validation only; no production Python runtime or package installation is required. Runtime/semantic checks belong to T07/T08 and native boundary checks to T05/T09.
 
-Historical B1/B2 observations are in the baseline record. Do not reconstruct
-a before-result after tuning. Future comparisons require separately bounded
-authorization and unchanged model/fixture conditions; local native-adapter and
-incident-remediation work is not part of this B4 commit.
+Historical B1/B2 observations and their spending-incident correction are in the
+baseline record. Do not reconstruct a before-result after tuning or repeat the
+credential-copy/provider-switch procedure. Future comparisons require their own
+safely bounded authorization and unchanged model/fixture conditions.
 
 ## B4 runner usage and limitations
 
@@ -151,4 +153,5 @@ with an owner/expiry. Do not commit logs or copy native credential databases.
 Go downloads are disabled at the Make runner entry points, but candidate code
 can still use the host network/credentials unless OS-isolated. Pending account
 caps/key rotation do not prevent these provider-free deterministic checks and
-remain separate from authorization to run any LLM.
+remain separate from authorization to run any LLM. The user's B6 remediation
+report and its verification limits are in [spec §Approval](../specs/004-vnext-harness/spec.md#approval).

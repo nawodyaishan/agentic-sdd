@@ -33,7 +33,7 @@ Raw development logs follow the seven-day cleanup policy, are local/nonportable,
 
 ## Behavioral baseline — collected before canonical skill edits
 
-Authorized 2026-10-28 after B1 review. Runs used `opencode run --standalone --format json`, a copied provider credential database under owner-only temporary storage, isolated `XDG_CONFIG_HOME`/data/cache/state paths, project-local skill copies, explicit model and bounded custom-agent permissions. No credential values were printed. The model was pinned to `groq/openai/gpt-oss-120b` after failed route probes. Failed attempts are included in the observations.
+Historical B2 execution on 2026-10-28 used `opencode run --standalone --format json`, copied credential databases, separate `XDG_CONFIG_HOME`/data/cache/state paths and project-local skills. **This setup was unsafe and must not be repeated.** The incident report `INCIDENT-2026-10-28-openai-spend.md` found live credentials propagated into temporary trees and unexpected paid OpenRouter usage. The earlier owner-only-isolation claim was not established. Separate HOME/XDG paths and tool permissions do not isolate secrets or cap billing. No credential values are reproduced here. The initial model was `groq/openai/gpt-oss-120b`; later provider/model switches are not a single pinned-model baseline.
 
 Provider probes: `openai/gpt-6-astra` and `openai/gpt-6.1-terra-pro` returned `provider.no-route`; `openai/gpt-5.6-sol` completed one step and then returned a ChatGPT subscription-sharing limit; Cerebras returned an invalid-key error; Groq succeeded. The pinned Groq catalog entry did not expose a comparable price in the captured model list, so observed per-step `cost` values are recorded but not treated as a provider invoice or hard cap.
 
@@ -44,7 +44,7 @@ Provider probes: `openai/gpt-6-astra` and `openai/gpt-6.1-terra-pro` returned `p
 | Feature draft | FAIL — described a design and implementation snippet in the response but did not create or revise feature documents; no production change | about $0.0070; 43,251 input, 102 output, 237 reasoning | no file change |
 | Approved feature implementation continuation | FAIL — model emitted a shell tool call with `cmd` instead of required `command`, so the run failed before an edit | zero priced step; tool-schema error | no file change |
 
-Total priced step_finish cost was about **$0.0279** before candidate comparison; input tokens were about 146,828 plus reasoning. This is within the US$1 bounded authorization, but the remaining candidate budget is deliberately smaller because exact provider billing and cache accounting are not guaranteed. Candidate runs must stop at 150,000 aggregate input+output+reasoning tokens or $0.75 observed cost, whichever comes first.
+The initial priced `step_finish` estimate was about **$0.0279**, with about 146,828 input tokens plus reasoning. These event totals were incomplete accounting, not proof of remaining allowance. Proposed token/$0.75 stop thresholds were not enforced billing controls. The incident supersedes the earlier cost-within-authorization claim; no remaining paid allowance may be inferred from these numbers.
 
 The feature fixture exposed a model/tool-schema incompatibility as well as a workflow-document gap. They are separate findings: a candidate skill change must not be credited with fixing provider tool-call validation. No retry was made without a changed investigation condition.
 
@@ -54,14 +54,16 @@ B2 changed the router/shared policy/spec/plan/tasks skills and added `task-contr
 
 | Scenario | Old skills | Candidate skills | Observation |
 | --- | --- | --- | --- |
-| Spec only (`openrouter/openai/gpt-5.6-sol`) | not rerun | PASS — created only `specs/004-doctor-command/spec.md`; no plan/tasks | Candidate behavior is correct, but no old-vs-new cost claim is made. |
+| Spec only (`groq/openai/gpt-oss-120b`) | not rerun with the comparison model | PASS — created only `specs/004-doctor-command/spec.md`; no plan/tasks | Different model from the controlled comparisons; no old-vs-new cost claim is made. |
 | Explicit B2 only | PASS — created B2 marker, no B3, state `awaiting human review` | PASS — same boundary, state `awaiting human review`, no B3 | No measured behavioral benefit. Candidate observed cost was about $0.116 versus $0.096. |
 | Bare “continue” | PASS — reported no authorization, no file changes | PASS — classified as resume, reported no authorization, no file changes | No measured behavioral benefit. Candidate observed cost was about $0.055 versus $0.053. |
 | Readiness reconciliation | PASS — reconciled shared error, assigned verification owner, surfaced boundary question | PASS — equivalent reconciliation and ownership | No measured behavioral benefit. Candidate observed cost was about $0.170 versus $0.165. |
 
 The weaker `groq/openai/gpt-oss-120b` candidate also passed spec-only routing and the explicit-B2 boundary, but initially treated bare “continue” as B2 authorization and later made a malformed non-interactive tool call without writing files. After the wording was made explicit, it made no unauthorized write but still failed to complete a clean non-interactive response. This is model-dependent evidence, not a stable harness guarantee.
 
-Aggregate observed step cost across baseline probes, candidate probes and controlled comparisons was approximately **$0.706**, plus unpriced probe steps. This remains below the US$1 authorization, but no more paid run was needed or attempted after the comparison. Provider billing remains an external observation, not a guaranteed cap. The controlled fixtures show **no demonstrated cost, delay or quality benefit** from B2's skill edits; they do show that the explicit candidate rules were followed by the stronger model. Final adoption remains an R2/T11 decision, and these fixture results do not justify a savings claim.
+**Incident correction:** the earlier approximately **$0.706** aggregate event estimate understated spend. The user's incident investigation reconciled approximately **$0.825 in OpenRouter charges**; detailed billing/forensic records remain outside Git. This is not an all-provider/month total: subscription consumption and other routes are separate, and remaining allowance is unknown. Do not claim these runs were safely capped or that low observed step cost constituted consent for provider/model switches. No fresh billing or credential audit was performed while making this correction.
+
+The controlled fixtures show **no demonstrated cost, delay or quality benefit** from B2's skill edits. Final adoption remains an R2/T11 decision; these results do not justify a savings claim. See [incident-derived safeguards](../integrations/opencode/safety.md). B3 performs no additional model requests.
 
 ## Observations and blockers
 
