@@ -15,6 +15,8 @@ If authorized behavior changed, update the affected canonical sources and `Docs/
 
 Prefer tracking a concrete discrepancy in the current task entry with impact and next action; make a separate drift report only for an independent audit need or explicit request. Where the feature is mid-flight, leave the batch state and next action accurate rather than advancing it.
 
+Receive actual finding dispositions and unresolved cross-batch issues from completion/feature review; do not rewrite requirements merely to make a failing integration pass. Use `agentic-sdd-debugging` for a named cause uncertainty, retaining the invoking mode's restrictions. Passing corrected work or reaching an effort limit is not itself approved drift or a reason for a routine retrospective.
+
 Write a retrospective only after a useful incident, lesson or milestone, or when requested. Batch release notes through the repository's existing release process. Release preparation does not authorize publishing or deployment.
 
 Output the actual corrections and unresolved decisions. No routine no-drift report, per-task retrospective or completion document.

@@ -14,6 +14,8 @@ Run only when explicitly requested. Reuse existing repository instructions, gove
 3. Preserve existing features and approval records, including approvals recorded under an earlier per-stage convention — note their actual scope rather than rewriting them. If no feature index exists, use the existing roadmap or directory names for discovery; create a separate index only when finding features is a real problem.
 4. For a new project, establish only the structure and toolchain needed for the first feature within the user's setup scope. Do not create a feature folder until one is selected.
 
+If the repository already supplies a check contract or harness preflight/adoption guide, point to its actual path and commands when requested. Do not generate a new runner, copy adapter settings into portable instructions or treat setup as permission to install runtime config. Diagnosis can use `agentic-sdd-debugging` without creating feature documents or adding a domain-specialist assignment.
+
 Do not materialize generic constitutions, templates, empty directories, checklists or role charters. Reusable guidance stays with the skill package. Keep client invocation controls, permissions and MCP settings in client-specific configuration, outside portable skill text, and do not change installed clients here.
 
 Report actual changes, canonical source paths and any unresolved setup question. A second run with unchanged needs should be a no-op.

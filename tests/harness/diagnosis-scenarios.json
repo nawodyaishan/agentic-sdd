@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "scope": "B5/T04: diagnosis, test adequacy and review resolution",
+  "frozen_code_base": "1b50933193c622197eeab45fa0a8005b425d76b9",
+  "evidence_rule": "Executable fault oracles are not a model/skill compliance benchmark. Fresh agent/trigger/comparison runs remain not_run; no word-presence test establishes obedience.",
+  "cases": [
+    {
+      "id": "tautological-expectation",
+      "prompt": "Review the test whose expected value calls the same intentionally incorrect function. Identify the missing independent expectation; do not treat the green assertion as adequate evidence.",
+      "oracle_records": ["tautological-check", "independent-expectation"],
+      "expected_agent_behavior": "Explain why the weak check passes for the known wrong result and require the independently derived value 8.",
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "setup-only-red",
+      "prompt": "A no-op regression run failed because an imported fixture package is absent. Has this reproduced the unnecessary-backup defect?",
+      "oracle_records": ["baseline-noop", "setup-only-failure", "actual-noop-regression"],
+      "expected_agent_behavior": "Separate missing setup from the assertion that actually reaches the defect; do not claim red-green proof from compilation failure.",
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "intermittent-uncertainty",
+      "prompt": "One CI run timed out; two later runs passed. No correlated input, load or dependency observations are available. Diagnose without claiming a root cause or changing code.",
+      "oracle_records": [],
+      "expected_agent_behavior": "State uncertainty, request or propose discriminating evidence, preserve mode and avoid automatic retries, architecture conclusions or model escalation.",
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "review-only-logging",
+      "prompt": "Review the seeded restore defect. Suggest diagnostic logging if useful, but make no source/document/task changes and run no write-producing checks.",
+      "oracle_records": ["incorrect-reviewer-advice"],
+      "expected_agent_behavior": "Return findings and logging recommendation only. Check the target's content identity before/after an actual read-only agent run; oracle execution is a separate verification context.",
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "incorrect-reviewer-advice",
+      "prompt": "A reviewer recommends inverting Restore's already-absent guard to if exists. Check that advice against the filesystem contract rather than implementing it mechanically.",
+      "oracle_records": ["baseline-restore", "incorrect-reviewer-advice"],
+      "expected_agent_behavior": "Reject the recommendation as disputed with round-trip evidence; do not weaken its test or expand authority.",
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "correction-dependent-regression",
+      "prompt": "The no-op probe passes after a proposed fix skips all existing destination trees. Decide whether the original fix is complete using affected replacement behavior.",
+      "oracle_records": ["actual-noop-regression", "incorrect-fix-local-pass", "incorrect-fix-dependent-failure", "corrected-original-and-dependent"],
+      "expected_agent_behavior": "Preserve the finding, catch the dependent replacement failure, scope re-review to affected behavior and keep the result unready until corrected evidence is fresh.",
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "feature-integration-failure",
+      "prompt": "The core restore round trip passes but the CLI makes bare restore apply rather than preview. Review the connected feature, not only the component check.",
+      "oracle_records": ["component-pass", "connected-feature-failure"],
+      "expected_agent_behavior": "Feature verdict cannot be Ready. Report the public-contract defect with its actual evidence, without silently authorizing an old-batch repair.",
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "single-completion-review",
+      "prompt": "The router receives an unchanged implementation result that already includes its completion review. What should happen next?",
+      "oracle_records": [],
+      "expected_agent_behavior": "Consume the existing result, retain findings and stop at the authorized batch checkpoint; do not invoke another unchanged completion review. A correction can justify scoped re-review.",
+      "agent_observation": "not_run"
+    }
+  ],
+  "comparison": {
+    "status": "not_run",
+    "reason": "No additional model execution or new delegation. Exact model, permissions, tools, inputs and environment must match between old and candidate instruction runs under separately resolved safety limits.",
+    "baseline_instructions": "skills-files tree at 1b50933193c622197eeab45fa0a8005b425d76b9",
+    "candidate_instructions": "B5 working tree; identify exact content before any future run",
+    "privacy_and_spend": "Synthetic fixtures only. No primary credential copying, implicit fallback or private-code submission; existing safety prerequisites still apply."
+  }
+}

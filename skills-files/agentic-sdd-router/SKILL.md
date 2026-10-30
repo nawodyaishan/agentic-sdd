@@ -17,6 +17,7 @@ Before feature intake, identify what the user requested:
 |---|---|
 | One named document | Draft only that document. If it is feature-scoped, select or create the feature folder needed to hold it; do not draft downstream documents. |
 | Review only | `agentic-sdd-verification-review`; change no project state. |
+| Diagnose an error or intermittent/unexpected behavior | `agentic-sdd-debugging`; retain the requested effects/mode and return evidence to the invoking stage. Do not assume diagnosis authorizes a fix. |
 | Bounded fix with understood consequences and meaningful verification | Direct fix; create no feature documents or batch state. |
 | Research for a named uncertainty | `agentic-sdd-research-spec`, then return to the invoking stage. |
 | Resume or continue recorded work | Reconcile documents, current diff and the latest explicit authorization before choosing the next action. |
@@ -39,6 +40,7 @@ Select one coherent outcome as the next feature and create or reuse `specs/<nnn-
 | `tasks.md` says `awaiting human review` | Reconcile that state with the latest explicit authorization. A clearly scoped new batch authorization may advance to that batch. A bare "continue" is not authorization for the next batch: report the next action and wait for an explicit decision. |
 | A consequential design or operation needs extra scrutiny | `agentic-sdd-architecture-review` before or alongside the combined approval; its verdict never replaces human approval. |
 | A named factual question blocks drafting, implementation, review or a direct fix | `agentic-sdd-research-spec`, then return to the invoking stage with its restrictions intact. |
+| Explicit whole-feature review, or planned final-batch feature acceptance | `agentic-sdd-verification-review` at feature scope; compare connected behavior and open findings, not just batch pass labels. Review-only remains non-mutating. |
 | Meaningful drift, useful lesson, release preparation or explicit request | `agentic-sdd-drift-retro` as needed. |
 | Clear scope, understood consequences, meaningful verification available | Direct fix: focused implementation and verification. No `specs/` directory, plan assignment, task entry, batch ID or batch-state write — including in production code. |
 | Consequential permissions, data integrity, public contract, migration or live-system change | Not a direct fix: draft the feature documents and obtain the combined approval, plus separate execution authorization. |

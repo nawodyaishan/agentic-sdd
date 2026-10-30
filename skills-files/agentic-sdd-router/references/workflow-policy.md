@@ -1,6 +1,6 @@
 # Shared SDD workflow policy
 
-Applies to all ten skills, including direct manual invocation. Read once while unchanged. Install the sibling skill directories together so their relative references resolve. Use one main coding agent; load one principal specialist on demand and another only across a real domain boundary. Do not delegate unless the user explicitly requests it.
+Applies to all eleven skills, including direct manual invocation. Read once while unchanged. Install the sibling skill directories together so their relative references resolve. Use one main coding agent; load one principal specialist on demand and another only across a real domain boundary. Do not delegate unless the user explicitly requests it.
 
 ## Action-first routing
 
@@ -62,6 +62,8 @@ Approval of spec, plan and tasks authorizes the approved implementation scope. I
 
 At implementation, resolve the feature's default assignments from `plan.md` together with any task-specific exception in `tasks.md`, then check the active client's catalog and load only the guidance the current task actually needs. A task-specific exception overrides the feature default for that task. A written role label does not load anything.
 
+`agentic-sdd-debugging` is reusable diagnosis process guidance, not a domain specialist, another agent or another principal-specialist slot. It accepts feature, direct-fix and review contexts without requiring new documents; the invoking stage's authority still controls effects.
+
 For a direct fix there is no `plan.md` to consult: choose specialist guidance from the request, repository context and the available catalog when it would help, and otherwise work from repository guidance alone. Respect native invocation restrictions. Report an unavailable or unsuitable specialist and continue with an adequate, transparently stated fallback; do not install one, silently substitute a broader one, change models automatically, or let a specialist redefine approved scope.
 
 Select MCPs and CLIs conditionally, by concrete need — never a mandatory call to every tool, and never an invented tool identifier. In repos with `.codegraph/`, follow their CodeGraph instructions for code discovery; otherwise use targeted local search. Bound returned context and reuse still-valid evidence. Keep machine-specific paths, MCP configuration, client invocation controls and permission rules outside portable skill text.
@@ -73,6 +75,8 @@ An explicitly requested review returns findings and changes nothing: no edits to
 Implementation owns the complete authorized-batch lifecycle and invokes completion review once for its current result. The router invokes implementation and consumes that result; it does not schedule a second review of unchanged work. A correction can justify scoped re-review of the changed code and affected findings. Standalone verification review remains manually invocable.
 
 Verification compares behavior against acceptance criteria. Prior evidence is reusable only when code, relevant dependencies/config, inputs and environment still match; rerun affected, failed or repository-required checks and state omissions honestly. Keep the agent's verdict separate from human approval.
+
+Implementation/test adequacy follows [meaningful testing](testing.md). Batch, direct-fix and aggregate feature reviews follow [review scope and finding resolution](review-resolution.md), which owns finding dispositions, correction bounds and scoped re-review. Process guidance does not turn test success into feature readiness or a main-agent self-review into independent evidence.
 
 ## Research routing
 
