@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "receipt-validation", "cwd": ".", "scopes": ["focused"],
+      "prerequisites": ["python3", "git"], "timeout_seconds": 120,
+      "effects": {"writes": ["temporary synthetic Git repositories and private evidence files"], "network": "none; optional development jsonschema must already be installed"},
+      "steps": [{"argv": ["python3", "-B", "-m", "unittest", "discover", "-s", "tests/harness", "-p", "test_receipts.py"], "env": {}}],
+      "local_recipe": ["python3", "-B", "-m", "unittest", "discover", "-s", "tests/harness", "-p", "test_receipts.py"],
+      "expected_exit": 0, "evidence": "receipt-validation.log"
+    },
+    {
+      "id": "recovery-fixtures", "cwd": ".", "scopes": ["focused"],
+      "prerequisites": ["python3", "go", "sh"], "timeout_seconds": 180,
+      "effects": {"writes": ["temporary compiled runner, cache, synthetic subprocesses and scratch evidence"], "network": "none; Go toolchain downloads and provider access disabled in fixture child environment"},
+      "steps": [{"argv": ["python3", "-B", "-m", "unittest", "discover", "-s", "tests/harness", "-p", "test_recovery.py"], "env": {}}],
+      "local_recipe": ["python3", "-B", "-m", "unittest", "discover", "-s", "tests/harness", "-p", "test_recovery.py"],
+      "expected_exit": 0, "evidence": "recovery-fixtures.log"
+    }
+  ]
+}
