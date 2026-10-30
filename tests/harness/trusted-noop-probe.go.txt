@@ -1,0 +1,37 @@
+// Trusted independent probe. Copied only into disposable candidate staging.
+package skillsync_test
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"agentic-sdd/internal/skillsync"
+)
+
+func TestSDDTrustedIdenticalApplyPreservesBackupCount(t *testing.T) {
+	root := t.TempDir()
+	repo, home := filepath.Join(root, "repo"), filepath.Join(root, "home")
+	source := filepath.Join(repo, "skills-files", "agentic-sdd-plan")
+	if err := os.MkdirAll(source, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "SKILL.md"), []byte("independent fixture"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := skillsync.Sync(repo, home, true, &out); err != nil {
+		t.Fatal(err)
+	}
+	if err := skillsync.Sync(repo, home, true, &out); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Join(repo, "backups"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("independent no-op contract: repeated identical apply created %d backups; want 1", len(entries))
+	}
+}

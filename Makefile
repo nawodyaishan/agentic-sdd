@@ -1,10 +1,12 @@
 BINARY_NAME := agentic-sdd
 CMD_DIR := ./cmd/agentic-sdd
 
-.PHONY: help preview apply backups logs test vet docker-e2e hooks-install mod-verify tidy-check build build-darwin verify tag release
+.PHONY: help preview apply backups logs test vet docker-e2e hooks-install mod-verify tidy-check build build-darwin verify verify-trusted tag release
 
 GOCACHE ?= $(CURDIR)/.cache/go-build
 SDD_OUTPUT ?=
+SDD_TRUSTED ?=
+SDD_CANDIDATE ?= $(CURDIR)
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; print "Commands:"} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -59,6 +61,15 @@ verify: ## Run the local required-check contract with external evidence
 	if [ -z "$$output" ]; then output=$$(mktemp -d "$${TMPDIR:-/tmp}/agentic-sdd-verify.XXXXXX") || exit 2; output=$$(cd "$$output" && pwd -P); fi; \
 	GOCACHE="$(GOCACHE)" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
 	go run ./cmd/sdd-check --scope required --workspace "$(CURDIR)" --contract "$(CURDIR)/harness/checks.json" --output "$$output"
+
+verify-trusted: ## Run the reviewed base's isolated gate against a separate candidate
+	@umask 077; \
+	if [ -z "$(SDD_TRUSTED)" ] || [ ! -f "$(SDD_TRUSTED)/tests/harness/trusted_ci.py" ]; then \
+		echo "SDD_TRUSTED must name a separate reviewed base containing the B7 bootstrap" >&2; exit 2; fi; \
+	output="$(SDD_OUTPUT)"; \
+	if [ -z "$$output" ]; then output=$$(mktemp -d "$${TMPDIR:-/tmp}/agentic-sdd-trusted.XXXXXX") || exit 2; fi; \
+	python3 -B "$(SDD_TRUSTED)/tests/harness/trusted_ci.py" run \
+	  --trusted "$(SDD_TRUSTED)" --candidate "$(SDD_CANDIDATE)" --output "$$output"
 
 tag: ## Create an annotated git tag (use V=v0.1.0 MSG="release message")
 	@if [ -z "$(V)" ]; then echo "V is required (e.g. V=v0.1.0)"; exit 1; fi

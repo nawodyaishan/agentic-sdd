@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "checks": [{
+    "id": "trusted-ci-fixtures", "cwd": ".", "scopes": ["focused"],
+    "prerequisites": ["python3", "git", "docker", "running Docker daemon", "preloaded golang:1.25-alpine image"],
+    "timeout_seconds": 1200,
+    "effects": {"writes": ["private external fixture evidence", "temporary synthetic trees, caches and owned containers"], "network": "candidate containers disabled; local image required, never pulled by fixtures"},
+    "steps": [{"argv": ["sh", "tests/harness/trusted-ci-fixtures.sh"], "env": {}}],
+    "local_recipe": ["sh", "tests/harness/trusted-ci-fixtures.sh"], "expected_exit": 0, "evidence": "trusted-ci-fixtures.log"
+  }]
+}

@@ -3,32 +3,53 @@ name: CI
 on:
   push:
     branches: ["main"]
-  pull_request:
+  # Workflow/bootstrap are loaded from the base, never the PR's workflow.
+  # Candidate programs execute ONLY in the isolated gate below: no host Make,
+  # setup hooks, credentials, shared cache, Docker socket or host home.
+  pull_request_target:
+    branches: ["main"]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Checkout reviewed base
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified 2026-10-30
         with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: gate-trusted
+          persist-credentials: false
 
-      - name: Verify dependencies
-        run: make mod-verify
+      - name: Checkout candidate as data only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: gate-candidate
+          persist-credentials: false
 
-      - name: Tidy check
-        run: make tidy-check
+      - name: Provision exact reviewed toolchain image
+        run: docker pull golang@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
 
-      - name: Vet
-        run: make vet
+      - name: Run trusted deterministic gate
+        env:
+          EVIDENCE: ${{ runner.temp }}/agentic-sdd-gate
+        run: >-
+          python3 -B gate-trusted/tests/harness/trusted_ci.py run
+          --trusted "$GITHUB_WORKSPACE/gate-trusted"
+          --candidate "$GITHUB_WORKSPACE/gate-candidate"
+          --output "$EVIDENCE"
 
-      - name: Test
-        run: make test
-
-      - name: Cross-compile darwin/amd64 + darwin/arm64
-        run: make build-darwin
+      - name: Retain observations, not an agent verdict
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, verified 2026-10-30
+        with:
+          name: trusted-deterministic-checks
+          path: ${{ runner.temp }}/agentic-sdd-gate/evidence
+          if-no-files-found: error
+          retention-days: 7

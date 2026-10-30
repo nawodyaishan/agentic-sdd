@@ -16,7 +16,7 @@ agentic-sdd apply   # installs the skills into every client you have
 
 Two things live here:
 
-- [`skills-files/`](skills-files/) — ten skills that define the workflow. This is the product.
+- [`skills-files/`](skills-files/) — eleven skills that define the workflow. This is the product.
 - `cmd/` + `internal/` — a single-purpose installer that copies those skills into your client skill directories, backing up whatever it replaces.
 
 ![Agentic SDD architecture: the spec-driven workflow and Go CLI skill distribution](docs/agentic-sdd-architecture.png)
@@ -77,7 +77,11 @@ You can request corrections or authorize the next batch. On resume, the agent ch
 
 Start with **`agentic-sdd-router`** when beginning or resuming work. Use **`agentic-sdd-implement`** when you already know which approved batch or direct fix to execute.
 
-All ten skills are manually invocable. You do not need to call every skill for every change.
+All eleven skills are manually invocable. You do not need to call every skill for every change. `agentic-sdd-debugging` supplies diagnosis process, not an extra domain-specialist role or permission to spawn another agent.
+
+These are the canonical source skills. Existing client installations change
+only through the normal, separately authorized installer update—not during
+development or packaging tests.
 
 | Skill | When to use it |
 | :--- | :--- |
@@ -87,6 +91,7 @@ All ten skills are manually invocable. You do not need to call every skill for e
 | `agentic-sdd-plan` | Design the approach and assign specialist guidance and tools |
 | `agentic-sdd-tasks` | Turn the approach into tasks and reviewable batches |
 | `agentic-sdd-implement` | Execute one authorized batch or direct fix |
+| `agentic-sdd-debugging` | Diagnose failures or uncertainty within the current scope and authority |
 | `agentic-sdd-verification-review` | Check the actual changes against requirements and evidence |
 | `agentic-sdd-architecture-review` | Examine consequential design or operational decisions |
 | `agentic-sdd-research-spec` | Resolve a specific question blocking progress |
@@ -99,6 +104,7 @@ Invoke the relevant skill through your client, then give it a concrete request:
 - **Resume:** "Check the current feature and batch state. Tell me the next action; preserve any pending review."
 - **Direct fix:** "Fix this validation bug and run focused checks."
 - **Review:** "Review this diff against the approved feature. Report findings only."
+- **Diagnose:** "Investigate this intermittent test failure. Separate setup from the target behavior; recommend checks but make no edits."
 
 Requesting only a spec, plan, or review keeps the work limited to that request.
 
@@ -226,7 +232,7 @@ cmd/agentic-sdd/       CLI parsing, defaults, exit codes, interactive backup sel
 internal/skillsync/    Planning, comparison, backup, staged install, rollback, restore
 internal/version/      Build-time version metadata, injected via -ldflags at release
 skillsfiles.go         go:embed of skills-files/, so an installed binary needs no checkout
-skills-files/          The ten Agentic SDD skills and shared references
+skills-files/          The eleven Agentic SDD skills and shared references
 .goreleaser.yml        Darwin build, universal binary, Homebrew formula publishing
 .github/workflows/     release.yml (tag-triggered publish), ci.yml (build/test/vet)
 tests/                 Docker end-to-end scripts
@@ -274,6 +280,20 @@ write caches, module files and build outputs; candidate tests can do more.
 and OS isolation without secrets/network for untrusted candidate code. Logs may
 contain sensitive check output; keep them private and out of Git. Full flags,
 status/exit semantics, retention and cancellation limits: [harness/README.md](harness/README.md).
+
+For isolated local/CI checks, B7 supplies a separate reviewed-base entry:
+
+```sh
+make -C /absolute/reviewed-base verify-trusted \
+  SDD_TRUSTED=/absolute/reviewed-base SDD_CANDIDATE=/absolute/candidate \
+  SDD_OUTPUT=/absolute/external/new-private-run
+```
+
+Use the base's Makefile and bootstrap, not the candidate's. This requires
+non-root Linux, Python 3, Git, Docker and the exact preloaded image. Missing
+bootstrap/image inputs block; local runs never pull automatically. The proposed
+CI workflow must first be reviewed and adopted onto the trusted branch.
+See [trusted bootstrap, isolation and anti-weakening limits](harness/trusted-ci.md).
 
 ## Releasing
 
