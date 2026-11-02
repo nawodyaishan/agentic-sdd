@@ -3,8 +3,9 @@
 #
 # Starts an interactive shell in a disposable Linux container with:
 #   - no network, no host home, no credentials, no Docker socket;
-#   - a read-only repository and read-only agentic-sdd (and optional opencode)
-#     binary mounted in;
+#   - a read-only repository and read-only agentic-sdd binary mounted in;
+#   - the host's opencode binary mounted read-only and available by default
+#     (override with OPENCODE_BINARY, disable with NO_OPENCODE=1);
 #   - one explicitly chosen host scratch directory mounted read-write at /work.
 #
 # You run the model-free scenarios yourself. This script never starts a model,
@@ -15,6 +16,9 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 image=${SDD_CONTAINER_IMAGE:-sha256:57b29a7c050c4e679e4bea572e14b3965cf4b5839de2da49d55e49ffc4024f39}
 agentic=${AGENTIC_SDD_BINARY:-$root/bin/agentic-sdd}
 opencode=${OPENCODE_BINARY:-}
+if [ -z "$opencode" ] && [ "${NO_OPENCODE:-0}" != "1" ]; then
+  opencode=$(command -v opencode 2>/dev/null || true)
+fi
 workspace=${SDD_CONTAINER_WORKSPACE:-}
 
 die() {
@@ -66,7 +70,11 @@ exec docker run "$@" "$image" sh -c '
   mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" || exit 1
   printf "Model-free container. No network, credentials or host home.\n"
   printf "Workspace: /work (writable scratch)   Repo: /src (read-only)\n"
-  printf "Model/provider calls and real-home adoption are out of scope.\n"
-  command -v git >/dev/null 2>&1 || printf "note: git is absent; snapshot/identity commands need it\n"
+  if command -v opencode >/dev/null 2>&1; then
+    printf "OpenCode: %s (mounted read-only; no provider/network)\n" "$(opencode --version 2>/dev/null || echo present)"
+  else
+    printf "note: opencode is not mounted; set OPENCODE_BINARY to the host binary\n"
+  fi
+  command -v git >/dev/null 2>&1 || printf "note: git is absent; evidence identity steps are optional (see guide)\n"
   exec sh
 '

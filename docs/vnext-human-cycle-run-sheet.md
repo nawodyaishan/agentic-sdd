@@ -14,7 +14,7 @@ model call, installation, adoption or any live operation.
 | Safe workspace (absolute path) | **Container `/work`**, backed by a fresh host scratch directory. Record the host path outside Git. |
 | Agent/client and version | _fill in_ |
 | Installed skills state / backup path | CLI binary built from the delivered identity; installations stay inside the container unless separately authorized. |
-| OpenCode CLI and service version | _fill in if `OPENCODE_BINARY` is mounted_ |
+| OpenCode CLI and service version | **v2.2.5** mounted read-only inside the container; no service/provider call. |
 | Adoption choice | **Preview only.** Applying to the scratch workspace needs a separate explicit go-ahead; the normal setup is out of scope. |
 | Model choice | **None.** No native OpenCode/ACP session or provider request; inference stays out of scope. |
 | If a model: exact id/provider, data scope, request/token/deadline limits, spend control | _not applicable in this cycle_ |
@@ -28,8 +28,8 @@ make build
 mkdir -p /tmp/opencode/vnext-cycle-work
 SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
   tests/vnext-container.sh
-# Optional read-only mount of the host binary, only if you need it:
-# OPENCODE_BINARY=$(command -v opencode) SDD_CONTAINER_WORKSPACE=... tests/vnext-container.sh
+# OpenCode v2.2.5 is mounted read-only by default; NO_OPENCODE=1 omits it.
+# OPENCODE_BINARY=/path overrides the host binary.
 ```
 
 The recipe never pulls an image, uses `--network=none`, drops capabilities,
