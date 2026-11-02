@@ -89,8 +89,12 @@ def snapshot(workspace, paths):
     names.update(os.fsdecode(p) for p in others.split(b"\0") if p)
     # Git does not report untracked FIFOs/devices. Inspect kinds without reading
     # them; prune ignored directories and .git so this never opens auth/cache data.
+    # check-ignore does not support literal pathspec magic, so the literal flag is
+    # omitted for this call and pathspec-magic names fail closed instead.
     def ignored(name):
-        probe = subprocess.run(["git", "--no-optional-locks", "--literal-pathspecs", "-C", str(workspace),
+        if name.startswith(":") or any(ch in name for ch in "*?[]\\"):
+            raise ValueError("ignore observation unavailable")
+        probe = subprocess.run(["git", "--no-optional-locks", "-C", str(workspace),
                                 "check-ignore", "-q", "--", name],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, env=git_env)
         if probe.returncode not in (0, 1):
