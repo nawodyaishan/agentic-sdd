@@ -378,7 +378,10 @@ native run) must still establish; none of it is implied by delivery.
   `650f60d1752262244ac673b230d2c4305afe760440df1340ff6246a18620135d`.
   Verification root `/tmp/opencode/sdd-b5-final.e3Xw5I/`, execution completed
   6/6, `result.json` SHA-256
-  `0579d60e28fa1fa189032f2a3049afb003567318d598315f23e8914b0b5ec496`.
+  `0579d60e28fa1fa189032f2a3049afb003567318d598315f23e8914b0b5ec496`;
+  post-commit root `/tmp/opencode/sdd-b5-post-commit.qIdA4c/` also execution
+  completed 6/6 (`result.json` SHA-256
+  `76b4e2d517cbc421a1ab0520cddf7352cb58e47526fca126165f4e2b1140105a`).
   T12 updated the [final human usage plan](../../docs/vnext-human-test-plan.md)
   (prepared, not executed), the acceptance/verification disposition table, and
   the OpenCode README/usage/adoption/recovery/verification/supported-version
