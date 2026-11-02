@@ -17,7 +17,7 @@ Use with the [human test guide](vnext-human-test-guide.md). A blank row is
 
 | # | Task | Result | Notes / evidence |
 | --- | --- | --- | --- |
-| 0 | Build check (`sh tests/vnext-model-free-checks.sh`) | | Expected `14 passed, 0 failed, 0 skipped` |
+| 0 | Build check (`sh tests/vnext-model-free-checks.sh`, or `--batch --full`) | | Expected `14 passed, 0 failed, 0 skipped`; slim container is `12/0/2` |
 | 1 | Direct fix stays direct | | |
 | 2 | Spec/plan/tasks only, no implementation | | |
 | 3 | One batch, then stop for review | | |

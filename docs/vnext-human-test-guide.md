@@ -49,6 +49,17 @@ If anything fails, stop here and share the output. This check is deterministic
 and model-free; it covers the installer, candidate/preflight, config preview,
 admission and evidence basics so you do not have to repeat them by hand.
 
+Prefer a fuller Linux environment? Use the larger local Ubuntu base, which also
+has `git` inside so the evidence checks run there too:
+
+```sh
+SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
+  tests/vnext-container.sh --batch --full
+```
+
+Expected the same `14 passed, 0 failed, 0 skipped`. No image is pulled; the
+recipe fails if it is not already present locally.
+
 ## 2. Workflow scenarios (60–75 minutes)
 
 For each scenario: open your safe project in a chat, paste the prompt, compare
@@ -165,7 +176,8 @@ SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
   tests/vnext-container.sh
 ```
 
-Inside you should see a banner with `OpenCode: opencode v2.2.5`. Then:
+Add `--full` to use the larger Ubuntu base (git/bash/coreutils). Inside you
+should see a banner with `OpenCode: opencode v2.2.5`. Then:
 
 ```sh
 opencode --version    # opencode v2.2.5
@@ -251,10 +263,12 @@ SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
 ```
 
 Expected: `Summary: 12 passed, 0 failed, 2 skipped` (the two skips are git-based
-evidence, which the host batch covers). For the interactive shell with
-`opencode` and the OpenCode TUI, run the same command **without** `--batch`; see
-§3. Inside the interactive container only, the same checks run as
-`sh /src/tests/vnext-model-free-checks.sh`.
+evidence). With `--full` (the larger Ubuntu base) the same batch reports
+**14 passed, 0 failed, 0 skipped** because `git` is present and the evidence
+checks run inside the container. For the interactive shell with `opencode` and
+the OpenCode TUI, run the same command **without** `--batch`; add `--full` for
+the larger base. See §3. Inside the interactive container only, the same checks
+run as `sh /src/tests/vnext-model-free-checks.sh`.
 
 Not covered here: real native model tools/permissions, native pending-human
 handling, native cancellation/compaction/recovery, real-home adoption, macOS,

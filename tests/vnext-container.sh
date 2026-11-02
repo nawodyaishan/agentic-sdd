@@ -1,7 +1,12 @@
 #!/bin/sh
 # Model-free, user-driven container for the 005 final human cycle.
-#
 # Starts an interactive shell in a disposable Linux container with:
+#
+# Options:
+#   --batch   run tests/vnext-model-free-checks.sh and exit (no TTY required)
+#   --full    use the larger local Ubuntu base (git/bash/coreutils) instead of
+#             the slim default; no image is ever pulled
+#
 #   - no network, no host home, no credentials, no Docker socket;
 #   - a read-only repository and read-only agentic-sdd binary mounted in;
 #   - the host's opencode binary mounted read-only and available by default
@@ -13,7 +18,6 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-image=${SDD_CONTAINER_IMAGE:-sha256:57b29a7c050c4e679e4bea572e14b3965cf4b5839de2da49d55e49ffc4024f39}
 agentic=${AGENTIC_SDD_BINARY:-$root/bin/agentic-sdd}
 opencode=${OPENCODE_BINARY:-}
 if [ -z "$opencode" ] && [ "${NO_OPENCODE:-0}" != "1" ]; then
@@ -27,11 +31,23 @@ die() {
 }
 
 batch=0
-case "${1:-}" in
-  --batch) batch=1 ;;
-  "") ;;
-  *) die "unknown argument $1; use --batch or no argument" ;;
-esac
+full=0
+for arg in "$@"; do
+  case "$arg" in
+    --batch) batch=1 ;;
+    --full) full=1 ;;
+    *) die "unknown argument $arg; use --batch, --full or no argument" ;;
+  esac
+done
+
+if [ -n "${SDD_CONTAINER_IMAGE:-}" ]; then
+  image=$SDD_CONTAINER_IMAGE
+elif [ "$full" = 1 ]; then
+  # Larger Ubuntu base with git/bash/coreutils; already present locally.
+  image=sha256:191967da651ec0a567de173ef8a029080da8cd4992de192b65df54ef189be769
+else
+  image=sha256:57b29a7c050c4e679e4bea572e14b3965cf4b5839de2da49d55e49ffc4024f39
+fi
 
 [ -n "$workspace" ] || die "set SDD_CONTAINER_WORKSPACE to a new disposable directory (absolute path)"
 [ -d "$workspace" ] || die "workspace does not exist: $workspace"
