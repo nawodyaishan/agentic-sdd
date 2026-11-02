@@ -1,7 +1,7 @@
 BINARY_NAME := agentic-sdd
 CMD_DIR := ./cmd/agentic-sdd
 
-.PHONY: help preview apply backups logs test vet docker-e2e hooks-install mod-verify tidy-check build build-darwin verify verify-trusted tag release
+.PHONY: help preview apply backups logs test vet docker-e2e hooks-install mod-verify tidy-check build build-darwin verify verify-trusted tag release opencode-help
 
 GOCACHE ?= $(CURDIR)/.cache/go-build
 SDD_OUTPUT ?=
@@ -13,6 +13,9 @@ help: ## Show available commands
 
 preview: ## Show skill installs and replacements without changing files
 	GOCACHE=$(GOCACHE) go run ./cmd/agentic-sdd preview
+
+opencode-help: ## Show inactive OpenCode helper usage without native/provider activity
+	GOCACHE=$(GOCACHE) GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go run ./cmd/agentic-sdd opencode --help
 
 apply: ## Back up existing skills and install source skills
 	GOCACHE=$(GOCACHE) go run ./cmd/agentic-sdd apply
