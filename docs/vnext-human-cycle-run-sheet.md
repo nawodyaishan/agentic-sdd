@@ -1,11 +1,10 @@
 # Final human cycle — session run sheet
 
-**Status: blank worksheet; not started.** Use with the
-[final human usage plan](vnext-human-test-plan.md). Exact commands and expected
-results are in the [model-free QA
-checklist](vnext-model-free-qa-checklist.md). Fill the fields before launch; a
-blank or unchecked row is **not run**, never a pass. This sheet does not
-authorize a model call, installation, adoption or any live operation.
+**Status: blank worksheet; not started.** Start with the [final human test
+guide](vnext-human-test-guide.md) for exact commands and expected results. Use
+this sheet to record session identity and per-scenario outcomes; a blank or
+unchecked row is **not run**, never a pass. This sheet does not authorize a
+model call, installation, adoption or any live operation.
 
 ## 1. Session identity (selected setup, 2026-11-02)
 
