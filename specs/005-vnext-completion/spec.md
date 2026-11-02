@@ -322,12 +322,15 @@ workflow-usage session is required to authorize development of an independent
 component. This scheduling rule does not excuse known unsafe defects or grant
 future batch/live-operation authority.
 
-The final handover covers one integrated cycle in the user's normal setup:
+The final handover covers one integrated cycle in the user's normal setup, or in
+the pinned QA container recorded in §Approval when the user selects it:
 feature drafting/combined approval, one implementation batch, meaningful review,
 chosen interruption/resume, a bug investigation and a review-only case, plus the
 new helper branches. The human chooses the actual safe work and launch scope;
 not every scenario must fit in one sitting. No model test is run or simulated by
-the agent under this implementation feature. Further fix/retest cycles, if
+the agent under this implementation feature. Container results apply only to
+that image identity and do not certify the normal setup, native admission,
+macOS, billing/provenance or benefit. Further fix/retest cycles, if
 needed, are user-directed rather than an automatic validation loop.
 
 ### AC-15 — Honest completion and carried findings
@@ -383,6 +386,22 @@ continues to block affected online work; no new budget/allocation is created.
 
 ## Approval
 
+- **Container-based final human cycle accepted (2026-11-02):** after being told
+  that AC-14 named the user's normal setup and that B5 did not authorize a live
+  install, the user chose **“B — Accepted cycle”**. Narrow deviation: the one
+  final human cycle may run in the pinned local QA image `agentic-sdd-qa:005`
+  instead of the normal setup. Exact identity at acceptance:
+  image `sha256:f2a14af58b029207d952e3bd4845819ec634f7286982e49ddfe8b2836c3dd349`;
+  base `codercom/enterprise-base@sha256:191967da651ec0a567de173ef8a029080da8cd4992de192b65df54ef189be769`;
+  OpenCode `2.2.5` sha256 `8d060e1d2fbb9bb44cf09ae6ed1f3f6a7cff070b5227e2f90970132b23a92050`;
+  `agentic-sdd` binary sha256 `4745f48c32a9ee905259a0a97eb081fc9c38726eed3269a8aec42bbc78929ca3`
+  from source commit `3fa623176a457dd4b9fe01be10023204fc9b6568`; 18 packaged
+  skills preinstalled. The cycle remains **user-operated**: the user performs
+  any online login/model call; the agent makes no model call, copies no
+  credentials and performs no real-home install/adoption, release or CI
+  experiment. Results count only for this image; normal-setup behavior, native
+  admission, macOS, billing/provenance and benefit remain explicit gaps.
+  All other approval terms are unchanged.
 - **B5 review acceptance (2026-11-02):** user completed the B5 human review
   ("i accept b5") of the delivered verification, reconciliation and final
   human-cycle plan (commits `c043ae8`, `6cd7afc`, `c04177c`; implementation
@@ -456,9 +475,11 @@ continues to block affected online work; no new budget/allocation is created.
   credential operation or walkthrough execution follows from either request.
 
 Current documents: [plan r1](plan.md) and [tasks r1](tasks.md). All selected
-implementation (T01–T12) is delivered and the B5 review is accepted. The one
-integrated human usage cycle is prepared in the
-[final usage plan](../../docs/vnext-human-test-plan.md) but **not executed**;
-its launch, B5 publication and any further fix/retest remain separate user
-decisions. Preserve the single-batch execution rule and separate
+implementation (T01–T12) is delivered and the B5 review is accepted. The user
+chose the pinned `agentic-sdd-qa:005` container as the accepted final-cycle
+environment (identity in §Approval); the cycle is prepared in the
+[final usage plan](../../docs/vnext-human-test-plan.md) and
+[human test guide](../../docs/vnext-human-test-guide.md) but **not executed**.
+Its launch, model/login, B5 publication and any further fix/retest remain
+separate user decisions. Preserve the single-batch execution rule and separate
 implementation/development review from human usage validation.

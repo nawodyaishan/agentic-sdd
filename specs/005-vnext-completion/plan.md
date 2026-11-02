@@ -291,7 +291,10 @@ The final handover lists exact source/runtime/config identities, inactive candid
 safe opt-in/rollback, scenario order, existing evidence limits and carried IDs.
 It covers all core/helper branches in one integrated human cycle, potentially
 across sittings, only after all batches are delivered. The user separately chooses
-task/workspace/live/model scope. No CI experiment, benchmark, install, paid request
+task/workspace/live/model scope. The user may select the pinned QA container
+recorded in spec §Approval instead of the normal setup; its image/binary
+identities and limits then define the acceptance environment, while
+normal-setup behavior remains unproven. No CI experiment, benchmark, paid request
 or real-life test is executed to satisfy this development plan.
 
 ## Core coverage reconciliation

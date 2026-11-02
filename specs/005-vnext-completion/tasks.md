@@ -239,7 +239,7 @@ B1 and B2 explicitly authorized sequentially. Specialist/tool assignments live i
 | B2 — Inactive runtime delivery | T05–T06 | Sanitized preflight/candidate and separate config transaction. Fake inventory/CLI and temporary-filesystem negative cases; Go local gates. | Delivered in source/tests; A1 artifact produced by `agentic-sdd opencode config preview` not yet run. Self-reviewed Ready for this source/distribution scope. |
 | B3 — Native pending/recovery integration | T07–T08 | Thin ACP client, strict admission, owned interruption and pending-human output. Fake-peer/owned-process tests only; Go local gates. | Delivered at source level with fake-peer tests; awaiting human review. No native/model experiment. |
 | B4 — Production evidence bridge | T09–T10 | Compatible v1 identity/validation/export connected to owned observations and existing check results. Independent golden/negative/composition cases; Go local gates. | Delivered, published to `origin/main` (`2e2d461`…`af0036e`); B5 authorized directly by the user on 2026-11-02. Offline only; unknown billing/provenance remains unknown. |
-| B5 — Complete-candidate handover | T11–T12 | Aggregate development verification, final core/helper coverage and single final human-cycle instructions. Reuse valid checks, inspect final diff and retained findings. | Delivered and human-reviewed (accepted) 2026-11-02. Awaiting the separate final-cycle launch and B5 publication decisions. |
+| B5 — Complete-candidate handover | T11–T12 | Aggregate development verification, final core/helper coverage and single final human-cycle instructions. Reuse valid checks, inspect final diff and retained findings. | Delivered and human-reviewed (accepted) 2026-11-02; a pinned container environment for the accepted human cycle was subsequently built and recorded in spec §Approval. Awaiting the user-run cycle. |
 
 The final human usage cycle is **not B6 automatically starting**, not an LLM test
 job and not authorized by implementation completion. The user owns its later
@@ -388,13 +388,20 @@ native run) must still establish; none of it is implied by delivery.
   records. No model call, native `opencode acp` process, provider probe,
   credential read, human usage run, live install/adoption, approval/review write
   or release tag occurred.
-- Next permitted action: no development batch remains. The user's next decisions
-  are (a) whether/when to publish the B5 commits, (b) whether/when to launch the
-  one integrated human usage cycle, and (c) whether to authorize any separate
-  follow-up such as the B2-scope umask test fix. Workspace, setup, model/limits
-  and live permissions for the human cycle are the user's. Keep existing stable
-  004 work separate from 005 implementation and private/local evidence during
-  publication.
+- Container acceptance (2026-11-02): after the AC-14/B5 scope check, the user
+  chose the pinned container as the accepted human-cycle environment (spec
+  §Approval). `tests/qa-container/` + `tests/build-qa-image.sh` build
+  `agentic-sdd-qa:005` with the local Ubuntu base, OpenCode 2.2.5, the
+  `agentic-sdd` binary, and the 18 packaged skills preinstalled; the build runs
+  with `--network=none`. Verified offline: `opencode v2.2.5`, `git 2.55.0`, 18
+  skills, candidate file; online connectivity check reported 3 passed/0 failed/
+  1 skipped. Image identity and binary hashes are recorded in spec §Approval.
+  No login or model call was performed by the agent.
+- Next permitted action: run the accepted human cycle in the pinned image
+  (`tests/build-qa-image.sh`, then `SDD_QA_WORKSPACE=... tests/run-qa-image.sh`,
+  add `--online` for user-driven login). Record results in the
+  [run sheet](../../docs/vnext-human-cycle-run-sheet.md). No further batch,
+  real-home install/adoption or model call is authorized by this delivery.
 - Verification: Go tests/vet, repository-required gates and documentation
   whitespace/local-link/coverage reconciliation passed. No Go/fixture/native/CI
   tests run merely as human-usage substitutes.
