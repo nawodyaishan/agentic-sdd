@@ -383,6 +383,18 @@ continues to block affected online work; no new budget/allocation is created.
 
 ## Approval
 
+- **B3 review acceptance, B4 authorization and B3 publication (2026-11-02):**
+  user completed the B3 human review ("Yes — reviewed, accepted") of the
+  delivered source/tests/diff (commits `ce84d16` → `9a9c392` → `ae2d9f1` →
+  `edf58db`, B3 source identity `8df49be3…` recorded in the 005c handover).
+  The user then explicitly authorized **B4** (production evidence consumer
+  T09 and native-observation bridge T10) as offline/portable implementation
+  only — no model calls, native `opencode acp` processes, provider probes,
+  credential reads or real-home adoption; the C4 admission boundary is
+  unchanged. The user also separately authorized pushing the B3 commit chain
+  to `origin/main` ("Push now"), with the disclosed deterministic CI running
+  on push; no release tag, PR experiment or credential operation is included.
+  B5 remains unauthorized. Recording only; this entry adds no other scope.
 - **B3 authorization (2026-11-02):** user completed the B1/B2 human review and
   authorized **B3** (native ACP transport and pending-human normalization,
   T07–T08). The user's message added "authorize it using opencode … openrouter
@@ -423,6 +435,6 @@ continues to block affected online work; no new budget/allocation is created.
   credential operation or walkthrough execution follows from either request.
 
 Current documents: [plan r1](plan.md) and [tasks r1](tasks.md). Next: implement
-authorized B1, review its result, then proceed to explicitly authorized B2 only.
-Preserve the single-batch execution rule and separate implementation/development
-review from the one final human usage milestone.
+authorized B4 (T09–T10) only, review its result, then stop; B5 needs its own
+authorization. Preserve the single-batch execution rule and separate
+implementation/development review from the one final human usage milestone.

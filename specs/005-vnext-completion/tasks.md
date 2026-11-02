@@ -238,7 +238,7 @@ B1 and B2 explicitly authorized sequentially. Specialist/tool assignments live i
 | B1 — Portable helper suite | T01–T04 | Seven helpers, canonical lifecycle pointers, provenance/notices and safe eighteen-ID embedded/on-disk package. Focused source/link/semantic review and temporary-home packaging tests; local gates for Go test changes. | Delivered and self-reviewed Ready for this source/distribution scope. |
 | B2 — Inactive runtime delivery | T05–T06 | Sanitized preflight/candidate and separate config transaction. Fake inventory/CLI and temporary-filesystem negative cases; Go local gates. | Delivered in source/tests; A1 artifact produced by `agentic-sdd opencode config preview` not yet run. Self-reviewed Ready for this source/distribution scope. |
 | B3 — Native pending/recovery integration | T07–T08 | Thin ACP client, strict admission, owned interruption and pending-human output. Fake-peer/owned-process tests only; Go local gates. | Delivered at source level with fake-peer tests; awaiting human review. No native/model experiment. |
-| B4 — Production evidence bridge | T09–T10 | Compatible v1 identity/validation/export connected to owned observations and existing check results. Independent golden/negative/composition cases; Go local gates. | Not authorized. Depends on B3 review/next authorization. Unknown billing/provenance remains unknown. |
+| B4 — Production evidence bridge | T09–T10 | Compatible v1 identity/validation/export connected to owned observations and existing check results. Independent golden/negative/composition cases; Go local gates. | Authorized 2026-11-02 after B3 review acceptance (spec §Approval); in progress. Offline only; unknown billing/provenance remains unknown. |
 | B5 — Complete-candidate handover | T11–T12 | Aggregate development verification, final core/helper coverage and single final human-cycle instructions. Reuse valid checks, inspect final diff and retained findings. | Not authorized. Depends on B4 review/next authorization. Stop for final human launch decision after all implementation. |
 
 The final human usage cycle is **not B6 automatically starting**, not an LLM test
@@ -285,10 +285,13 @@ scope, environment, provider/effect limits and actual execution.
 ## Continuation record
 
 - Current execution (2026-11-02): user approved the combined r1 set and **B1 B2**,
-  then completed B1/B2 human review and authorized **B3** (recorded in spec
-  §Approval). B1, B2 and B3 delivered at source level; **B4–B5 remain
-  unauthorized**. No human usage session yet — that is a separate later launch
-  decision after all selected implementation is delivered.
+  then completed B1/B2 human review and authorized **B3**, then completed the
+  **B3 human review (accepted)** and authorized **B4** (all recorded in spec
+  §Approval). B1, B2 and B3 delivered and human-reviewed; **B4 (T09–T10) is
+  authorized and in progress**; B5 remains unauthorized. The B3 commit chain was
+  pushed to `origin/main` per the separate publication decision. No human usage
+  session yet — that is a separate later launch decision after all selected
+  implementation is delivered.
 - B1 evidence: new eighteen-ID distribution test first failed against the original
   eleven-skill tree. After implementation, `TMPDIR=/tmp/opencode GOTOOLCHAIN=local
   GOPROXY=off GOSUMDB=off make test` and `make vet` passed; `git diff --check` and
@@ -304,8 +307,8 @@ scope, environment, provider/effect limits and actual execution.
   and `git diff --check` all pass. No model call, native native service, PR experiment
   or real-home adoption was performed. Evidence root `/tmp/opencode/sdd-b2-verify-20261102/`
   result SHA-256 `5d5d918dff3a553f0ca48ac45d9d39390f916be4d45d147e92c86413bda83ece`.
-- **Batch state: `awaiting human review` for B3.** B1 and B2 were already human
-  reviewed. B3 evidence: `internal/opencodeadapter` ACP transport/owned-process
+- **Batch state: B3 human review completed and accepted (2026-11-02); B4
+  authorized and in progress.** B1, B2 and B3 were already human reviewed. B3 evidence: `internal/opencodeadapter` ACP transport/owned-process
   lifecycle, strict admission (`admission.go`), pending-human normalization
   (`pending.go`) and `cmd/agentic-sdd` (`opencode session prepare|run|pending`)
   implemented and exercised only by synthetic fake peers (this test binary
@@ -324,9 +327,10 @@ scope, environment, provider/effect limits and actual execution.
   `opencode acp` process, model call, provider probe, credential read or real-home
   adoption occurred; `session run` stays `blocked` because strict admission controls
   remain unverified. B4–B5 do not start; stopping here per batch rules.
-- Next permitted action: human review of the B3 source/tests/diff and decision on
-  whether to authorize B4. Keep existing stable 004 work separate from future 005
-  implementation and private/local evidence during publication.
+- Next permitted action: deliver authorized B4 (T09–T10) within its offline
+  boundary, verify, and stop for human review. Keep existing stable 004 work
+  separate from future 005 implementation and private/local evidence during
+  publication.
 - Verification: Go tests/vet, repository-required gates and documentation
   whitespace/local-link/coverage reconciliation passed. No Go/fixture/native/CI
   tests run merely as human-usage substitutes.
