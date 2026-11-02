@@ -347,7 +347,9 @@ scope, environment, provider/effect limits and actual execution.
   files (sorted repository path + NUL + content SHA-256 + LF)
   `5da0c69dbfa3640b6ab1265ff208dc65a7bd8337f713dea3a1925f33bc909706`. Verification
   result root `/tmp/opencode/sdd-b4-final.hiHwvb/` (execution completed, 6/6;
-  result.json SHA-256 `13f2d4b734c9148f241e119c439ce71d8518a0f4579672d7d90a5d2640b4c830`).
+  result.json SHA-256 `13f2d4b734c9148f241e119c439ce71d8518a0f4579672d7d90a5d2640b4c830`)
+  and post-commit root `/tmp/opencode/sdd-b4-post-commit.llckep/` (execution
+  completed, 6/6).
   No model call, native `opencode acp` process, provider probe, credential read,
   real-home adoption, approval/review write or native-service change occurred.
   One latent reference defect was fixed: `git check-ignore` rejects
