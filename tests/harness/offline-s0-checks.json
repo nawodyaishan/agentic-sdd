@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "checks": [{
+    "id": "s0-offline-boundary", "cwd": ".", "scopes": ["focused"],
+    "prerequisites": ["python3", "docker", "opencode", "running Docker daemon"],
+    "timeout_seconds": 540,
+    "effects": {"writes": ["private external fixture evidence", "fresh native/container scratch and owned containers"], "network": "all containers network-none; fake loopback HTTP only, no provider, auth store, dependency install or image pull"},
+    "steps": [{"argv": ["python3", "-B", "tests/harness/s0-fixtures.py"], "env": {}}],
+    "local_recipe": ["python3", "-B", "tests/harness/s0-fixtures.py"], "expected_exit": 0, "evidence": "s0-offline-boundary.log"
+  }]
+}

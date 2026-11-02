@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "checks": [{
+    "id": "connected-offline", "cwd": ".", "scopes": ["focused"],
+    "prerequisites": ["python3", "git", "go"], "timeout_seconds": 240,
+    "effects": {
+      "writes": ["temporary synthetic Git trees, compiled deterministic runner, private caches/results/receipts and owned child processes"],
+      "network": "no provider/native access; toolchain retrieval disabled; optional jsonschema must already be installed"
+    },
+    "steps": [{"argv": ["python3", "-B", "-m", "unittest", "discover", "-s", "tests/harness", "-p", "test_connected.py"], "env": {}}],
+    "local_recipe": ["python3", "-B", "-m", "unittest", "discover", "-s", "tests/harness", "-p", "test_connected.py"],
+    "expected_exit": 0, "evidence": "connected-offline.log"
+  }]
+}

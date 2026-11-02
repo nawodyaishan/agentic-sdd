@@ -30,8 +30,9 @@ class NativeTests(unittest.TestCase):
         cls.template = json.loads(Path("/templates/opencode.jsonc").read_text())
         cls.lockdown = json.loads(Path("/templates/policy-lockdown.jsonc").read_text())
         result = subprocess.run(["opencode", "--version"], capture_output=True, text=True, timeout=30, check=True)
-        if result.stdout.strip() != "opencode v2.2.0":
-            raise RuntimeError("fixtures require the pinned 2.2.0 binary")
+        expected = os.environ.get("SDD_NATIVE_EXPECTED_VERSION", "opencode v2.2.0")
+        if expected not in ("opencode v2.2.0", "opencode v2.2.5") or result.stdout.strip() != expected:
+            raise RuntimeError("fixtures require the exact explicitly selected 2.2.0 or 2.2.5 binary")
         cls.log = (cls.root / "server.log").open("w")
         os.environ["OPENCODE_PASSWORD"] = "credential-free-local-fixture"
         cls.auth = "Basic " + base64.b64encode(b"opencode:credential-free-local-fixture").decode()

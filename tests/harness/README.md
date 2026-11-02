@@ -138,3 +138,91 @@ check. Unit/static checks are not execution-boundary evidence; container fixture
 are not a hosted GitHub Actions observation. There is no real branch-rule change
 or candidate-owned trust bootstrap. See [the trust/adoption guide](../../harness/trusted-ci.md)
 and current feature continuation for actual evidence and unresolved adoption.
+
+## B8 connected offline components and feature acceptance
+
+```sh
+TMPDIR=/tmp/opencode python3 -B -m unittest discover -s tests/harness -p test_connected.py
+```
+
+`test_connected.py` compiles the actual check runner and feeds its observed
+results/logs through the delivered receipt consumer and exporter. Three tests
+exercise successful execution, missing/changed authority, stale untracked input,
+location reconciliation with an actual rerun, a real failed content assertion
+and correction, and two repetitions each of signal/deadline interruption.
+Pending checks must stay `not_run`; exported/reloaded partial results cannot
+be promoted to completion/Ready. Corrected checks cannot clear an unresolved
+finding, and source/task sentinels must survive receipt consumption unchanged.
+
+All fixture Git repositories, commits, authority references, project files and
+findings are **synthetic**. Only independently specified stdlib check programs
+execute. No native model tool, draft generation, human approval, agent review,
+compaction or autonomous resume is simulated and counted as acceptance. These
+tests add no production runtime, check/receipt schema or state machine.
+
+The same command is exposed by `offline-b8-checks.json` as the explicit focused
+check `connected-offline`. Its Python/jsonschema, Git and Go prerequisites must
+already be installed. Child processes use a fresh credential-free HOME/Git
+configuration, no global hooks or signing, and disabled toolchain/module
+retrieval. Temporary directories are not an OS sandbox; do not replace the
+synthetic programs with untrusted commands. Real installer/isolated-gate
+compatibility is verified separately, not inferred from this fixture.
+
+For optional retained fixture observations, set `SDD_B8_EVIDENCE_ROOT` to an
+existing owner-only absolute directory outside the repository. Only generated
+results/receipts/logs and sanitized observations are copied there, never native
+stores or Git authentication. Fixture workspaces are removed after tests, so
+the retained receipts are observations, not reusable current-workspace evidence.
+Use seven-day manual raw-log / thirty-day receipt retention by default; no
+automatic old-sandbox/native-database pruning. The all-AC evidence and comparison
+assessment is in [feature acceptance](../../harness/acceptance.md); current batch
+state and actual command/result paths remain in the feature task continuation.
+
+## S0 offline-only follow-up
+
+The separately authorized S0 lab boundary and reproduction commands are in
+[S0.md](S0.md). It adds byte-budget/loopback HTTP tests, fake-response request
+construction and compatibility probes for the actually observed OpenCode 2.2.5,
+and a separate unprivileged worker. No real model is called and no auth store is
+copied. The original B8 checks above remain valid within their recorded scopes;
+S0 is additional evidence, not a rerun counted as native acceptance. Byte quotas
+are not verified DeepSeek tokens. A later exact S1 allocation is conditionally
+authorized in spec §Approval, but its original accounting/egress conditions remain
+unproven. The later P1 observation below is a distinct, approved exception.
+
+The separately approved `test_tokenizer_source.py` consumes the pinned tokenizers
+0.22.1 wheel and official JSON as readonly lab mounts (`/wheel`, `/token-source`)
+inside the existing non-root network-none Python image, with
+`PYTHONPATH=/wheel SDD_TOKENIZER_SOURCE_FIXTURE=1 HF_HUB_OFFLINE=1`. It performs
+four local source/encoding checks without Transformers, Hub imports, model
+downloads or system installation. With no approved mounts/opt-in, its tests are
+skipped, not passed. Exact data/wheel hashes and private test results are in the
+plan/tasks; no package or model data is vendored into this repository.
+The local chat example is not proof of hosted gateway chat/tool/reasoning
+framing. Original strict S1 remains conditional, not established by local counts.
+
+## P1 bounded text observation
+
+The corrected one-request approval and outcome live in feature 004's
+[spec](../../specs/004-vnext-harness/spec.md#approval) and
+[tasks](../../specs/004-vnext-harness/tasks.md#continuation-record).
+P1 has **run once and stopped on HTTP 429**, consuming one of six original
+attempts. Usage/billing remain unknown; no retry or remaining attempt is implied.
+
+`python3 -B tests/harness/p1-preflight.py` defaults to fake mode: 17 isolated
+policy/courier/driver tests followed by a native fake-provider topology. It needs
+the already local exact binary, pinned Python image, Docker internal isolated
+network support and `/tmp/opencode`; it never pulls or installs prerequisites.
+The native client is internal-only, with a separate dual-homed gate and no host
+home/auth/control/socket mount. A fixed canonical text body discards native
+system/tool framing; this is not a model-originated tool test.
+
+The allocation-bound live option is **not a reusable smoke test**. Its stable
+control directory and spent dispatch ticket must never be deleted/reset to run
+again. Offline proof is source-bound; preserve old proof/evidence if sources
+change rather than treating it as current. Public free pricing is distinct from
+observed billing. `observation.json`'s `completed` denotes the driver finishing,
+not a successful generation: inspect `gate_observation.result.status`, HTTP
+status and the separate native exit. Here the wrapper exited 0, native exited 1,
+and the gate recorded `incomplete` after 429. No token or feature-acceptance
+claim follows. Keep local evidence owner-only with manual retention as above.
