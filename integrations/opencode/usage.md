@@ -85,3 +85,49 @@ backup and reconcile phase/current files before any retry; `prepared` is not
 proof that replacement occurred or that nothing changed. Do not delete backup
 directories to retry, treat wrapper exit as model success or put private backups
 in Git. Native prompt execution/receipts are later B3/B4, not delivered by B2.
+
+## Native ACP session — 005/B3 (fake-peer transport, strict admission)
+
+The `opencode session` group is a narrow ACP protocol-1 client over one owned
+private `opencode acp` child. It is exercised only by synthetic fake peers and
+**never starts a real native process or model in development**. Three operations:
+
+```sh
+agentic-sdd opencode session prepare --workspace /absolute/project --executable /absolute/opencode [--model M] [--mode M]
+agentic-sdd opencode session run --workspace /absolute/project --executable /absolute/opencode --prompt TEXT [--model M] [--mode M] [--deadline SECS] [--launch FILE]
+agentic-sdd opencode session pending --file /absolute/private/pending-….json
+```
+
+`prepare` (the default) validates the fixed executable identity, absolute
+workspace and model/mode identifiers and emits `execution: prepared` with the
+admission blockers. It starts nothing.
+
+`run` is gated by strict admission (contract C4). A launch declaration
+(`--launch FILE`) must carry authorization, intended effects, exact model/data
+identity, and deadline/attempt/token/spend bounds — and even a fully declared
+launch is still denied because the independent controls (strict pre-send token
+proof, credential isolation, complete accounting, provider caps/allowance,
+auxiliary-retry prevention) cannot be proven by a declaration. While any control
+is unverified, `run` returns `execution: blocked` with those blockers and starts
+no process. No `--force`, free-price exception or soft estimate exists.
+
+The transport itself bounds each ACP message to 256 KiB, aggregate observations
+to 10 MiB, control requests to 10 s and the session to an explicit deadline. It
+performs the `initialize` handshake (advertising `elicitation.form`), creates one
+session with an absolute `cwd` and no additional directories/MCP servers, selects
+the exact offered model/mode before prompting, and refuses wrong versions,
+foreign sessions, child-session metadata, unoffered models/modes, duplicate/late
+RPC ids, oversized frames and unknown required events. A provider error with
+process exit 0 is never task success.
+
+On a consequential `elicitation/create` or permission request, the client keeps
+it unanswered, cancels the owned prompt, and returns `execution: blocked` with
+`stop_reason: pending_human` plus a sanitized resumable summary (exact question,
+bounded options, `rationale: unknown` when absent, affected scope, evidence
+pointers and next permitted action). It never fabricates an answer, guesses,
+auto-approves or resumes.
+
+`pending --file` re-emits a persisted summary for review only; it validates the
+schema and never re-enters, resumes or replays the session. The summary is an
+observation, not a second approval ledger. See [recovery](recovery.md) for the
+reconciliation procedure.

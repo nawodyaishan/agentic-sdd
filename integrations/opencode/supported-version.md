@@ -47,3 +47,19 @@ tests do not certify actual mode/tool/adoption behavior. No native service or
 real model was run for B2; later ACP integration is B3 and the human usage cycle
 comes only after all selected 005 implementation. No blanket version support
 or live runtime/default-model change follows.
+
+## Native ACP transport — 005/B3 (2026-11-02)
+
+The `opencode session` group implements a narrow ACP protocol-1 client pinned to
+the same 2.2.5 source contract, exercised only by synthetic fake peers (this test
+binary re-executed as a scripted ACP server over fd 3). It bounds each message to
+256 KiB and performs the `initialize` handshake (advertising `elicitation.form`),
+session creation with an absolute `cwd` and no additional directories/MCP servers,
+and exact model/mode selection before a prompt. Positive and negative outcomes
+(happy end_turn, elicitation/permission pending-human, provider error with exit 0,
+missing terminal event, child-session metadata, foreign session, duplicate/late
+ids, oversized frames, wrong version, deadline) are covered.
+
+These tests do not certify real native behavior: no `opencode acp` process or
+model was started, and strict admission stays denied while token/egress/
+accounting/credential controls are unverified. Support remains **not certified**.

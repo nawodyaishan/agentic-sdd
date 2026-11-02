@@ -64,3 +64,24 @@ test. A future online fixture needs its own scoped secret reference, exact
 model/data scope and bounded requests/tokens/deadline, with no paid fallback,
 delegation or background inference. Do not restart or cancel the user's shared
 service or current session while developing the fixture.
+
+## Pending-human normalization — 005/B3 (fake-peer only)
+
+The ACP transport stops on a consequential `elicitation/create` or permission
+request by keeping it unanswered, cancelling the owned prompt, and returning
+`execution: blocked` with `stop_reason: pending_human` plus a sanitized resumable
+summary. This is a native-stop observation, not an approval record, and it never
+fabricates an answer, rationale, approver or consent. Cancellation is awaited for
+at most 5 s; if the stop is not confirmed the outcome records
+`cancellation-unconfirmed` and never auto-resumes.
+
+A persisted summary (`pending-*.json`) is written only to an owner-private
+directory outside active discovery, refusing overwrite/replay. `session pending
+--file` re-emits it for review and validates the schema; it does not resume. Any
+resumption must independently re-reconcile the workspace, session, authority and
+changed files — a replayed or stale summary cannot authorize re-entry.
+
+These outcomes are deterministic fake-peer fixtures. They do not certify native
+cancellation, process isolation or model behavior; the final human usage cycle
+owns real-usage observations. Admission remains denied while token/egress/
+accounting/credential controls are unverified.
