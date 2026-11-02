@@ -2,9 +2,8 @@
 
 **Status: prepared for a separate actual launch decision; NOT executed.**
 **Step-by-step testing instructions are in the [final human test
-guide](vnext-human-test-guide.md).** A fill-in [session run
-sheet](vnext-human-cycle-run-sheet.md) and compact [QA
-checklist](vnext-model-free-qa-checklist.md) are companions; a blank row is not
+guide](vnext-human-test-guide.md).** The fill-in [session run
+sheet](vnext-human-cycle-run-sheet.md) records your results; a blank row is not
 a pass. A model-free container recipe (`tests/vnext-container.sh`) hosts the
 user-driven sandbox without network, credentials or host home. This document
 replaced the 004-era full-vNext draft at 005/B5 integration.

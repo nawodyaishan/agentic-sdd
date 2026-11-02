@@ -1,106 +1,51 @@
-# Final human cycle — session run sheet
+# Human test record — feature 005
 
-**Status: blank worksheet; not started.** Start with the [final human test
-guide](vnext-human-test-guide.md) for exact commands and expected results. Use
-this sheet to record session identity and per-scenario outcomes; a blank or
-unchecked row is **not run**, never a pass. This sheet does not authorize a
-model call, installation, adoption or any live operation.
+Use with the [human test guide](vnext-human-test-guide.md). A blank row is
+**not run**, not a pass. Do not change your normal setup for this cycle.
 
-## 1. Session identity (selected setup, 2026-11-02)
+## Session
 
 | Field | Value |
 | --- | --- |
-| Date / operator | _fill in_ |
-| Safe workspace (absolute path) | **Container `/work`**, backed by a fresh host scratch directory. Record the host path outside Git. |
-| Agent/client and version | _fill in_ |
-| Installed skills state / backup path | CLI binary built from the delivered identity; installations stay inside the container unless separately authorized. |
-| OpenCode CLI and service version | **v2.2.5** mounted read-only inside the container; no service/provider call. |
-| Adoption choice | **Preview only.** Applying to the scratch workspace needs a separate explicit go-ahead; the normal setup is out of scope. |
-| Model choice | **None.** No native OpenCode/ACP session or provider request; inference stays out of scope. |
-| If a model: exact id/provider, data scope, request/token/deadline limits, spend control | _not applicable in this cycle_ |
-| Timebox and stop conditions | **90 minutes, one sitting.** Stop on the first unexpected write, permission prompt, missing prerequisite or evidence inconsistency. |
-| Evidence location (sanitized, outside Git) | _fill in_ |
+| Date / your name | |
+| Safe project (path or description) | |
+| Assistant / model used | |
+| Timebox | 90 minutes suggested |
+| Notes shared with the assistant? | yes / no |
 
-Container command (from the repository root):
+## Results
 
-```sh
-make build
-mkdir -p /tmp/opencode/vnext-cycle-work
-SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
-  tests/vnext-container.sh
-# One-command batch instead of the interactive shell:
-# SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work tests/vnext-container.sh --batch
-# OpenCode v2.2.5 is mounted read-only by default; NO_OPENCODE=1 omits it.
-# OPENCODE_BINARY=/path overrides the host binary.
-```
-
-The recipe never pulls an image, uses `--network=none`, drops capabilities,
-has a read-only root and repo, mounts no host home or credentials, and mounts
-only the chosen scratch directory read-write. Inside `/work`, run only the
-model-free scenarios below (installer preview/no-op/backup/restore, candidate →
-preflight → config preview, evidence snapshot/validate/export/receipt on a
-synthetic project). AI-driven skill behavior is exercised host-side with this
-assistant; the container cannot substitute for a model session.
-
-Stop before starting if any of these is unknown: workspace safety, installed
-version/backup, rollback path, model scope/limits (when a model is used), or
-whether an operation is authorized.
-
-## 2. Pre-flight checks
-
-- [ ] Safe/disposable workspace confirmed; unrelated worktree untouched.
-- [ ] Current instructions/skills and runtime identity recorded.
-- [ ] No credentials, auth stores, environment dumps or raw logs to be copied.
-- [ ] Rollback path known: skill backup/restore and/or config backup + digest
-      check.
-- [ ] Model-free first sitting selected (recommended), or model scope/limits
-      explicitly agreed.
-- [ ] Timebox and stop conditions agreed.
-
-## 3. Recommended first sitting — no model, no live adoption
-
-Run the plan's scenarios that fit; record each row. Suggested order:
-
-| # | Plan scenario | Result (pass/fail/blocked/not run) | Evidence / finding |
+| # | Task | Result | Notes / evidence |
 | --- | --- | --- | --- |
-| 1 | Baseline observation | | |
-| 2 | Direct fix (no feature docs) | | |
-| 3 | Spec-only + combined approval | | |
-| 4 | One implementation batch + review | | |
-| 5 | Review-only (no edits) | | |
-| 6 | Interruption, resume/handoff | | |
-| 7 | Bug investigation / diagnosis | | |
-| 8 | Clarification / grilling | | |
-| 9 | Questionnaire draft / late answer (optional) | | |
-| 10 | Explanation (“wait, what?”) | | |
-| 11 | Teaching (focused; persistent only if chosen) | | |
-| 12 | Inactive candidate + config **preview** | | |
-| 15 | Deterministic check + receipt export/reload | | |
-| 16 | Whole-cycle reconciliation | | |
+| 0 | Build check (`sh tests/vnext-model-free-checks.sh`) | | Expected `14 passed, 0 failed, 0 skipped` |
+| 1 | Direct fix stays direct | | |
+| 2 | Spec/plan/tasks only, no implementation | | |
+| 3 | One batch, then stop for review | | |
+| 4 | Review-only made no edits | | |
+| 5 | Interruption and resume preserved state | | |
+| 6 | Bug diagnosed before fixing | | |
+| 7 | Clarification asked only what was needed | | |
+| 8 | Questionnaire drafted, nothing sent | | |
+| 9 | Explanation changed nothing | | |
+| 10 | Teaching stayed focused | | |
+| 11 | Optional: config preview wrote nothing | | |
+| 12 | Optional: evidence snapshot observed/refused correctly | | |
 
-Scenario 12's preview writes nothing; do not apply. Scenarios 9 and 11 are
-optional and may be skipped without failing the sitting.
+Allowed results: **pass**, **fail**, **blocked**, **not run**. Add one short
+note per row: what you asked, what you expected, what happened. Do not paste
+credentials, account details or raw private logs.
 
-## 4. Separate later sitting — only with new authorization
-
-- [ ] Scenario 13 — adoption/rollback on a chosen setup (preview, backup,
-      apply, verify, rollback; preserve unrelated config).
-- [ ] Scenario 14 — real native pending-human behavior. **Skip while admission
-      remains blocked**; record `not run — native admission blocked`.
-
-## 5. Closeout
+## Closeout
 
 ```text
-Sitting and date:
-Setup/version and safe workspace:
-Scenarios run / skipped:
-Observed results and evidence (sanitized):
-Finding IDs / next decision:
+Sitting/date:
+Project and setup:
+Passed / failed / blocked / not run:
+Most useful or confusing behavior:
+Finding IDs or next decision:
 Feature status: implementation delivered; human usage validation not run
 ```
 
-- Reconcile notes into the relevant feature continuation when authorized; do
-  not mark feature 005 `Ready`, certified or beneficial from this sheet alone.
-- Preserve open 004 findings and the native-admission block unless separately
-  observed and accepted.
-- Any fix/retest cycle is a new user-directed decision, not an automatic loop.
+Send the completed rows or a short summary back for reconciliation. This record
+does not make the feature Ready, supported or beneficial, and it does not
+authorize a model call, install, adoption or release.
