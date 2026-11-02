@@ -156,6 +156,11 @@ func TestExistingConfigCommentsModeAndInterveningEdit(t *testing.T) {
 	if err := os.WriteFile(dest, old, 0640); err != nil {
 		t.Fatal(err)
 	}
+	// Set the fixture mode explicitly: WriteFile honours the process umask, and
+	// this test asserts that rollback preserves the original 0640 mode.
+	if err := os.Chmod(dest, 0640); err != nil {
+		t.Fatal(err)
+	}
 	p, err := Preview(root, candidate)
 	if err != nil {
 		t.Fatal(err)
