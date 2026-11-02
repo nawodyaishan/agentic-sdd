@@ -401,7 +401,19 @@ continues to block affected online work; no new budget/allocation is created.
   credentials and performs no real-home install/adoption, release or CI
   experiment. Results count only for this image; normal-setup behavior, native
   admission, macOS, billing/provenance and benefit remain explicit gaps.
-  All other approval terms are unchanged.
+  All other approval terms are unchanged. (The image was later rebuilt and
+  re-pinned; see the next entry.)
+- **Accepted container image re-pinned (2026-11-03):** the image was rebuilt
+  from the same accepted scope; the prior image `sha256:f2a14af5…` is no longer
+  present locally. Current accepted identity: image
+  `sha256:35ed49cdc081db1f233d238568e7fd2455ede458377703b9eb05d0a30103258b`;
+  `agentic-sdd` binary sha256
+  `f3c4b51742274df9e04a235eddac0fd31d388521339d9f8c1444c877e2d48974`
+  from source commit `ba90f5737c125e4df9a4935adeca01301173f0ab`; base and
+  OpenCode `2.2.5` sha256 unchanged from the entry above. Verified offline
+  `--check` **14 passed, 0 failed, 0 skipped** and 18 installed skills. This
+  supersedes only the image/binary identity; scope, user-operated rule and all
+  other approval terms are unchanged.
 - **B5 review acceptance (2026-11-02):** user completed the B5 human review
   ("i accept b5") of the delivered verification, reconciliation and final
   human-cycle plan (commits `c043ae8`, `6cd7afc`, `c04177c`; implementation

@@ -10,11 +10,11 @@ normal setup. Identity recorded in spec §Approval:
 
 | Item | Identity |
 | --- | --- |
-| Image | `sha256:f2a14af58b029207d952e3bd4845819ec634f7286982e49ddfe8b2836c3dd349` |
+| Image | `sha256:35ed49cdc081db1f233d238568e7fd2455ede458377703b9eb05d0a30103258b` |
 | Base | `codercom/enterprise-base@sha256:191967da651ec0a567de173ef8a029080da8cd4992de192b65df54ef189be769` |
 | OpenCode | `2.2.5`, sha256 `8d060e1d2fbb9bb44cf09ae6ed1f3f6a7cff070b5227e2f90970132b23a92050` |
-| agentic-sdd binary | sha256 `4745f48c32a9ee905259a0a97eb081fc9c38726eed3269a8aec42bbc78929ca3` |
-| Source commit | `3fa623176a457dd4b9fe01be10023204fc9b6568` |
+| agentic-sdd binary | sha256 `f3c4b51742274df9e04a235eddac0fd31d388521339d9f8c1444c877e2d48974` |
+| Source commit | `ba90f5737c125e4df9a4935adeca01301173f0ab` |
 | Skills | 18 packaged SDD skills preinstalled |
 
 The cycle is **user-operated**: you perform any online login and model call. The
@@ -47,7 +47,7 @@ tests/build-qa-image.sh
 Expected final line:
 
 ```text
-image_id=sha256:f2a14af58b029207d952e3bd4845819ec634f7286982e49ddfe8b2836c3dd349
+image_id=sha256:35ed49cdc081db1f233d238568e7fd2455ede458377703b9eb05d0a30103258b
 ```
 
 The build uses the local base and binaries with `--network=none`; nothing is

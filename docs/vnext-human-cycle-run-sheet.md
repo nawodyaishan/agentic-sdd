@@ -9,7 +9,7 @@ accepted environment is the pinned image.
 | Field | Value |
 | --- | --- |
 | Date / your name | |
-| Image id (`docker image inspect agentic-sdd-qa:005 --format '{{.Id}}'`) | expected `sha256:f2a14af5…` |
+| Image id (`docker image inspect agentic-sdd-qa:005 --format '{{.Id}}'`) | expected `sha256:35ed49cd…` |
 | OpenCode version / hash | expected `2.2.5` / `8d060e1d…` |
 | Workspace (`SDD_QA_WORKSPACE`) | |
 | Login/model/provider used | |
