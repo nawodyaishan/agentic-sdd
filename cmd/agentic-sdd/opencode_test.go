@@ -1,14 +1,24 @@
 package main
 
 import (
+	"agentic-sdd/internal/harnesscheck"
+	"agentic-sdd/internal/harnessevidence"
 	"agentic-sdd/internal/opencodeadapter"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+const fixtureCanaryValue = "SYNTHETIC-SECRET-CANARY-DO-NOT-EXPORT-12345"
+
+func ptr(s string) *string { return &s }
 
 func TestOpenCodeCommandsStayOfflineAndDefaultToPreview(t *testing.T) {
 	var out, errout bytes.Buffer
@@ -137,8 +147,8 @@ func TestOpenCodeSessionPendingReviewsWithoutReentry(t *testing.T) {
 		t.Fatalf("pending: %d %s", code, errout.String())
 	}
 	var r struct {
-		Execution string                      `json:"execution"`
-		Digest    string                      `json:"digest"`
+		Execution string                         `json:"execution"`
+		Digest    string                         `json:"digest"`
 		Pending   opencodeadapter.PendingSummary `json:"pending"`
 	}
 	if json.Unmarshal(out.Bytes(), &r) != nil || r.Execution != "review" || r.Digest == "" || r.Pending.Question != "Which package manager?" {
@@ -150,5 +160,190 @@ func TestOpenCodeSessionUnknownOperationRefused(t *testing.T) {
 	var out, errout bytes.Buffer
 	if code := runNonInteractive([]string{"opencode", "session", "resume"}, &out, &errout); code != 2 {
 		t.Fatal("accepted unavailable session operation")
+	}
+}
+
+func TestOpenCodeEvidenceSnapshotRequiresExplicitSafeScope(t *testing.T) {
+	repo := t.TempDir()
+	git := func(args ...string) {
+		cmd := exec.Command("git", append([]string{"--no-optional-locks", "-C", repo}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_TERMINAL_PROMPT=0")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	git("init", "-q")
+	git("config", "user.name", "Synthetic Fixture")
+	git("config", "user.email", "fixture@example.invalid")
+	if err := os.WriteFile(filepath.Join(repo, "code.txt"), []byte("original\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	git("add", ".")
+	git("commit", "-qm", "fixture")
+
+	var out, errout bytes.Buffer
+	if code := runNonInteractive([]string{"opencode", "evidence", "snapshot", "--workspace", repo, "--scope", "."}, &out, &errout); code != 0 || !strings.Contains(out.String(), "sha256-v1:") {
+		t.Fatalf("snapshot: %d %s %s", code, out.String(), errout.String())
+	}
+	out.Reset()
+	errout.Reset()
+	if code := runNonInteractive([]string{"opencode", "evidence", "snapshot", "--workspace", repo, "--scope", "../outside"}, &out, &errout); code != 2 {
+		t.Fatal("unsafe scope was accepted")
+	}
+	out.Reset()
+	errout.Reset()
+	if code := runNonInteractive([]string{"opencode", "evidence", "snapshot", "--workspace", repo}, &out, &errout); code != 2 {
+		t.Fatal("snapshot without a scope was accepted")
+	}
+}
+
+func TestOpenCodeEvidenceReceiptValidateExportRoundTrip(t *testing.T) {
+	workspace, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence := t.TempDir()
+	if err := os.Chmod(evidence, 0700); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(evidence, "test.log")
+	logData := []byte("independent synthetic assertion passed\n")
+	if err := os.WriteFile(logPath, logData, 0600); err != nil {
+		t.Fatal(err)
+	}
+	contract := []byte(`{"version":1,"checks":[{"id":"test","cwd":".","scopes":["baseline","focused","required"],"prerequisites":[],"timeout_seconds":30,"effects":{"writes":["fixture"],"network":"none"},"steps":[{"argv":["true"],"env":{}}],"local_recipe":["true"],"expected_exit":0,"evidence":"test.log"}]}`)
+	contractSum := sha256.Sum256(contract)
+	contractDigest := hex.EncodeToString(contractSum[:])
+
+	exit := 0
+	start := time.Date(2026, 10, 29, 0, 0, 0, 0, time.UTC)
+	end := start.Add(time.Second)
+	result := harnesscheck.Result{
+		Version:        1,
+		Workspace:      workspace,
+		ContractSHA256: contractDigest,
+		Selection:      harnesscheck.Selection{Scope: "required", CheckIDs: []string{"test"}},
+		Execution:      "completed",
+		Checks: []harnesscheck.CheckResult{{
+			ID: "test", Status: "passed", ExitCode: &exit,
+			StartedAt: &start, EndedAt: &end, Evidence: &logPath,
+			Reason: "process exited zero",
+		}},
+	}
+	scopeIdentity := harnessevidence.ScopeIdentity{BaseRevision: "base-revision", Diff: "sha256-v1:" + strings.Repeat("a", 64)}
+	context := opencodeadapter.ReceiptContext{
+		Synthetic: true, RunID: "fixture-run", Mode: "build",
+		RequestRef:       "synthetic request " + fixtureCanaryValue,
+		AuthorizationRef: ptr("fixture authorization"),
+		Feature:          ptr("005-vnext-completion"), Batch: ptr("B4"), TaskIDs: []string{"T10"},
+		AllowedEffects: []string{"fixture"}, Profile: ptr("fixture-profile"), Tools: []string{},
+		Limits: harnessevidence.Limits{DeadlineSeconds: 60, Steps: 5},
+		Identity: opencodeadapter.ContextIdentity{
+			Config: ptr("fixture-config"), Skills: ptr("fixture-skills"),
+			Environment: ptr("fixture-environment"), Runtime: ptr("fixture-runtime"),
+			Harness: ptr("fixture-harness"), Contract: ptr(contractDigest),
+		},
+		IdentityBefore: scopeIdentity,
+		IdentityAfter:  scopeIdentity,
+		NextAction:     "human reviews the batch",
+	}
+	identity := harnessevidence.Identity{
+		BaseRevision: ptr(scopeIdentity.BaseRevision), Diff: ptr(scopeIdentity.Diff),
+		Config: context.Identity.Config, Skills: context.Identity.Skills,
+		Environment: context.Identity.Environment, Runtime: context.Identity.Runtime,
+		Harness: context.Identity.Harness, Contract: context.Identity.Contract,
+	}
+
+	private := t.TempDir()
+	if err := os.Chmod(private, 0700); err != nil {
+		t.Fatal(err)
+	}
+	writeJSON := func(name string, value any) string {
+		data, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(private, name)
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	contextPath := writeJSON("context.json", context)
+	resultPath := writeJSON("result.json", result)
+	identityPath := writeJSON("identity.json", identity)
+	contractPath := filepath.Join(private, "contract.json")
+	if err := os.WriteFile(contractPath, contract, 0600); err != nil {
+		t.Fatal(err)
+	}
+	redactionPath := filepath.Join(private, "redactions.txt")
+	if err := os.WriteFile(redactionPath, []byte(fixtureCanaryValue+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	var out, errout bytes.Buffer
+	if code := runNonInteractive([]string{"opencode", "evidence", "receipt", "--context", contextPath, "--result", resultPath}, &out, &errout); code != 0 {
+		t.Fatalf("receipt projection: %d %s", code, errout.String())
+	}
+	var projected struct {
+		Execution string          `json:"execution"`
+		Receipt   json.RawMessage `json:"receipt"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &projected); err != nil || projected.Execution != "completed" || len(projected.Receipt) == 0 {
+		t.Fatalf("projection output mismatch: %s", out.String())
+	}
+	receiptPath := filepath.Join(private, "receipt.json")
+	if err := os.WriteFile(receiptPath, projected.Receipt, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	sum := sha256.Sum256(logData)
+	validateArgs := []string{"opencode", "evidence", "validate",
+		"--receipt", receiptPath, "--workspace", workspace, "--identity", identityPath,
+		"--contract", contractPath, "--result", resultPath, "--evidence-root", evidence,
+		"--authorization", "fixture authorization",
+		"--log-digest", logPath + "=" + hex.EncodeToString(sum[:])}
+	out.Reset()
+	errout.Reset()
+	if code := runNonInteractive(validateArgs, &out, &errout); code != 0 || !strings.Contains(out.String(), "consistent") {
+		t.Fatalf("validate: %d %s", code, errout.String())
+	}
+
+	stale := identity
+	stale.Config = ptr("changed-config")
+	stalePath := writeJSON("stale.json", stale)
+	staleArgs := append([]string{}, validateArgs...)
+	for i, arg := range staleArgs {
+		if arg == identityPath {
+			staleArgs[i] = stalePath
+		}
+	}
+	out.Reset()
+	errout.Reset()
+	if code := runNonInteractive(staleArgs, &out, &errout); code != 2 {
+		t.Fatal("stale identity was accepted")
+	}
+
+	outputPath := filepath.Join(private, "exported.json")
+	out.Reset()
+	errout.Reset()
+	if code := runNonInteractive([]string{"opencode", "evidence", "export",
+		"--receipt", receiptPath, "--workspace", workspace, "--output", outputPath,
+		"--redactions", redactionPath}, &out, &errout); code != 0 {
+		t.Fatalf("export: %d %s", code, errout.String())
+	}
+	exported, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(exported), fixtureCanaryValue) {
+		t.Fatal("redaction canary reached the exported receipt")
+	}
+	out.Reset()
+	errout.Reset()
+	if code := runNonInteractive([]string{"opencode", "evidence", "export",
+		"--receipt", receiptPath, "--workspace", workspace,
+		"--output", filepath.Join(workspace, "leaked.json")}, &out, &errout); code != 2 {
+		t.Fatal("checkout-internal export was accepted")
 	}
 }
