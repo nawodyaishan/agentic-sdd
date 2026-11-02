@@ -2,13 +2,13 @@
 
 Companion to the [run sheet](vnext-human-cycle-run-sheet.md) and
 [final usage plan](vnext-human-test-plan.md). For one-command execution, run
-`SDD_CONTAINER_WORKSPACE=<scratch> tests/vnext-container.sh --batch` (or
-`sh /src/tests/vnext-model-free-checks.sh` inside the container); the tables
-below are the manual equivalent. Use the selected setup: Linux container,
-disposable `/work`, **preview only**, **no native model**, 90-minute timebox.
-Every item records **pass / fail / blocked / not run**; a skipped item is not a
-pass. Nothing here authorizes a model call, provider request, live config apply
-or real-home install.
+`SDD_CONTAINER_WORKSPACE=<scratch> tests/vnext-container.sh --batch` inside the
+container context, or `sh tests/vnext-model-free-checks.sh` directly on the host
+(no sandbox); the tables below are the manual equivalent. Use the selected setup:
+Linux container, disposable `/work`, **preview only**, **no native model**,
+90-minute timebox. Every item records **pass / fail / blocked / not run**; a
+skipped item is not a pass. Nothing here authorizes a model call, provider
+request, live config apply or real-home install.
 
 ## A. Pre-flight (host)
 

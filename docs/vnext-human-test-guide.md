@@ -38,7 +38,8 @@ certification.
 
 ## Fast path — one copy-paste batch
 
-From the repository root, this single block builds the CLI, creates a scratch
+Run from the **repository root** (the directory containing `Makefile`; on this
+machine `~/github/agentic-sdd`). This block builds the CLI, creates a scratch
 workspace and runs all model-free checks in the sandbox:
 
 ```sh
@@ -47,6 +48,10 @@ mkdir -p /tmp/opencode/vnext-cycle-work
 SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
   tests/vnext-container.sh --batch
 ```
+
+The batch uses `bin/agentic-sdd` from the checkout when present, so an older
+`agentic-sdd` installed elsewhere on `PATH` cannot silently skew the results.
+When it finishes the container exits and you are back on the host.
 
 Expected tail:
 
@@ -70,19 +75,27 @@ Summary: 12 passed, 0 failed, 2 skipped
 ```
 
 Exit code 0 means every executed check passed. Any `FAIL` line means stop and
-record it; do not rerun until the cause is understood. The batch uses the same
-no-network, no-credential container as the manual steps, and it wipes only
-`/work/qa-project` and `/tmp/home` inside the container.
+record it; do not rerun until the cause is understood.
 
-Already inside the container? The same batch is one command:
+**Host run (no container):** the same script works directly and exercises the
+git-based evidence checks too, but it is **not a sandbox**:
+
+```sh
+sh tests/vnext-model-free-checks.sh
+```
+
+Expected `Summary: 14 passed, 0 failed, 0 skipped`. It uses a fresh temporary
+home/project and cleans them up.
+
+**Only inside the interactive container** (started without `--batch`), the batch
+is also one command. `/src` does not exist on the host:
 
 ```sh
 sh /src/tests/vnext-model-free-checks.sh
 ```
 
 The numbered sections below are the manual equivalent for inspection,
-troubleshooting and the host-side checks. The batch already covers them except
-git-based evidence, which is skipped in the default image.
+troubleshooting and the host-side checks.
 
 ## 1. What this cycle can and cannot prove
 

@@ -1,15 +1,29 @@
 #!/bin/sh
 # Model-free batch checks for the 005 final human cycle.
 #
-# Intended to run inside tests/vnext-container.sh (or any disposable Linux
-# container with agentic-sdd, /src read-only and /work writable). It uses
-# /tmp/home and /work/qa-project only, starts no model/provider request, and
-# exits nonzero if any check fails.
+# Runs inside tests/vnext-container.sh --batch, or directly on the host with
+# `sh tests/vnext-model-free-checks.sh`. It uses a fresh temporary home and
+# project, starts no model/provider request, and exits nonzero if any check
+# fails. The host run is not a sandbox; use the container for isolation.
 set -u
 
-CLI=${AGENTIC_SDD:-agentic-sdd}
-H=/tmp/home
-W=/work/qa-project
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+REPO=${REPO_ROOT:-$(CDPATH= cd -- "$script_dir/.." && pwd -P)}
+if [ -n "${AGENTIC_SDD:-}" ]; then
+  CLI=$AGENTIC_SDD
+elif [ -x "$REPO/bin/agentic-sdd" ]; then
+  CLI=$REPO/bin/agentic-sdd
+elif command -v agentic-sdd >/dev/null 2>&1; then
+  CLI=agentic-sdd
+else
+  printf 'FAIL setup: no agentic-sdd binary; run make build\n'
+  exit 1
+fi
+base=$(mktemp -d "${TMPDIR:-/tmp}/sdd-qa.XXXXXX") || { printf 'FAIL setup: cannot create temp dir\n'; exit 1; }
+trap 'rm -rf "$base"' EXIT INT TERM
+H=${QA_HOME:-$base/home}
+W=${QA_WORK:-$base/work}
+mkdir -p "$H" "$W" || { printf 'FAIL setup: cannot create work dirs\n'; exit 1; }
 pass=0
 fail=0
 skip=0
@@ -83,7 +97,7 @@ fi
 
 # 7. Canonical copy restored
 if ! grep -q qa-marker "$marker" 2>/dev/null &&
-  diff /src/skills-files/agentic-sdd-router/SKILL.md "$marker" >/dev/null 2>&1; then
+  diff "${REPO}/skills-files/agentic-sdd-router/SKILL.md" "$marker" >/dev/null 2>&1; then
   ok canonical-after-apply
 else
   bad canonical-after-apply "edited bytes survived the apply"
@@ -94,7 +108,7 @@ backup_id=$("$CLI" backups --home "$H" 2>/dev/null | head -1 | awk '{print $2}')
 if [ -n "$backup_id" ] &&
   "$CLI" restore "$backup_id" --apply --home "$H" >/tmp/qa-restore 2>&1 &&
   grep -q qa-marker "$marker" 2>/dev/null &&
-  ! diff /src/skills-files/agentic-sdd-router/SKILL.md "$marker" >/dev/null 2>&1; then
+  ! diff "${REPO}/skills-files/agentic-sdd-router/SKILL.md" "$marker" >/dev/null 2>&1; then
   ok restore-pre-apply-copy
 else
   bad restore-pre-apply-copy "restore did not return the pre-apply copy"
