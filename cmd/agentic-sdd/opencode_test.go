@@ -82,3 +82,73 @@ func TestOpenCodeApplyFailureRetainsActionableBackupObservation(t *testing.T) {
 		t.Fatalf("lost partial observation: %d %s %s", code, out.String(), errs.String())
 	}
 }
+
+func TestOpenCodeSessionPrepareStaysOffline(t *testing.T) {
+	root := t.TempDir()
+	var out, errout bytes.Buffer
+	code := runNonInteractive([]string{"opencode", "session", "prepare",
+		"--workspace", root, "--executable", "/usr/bin/opencode",
+		"--model", "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free", "--mode", "primary"}, &out, &errout)
+	if code != 0 {
+		t.Fatalf("prepare: %d %s", code, errout.String())
+	}
+	var r struct {
+		Execution string   `json:"execution"`
+		Blockers  []string `json:"blockers"`
+	}
+	if json.Unmarshal(out.Bytes(), &r) != nil || r.Execution != "prepared" || len(r.Blockers) == 0 {
+		t.Fatalf("prepare observation missing blockers: %s", out.String())
+	}
+}
+
+func TestOpenCodeSessionRunIsAdmissionBlocked(t *testing.T) {
+	root := t.TempDir()
+	var out, errout bytes.Buffer
+	code := runNonInteractive([]string{"opencode", "session", "run",
+		"--workspace", root, "--executable", "/usr/bin/opencode", "--prompt", "hello"}, &out, &errout)
+	if code != 0 {
+		t.Fatalf("run: %d %s", code, errout.String())
+	}
+	var r struct {
+		Execution string   `json:"execution"`
+		Blockers  []string `json:"blockers"`
+	}
+	if json.Unmarshal(out.Bytes(), &r) != nil || r.Execution != "blocked" || len(r.Blockers) == 0 {
+		t.Fatalf("run did not fail closed to blocked: %s", out.String())
+	}
+}
+
+func TestOpenCodeSessionPendingReviewsWithoutReentry(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "private")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	s := opencodeadapter.PendingSummary{
+		Version: 1, Run: "pending_human", Session: "ses_test", Workspace: "/tmp/ws",
+		Request: "native pending human input", Question: "Which package manager?",
+		Rationale: "unknown", Scope: "answer required", NextAction: "human supplies the answer",
+	}
+	path, err := opencodeadapter.WritePending(dir, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out, errout bytes.Buffer
+	if code := runNonInteractive([]string{"opencode", "session", "pending", "--file", path}, &out, &errout); code != 0 {
+		t.Fatalf("pending: %d %s", code, errout.String())
+	}
+	var r struct {
+		Execution string                      `json:"execution"`
+		Digest    string                      `json:"digest"`
+		Pending   opencodeadapter.PendingSummary `json:"pending"`
+	}
+	if json.Unmarshal(out.Bytes(), &r) != nil || r.Execution != "review" || r.Digest == "" || r.Pending.Question != "Which package manager?" {
+		t.Fatalf("pending review mismatch: %s", out.String())
+	}
+}
+
+func TestOpenCodeSessionUnknownOperationRefused(t *testing.T) {
+	var out, errout bytes.Buffer
+	if code := runNonInteractive([]string{"opencode", "session", "resume"}, &out, &errout); code != 2 {
+		t.Fatal("accepted unavailable session operation")
+	}
+}
