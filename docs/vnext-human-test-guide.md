@@ -153,7 +153,37 @@ unless you explicitly asked for one.
 
 Record: did it stay focused?
 
-## 3. Optional: inactive OpenCode configuration (10 minutes)
+## 3. OpenCode inside the container (optional, 5 minutes)
+
+Start the interactive sandbox (not `--batch`):
+
+```sh
+cd ~/github/agentic-sdd
+make build
+mkdir -p /tmp/opencode/vnext-cycle-work
+SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
+  tests/vnext-container.sh
+```
+
+Inside you should see a banner with `OpenCode: opencode v2.2.5`. Then:
+
+```sh
+opencode --version    # opencode v2.2.5
+pwd                   # /work
+ls /src               # repository, read-only
+opencode              # opens the TUI
+```
+
+Expected: the TUI opens. It has **no network and no credentials**, so it cannot
+answer a prompt or reach a provider; do not try to send one. Use it only to see
+the interface and check that the binary runs. Quit with the TUI's quit key or
+`Ctrl-C`, then `exit` to leave the container.
+
+The binary is **mounted read-only from the host**, not downloaded into the
+image. If the TUI reports a render-library error, you are in an old container:
+exit and start a fresh one with the current script.
+
+## 4. Optional: inactive OpenCode configuration (10 minutes)
 
 Only if you want to see the OpenCode path. This is preview-only; it writes
 nothing:
@@ -174,7 +204,7 @@ test ! -e /tmp/opencode/human-preview/.opencode && echo no-write
 
 Do **not** run `config apply`; adoption is out of scope for this cycle.
 
-## 4. Optional: evidence (5 minutes)
+## 5. Optional: evidence (5 minutes)
 
 The build check already exercised evidence on the host when git is available. To
 see it yourself:
@@ -221,8 +251,10 @@ SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
 ```
 
 Expected: `Summary: 12 passed, 0 failed, 2 skipped` (the two skips are git-based
-evidence, which the host batch covers). Inside the interactive container only,
-the same checks run as `sh /src/tests/vnext-model-free-checks.sh`.
+evidence, which the host batch covers). For the interactive shell with
+`opencode` and the OpenCode TUI, run the same command **without** `--batch`; see
+§3. Inside the interactive container only, the same checks run as
+`sh /src/tests/vnext-model-free-checks.sh`.
 
 Not covered here: real native model tools/permissions, native pending-human
 handling, native cancellation/compaction/recovery, real-home adoption, macOS,

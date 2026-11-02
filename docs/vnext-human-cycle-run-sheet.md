@@ -28,8 +28,9 @@ Use with the [human test guide](vnext-human-test-guide.md). A blank row is
 | 8 | Questionnaire drafted, nothing sent | | |
 | 9 | Explanation changed nothing | | |
 | 10 | Teaching stayed focused | | |
-| 11 | Optional: config preview wrote nothing | | |
-| 12 | Optional: evidence snapshot observed/refused correctly | | |
+| 11 | Optional: OpenCode starts inside the container | | `opencode --version` / TUI; no provider or network |
+| 12 | Optional: config preview wrote nothing | | |
+| 13 | Optional: evidence snapshot observed/refused correctly | | |
 
 Allowed results: **pass**, **fail**, **blocked**, **not run**. Add one short
 note per row: what you asked, what you expected, what happened. Do not paste
