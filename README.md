@@ -5,19 +5,35 @@
 [![Go Report](https://img.shields.io/badge/go-1.23%2B-00ADD8)](go.mod)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**A spec-driven development workflow for coding agents — one feature, one human approval, one batch at a time — kept in sync across Codex, Claude Code, and Antigravity CLI by a small Go CLI.**
+**Open-source spec-driven development skills for OpenCode and other coding agents — one feature, one human approval, one reviewable batch at a time.**
 
 If you've ever had an agent "helpfully" finish a whole feature you never approved, or drift three files past what you asked for, this is the guardrail: agents draft, you approve once, agents implement in reviewable batches, you stay the one who says go.
 
+For macOS, install the CLI and review its plan before choosing to install the skills:
+
 ```sh
 brew install nawodyaishan/tap/agentic-sdd
-agentic-sdd apply   # installs the skills into every client you have
+agentic-sdd preview  # show changes without writing
+agentic-sdd apply    # back up replacements and install the skills
 ```
+
+OpenCode discovers the installed skills through `~/.agents/skills`. In your project, ask it: **“Use agentic-sdd-router to help me plan my next feature; stop for my review.”** The same portable skills also work with Codex, Claude Code, and Antigravity CLI. See [OpenCode's skill discovery documentation](https://opencode.ai/docs/skills/).
+
+Building from source? See [Quick start](#quick-start). Have feedback or want to contribute? [Open an issue](https://github.com/nawodyaishan/agentic-sdd/issues) or see [Contributing](CONTRIBUTING.md).
 
 Two things live here:
 
 - [`skills-files/`](skills-files/) — eighteen skills for the workflow and focused human-input helpers. This is the product.
 - `cmd/` + `internal/` — the safe skill installer, deterministic check runner and inactive OpenCode configuration helper. None is a new agent orchestration engine.
+
+### Highlights
+
+- **Human-led workflow:** draft a spec, plan, and tasks together; implement only an approved batch and stop for review.
+- **18 portable skills:** plan, implement, debug, review, hand off, teach, and ask better questions without requiring agent delegation.
+- **Safe installation:** preview changes, back up replaced skills, restore when needed, and leave unrelated skills alone.
+- **Deterministic checks:** run repository checks and retain bounded evidence without a model or provider key. See [the check runner](harness/README.md).
+- **Experimental OpenCode tools:** inspect inactive configuration candidates, prepare sessions, and work with offline evidence. Native execution remains blocked pending independent safety controls; see [usage and limits](integrations/opencode/usage.md).
+- **Container-based testing:** an isolated, model-free test cycle and opt-in online setup are documented in the [human test guide](docs/vnext-human-test-guide.md).
 
 ![Agentic SDD architecture: the spec-driven workflow and Go CLI skill distribution](docs/agentic-sdd-architecture.png)
 
@@ -31,7 +47,7 @@ AI can generate changes faster than you can understand and review them. Agentic 
 - **Review the complete approach before coding.** Read the feature's requirements, design, and tasks together, then give one combined approval.
 - **Control the pace.** Each implementation batch ends with verification and a review summary. You choose when the next batch begins.
 - **Reuse your existing work.** Start from your SRS, technical specification, roadmap, and repository conventions. Read relevant sections and create supporting documents only when they serve a purpose.
-- **Carry the same workflow across clients.** Keep a shared set of skills for Claude Code, Codex, and Antigravity CLI, with client-specific settings kept separate.
+- **Carry the same workflow across clients.** Keep a shared set of skills for OpenCode, Claude Code, Codex, and Antigravity CLI, with client-specific settings kept separate.
 
 The goal is useful progress you can explain, verify, and maintain.
 
@@ -147,7 +163,7 @@ Shared workflow rules live in [`workflow-policy.md`](skills-files/agentic-sdd-ro
 brew install nawodyaishan/tap/agentic-sdd
 ```
 
-The published binary embeds `skills-files/`, so `agentic-sdd preview`/`apply` work from any directory with no repository checkout needed. Run `agentic-sdd version` to check what you have installed.
+The Homebrew release provides a macOS universal binary. The published binary embeds `skills-files/`, so `agentic-sdd preview`/`apply` work from any directory with no repository checkout needed. Run `agentic-sdd version` to check what you have installed. On other platforms, use a source checkout and the Go commands below.
 
 ## Quick start
 
@@ -204,14 +220,14 @@ Exit codes: **0** success, a completed preview or cancel, **2** unknown command,
 
 | Client | Skill directory |
 | :--- | :--- |
-| Shared agents | `~/.agents/skills` |
+| OpenCode and shared agents | `~/.agents/skills` |
 | Codex | `~/.codex/skills` |
 | Claude Code | `~/.claude/skills` |
 | Antigravity CLI (`agy`) | `~/.gemini/antigravity-cli/skills` |
 
 All four are written every run. The installer selects only directories named `agentic-sdd-*` and copies **the complete directory**, so `references/` and any other supporting files travel with `SKILL.md`. Every other skill you have is left untouched.
 
-These destinations follow the [Codex](https://developers.openai.com/codex/skills), [Claude Code](https://code.claude.com/docs/en/skills.md), and [Antigravity](https://antigravity.google/docs/skills/) documentation. Antigravity IDE's legacy `~/.gemini/antigravity/skills` is a different directory and is not used here.
+These destinations follow the [OpenCode](https://opencode.ai/docs/skills/), [Codex](https://developers.openai.com/codex/skills), [Claude Code](https://code.claude.com/docs/en/skills.md), and [Antigravity](https://antigravity.google/docs/skills/) documentation. OpenCode can discover both the shared and Claude-compatible directories; its own configuration and project-local skills can affect discovery. Antigravity IDE's legacy `~/.gemini/antigravity/skills` is a different directory and is not used here.
 
 Client-specific invocation settings stay out of the portable skill text; local notes live in `config/`.
 
@@ -343,6 +359,8 @@ git push origin vX.Y.Z   # triggers .github/workflows/release.yml
 `make release` runs a local snapshot build (`goreleaser release --snapshot --clean`, no tag or publish required) to check the formula and archive output before tagging.
 
 ## Contributing and license
+
+Contributions of all sizes are welcome: bug reports, documentation improvements, skill feedback, tests, and code. If you're new to the project, an issue describing what you tried and what happened is a great place to start. Please remove credentials and private project details from anything you share.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and pull request guidance. The pre-commit hook is configured in `lefthook.yml` and installed with `make hooks-install`. Available under the [MIT License](LICENSE).
 
