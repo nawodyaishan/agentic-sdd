@@ -97,6 +97,14 @@ if [ -n "$opencode" ]; then
   set -- "$@" --mount "type=bind,src=$opencode,dst=/usr/local/bin/opencode,readonly"
 fi
 
+if [ "$online" = 1 ]; then
+  # Docker may copy the host's systemd-resolved stub (127.0.0.53), which is
+  # unreachable inside the container. Use explicit resolvers unless overridden.
+  for server in ${SDD_CONTAINER_DNS:-1.1.1.1 8.8.8.8}; do
+    set -- "$@" --dns "$server"
+  done
+fi
+
 if [ "$batch" = 1 ]; then
   if [ "$online" = 1 ]; then
     printf 'note: --online does not change the model-free batch; admission stays blocked\n'

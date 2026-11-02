@@ -209,10 +209,15 @@ SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
 Inside, log in yourself:
 
 ```sh
+getent hosts opencode.ai    # expect IPv4/IPv6 addresses; if not, stop and report
 opencode auth login
 # follow the device-code URL in your host browser
 opencode
 ```
+
+The script sets explicit resolvers (`1.1.1.1`, `8.8.8.8`) in online mode, because
+Docker can otherwise copy the host's `127.0.0.53` systemd-resolved stub, which is
+unreachable inside the container. Override with `SDD_CONTAINER_DNS` if needed.
 
 What changes and what does not:
 
@@ -226,8 +231,11 @@ What changes and what does not:
 - this is **outside** the model-free QA batch and is not evidence for native
   admission, billing or support. No model call is made until you type one.
 
-If login fails, record the error and stop. Do not copy auth files into the
-container, disable the isolation flags or expose the Docker socket to fix it.
+If login fails, record the error and stop. `EAI_AGAIN` or a transport error means
+the container is still offline or stale: check that the banner says
+`Container mode: online network`, then run `getent hosts opencode.ai`. Do not copy
+auth files into the container, disable the isolation flags or expose the Docker
+socket to fix it.
 
 ## 4. Optional: inactive OpenCode configuration (10 minutes)
 
