@@ -2,8 +2,10 @@
 
 **Status: prepared for a separate actual launch decision; NOT executed.**
 A fill-in [session run sheet](vnext-human-cycle-run-sheet.md) accompanies this
-plan; a blank row is not a pass. This document replaced the 004-era full-vNext
-draft at 005/B5 integration.
+plan; a blank row is not a pass. A model-free container recipe
+(`tests/vnext-container.sh`) can host the user-driven sandbox without network,
+credentials or host home. This document replaced the 004-era full-vNext draft
+at 005/B5 integration.
 It covers one integrated human cycle for the selected implementation
 (core R0–R2 plus all seven helpers, OpenCode only). R3/R4 extensions remain
 explicit non-goals. Preparing this plan is not a pass, not a model/usage test,
