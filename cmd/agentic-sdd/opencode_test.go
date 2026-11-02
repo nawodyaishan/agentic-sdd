@@ -164,6 +164,9 @@ func TestOpenCodeSessionUnknownOperationRefused(t *testing.T) {
 }
 
 func TestOpenCodeEvidenceSnapshotRequiresExplicitSafeScope(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git unavailable")
+	}
 	repo := t.TempDir()
 	git := func(args ...string) {
 		cmd := exec.Command("git", append([]string{"--no-optional-locks", "-C", repo}, args...)...)
