@@ -1,74 +1,105 @@
-# vNext human hands-on test plan
+# vNext final human usage cycle — feature 005
 
-**Status: draft for discussion; not executed.** This plan covers the full vision
-in [Agentic SDD vNext](Agentic-SDD-vNext-Adoption-Plan.md), including the initial
-R0–R2 release, future R3/R4 extensions and Revision 6 human-input proposals.
-It distinguishes delivered work from future design; it does not authorize a new
-batch, model request, provider spend, installation, deployment or publication.
+**Status: prepared for a separate actual launch decision; NOT executed.**
+This document replaced the 004-era full-vNext draft at 005/B5 integration.
+It covers one integrated human cycle for the selected implementation
+(core R0–R2 plus all seven helpers, OpenCode only). R3/R4 extensions remain
+explicit non-goals. Preparing this plan is not a pass, not a model/usage test,
+not approval of any live operation and not authorization to install or adopt a
+runtime configuration.
 
-## Direction and roles
+Evidence, finding identities and current workflow position stay authoritative in
+[005 tasks](../specs/005-vnext-completion/tasks.md#continuation-record),
+[004 tasks](../specs/004-vnext-harness/tasks.md#continuation-record) and the
+[004 acceptance map](../harness/acceptance.md). 004's B3-F1–F4, B5-F1,
+B6-F1/F2, remaining B7-F1, B8-F1/F2 and S0-F1/F2 are carried; nothing here
+closes them. Development checks are recorded in 005 tasks, not this plan.
 
-The user directed that full CI testing and local containerized real-AI testing
-stop: prepare the full plan and test by human hands-on review instead. The user
-will operate their **normal setup** and decide when to perform each test. The
-assistant may help explain steps and inspect evidence the user chooses to share;
-it must not run the tests, access credentials or change the live setup without
-separate authorization. No existing CI workflow is disabled by this decision.
+## What is delivered, and what remains unobserved
 
-Human acceptance of feature 004 is recorded in
-[spec §Approval](../specs/004-vnext-harness/spec.md#approval). This plan does
-not reverse it, waive findings or imply successful manual tests. Current status,
-evidence and finding IDs are in [tasks](../specs/004-vnext-harness/tasks.md#continuation-record)
-and [acceptance](../harness/acceptance.md). Any future change in scope requires
-the applicable feature/batch approval, not just this draft.
+Delivered at source level by 005 (development-verified, not runtime-certified):
 
-## Before any hands-on session
+- the canonical Agentic SDD workflow plus seven helper capabilities
+  (`grill-me`, `grilling`, `questionnaire`, `handoff`, `wait-what`, `teach`,
+  `writing-for-agents`) in the namespaced 18-ID skill package, with
+  preview-by-default installation, backups, no-op and restore;
+- a file-only inactive OpenCode candidate/preflight path and a separate,
+  digest-checked config preview/apply/rollback transaction;
+- a narrow ACP session client, strict-admission blocked by default, and
+  pending-human stop normalization with private, review-only summaries;
+- the production v1 evidence consumer (scoped identity, validation, safe
+  export) and checks-derived receipt projection with optional native
+  observations.
 
-1. Choose a representative, non-sensitive task and a disposable project or
-   explicit safe workspace in the normal setup. Record what was selected; do not
-   use production data or alter an unrelated working tree.
-2. Inspect current skill/configuration versions and any uncommitted work. Keep
-   credentials and account details private. Decide explicitly whether a change
-   to the normal setup is needed; preview and back up before any separately
-   authorized installation. The default is observation only.
-3. If the human chooses to use a real model, decide the exact model, data scope,
-   request/token/deadline limits and spending controls before the session.
-   Existing conditional allocations and P1's spent attempt do not authorize a
-   new run. Treat missing costs as unknown; do not copy primary auth stores,
-   silently switch providers or perform automatic retries. Strict pre-send
-   guarantees remain unresolved for the previously proposed automated pilot;
-   an independently human-operated session needs its own explicit safety and
-   scope decision, not an assumed exemption.
-4. Agree on a short session timebox and stop on unexpected writes, permissions,
-   costs, missing evidence or unsafe behavior. Record an **unobserved** result
-   rather than repeatedly rerunning a case. The user chooses whether to proceed.
+Explicitly **not** observed or certified: real model-originated tools,
+permissions or canonical-path isolation; model/selection/price/privacy/
+allowance compatibility; native cancellation, compaction, restart or location
+move; actual adoption/rollback on the user's setup; macOS runtime; and any
+cost, reliability or useful-benefit claim. Strict native prompt admission is
+still denied because token/egress/accounting/credential controls are
+unverified. Native recovery, not any fixture count, remains the gap.
 
-## Hands-on test sequence
+## Roles and authority
 
-These are proposed human scenarios, not a mandatory one-sitting checklist. For
-each, record the task, actual setup/version, action, expected and observed result,
-relevant evidence, issues, and **pass / fail / blocked / not run**. A pass applies
-only to the route and setup actually exercised; no small sample proves reliability.
+- The **user** chooses the workspace, setup, whether to adopt configuration,
+  whether to use a real model/provider, and every live operation. The user runs
+  the hands-on scenarios in their normal setup.
+- The **assistant** may explain steps, inspect evidence the user chooses to
+  share, and reconcile notes when authorized. It must not run the human tests,
+  access credentials, copy auth stores, change the shared service, install to a
+  real home or call a model unless a separate explicit authorization names the
+  exact scope, model and limits.
+- This plan creates no allocation. Existing conditional S1 attempts and the
+  spent P1 attempt are not a budget. Missing cost is unknown, not zero.
 
-| Order | Area and current state | Human action and expected observation | Scope and finding |
+## Before the session
+
+1. Choose a representative, non-sensitive task and a **disposable project or
+   explicit safe workspace**. Record what was selected. Do not use production
+   data or alter an unrelated working tree.
+2. Record current agent/skill versions, installed skill state and the intended
+   OpenCode runtime identity. Keep credentials, account details and raw private
+   evidence out of Git and out of this document.
+3. Decide the adoption path: **observation only** (no config change), **preview**
+   (default, read-only), or a separately authorized **apply**. If applying,
+   preview and back up first; know the exact rollback command and backup path.
+4. Decide whether a real model is used at all. If yes, select the exact
+   model/variant, data scope, request/token/deadline limits and stop conditions
+   before the session. Prefer no provider access for the first sitting; most
+   scenarios below are workflow/evidence scenarios that do not require one.
+5. Agree on a timebox and stop conditions: unexpected writes, permission
+   prompts, costs, missing evidence, stale identity or unsafe behavior end the
+   scenario; record it as **unobserved/blocked** rather than rerunning blindly.
+
+## Integrated cycle
+
+Run the scenarios that fit the chosen workspace; not every case must fit one
+sitting. Each row is a separate result. A pass applies only to the route and
+setup actually exercised.
+
+| Order | Area | Human action and expected observation | Primary criteria / findings |
 | --- | --- | --- | --- |
-| 1 | **R0 baseline — delivered** | Choose a small real task; note starting files, instructions and current workflow. Verify the task can be described and its expected result is independent of the implementation. | Establish a comparison starting point; no claim of improvement. |
-| 2 | **R1 portable workflow — skills delivered** | Ask for a direct fix, a spec-only request and a review-only request in separate safe examples. Confirm the assistant chooses the requested mode, does not create unnecessary feature docs and does not edit in review-only mode. | Evidence for routing/authority (AC-01); separate scenarios, no assumed blanket compliance. |
-| 3 | **R1 draft and approval — delivered guidance** | On one small feature, inspect spec, plan and tasks together. Confirm the requirements, design, checks and one-batch scope are understandable. Give or withhold the combined approval yourself. | Human decision is recorded in the prescribed location; no implementation before approval. |
-| 4 | **R1 runtime and boundaries — template/fixtures only** | Review the actual effective instructions, selected model and permissions on the intended setup. In a safe test workspace, explicitly choose a harmless denied action and check whether the tested route blocks it. | B3-F1–F4; individual routes only. Instructions and a worktree are not an OS sandbox. Never test destructive or credential-access actions on real data. |
-| 5 | **R2 one batch and review — guidance/fixtures delivered** | Authorize one named batch, observe implementation and request a single meaningful review. Check results against the acceptance criteria and inspect changes before deciding what to accept. | B5-F1/B8-F1; passing tests do not settle unresolved review findings or authorize another batch. |
-| 6 | **R2 deterministic checks and evidence — delivered** | Inspect or, if you choose and authorize an appropriate safe context, run relevant existing project checks. Review actual results and evidence, including failures and missing prerequisites. | AC-06/09; prior hosted and offline checks remain historical scoped evidence. Do not initiate a full CI run or PR experiment under this plan. |
-| 7 | **R2 interrupt and resume — offline fixtures only** | For a deliberately harmless test task, interrupt at a user-chosen point. Inspect partial work and request a resume; verify the assistant re-reads authority, preserves your work and does not start an unapproved batch. Test compaction/restart/move only when independently safe and explicitly selected. | B6-F1/B8-F1; no external write is retried until its outcome is reconciled. Native recovery is not yet proven. |
-| 8 | **R2 integrated result — not proven** | Review the whole small feature from request through approval, one batch, review and chosen recovery scenario. Check the final changes and outstanding findings together. | B8-F1; mark incomplete if a stage was skipped, failed or could not be safely observed. |
-| 9 | **Benefit — not demonstrated** | If you want a comparison, choose an appropriate baseline and candidate before testing. Keep model, inputs, tools and environment fixed; note failures, elapsed time and your interventions for both. | B8-F2; avoid claiming savings or reliability from unmatched setups or a small sample. A genuinely unseen holdout remains a separate decision. |
-| 10 | **R3 extensions — future, not delivered** | Decide whether a specific need justifies an advisory agent, optional reviewer, worktree pilot or plugin. First review a separate proposal, boundaries and rollback; manually exercise only what is later approved and built. | No delegation, plugin or extension is enabled by this plan. |
-| 11 | **R4 optimization/portability — future, not delivered** | Decide which measured bottleneck or additional adapter merits a separate proposal. Compare only after baseline behavior is understood and keep failure modes visible. | No automatic model routing, concurrency or second-adapter claim. |
-| 12 | **Revision 6 human-input proposals — advisory, not implemented** | Review proposed clarification, questionnaire, handoff, explanation and learning flows in §3a/A8 of the vNext plan. Choose which, if any, deserve a separately specified implementation and human scenario. | No new helpers, teaching workspace or behavioral claim is implied. |
+| 1 | Baseline | Pick a small real task. Record starting files/instructions and the expected result independently of the implementation. | Comparison starting point only; no improvement claim. B8-F2. |
+| 2 | Direct fix | Ask for a bounded bug fix in a safe example. Confirm no feature interview or feature docs are created, and the change is focused. | AC-01 routing; no new spec tree. |
+| 3 | Spec-only + combined approval | On one small feature, ask for spec/plan/tasks only. Inspect them together, edit if needed, then give or withhold the combined approval yourself. | AC-04/AC-05; approval is recorded only in the prescribed location. |
+| 4 | One implementation batch | Authorize exactly one named batch. Observe implementation and ask for one meaningful review; check the changes and evidence before accepting. Do not let green tests alone authorize the next batch. | AC-06/AC-08; B5-F1, B8-F1. |
+| 5 | Review-only | Request review of a small existing change. Confirm findings are reported without edits to code, docs, approval or task state. | AC-07/AC-08; no state change. |
+| 6 | Interruption and resume | Interrupt a harmless task at a chosen point. Inspect partial work, then request a resume/handoff. Confirm authority is re-read, your files are preserved and no new batch starts implicitly. Test restart/move only if independently safe and explicitly chosen. | AC-06/AC-12; B6-F1. Native recovery remains unproven. |
+| 7 | Bug investigation | Provide a failing test or reproduction and ask for diagnosis before a fix. Confirm the failure is reproduced, the cause is distinguished from the symptom, and no unrelated rewrite occurs. | AC-07/AC-13; diagnosis helper branch. |
+| 8 | Clarification / grilling | Present one consequential decision with real alternatives. Confirm no more than three independent questions per round, settled answers are reused, and agreement does not start implementation. | AC-02; correctness over question count. |
+| 9 | Questionnaire and late answer | Optionally draft a questionnaire for a person who holds missing knowledge. Check recipient/purpose fit; do not send it. If a late answer arrives, confirm only the affected scope returns for decision. | AC-03/AC-04; no sending without separate authorization. |
+| 10 | Explanation | Ask "wait, what?" about the current status. Confirm a short explanation of where things are, what exists vs remains and the next decision, with no state change. | AC-07; clarity only. |
+| 11 | Teaching | Ask for a focused explanation/example and feedback. If persistent learning files are wanted, confirm a separately chosen workspace; otherwise confirm none are created. | AC-08; learning evidence is not "material covered". |
+| 12 | Inactive OpenCode candidate | Generate the candidate and inspect preflight/effective setup warnings. Preview config against a scratch workspace. Confirm no provider/model process starts and no config is written by preview. | AC-10; B3-F1/F4. No real-home write. |
+| 13 | Adoption and rollback (optional) | Only with separate authorization: apply the reviewed candidate to a scratch or chosen setup after backup, verify the effective setup, then roll back and confirm unrelated configuration survives. Preserve the original config. | AC-10; B3-F4. A sandbox is not proven by prose. |
+| 14 | Headless pending input (optional, separately authorized) | If a real native session is ever authorized, stop on one harmless consequential question. Confirm the result is bounded `blocked`/`pending_human` with the exact question and next action, not a guessed answer. Review the private summary without resuming. | AC-11; B3-F1/F2, B6-F1. Otherwise record **not run — native admission blocked**. |
+| 15 | Deterministic evidence | Run a chosen existing project check on the safe workspace. Capture the scoped identity, result, log digest and evidence root separately; build/export a receipt only if the caller-supplied observations are complete. Reload it and confirm changed code/authority or stale identity blocks reuse. | AC-09/AC-12; B6-F2. A receipt is not certified provenance or approval. |
+| 16 | Whole-cycle reconciliation | Review request → approval → one batch → review → chosen recovery → final changes and open findings together. Mark incomplete if a stage was skipped, failed or could not be safely observed. | AC-14/AC-15. |
 
-## How to capture a manual result
+## Recording a result
 
-Use a short entry in the appropriate existing feature task continuation, or share
-notes for the assistant to reconcile when authorized:
+Use a short entry in the relevant feature task continuation, or share notes for
+the assistant to reconcile when authorized:
 
 ```text
 Scenario and date:
@@ -79,21 +110,30 @@ Evidence location (sanitized):
 Finding IDs / next decision:
 ```
 
-Do not include keys, tokens, account records, private prompts, hidden reasoning or
-raw sensitive traces. A screenshot or narrative is an observation, not proof of
-untested execution boundaries. Use the existing spec for human approval and tasks
-for continuation; a test note cannot grant authorization.
+Never copy credentials, raw auth databases, complete environment dumps or
+private logs into Git. Sanitized portable receipts may be kept under the
+retention policy in [evidence/README.md](../harness/evidence/README.md).
 
-## Decisions before starting
+## Rollback and recovery
 
-- Which small task and workspace will the user use for the **first** manual
-  session, and which of scenarios 1–12 should it cover?
-- Does the user want **planning only** for now, or to personally conduct a
-  selected session? A real-home change, paid/model experiment or external write
-  still needs its own clear scope and limits.
-- If a problem appears, should the assistant explain it, draft a fix, or request
-  a separately scoped implementation decision? Do not silently expand the test.
+- **Skills:** preview first; `agentic-sdd apply` backs up replaced skills and
+  `agentic-sdd restore` restores a chosen backup. Identical content is a no-op.
+  Unrelated skills are preserved; symlinks/special files are refused.
+- **OpenCode config:** use the separate digest-checked
+  [adoption/rollback procedure](../integrations/opencode/adoption.md). An old
+  backup is not authority to discard later edits; reconcile intervening changes
+  instead of overwriting them.
+- **Sessions:** admitted native execution is currently denied. A pending
+  summary is an observation, never consent; reconcile workspace, session,
+  authority and changed files before any separately authorized new preparation.
+- **Evidence:** freshness failures require remeasurement/reconciliation, not
+  reuse of an old receipt. No automatic retry of uncertain external effects.
 
-**Next:** review this draft with the user, pick a first small session and identify
-its prerequisites. Until then, preserve existing work, the spent P1 allocation,
-all open findings and the stop on full CI/local real-AI container testing.
+## Honest completion
+
+Status for this development feature is **implementation delivered; human usage
+validation not run**. Completing this plan or any scenario is not required to
+call the implementation delivered, and running scenarios does not by itself
+certify support, safety, quality or benefit. Support remains **not certified**;
+native admission, actual adoption, macOS behavior and all carried findings stay
+explicit until separately observed and accepted by the user.

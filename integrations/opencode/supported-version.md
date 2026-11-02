@@ -81,3 +81,19 @@ independently by the Python reference consumer
 still pass. No native process, model, provider or credential store was touched.
 This does not certify native runtime behavior, billing or provenance; support
 remains **not certified**.
+
+## Final integration — 005/B5 (2026-11-02)
+
+All selected 005 implementation is delivered at source level: the 18-ID helper
+package, inactive candidate/config transaction, narrow ACP session and
+pending-human normalization, and the production evidence consumer/projection.
+`make test`, `make vet`, `go test -race ./...`, `git diff --check`, the required
+local check contract and the offline Python reference/schema fixtures pass on
+the final source identity recorded in 005 tasks.
+
+Delivery does not certify runtime support. No real `opencode acp` process,
+model, provider, credential store or real-home adoption was used; strict
+admission remains denied; native tool/permission/selection/recovery behavior,
+macOS and billing/provenance stay unobserved. The one integrated human cycle is
+prepared in the [final usage plan](../../docs/vnext-human-test-plan.md) and is a
+separate launch decision. Support remains **not certified**.

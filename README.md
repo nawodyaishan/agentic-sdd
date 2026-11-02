@@ -123,8 +123,9 @@ token/egress/accounting/credential controls are unverified, and the transport is
 exercised only by fake peers. `evidence` measures scoped identity, validates or
 exports receipts from caller-supplied current observations, and composes a
 check result with an optional native observation without supplying approval or
-review. Current support remains uncertified; the final human usage cycle is not
-implied by these implemented operations.
+review. Current support remains uncertified; the
+[final human usage plan](docs/vnext-human-test-plan.md) is prepared but not
+executed, and its launch is not implied by these implemented operations.
 
 Invoke the relevant skill through your client, then give it a concrete request:
 

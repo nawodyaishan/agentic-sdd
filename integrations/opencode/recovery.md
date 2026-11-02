@@ -85,3 +85,21 @@ These outcomes are deterministic fake-peer fixtures. They do not certify native
 cancellation, process isolation or model behavior; the final human usage cycle
 owns real-usage observations. Admission remains denied while token/egress/
 accounting/credential controls are unverified.
+
+## Evidence-linked recovery — 005/B4/B5 (offline)
+
+The production receipt consumer composes checks-derived selection/execution
+with optional owned-session values (session, model, native-reported cost) and a
+pending sidecar. It never turns a failed or interrupted native turn into a
+completed result, always leaves the review verdict null, and requires
+`end_turn` before treating a native turn as completed. Export is external,
+private and redacted; validation compares independently supplied identity,
+contract, result, log digests, authority and observations.
+
+This strengthens evidence freshness but does not change the recovery rule: a
+receipt, pending summary or handoff is an observation, not consent. After
+interruption, restart, compaction or a location move, re-read actual authority
+and changed files, reconcile uncertain effects, and start a new preparation
+where supported. Native recovery remains **not run**; strict admission still
+blocks native prompt execution while token/egress/accounting/credential
+controls are unverified.

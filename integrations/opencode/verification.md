@@ -92,4 +92,15 @@ readiness API or recovery guarantee.
 
 Batch outcome is **incomplete**, technical self-review **Blocked**, workflow
 **awaiting human review**. T05/T06 are partially delivered; blocked acceptance
-has not been waived and B4 is not authorized by test success.
+has not been waived and B4 was not authorized by that test success (it was
+later separately authorized; see the B4/B5 status note below).
+
+## B4/B5 status note (2026-11-02)
+
+B4 and B5 were subsequently authorized. B4 delivered the offline evidence
+consumer and receipt projection; B5 delivered final verification and the
+integrated human-cycle plan. These are deterministic/source-level results, not
+new native observations. The findings above remain open and are not waived by
+the later batches, a green suite or the prepared human plan. Native prompt
+admission stays blocked and support remains **not certified**; the earlier
+sentence that B4 was unauthorized is superseded.

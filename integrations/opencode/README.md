@@ -1,9 +1,13 @@
 # OpenCode adapter preflight
 
-Status: B3 inactive templates and credential-free native fixtures delivered;
-**support/adoption still Blocked**. No active project/global configuration or
-shared service is changed. The [supported-version record](supported-version.md)
-distinguishes observations from certified support.
+Status: B1–B5 delivered at source level (18-ID helper package, inactive
+candidate/config transaction, narrow ACP session/pending flow, offline evidence
+consumer, final human-cycle plan); **support/adoption still Blocked**. No active
+project/global configuration or shared service is changed. The
+[supported-version record](supported-version.md) distinguishes observations from
+certified support; the one integrated cycle is prepared in the
+[final human usage plan](../../docs/vnext-human-test-plan.md) and is a separate
+launch decision.
 
 ## B3 artifacts
 
@@ -57,7 +61,10 @@ Allowed projections only were printed: version, source paths, field names, agent
 1. Resolve the truncated skill catalog through a version-supported bounded/export route; verify duplicate winners using the synthetic collision fixture.
 2. Exercise config collisions, invalid policies and precedence in a clean isolated environment; do not attach synthetic config to the live service or real home.
 3. Verify model selection/tool compatibility, allowed providers/data destinations and actual price/allowance under separately authorized access. Do not map Economy/Standard/Deep from catalog names alone.
-4. Pin runtime and integration/package revisions after tests. Keep config examples inert under this directory until T05's opt-in adoption procedure exists and is authorized.
+4. Pin runtime and integration/package revisions after tests. Keep config
+   examples inert under this directory until the opt-in adoption procedure
+   (delivered under B2, exercised only on synthetic files) is separately
+   authorized and performed.
 5. Historical baseline observations and their incident correction are in `harness/baseline.md`. They show no measured improvement and are not permission for further paid work. Follow safety prerequisites even when a future model test is authorized.
 
 Future project configuration uses `.opencode/opencode.jsonc`; manual staged diff/backup/digest-checked rollback is the approved delivery approach. Skill backup/restore remains separate. All future review routes begin disabled except proven native observation; commands may not contain shell blocks.

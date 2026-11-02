@@ -40,10 +40,10 @@ scope selection, not silently dropped from an otherwise unlimited promise.
   [recovery handover](../../docs/handovers/2026-11-01_004.md) supply the delivered
   baseline and unresolved findings. This feature does not reopen, rewrite or
   claim to satisfy their historical observations.
-- [Draft human test plan](../../docs/vnext-human-test-plan.md) supplies scenario
-  ideas. Its earlier suggestion to choose an immediate small session is
-  superseded for this proposed feature by the user's **all-implementation-first,
-  one-final-usage-cycle** direction. R3/R4 scenarios are not required here.
+- [Final human usage plan](../../docs/vnext-human-test-plan.md) supplies the one
+  integrated cycle prepared at B5. It is **not executed** and does not authorize
+  a launch; its earlier R3/R4 suggestions are out of scope. The user's
+  **all-implementation-first, one-final-usage-cycle** direction still applies.
 
 ### Source provenance
 
@@ -383,6 +383,19 @@ continues to block affected online work; no new budget/allocation is created.
 
 ## Approval
 
+- **B4 publication and B5 authorization (2026-11-02):** user directed
+  **“submit b4 commits, start B5”**. The five B4 commits (`2e2d461` → `1b8886f`
+  → `a6e1809` → `0ec7f45` → `af0036e`) were pushed to `origin/main`
+  (`949bcf2..af0036e`), with the disclosed deterministic CI running on push;
+  no release tag or credential operation is included. The user then authorized
+  **B5** (T11 aggregate development verification and T12 completion
+  reconciliation/final human-cycle preparation) as offline/portable work only:
+  no model calls, native `opencode acp` processes, provider probes, credential
+  reads, human workflow-usage run, live install/adoption, release tag, push
+  beyond this publication or account/key change. No separate B4 review verdict
+  was stated; B5 is authorized directly by this instruction rather than inferred
+  from a review, and any B4 defect found during verification is returned for a
+  decision rather than silently waived. This entry records authorization only.
 - **B3 review acceptance, B4 authorization and B3 publication (2026-11-02):**
   user completed the B3 human review ("Yes — reviewed, accepted") of the
   delivered source/tests/diff (commits `ce84d16` → `9a9c392` → `ae2d9f1` →
@@ -434,8 +447,9 @@ continues to block affected online work; no new budget/allocation is created.
   before implementing 005. No model/CI experiment, real-home installation,
   credential operation or walkthrough execution follows from either request.
 
-Current documents: [plan r1](plan.md) and [tasks r1](tasks.md). B4 (T09–T10)
-was delivered offline and is awaiting human review; B5 needs its own explicit
-authorization before starting. Preserve the single-batch execution rule and
-separate implementation/development review from the one final human usage
-milestone.
+Current documents: [plan r1](plan.md) and [tasks r1](tasks.md). All selected
+implementation (T01–T12) is delivered at source level; B5 and the final handover
+await human review. The one integrated human usage cycle is prepared in the
+[final usage plan](../../docs/vnext-human-test-plan.md) but **not executed** and
+requires a separate launch decision. Preserve the single-batch execution rule and
+separate implementation/development review from human usage validation.

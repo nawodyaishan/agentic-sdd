@@ -95,3 +95,20 @@ intervening edits, parent/destination symlinks and a FIFO. It is a procedure
 exercise, **not** a generalized installer, automated JSONC merge or proof of
 race-resistant installation in an adversarial filesystem. No real-home
 adoption/rollback has been performed.
+
+## Final-cycle status — 005/B5 (2026-11-02)
+
+All selected 005 implementation is delivered at source level: the inactive
+candidate/preflight path and the separate config transaction above, plus the
+narrow ACP session/pending flow and the offline evidence consumer. This does
+**not** certify adoption or change any prerequisite. No real-home adoption,
+live install or rollback has been performed, and no provider/model is enabled
+by this delivery.
+
+The one integrated human cycle for adoption, rollback and the remaining
+workflow scenarios is prepared in the [final human usage
+plan](../../docs/vnext-human-test-plan.md); it is a separate launch decision.
+Use preview first, keep the backup path and original config, and roll back with
+the documented digest-checked procedure rather than deleting directories.
+Support remains **not certified**; B3-F1–F4 and the carried 004 findings above
+remain open.
