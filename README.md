@@ -113,15 +113,18 @@ feature 005 schedules one human usage cycle after its entire selected implementa
 ### Inactive OpenCode configuration helper
 
 `agentic-sdd opencode --help` describes file-only candidate/preflight, config
-preview/apply/rollback and the narrow `session` group; see
-[usage and safety limits](integrations/opencode/usage.md). No native model,
-shared service or credential store is accessed. Config preview is the default,
-and explicit config writes need separate actual live authorization. `session
-prepare` is offline; `session run` is a strict-admission ACP client that stays
-blocked while token/egress/accounting/credential controls are unverified, and
-the transport is exercised only by fake peers. Current support remains
-uncertified; the evidence bridge and final human usage cycle are not implied by
-these implemented operations.
+preview/apply/rollback, the narrow `session` group and the offline `evidence`
+receipt consumer; see [usage and safety limits](integrations/opencode/usage.md).
+No native model, shared service or credential store is accessed. Config preview
+is the default, and explicit config writes need separate actual live
+authorization. `session prepare` is offline; `session run` is a
+strict-admission ACP client that stays blocked while
+token/egress/accounting/credential controls are unverified, and the transport is
+exercised only by fake peers. `evidence` measures scoped identity, validates or
+exports receipts from caller-supplied current observations, and composes a
+check result with an optional native observation without supplying approval or
+review. Current support remains uncertified; the final human usage cycle is not
+implied by these implemented operations.
 
 Invoke the relevant skill through your client, then give it a concrete request:
 

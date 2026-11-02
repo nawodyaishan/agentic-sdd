@@ -7,6 +7,19 @@ the existing optional Python/jsonschema tooling. It is not a new production
 runtime, native-log exporter, agent runner, automatic ledger or CI trust gate.
 The Go runner still emits `result.json`, not a completed observation receipt.
 
+## Production Go consumer (005/B4)
+
+`internal/harnessevidence` is the production consumer of the same v1 wire shape
+and `sha256-v1` identity meaning. It provides strict typed parsing/semantic
+validation, compatible scoped identity, safe external export and (with
+`internal/opencodeadapter`) receipt projection from a runner result plus an
+optional native observation. It is reachable through
+`agentic-sdd opencode evidence snapshot|validate|export|receipt`; see the
+[OpenCode usage notes](../../integrations/opencode/usage.md#evidence-consumer-and-receipt-projection--005b4-offline).
+The Python helper below remains development/reference material, not a package
+dependency, and its golden fixtures are also used to check byte compatibility
+(`tests/harness/go_snapshot_fixture.py` derives the expected digests).
+
 ## Independent inputs and usage
 
 The caller manually curates the schema's allowlisted fields from permitted

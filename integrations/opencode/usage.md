@@ -131,3 +131,49 @@ auto-approves or resumes.
 schema and never re-enters, resumes or replays the session. The summary is an
 observation, not a second approval ledger. See [recovery](recovery.md) for the
 reconciliation procedure.
+
+## Evidence consumer and receipt projection — 005/B4 (offline)
+
+The `opencode evidence` group is the production consumer of the existing v1
+observation receipt. It is offline: it starts no native process, contacts no
+provider, reads no credential store and writes no approval, review or task state.
+All current observations are supplied by the caller; none are inferred from the
+receipt being checked.
+
+```sh
+agentic-sdd opencode evidence snapshot --workspace /absolute/project --scope PATH [--scope PATH]
+agentic-sdd opencode evidence validate --receipt FILE --workspace DIR --identity FILE --contract FILE --result FILE --evidence-root DIR \
+  [--authorization REF] [--log-digest PATH=DIGEST] [--observation POINTER=JSON] [--paid-authorized]
+agentic-sdd opencode evidence export --receipt FILE --workspace DIR --output FILE [--redactions FILE]
+agentic-sdd opencode evidence receipt --context FILE --result FILE [--observation FILE] [--pending-dir DIR]
+```
+
+`snapshot` measures a scoped `sha256-v1` identity (explicit literal scopes, `.`
+for the repository root). It refuses glob/pathspec magic, traversal, `.git`,
+symlink scopes, symlinked ancestors, submodules, unmerged indexes and non-ignored
+special files, and it reads Git with a minimal environment.
+
+`validate` recomputes consistency and freshness only. The receipt's workspace,
+identity, contract digest, selected coverage, check outcomes, execution and
+evidence digests must agree with the independently supplied identity, contract,
+runner result, log digests and current authorization. Native session/model/cost
+claims must match a supplied `--observation` (JSON value), and unknown nulls need
+a nonempty reason. It never returns `Ready`, evaluates review reasoning or
+creates consent.
+
+`export` scrubs known literal redactions (read from a private file, never CLI
+arguments) and common bearer/key-value credential forms in memory before writing
+one new 0600 file to an existing private parent outside the checkout. It refuses
+overwrite, traversal, symlinked components and in-checkout output. This is not
+universal secret detection; raw check logs are never sanitized here.
+
+`receipt` composes the deterministic runner result with an optional
+owned-transport session observation into one v1 receipt. Checks, selection and
+execution come from the result exactly; the observation contributes only session,
+model, native-reported cost and (when the turn stopped on a consequential human
+question) a pending sidecar written to a private `--pending-dir`. A failed,
+interrupted or provider-error turn can never back a receipt for a completed
+checks result, `end_turn` is the only completed-native-turn proof, native-reported
+usage is not provider-verified billing, and projection always leaves `review`
+null so it cannot emit `Ready`. The only possible write is that private pending
+sidecar outside active discovery.

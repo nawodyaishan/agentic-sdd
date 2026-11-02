@@ -63,3 +63,21 @@ ids, oversized frames, wrong version, deadline) are covered.
 These tests do not certify real native behavior: no `opencode acp` process or
 model was started, and strict admission stays denied while token/egress/
 accounting/credential controls are unverified. Support remains **not certified**.
+
+## Evidence consumer and receipt projection — 005/B4 (2026-11-02)
+
+`internal/harnessevidence` implements the production v1 receipt consumer
+(strict typed/semantic validation, scoped `sha256-v1` identity, safe external
+export) and `internal/opencodeadapter` projects a runner result plus an optional
+owned-transport observation into the same v1 receipt. The `agentic-sdd opencode
+evidence snapshot|validate|export|receipt` group exposes them.
+
+Verification is offline and deterministic: Go tests cover valid/invalid receipt
+round trips, stale identity and authority, evidence tampering/mode/symlink/
+traversal, ready/coverage rules, redaction and overwrite refusal, projection
+failure modes and fake-peer elicitation. Golden identity digests were derived
+independently by the Python reference consumer
+(`tests/harness/go_snapshot_fixture.py`), and the 18 reference receipt tests
+still pass. No native process, model, provider or credential store was touched.
+This does not certify native runtime behavior, billing or provenance; support
+remains **not certified**.

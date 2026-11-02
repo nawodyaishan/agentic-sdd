@@ -434,7 +434,8 @@ continues to block affected online work; no new budget/allocation is created.
   before implementing 005. No model/CI experiment, real-home installation,
   credential operation or walkthrough execution follows from either request.
 
-Current documents: [plan r1](plan.md) and [tasks r1](tasks.md). Next: implement
-authorized B4 (T09–T10) only, review its result, then stop; B5 needs its own
-authorization. Preserve the single-batch execution rule and separate
-implementation/development review from the one final human usage milestone.
+Current documents: [plan r1](plan.md) and [tasks r1](tasks.md). B4 (T09–T10)
+was delivered offline and is awaiting human review; B5 needs its own explicit
+authorization before starting. Preserve the single-batch execution rule and
+separate implementation/development review from the one final human usage
+milestone.
