@@ -1,6 +1,6 @@
 # Agentic SDD vNext — harness-level workflow upgrade plan
-Revision 5 · 28 October 2026  
-Status: researched proposal; no project implementation or runtime benchmark performed.
+Revision 6 · 1 November 2026
+Status: advisory proposal revised against current repository state; new human-input design is proposed, not implemented or behaviorally tested.
 
 ## Decision and scope
 
@@ -8,11 +8,19 @@ Evolve Agentic SDD into a **portable, measurable development harness**, with Ope
 
 Revision 4 added harness features to a skills-focused plan. Revision 5 reorganizes the architecture and delivery around the complete lifecycle. It replaces the previous A/H implementation sequence; Appendix A preserves the detailed Superpowers-inspired workflow improvements and source-based file changes.
 
-The attached “AI-Harness-Configuration-Areas-OpenCode-V2-2026-10(1).md” is the coverage checklist, not a directive to enable everything. The original ten skills and two references remain the workflow baseline. Current local OpenCode settings and actual provider access have not been inspected. Findings identify absent or incomplete integration contracts, not proven defects on your machine.
+The attached “AI-Harness-Configuration-Areas-OpenCode-V2-2026-10(1).md” is the coverage checklist, not a directive to enable everything. The original ten skills and two references remain the workflow baseline. The original research did not inspect local OpenCode settings or actual provider access; that historical limitation is not a statement that no subsequent implementation occurred. Findings identify absent or incomplete integration contracts, not proven defects on your machine.
 
 **Constraints retained:** OpenCode 2.x first; up to US$10/month additional API spending; one main agent and one authorized batch by default; combined spec/plan/tasks approval; direct fixes stay lightweight; review-only does not mutate project state; no implicit delegation, provider spending, deployment or next-batch authorization.
 
 **First release outcome:** one feature can be drafted, approved, implemented, deterministically checked, reviewed, interrupted and resumed with traceable evidence and unchanged authorization scope. The same check contract also runs without an LLM.
+
+### Revision 6 baseline and authority
+
+This revision changes only this advisory plan. [Repository guidance](../AGENTS.md), the [shared workflow policy](../skills-files/agentic-sdd-router/references/workflow-policy.md) and current `skills-files/` govern over historical recommendations below. The current router, spec, plan, tasks, implementation and verification-review skills already provide action-first routing, conditional research, one combined approval, one selected batch, one completion-review owner, scoped reconsideration and non-mutating review-only behavior. Spec clarification currently permits at most three questions at once. Appendix A retains the original diagnosis and provenance; its older “change/add” language is not proof those gaps remain open. The package now has eleven skills, including debugging and supporting task/testing/review references.
+
+Feature 004 has since delivered implementation and offline evidence; consult its [approval record](../specs/004-vnext-harness/spec.md#approval), [plan and research](../specs/004-vnext-harness/plan.md), [continuation ledger](../specs/004-vnext-harness/tasks.md#continuation-record), [acceptance findings](../harness/acceptance.md) and [latest recovery handover](handovers/2026-11-01_004.md). Human full-feature acceptance is recorded while technical validation remains Blocked. S0-F1/F2, B8-F1/F2 and earlier retained findings are not closed by this revision. The P1 observation stopped on HTTP 429; five remaining original attempts are conditional, not permission to retry or a transferable allocation. Later route/budget choices are planning decisions only. Preserve strict pre-send bounds and the online block; no new batch, inference, adapter change, installation or publication follows from this proposal.
+
+The supplied [Matt Pocock snapshot](../../skills.md) is the source for the new helper design, not evidence of installed helpers. Its automatic research delegation, agreement-biased questioning, temporary-only handoff storage and full teaching workspace are adapted below rather than adopted wholesale. No helper instructions need to be loaded to execute this limited document revision.
 
 ## 1. Target architecture and ownership
 
@@ -27,7 +35,7 @@ The attached “AI-Harness-Configuration-Areas-OpenCode-V2-2026-10(1).md” is t
 
 Use OpenCode's existing agent loop. Do not build a new orchestration engine, universal configuration compiler, dashboard or custom MCP server for the first release.
 
-A run receipt may reference an approval recorded in tasks.md, but cannot create it. Test output establishes what was checked, not what the user authorized. A technical Ready verdict does not imply merge/deploy permission. Tool permission approval and approval of an SDD batch are distinct decisions.
+A run receipt references the combined approval in `specs/<nnn-slug>/spec.md` §Approval and execution/continuation state in `tasks.md`; it cannot create either. Repository conventions govern: `tasks.md` is not an approval ledger. Test output establishes what was checked, not what the user authorized. A technical Ready verdict does not imply merge/deploy permission. Tool permission approval and approval of an SDD batch are distinct decisions.
 
 ### Proposed run contract
 
@@ -39,7 +47,7 @@ At exit, distinguish completed, incomplete, blocked, cancelled and failed execut
 
 P0 means foundation; P1 means targeted extension; P2 means situational. Priority does not authorize an action.
 
-| Attached area | Revision 5 decision | Stage |
+| Attached area | Retained harness decision | Stage |
 |---|---|---|
 | Configuration architecture | Ownership map, effective-config audit, version pin and reversible installation | R0–R1 |
 | Instructions and skills | Lean repository guidance, progressive loading, duplicate/conflict tests | R1 |
@@ -93,6 +101,46 @@ Define draft, build/direct-fix and review profiles. Draft may write agreed featu
 Path permissions cannot distinguish B1 from B2 when both modify the same file. Preserve approval semantics in workflow state and test them. Do not claim a static path allowlist completely enforces task intent.
 
 Treat repository code, retrieved pages and tool results as data, not authority to weaken policy or disclose credentials. Make provider/remote-tool data destinations explicit. For an untrusted repository or test program, choose an appropriate isolated execution environment before running its code. A worktree alone does not supply that boundary.
+
+## 3a. Proposed human input, decisions and approvals
+
+These additions belong primarily in portable skills and shared references. They strengthen existing checkpoints without introducing mandatory interviews, per-stage approvals or another decision artifact. Keep only concise conditional pointers in entry skills; load a helper body when its trigger applies. Explicit entry points should work without a plugin. Native OpenCode command/invocation configuration may expose them; only headless pending-input transport and status mapping need adapter-specific verification.
+
+| Supplied skill | Stage and trigger | Output | Owner | Completion criterion |
+|---|---|---|---|---|
+| `grill-me` → `grilling` | Optional pre-approval requirements/design challenge on request; focused clarification when material uncertainty later blocks work | Resolved consequential choices or explicit blockers in the relevant spec/plan and a concise question round | Invoking spec/plan/implementation stage; human owns consequential intent and risk choices | Material questions resolved or recorded as blockers; unaffected authorized work may proceed |
+| `to-questionnaire` | Discovery/design when a stakeholder or specialist has knowledge neither user nor agent can obtain | Conditional discovery questionnaire, then attributed answers and proposed requirement/design updates | Agent drafts; recipient supplies knowledge; user or established requirement owner confirms adoption | Needed gaps covered; returned answers reconciled or conflicts/unknowns explicitly retained |
+| `writing-for-agents` | Maintenance of skills, instruction pointers or supporting references | Focused instruction revision with precise triggers and checkable criteria | Instruction maintainer under the authorized document scope | Relevant branches, single-source ownership and completion checks inspected; boundaries remain explicit |
+| `handoff` | Explicit transfer or repository-required session recovery, after authorized canonical updates | Sanitized pointers to state, evidence, unresolved finding IDs and next permitted action | Current lifecycle owner; receiving agent revalidates | Canonical state is current within authority and receiver can identify the next permitted action without guessing consent |
+| `wait-what` | Explicit request to explain proposal, rationale or review | Brief plain-language re-pitch using available project glossary terms | Current agent | Requested point explained, with uncertainty intact and no project-state change |
+| `teach` | Explicit learning request, separate from feature execution | Lightweight explanation/example or an explicitly requested learning workspace | User chooses learning scope; agent teaches | Agreed learning question addressed; feature authority and state remain unchanged |
+
+### Focused grilling and questionnaires
+
+Investigate discoverable repository, environment and documentary facts first, using permitted tools and conditional research. Ask the human about consequential requirements, unresolved behavior, tradeoffs and risk preferences. Keep routine implementation choices with the agent. Group independent ready questions into a small round (retain the current spec limit of three); defer dependent questions until prerequisites settle. Recommend an answer with evidence/rationale and credible alternatives, including costs of each. Use neutral choices rather than wording every question so “yes” accepts the recommendation. Stop when material questions are resolved or explicitly blocked, rather than exhausting every hypothetical design branch. `grill-me` is an explicit entry into `grilling`, not a second stage or a new approval gate. Investigation does not grant delegation: retain the shared policy's explicit-user-request requirement for subagents.
+
+For a questionnaire, establish recipient role/knowledge and what must be learned, reusing known context. Order questions by consequence; include purpose, context, how answers will be used, uncertainty stubs and any known deadline/effort. Save only when this distinct consumer justifies an artifact, in the repository's established documentation location. Drafting does not authorize sending, contacting recipients or exposing project data. On return, attribute source/date and confidence; separate observed facts, preferences and suggestions. Propose traceable acceptance/requirement updates in `spec.md` or design inputs in `plan.md`; the user or established requirement owner confirms consequential adoption. Preserve conflicting answers and unknowns, record who must resolve them and what they block. A recipient's answer alone cannot approve a feature or authorize implementation.
+
+### Concrete decision summary in existing documents
+
+At an existing approval/review checkpoint, present a short response referencing the relevant document sections/revisions, not another mandatory file. Include: the exact decision requested; proposed scope and changes; acceptance criteria and supporting evidence with limitations; unresolved finding IDs and consequences of accepting partial delivery; the exact work/batch that would become authorized; and work still blocked or requiring a separate decision. Make this concrete before requesting consent. Tasks owns the combined-draft readiness reconciliation; implementation owns the batch completion summary and authorized continuation update; verification supplies technical findings, not consent.
+
+| Human action | Meaning and canonical treatment |
+|---|---|
+| Answer discovery | Requirement/design input in its owning document; no implementation permission |
+| Agree with a recommendation | A selected proposal, scoped to the question; no combined approval or batch start implied |
+| Approve combined feature documents | One record in `spec.md` §Approval tied to actual actor, evidence, scope and revisions; `plan.md`/`tasks.md` reference it |
+| Authorize a specified implementation batch | Select exactly the covered batch/tasks; record the authorization in the existing approval section and execution/next action in `tasks.md`; stop after its review |
+| Accept partial delivery | Record the actual acceptance scope while retaining technical verdict, missing evidence and finding IDs; no implicit waiver, resolution or next batch |
+| Grant tool/spending/external/deployment permission | Separate action/environment/data/limits decision under runtime and repository controls; feature approval supplies none of these permissions |
+
+One explicit response may cover multiple clearly presented decisions; do not infer unstated ones or re-ask for unchanged authority. A bare “continue” remains insufficient for a next batch. Agreement that understanding is shared ends clarification only. If a late answer materially changes scope, identify the affected `spec.md` requirements, `plan.md` contracts and `tasks.md` dependencies/batch boundaries, reconcile them within documentary authority and request only the necessary scoped decision. Preserve unaffected approvals; pause dependent work, not the entire project automatically. Review-only or explanation requests return proposed updates without writing state.
+
+### Instruction maintenance and learning boundaries
+
+Use progressive disclosure: mandatory authorization/effect boundaries remain visible at the entry point, with one authoritative policy definition and precise conditional pointers to branch-specific procedures. Co-locate each rule with its caveats; define observable, exhaustive completion criteria. Check referenced files and actual invocation/frontmatter support before packaging. The supplied snapshot references `SKILL-MECHANICS.md` and teaching `MISSION-FORMAT.md`, `RESOURCES-FORMAT.md`, `LEARNING-RECORD-FORMAT.md`; these were not included and were not found locally. Their contents remain unassessed: inspect and pin them, along with applicable upstream notices, before wholesale adoption. This proposal adopts only inspected principles, not an unseen dependency. Keep hard prohibitions on unauthorized effects explicit despite upstream advice to prefer positive phrasing.
+
+`wait-what` explains current scope, reasoning, evidence and the next decision in familiar terms; strict ASD-STE100 conformance is not assumed. Use existing glossaries when available without requiring new ones. `teach` is explicitly invoked and initially lightweight; creating lessons, assets, mission records or opening a browser requires that learning scope and applicable tool permission. Neither helper changes feature state, approval or batch selection. Resume execution only within existing authority.
 
 ## 4. Model, tool and context allocation
 
@@ -174,6 +222,8 @@ Snapshot undo is best effort and scope-limited. It does not reverse commits, dat
 
 Pilot one independent reviewer only after the single-agent lifecycle works and only when explicitly requested or separately authorized. Start at one optional child with no nested delegation; choose concurrency from dependency and budget evidence. This plan does not authorize spawning agents now.
 
+A handoff follows canonical updates, never substitutes for them. In this repository use `docs/handovers/<YYYY-MM-DD>_<spec-no>.md` (letter suffix for another same-day session), with the ordered sections required by AGENTS.md. Reference spec approval, task continuation, current diff/evidence identities, unresolved findings and next permitted action; include sensitive-data-free pointers rather than duplicated records. Suggested skills are advisory and cannot grant permissions. Temporary transfer copies are optional when needed, not the canonical recovery location. If writes are outside the current mode, explain the state/pointers in the response rather than mutating records. Compaction and the receiving session re-read actual authority and freshness before acting.
+
 ## 7. Headless execution, services and extensibility
 
 ### Automation progression
@@ -185,6 +235,8 @@ Pilot one independent reviewer only after the single-agent lifecycle works and o
 Use a pinned runtime, explicit project/model/profile, known environment and a fresh run identity. V2 supports standalone runs and newline-delimited JSON; standalone gives a private server, not a security sandbox. The shared service otherwise owns sessions, configuration and tool execution. [N5]
 
 Set a deadline and define how pending permission requests become blocked outcomes or reach an authorized human. Do not solve noninteractive prompts with blanket auto-approval. V2 run --auto approves actions not explicitly denied; it is not the default for this design. Parse structured events with a version-tested adapter and distinguish transport completion from verified task success.
+
+A required requirements/design/approval decision produces a pending-human/blocked result, with the exact question, rationale/options, affected scope, canonical references, preserved findings and next permitted action. Serialize a sanitized resumable question summary using existing receipt/continuation facilities; use response output in non-mutating modes. Stop dependent execution and exit within the deadline or wait only through a bounded supported human channel. No guessed answer, synthetic approver, default-choice consent or automatic next batch. Resume validates the actual human response and its scope.
 
 For CI, use least-privilege short-lived credentials where available; do not expose secrets to untrusted contributions or execute their changed scripts with privileged tokens. Keep the deterministic gate trusted. Agent review remains advisory initially and cannot merge/deploy. Runtime config alone cannot enforce a remote branch's merge rules: configure required checks in the repository host if that guarantee is wanted.
 
@@ -223,6 +275,8 @@ Use native stats/exports first; add minimal correlation only where unavailable. 
 
 Freeze input revision, fixtures, check environment, permissions and model while testing a harness change. Then compare model profiles separately. Repeat critical cases within budget and retain an unseen variant to catch overfitting. Report observations and sample size, not a reliability percentage inferred from a few runs. Tool-design research supports realistic outcomes and trace/error metrics, rather than rewarding a prescribed call sequence. [N9]
 
+For the human-input proposal, evaluate decision quality and human effort together: consequential ambiguities found/missed, fidelity of confirmed requirements, viable alternatives and rationale, conflict preservation, approval-scope accuracy, unnecessary questions, repeated answers, human time and avoidable rework. Fewer questions alone is not success. First inspect scenario outputs offline; any model-backed comparison requires separate exact provider/model, data and request/token/deadline authorization, even if free. Use fresh credential-free offline environments, never primary auth/database copies. Paid work additionally requires current pricing, remaining allowance and dedicated provider-side caps under repository rules; the historical US$1 envelope below is not current permission. No new experiments were run for Revision 6 and no improvement is claimed.
+
 **Adoption gate:** keep a change only if boundary/acceptance tests pass and it shows a useful reduction in cost, delay or intervention without losing quality. Remove unnecessary plugins/tools/configuration. Keep the first paid comparison within the proposed US$1 envelope; current prices/access must be checked before execution.
 
 ## 9. Portability and operational maintenance
@@ -239,7 +293,7 @@ After an OpenCode/model/provider/plugin change, rerun selection, policy, tool, c
 
 ## 10. Deliverables and staged implementation
 
-These are proposed repository locations, not files created by this review. Adapt to the actual tree before implementation. Reuse existing installer backup/manifest behavior; avoid an unrelated CLI rewrite.
+These are retained target locations, several now present in feature 004; none is created by this document revision. Adapt to the actual tree before implementation. Reuse existing installer backup/manifest behavior; avoid an unrelated CLI rewrite.
 
 | Deliverable | Proposed location | Purpose |
 |---|---|---|
@@ -261,6 +315,8 @@ Preserve project ownership of code/checks, user ownership of provider/credential
 | R2 — complete single-agent lifecycle | Implementation/debug/review improvements, receipts, compaction/recovery, deterministic CI | One authorized batch completes or resumes with fresh evidence; no invented approval |
 | R3 — targeted extension | Select only demonstrated needs: bounded headless advisory review, optional reviewer, isolated worktree pilot or one plugin | Each selected extension passes its own failure/cost tests |
 | R4 — optional optimization/portability | Compare routing/cache/concurrency; consider another adapter | Evidence of useful benefit; no weakened guarantees |
+
+Revision 6 proposed integration order (not a new authorized batch): (1) reconcile baseline and single-source authority, then maintain instruction pointers using the inspected writing principles; (2) add portable focused clarification/questionnaire handling and concrete decision summaries; (3) align handoff/compaction and explicit explanation/learning entry points; (4) verify native OpenCode invocation and pending-human transport only where needed; (5) compare observed decision quality and effort under separately authorized evaluation. Each step depends on the preceding authority contract and a future scoped feature/document decision. Exit criteria are the applicable section 3a outputs and Appendix A scenarios, with no scope violations and honest limitations; behavioral benefit remains unproven until observed. No plugin dependency is established. Do not add these changes to feature 004's approved batches retroactively.
 
 Each release batch is scoped implementation work under the existing approval model. Draft one coherent spec/plan/tasks set for the chosen release, obtain the combined decision, then execute only the authorized batch. Do not require all R3/R4 features to finish R2.
 
@@ -291,7 +347,7 @@ Keep Appendix A's workflow scenarios and add:
 
 Context7 was used for V2 policies, headless lifecycle and worktrees. Exa Full Suite discovered and fetched official sources and independent engineering references. Mixed old/new Context7 snippets were checked against current V2 pages; for example, top-level policies is current while older experimental.policies examples remain in indexed material.
 
-New verified facts driving this revision: policy precedence and non-sandbox limits; instruction discovery/update rules; absent V2 LSP runtime; opt-in formatting; standalone/JSON CLI behavior; embedded SDK ownership; canonical-checkout worktree behavior; snapshot limits; service environment differences. [N1–N7, N11]
+Historical Revision 5 source findings (not revalidated runtime claims in Revision 6): policy precedence and non-sandbox limits; instruction discovery/update rules; absent V2 LSP runtime; opt-in formatting; standalone/JSON CLI behavior; embedded SDK ownership; canonical-checkout worktree behavior; snapshot limits; service environment differences. [N1–N7, N11]
 
 Proposed profile names, run receipts, release batches, budget envelopes and isolation/verification contracts are design recommendations. They are not existing project features or measured improvements.
 
@@ -304,7 +360,7 @@ These techniques remain part of the upgrade. They now supply the portable workfl
 
 ### A1. Clarify handoffs before adding capabilities
 
-These are instruction ambiguities inferred from the text, not confirmed defects.
+Historical snapshot diagnosis follows. Current canonical skills already address A–E; retain this rationale as provenance, not a fresh defect report. Future changes must target a demonstrated remaining gap.
 
 #### A. Route by requested action before feature intake
 
@@ -520,7 +576,7 @@ This capability remains in the roadmap; it is not required for the first release
 
 ### A7. Concrete file change map
 
-All paths below are relative to the supplied skill package root.
+Historical map: paths below are relative to the supplied skill package root. Several changes now exist in `skills-files/`; consult the Revision 6 baseline before scheduling work.
 
 | File | Planned change |
 |---|---|
@@ -540,7 +596,24 @@ All paths below are relative to the supplied skill package root.
 
 Add supporting references only when they keep the entry skill concise: one for task/readiness contracts, one for testing, and one for review resolution. Give each technique one owner; do not repeat it in every skill. An optional delegation reference belongs to a later increment.
 
-If a new skill is added, update the package's explicit ten-skill count and other inventories. The attached files do not include packaging code, so no claim is made about which packaging changes are required.
+The current package has eleven skills. If a later approved change adds helpers, inspect installer selection, embedded packaging and inventories before changing counts; this advisory revision changes none of them.
+
+#### Revision 6 incremental file map (all proposed)
+
+Canonical portable paths below are under `skills-files/`; select names/packaging only after dependency inspection. Existing behavior above should be retained rather than rewritten wholesale.
+
+| Target | Increment and exit condition |
+|---|---|
+| Router and shared workflow policy | Conditional helper pointers and decision distinctions; explicit/manual routes preserve identical authority |
+| Spec and plan skills | Focused grilling and attributed questionnaire ingestion; material questions resolved or blocked, facts investigated first |
+| Tasks skill and task-contract reference | Concise combined decision summary using existing sections; no competing approval field |
+| Implement and drift-retro skills | Late-answer impact reconciliation and scoped decision; unaffected approval retained |
+| Verification-review and review-resolution reference | Evidence limits and partial-acceptance consequences; findings/verdict survive human acceptance |
+| Conditional human-input reference or helper entry points | Own grilling/questionnaire procedures once; no blanket loading or automatic research agents |
+| Instruction-maintenance guidance | Inspected writing-for-agents principles; inspect missing mechanics before any full import |
+| Recovery pointers and explicit `handoff` entry | Follow AGENTS.md storage/structure and canonical-state-first transfer; no new authority |
+| Explicit `wait-what` and `teach` entries | Lightweight explanation/learning; no automatic feature-state or teaching-workspace writes |
+| `integrations/opencode/` and `tests/harness/` | Native invocation and pending-input/result mapping only if needed, plus scenario fixtures; no plugin without measured gap |
 
 ### A8. Workflow behavior scenarios
 
@@ -548,6 +621,17 @@ Use small scenario fixtures alongside each batch, not a new benchmarking product
 
 | Scenario | Expected observable behavior |
 |---|---|
+| Clear request with sufficient context | Proceeds in the requested mode without an interview or redundant approval |
+| Material ambiguity about behavior/risk | Focused independent questions with rationale and alternatives; dependent questions wait |
+| Repository/tool fact is discoverable | Investigates permitted sources first; no question delegated to human or unauthorized subagent |
+| Stakeholder answers conflict or express uncertainty | Attributed inputs remain unresolved until the responsible decision; no invented confirmed requirement or sending permission |
+| User agrees with a discovery answer/design option | Records only that meaning; no implementation or combined approval inferred |
+| User accepts partial delivery with technical blockers | Acceptance scope preserved; finding IDs, missing evidence and technical Blocked verdict remain |
+| Late answer changes one approved contract | Reconciles affected spec/plan/task edges and requests scoped decision; unaffected approval survives |
+| Handoff/compaction suggests further skills or next batch | Re-reads actual approval/continuation and diff; suggestions supply no authority |
+| User invokes clarification during review | Plain-language explanation only; files, verdict, approval and task state unchanged |
+| User invokes teaching during execution | Addresses learning request without implicit lesson files or batch advancement |
+| Headless run needs human input | Bounded pending/blocked result with resumable question summary; no guessed answer or auto-approval |
 | Request a direct fix in a repo without specs | No feature documents created or required |
 | Resume B1 awaiting review with explicit B2 authorization | Correctly considers the new scoped authorization; does not wait mechanically or run B3 |
 | Request spec only | Delivers spec only; no downstream drafting or implementation |
@@ -614,6 +698,8 @@ Exa was used to inspect Superpowers source and supporting references; Context7 w
 
 ## References
 
+Revision 6 source provenance: supplied `/home/nawo-ubuntu1/github/skills.md`, attributed to [mattpocock/skills](https://github.com/mattpocock/skills), productivity paths `grill-me`, `grilling`, `handoff`, `teach`, `to-questionnaire`, `wait-what`, `writing-for-agents`. Snapshot has no pinned upstream revision; source claims are interpreted from the supplied content, not a fresh upstream audit. Missing supporting files remain an adoption dependency. Current baseline was read from repository guidance, shared policy, the six core skills, review-resolution guidance and feature 004 approval/continuation/recovery records on 1 November 2026. Earlier source dates and findings below remain historical.
+
 The attached snapshot is the primary source for Agentic SDD findings. Superpowers URLs are moving branch references; pin the actual upstream revision and retain applicable notices when adapting material.
 
 - S1: [Builder check](https://github.com/obra/superpowers/blob/main/skills/brainstorming/builder-check-prompt.md)
@@ -663,4 +749,4 @@ Context7 supplied the initial lookup. Official V2 pages and current documentatio
 - N10: [Hugging Face Context Course](https://huggingface.co/learn/context-course/en/unit0/introduction) — conceptual cross-harness coverage.
 - N11: [V2 network configuration](https://opencode.ai/v2/docs/network/) — proxies, CAs and service environment.
 
-The new attachment is a checklist input, not implementation evidence. Only this advisory plan was updated. The supplied documents, skills, project repository and runtime configuration were not changed.
+The Revision 5 configuration attachment and Revision 6 productivity snapshot are design inputs, not implementation evidence. Only this advisory plan was updated. The supplied documents, skills, project repository and runtime configuration were not changed.

@@ -7,6 +7,12 @@ distinguishes observations from certified support.
 
 ## B3 artifacts
 
+Feature 005 adds the [B2 inactive configuration helper](usage.md) in the existing
+Go CLI, plus eighteen packaged skills after B1. It reads file-only preflight
+inputs and provides separately authorized digest-checked config transactions;
+it never starts native/provider activity. The historical B3 template/inventory
+below is not an adopted 005 configuration or updated runtime certification.
+
 - [Native template](opencode.jsonc): draft/build/review primaries and prompt-only
   current-session commands; one selected feature/build path, providers denied.
 - [Higher-authority lockdown example](policy-lockdown.jsonc): separate, inactive;

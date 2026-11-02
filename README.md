@@ -16,8 +16,8 @@ agentic-sdd apply   # installs the skills into every client you have
 
 Two things live here:
 
-- [`skills-files/`](skills-files/) — eleven skills that define the workflow. This is the product.
-- `cmd/` + `internal/` — a single-purpose installer that copies those skills into your client skill directories, backing up whatever it replaces.
+- [`skills-files/`](skills-files/) — eighteen skills for the workflow and focused human-input helpers. This is the product.
+- `cmd/` + `internal/` — the safe skill installer, deterministic check runner and inactive OpenCode configuration helper. None is a new agent orchestration engine.
 
 ![Agentic SDD architecture: the spec-driven workflow and Go CLI skill distribution](docs/agentic-sdd-architecture.png)
 
@@ -77,7 +77,7 @@ You can request corrections or authorize the next batch. On resume, the agent ch
 
 Start with **`agentic-sdd-router`** when beginning or resuming work. Use **`agentic-sdd-implement`** when you already know which approved batch or direct fix to execute.
 
-All eleven skills are manually invocable. You do not need to call every skill for every change. `agentic-sdd-debugging` supplies diagnosis process, not an extra domain-specialist role or permission to spawn another agent.
+All eighteen skills are manually invocable. You do not need to call every skill for every change. `agentic-sdd-debugging` supplies diagnosis process, not an extra domain-specialist role or permission to spawn another agent.
 
 These are the canonical source skills. Existing client installations change
 only through the normal, separately authorized installer update—not during
@@ -96,6 +96,28 @@ development or packaging tests.
 | `agentic-sdd-architecture-review` | Examine consequential design or operational decisions |
 | `agentic-sdd-research-spec` | Resolve a specific question blocking progress |
 | `agentic-sdd-drift-retro` | Address meaningful drift or capture a useful lesson |
+| `agentic-sdd-grill-me` | Explicitly challenge a proposal through the grilling procedure |
+| `agentic-sdd-grilling` | Resolve consequential ready questions without a mandatory interview |
+| `agentic-sdd-questionnaire` | Prepare recipient discovery questions and reconcile attributed answers |
+| `agentic-sdd-writing-for-agents` | Maintain precise agent-consumed instructions and references |
+| `agentic-sdd-handoff` | Prepare a canonical-first, sanitized session transfer |
+| `agentic-sdd-wait-what` | Re-explain status or a proposal without changing project state |
+| `agentic-sdd-teach` | Teach a requested concept; persistent learning files are opt-in |
+
+The helpers adapt [Matt Pocock productivity principles](skills-files/agentic-sdd-router/references/matt-pocock-notice.md)
+under the existing authority rules. They do not enable delegation, model evaluations,
+automatic interviews, external sending or a teaching workspace. Hidden/explicit-only
+skill metadata is not an access-control boundary. Behavioral benefit remains unproven;
+feature 005 schedules one human usage cycle after its entire selected implementation.
+
+### Inactive OpenCode configuration helper
+
+`agentic-sdd opencode --help` describes file-only candidate/preflight and config
+preview/apply/rollback operations; see [usage and safety limits](integrations/opencode/usage.md).
+No native model, shared service or credential store is accessed. Config preview
+is the default, and explicit config writes need separate actual live authorization.
+Current support remains uncertified; later native lifecycle/evidence batches and
+the final human usage cycle are not implied by these implemented operations.
 
 Invoke the relevant skill through your client, then give it a concrete request:
 
@@ -232,7 +254,7 @@ cmd/agentic-sdd/       CLI parsing, defaults, exit codes, interactive backup sel
 internal/skillsync/    Planning, comparison, backup, staged install, rollback, restore
 internal/version/      Build-time version metadata, injected via -ldflags at release
 skillsfiles.go         go:embed of skills-files/, so an installed binary needs no checkout
-skills-files/          The eleven Agentic SDD skills and shared references
+skills-files/          The eighteen Agentic SDD skills and shared references
 .goreleaser.yml        Darwin build, universal binary, Homebrew formula publishing
 .github/workflows/     release.yml (tag-triggered publish), ci.yml (build/test/vet)
 tests/                 Docker end-to-end scripts
@@ -294,6 +316,10 @@ non-root Linux, Python 3, Git, Docker and the exact preloaded image. Missing
 bootstrap/image inputs block; local runs never pull automatically. The proposed
 CI workflow must first be reviewed and adopted onto the trusted branch.
 See [trusted bootstrap, isolation and anti-weakening limits](harness/trusted-ci.md).
+
+Feature-wide support/adoption remains blocked on native acceptance and a useful
+controlled comparison; passing checks alone do not certify those guarantees.
+See the [acceptance evidence and remaining gaps](harness/acceptance.md).
 
 ## Releasing
 

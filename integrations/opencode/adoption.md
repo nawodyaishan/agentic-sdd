@@ -1,5 +1,12 @@
 # Manual adoption and rollback
 
+The [005/B2 helper](usage.md) now implements a **separate** file-only runtime-config
+preview/transaction interface in `agentic-sdd opencode config`. It does not merge
+JSONC, enable a provider, adopt this template or change the real home by default.
+The original B3 procedure/version below remains historical; use the generated
+005 candidate only with its exact source contract and separate actual adoption
+authorization, after the selected implementation is ready for human usage.
+
 **Not installed or certified.** Keep the shipped JSONC files under
 `integrations/opencode/` until the applicable native/tool/model blockers in
 [verification.md](verification.md) are resolved. Development/batch approval is
