@@ -383,6 +383,17 @@ continues to block affected online work; no new budget/allocation is created.
 
 ## Approval
 
+- **B3 authorization (2026-11-02):** user completed the B1/B2 human review and
+  authorized **B3** (native ACP transport and pending-human normalization,
+  T07–T08). The user's message added "authorize it using opencode … openrouter
+  cheap or free models"; this is recorded verbatim as context but does **not**
+  change the C4 admission boundary. B3 implementation is offline (synthetic fake
+  peers only); native prompt admission stays denied while the strict pre-send
+  token proof, credential isolation, complete accounting, provider caps/allowance
+  and auxiliary-retry prevention remain unverified. No exact reviewed model id,
+  data scope, bounded request/token/deadline limits, credential provisioning or
+  accounting evidence was supplied, so no real model call, native `opencode`
+  process, provider probe or paid/free inference is authorized by this wording.
 - Decision: **approved** (2026-11-02), user in this conversation. Presented the
   combined spec/plan/tasks r1 and B1 scope, the user replied **“Approve B1 B2”**.
   This approves the combined design and explicitly authorizes B1/T01–T04 and
