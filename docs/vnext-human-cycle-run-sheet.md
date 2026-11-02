@@ -31,6 +31,7 @@ Use with the [human test guide](vnext-human-test-guide.md). A blank row is
 | 11 | Optional: OpenCode starts inside the container | | `opencode --version` / TUI; no provider or network |
 | 12 | Optional: config preview wrote nothing | | |
 | 13 | Optional: evidence snapshot observed/refused correctly | | |
+| 14 | Optional: online login/chat, only if you chose `--online` | | Record login result and model used; data leaves container |
 
 Allowed results: **pass**, **fail**, **blocked**, **not run**. Add one short
 note per row: what you asked, what you expected, what happened. Do not paste

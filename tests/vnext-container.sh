@@ -6,6 +6,8 @@
 #   --batch   run tests/vnext-model-free-checks.sh and exit (no TTY required)
 #   --full    use the larger local Ubuntu base (git/bash/coreutils) instead of
 #             the slim default; no image is ever pulled
+#   --online  opt in to outbound network for an interactively authenticated
+#             session (credentials stay in ephemeral /tmp; never mounted)
 #
 #   - no network, no host home, no credentials, no Docker socket;
 #   - a read-only repository and read-only agentic-sdd binary mounted in;
@@ -32,13 +34,19 @@ die() {
 
 batch=0
 full=0
+online=0
 for arg in "$@"; do
   case "$arg" in
     --batch) batch=1 ;;
     --full) full=1 ;;
-    *) die "unknown argument $arg; use --batch, --full or no argument" ;;
+    --online) online=1 ;;
+    *) die "unknown argument $arg; use --batch, --full, --online or no argument" ;;
   esac
 done
+network=none
+if [ "$online" = 1 ]; then
+  network=bridge
+fi
 
 if [ -n "${SDD_CONTAINER_IMAGE:-}" ]; then
   image=$SDD_CONTAINER_IMAGE
@@ -71,14 +79,14 @@ fi
 docker image inspect "$image" >/dev/null 2>&1 || die "container image not present locally; this script never pulls"
 
 set -- \
-  --rm --pull=never --network=none --read-only \
+  --rm --pull=never --network "$network" --read-only \
   --cap-drop=ALL --security-opt=no-new-privileges \
   --pids-limit=256 --memory=1g --cpus=1 \
   --user "$(id -u):$(id -g)" \
   --tmpfs /tmp:rw,nosuid,nodev,exec,mode=1777,size=512m \
   -e HOME=/tmp/home -e XDG_CONFIG_HOME=/tmp/config \
   -e XDG_DATA_HOME=/tmp/data -e XDG_CACHE_HOME=/tmp/cache \
-  -e XDG_STATE_HOME=/tmp/state \
+  -e XDG_STATE_HOME=/tmp/state -e SDD_ONLINE="$online" \
   --mount "type=bind,src=$workspace,dst=/work" \
   --mount "type=bind,src=$root,dst=/src,readonly" \
   --mount "type=bind,src=$agentic,dst=/usr/local/bin/agentic-sdd,readonly" \
@@ -90,16 +98,25 @@ if [ -n "$opencode" ]; then
 fi
 
 if [ "$batch" = 1 ]; then
-  printf 'Batch mode: no network, credentials or host home; workspace=%s\n' "$workspace"
+  if [ "$online" = 1 ]; then
+    printf 'note: --online does not change the model-free batch; admission stays blocked\n'
+  fi
+  printf 'Batch mode (%s network): no host home or credentials; workspace=%s\n' "$network" "$workspace"
   exec docker run "$@" "$image" sh /src/tests/vnext-model-free-checks.sh
 fi
 
 exec docker run -it "$@" "$image" sh -c '
   mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" || exit 1
-  printf "Model-free container. No network, credentials or host home.\n"
+  printf "Container mode: %s network, no host home or mounted credentials.\n" "$([ "${SDD_ONLINE:-0}" = 1 ] && echo online || echo offline)"
   printf "Workspace: /work (writable scratch)   Repo: /src (read-only)\n"
+  if [ "${SDD_ONLINE:-0}" = 1 ]; then
+    printf "ONLINE: outbound network is enabled. You may log in inside; credentials stay in ephemeral /tmp.\n"
+    printf "        Data sent to a provider leaves this container. No automatic model call is made.\n"
+  else
+    printf "OFFLINE: no network. OpenCode cannot reach a provider or complete device login.\n"
+  fi
   if command -v opencode >/dev/null 2>&1; then
-    printf "OpenCode: %s (mounted read-only; no provider/network)\n" "$(opencode --version 2>/dev/null || echo present)"
+    printf "OpenCode: %s (mounted read-only)\n" "$(opencode --version 2>/dev/null || echo present)"
   else
     printf "note: opencode is not mounted; set OPENCODE_BINARY to the host binary\n"
   fi

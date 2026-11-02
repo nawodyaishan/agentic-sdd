@@ -195,6 +195,40 @@ The binary is **mounted read-only from the host**, not downloaded into the
 image. If the TUI reports a render-library error, you are in an old container:
 exit and start a fresh one with the current script.
 
+### Online mode (opt-in, you drive)
+
+The default container has `--network=none`, so OpenCode cannot reach a provider
+or complete device login. If you deliberately want a live session, add
+`--online`:
+
+```sh
+SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
+  tests/vnext-container.sh --online
+```
+
+Inside, log in yourself:
+
+```sh
+opencode auth login
+# follow the device-code URL in your host browser
+opencode
+```
+
+What changes and what does not:
+
+- outbound network is enabled; **credentials stay in ephemeral `/tmp`** and are
+  lost when the container exits;
+- no host home, credential store, SSH keys or Docker socket is mounted;
+- the root filesystem and `/src` stay read-only; `/work` is the only writable
+  project mount;
+- use only a disposable project and non-sensitive data. “Free” does not prove
+  privacy/ZDR or tool capability;
+- this is **outside** the model-free QA batch and is not evidence for native
+  admission, billing or support. No model call is made until you type one.
+
+If login fails, record the error and stop. Do not copy auth files into the
+container, disable the isolation flags or expose the Docker socket to fix it.
+
 ## 4. Optional: inactive OpenCode configuration (10 minutes)
 
 Only if you want to see the OpenCode path. This is preview-only; it writes
