@@ -26,7 +26,10 @@ certification.
   identity steps are optional and are normally run on the host instead (§6).
 - The host **OpenCode v2.2.5** binary is mounted read-only at
   `/usr/local/bin/opencode` **by default**; it is not downloaded or installed
-  from the network. `opencode --version` works, while sessions remain denied.
+  from the network. `opencode --version` is the check. Running bare `opencode`
+  opens the TUI (it needs `exec` on `/tmp` for its render library, which the
+  recipe enables), but with no provider/network it is not a model test and
+  cannot send a prompt.
 - `agentic-sdd apply` prints `Installed N skills; backup: …` even when the
   wording means “replaced and backed up” for changed copies.
 - `restore` first backs up the **current** installed tree and then restores the

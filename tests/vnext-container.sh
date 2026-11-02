@@ -59,7 +59,7 @@ set -- \
   --cap-drop=ALL --security-opt=no-new-privileges \
   --pids-limit=256 --memory=1g --cpus=1 \
   --user "$(id -u):$(id -g)" \
-  --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=512m \
+  --tmpfs /tmp:rw,nosuid,nodev,exec,mode=1777,size=512m \
   -e HOME=/tmp/home -e XDG_CONFIG_HOME=/tmp/config \
   -e XDG_DATA_HOME=/tmp/data -e XDG_CACHE_HOME=/tmp/cache \
   -e XDG_STATE_HOME=/tmp/state \
