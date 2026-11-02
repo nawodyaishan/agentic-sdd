@@ -42,10 +42,16 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 			}
 			printVersion(stdout)
 			return 0
+		case "opencode":
+			return runOpenCode(args[1:], stdout, stderr)
 		case "help":
 			if len(args) > 2 || (len(args) == 2 && !isHelpTopic(args[1])) {
 				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|logs|restore]")
 				return 2
+			}
+			if len(args) == 2 && args[1] == "opencode" {
+				printOpenCodeUsage(stdout)
+				return 0
 			}
 			printUsage(stdout)
 			return 0
@@ -117,7 +123,7 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 
 func isHelpTopic(s string) bool {
 	switch s {
-	case "preview", "apply", "backups", "logs", "restore":
+	case "preview", "apply", "backups", "logs", "restore", "opencode":
 		return true
 	}
 	return false
@@ -362,7 +368,8 @@ func printUsage(out io.Writer) {
        agentic-sdd logs [--home PATH]
        agentic-sdd restore [ID] [--apply] [--repo PATH] [--home PATH]
        agentic-sdd restore list|preview|apply [ID] [--repo PATH] [--home PATH]
-       agentic-sdd help [preview|apply|backups|logs|restore]
+       agentic-sdd opencode [candidate|preflight|config] [OPTIONS]
+       agentic-sdd help [preview|apply|backups|logs|restore|opencode]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -371,6 +378,7 @@ Commands:
   backups        List backups newest first (same as "restore list").
   logs           Show the latest apply or restore log.
   restore        Preview or restore a backup, selected by id or number.
+  opencode       Prepare inactive config and preview explicit config transactions.
 
 restore forms:
   restore                   Interactively list backups and pick one to preview.
