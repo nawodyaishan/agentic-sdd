@@ -182,6 +182,387 @@ Scripted cases cover malformed contracts, cancellation, policy precedence, inval
 
 The baseline and candidate must use the same model, fixture inputs, tools, permissions and check environment. If baseline execution is unavailable or paid use is not authorized, retain frozen fixtures and mark observations blocked. Do not tune and retrospectively invent a baseline. Paid comparisons require the separate decision in C2. Adoption stays open until useful benefit and unchanged quality are evidenced.
 
+## T11 follow-up proposal — isolated free-model acceptance (2026-10-30)
+
+**Preparation only; no inference is authorized by this proposal.** The user
+selected full acceptance, DeepSeek Flash Free and an isolated Linux pilot,
+and said “use any free opencode / openrouter model”. Propose the already chosen
+exact `opencode/deepseek-v4.1-flash-free`, with no variant override and no fallback.
+Changing the endpoint/model requires another bounded decision, not an implicit
+substitution. All existing acceptance criteria and findings remain in force.
+
+#### Public-source facts and limits
+
+Official V2 [Console models](https://opencode.ai/v2/docs/console/models),
+[providers](https://opencode.ai/v2/docs/providers),
+[agents](https://opencode.ai/v2/docs/agents) and
+[compaction](https://opencode.ai/v2/docs/compaction) were read on 2026-10-30,
+with Context7 `/websites/opencode_ai/v2` corroboration. The models page lists
+`deepseek-v4.1-flash-free` separately from the paid unsuffixed model, prices its
+input/output/cache reads as Free, and states no training/zero retention for
+its provider. Free availability is time-limited and free chat endpoints require
+OpenCode. These are published endpoint facts, not an observed inference,
+account entitlement, tool-compatibility result or universal privacy guarantee.
+No catalog/inference/account endpoint or primary credential store was queried.
+
+The same docs warn that session titles may use other low-cost models; hidden
+title/summary/compaction agents perform maintenance, step allowances reset with
+new input, and provider timeouts may be retried. Therefore setting a free main
+model plus `steps` and a wall deadline does **not** demonstrate a hard cumulative
+request/token/model boundary. Do not enable the existing provider-denied template
+and assume it is safe. Current docs also do not prove pinned 2.2.0 behavior.
+
+#### Proposed execution slices (each stops for review)
+
+| Slice | Scope and evidence | Execution authority / limits |
+| --- | --- | --- |
+| S0, offline safety preparation | In a fresh credential-free, network-disabled native fixture, observe request construction against a local fake endpoint; exercise wrong-model, retry, auxiliary-request, accounting/deadline denial and owned cleanup. Establish effective config and binary identity. No real endpoint or inference. | Authorized 2026-10-31 and delivered for review. Byte-budget/loopback controls are observed; verified real tokens and online isolation/allocation remain S0-F1/F2. No product proxy/plugin or implicit fixture relaxation. |
+| S1, first native capability preflight | One fresh synthetic project/session on exact 2.2.5; exact model/command/session observation, read/edit positive control and actual check-result/native-session correlation. Keep all other providers/integrations/children unavailable. No private repository, incident, user config or original credential content. | **Conditionally authorized 2026-10-31**, see spec §Approval: exact `opencode/deepseek-v4.1-flash-free`, 6 upstream inference attempts total including auxiliary activity; 32,768 input / 2,048 output tokens per request, 196,608 input / 12,288 output aggregate; 10-minute total / 90-second per-request deadlines; one active primary session, zero children/forwarded retries, $0 paid usage. Any unsupported/unverifiable accounting/egress control blocks forwarding. No S2/S3 allocation or paid fallback. |
+| S2, native acceptance | Actual mode/tool/canonical-path denials, all eight B5 behavioral cases, connected lifecycle, native cancellation/compaction/restart/location resume, no duplicate review and trusted native receipt correlation; two repetitions of critical native cases. Test reversible adoption only in a dedicated disposable pilot. | Separate exact scenario/session/request/token/deadline allocation after S1 review; **no open-ended allocation now**. Direct real-home apply, shared-service changes and macOS support are not implied. |
+| S3, comparison and final review | Hold model, frozen fixture inputs, tool/permission/runtime environment and evaluation oracles fixed across old and candidate instructions; include failures/interventions/latency/full usage and a user-supplied undisclosed concrete holdout. No model judge or tuning to the holdout. | Separate exact allocation after S2 review. Retain original pre-tuning B1/B2 observations unchanged. A matched replay of frozen old instructions on DeepSeek would be a new retrospective study, not a newly invented pre-tuning baseline or a directly comparable B2 cost result. If provenance/benefit is insufficient, remain Blocked. |
+
+#### Isolation and authorization prerequisites
+
+- Use only synthetic pilot inputs, explicitly allowlisted public skill text when
+  needed, fresh native HOME/XDG/state and dedicated owner-only external evidence.
+  No host home/auth database, Git credentials, primary service or Docker socket
+  is exposed to model-selected test programs. State/restart changes affect only
+  the pilot. No existing credential-bearing sandbox is opened or copied.
+- Before S1, demonstrate a single controlled outgoing path that rejects every
+  unapproved host/path/model and counts **all** generation attempts before send,
+  including concurrent and auxiliary work. A blind HTTPS host allowlist is not
+  model/request enforcement. The test-program execution environment must be
+  separate from provider egress/credential-bearing execution. Failure or an
+  unobservable bypass stops the affected slice.
+- No runtime-supported enforcement has yet been proven. An isolated lab-only
+  forwarding gate would be a consequential design addition and touches the
+  exclusion of proxies/custom infrastructure; **do not implement it without a
+  separately scoped user decision**. A user-provided existing equivalent may
+  be used only after its actual controls are reviewed. Do not weaken limits to
+  bypass this unresolved prerequisite.
+- No paid credential, recharge, subscription-sharing token, provider probing or
+  fallback is permitted. Prefer a credential-free free route if the pinned
+  runtime supports it. If authentication is necessary, first review a dedicated
+  scope with the user, who supplies a secret reference outside chat; never ask
+  for a key value or copy the primary auth store. The previously reported
+  OpenRouter cap is not an OpenCode credential or verified current allowance.
+- Reconfirm the exact endpoint's published price/policy before execution.
+  Runtime claims must match actual selected/sent IDs and destinations. Unknown
+  price, uncontrolled auxiliary routes, delayed/unknown billable usage or
+  changing terms stops the run. Do not fetch paid alternatives to diagnose it.
+- An isolated Linux pilot does not supply native Darwin evidence or silently
+  revise the approved supported-host plan. Any remaining host-support scope
+  decision returns for review; remote required-check administration and actual
+  user installation remain separate optional live operations, not hidden tasks.
+
+Main-agent architecture assessment: **Blocked for online execution**. The S0
+lab-only exception is now approved and offline byte/HTTP/native-fake controls
+are observed; real-token accounting and online egress/credential/allocation
+provenance remain unverified (S0-F1/F2). Public price/privacy documentation narrows
+B3-F3 but does not close B3-F1/F2/F3/F4, B5-F1, B6-F1/F2 or B8-F1/F2. Next is
+S0 review and resolution of those prerequisites, not inference permission or a
+promise that the feature will become Ready.
+
+#### S0 implementation contract (authorized 2026-10-31)
+
+Keep this optional stdlib fixture under `tests/harness/`, never in the product,
+active config or an installed skill. Its HTTP upstream is fixed to numeric IPv4
+loopback in the same network-disabled container; no DNS, external URLs, redirect,
+CONNECT, WebSocket, inherited proxy or runtime endpoint switch. Only one exact
+chat-completions path/model and a bounded JSON field allowlist are admitted.
+No user headers/auth material are forwarded. Error/log records are metadata-only.
+
+The run-level budget is shared across sessions/maintenance requests, locked
+before reservation, and counts every accepted forwarding attempt including a
+failed upstream request. Reserve full requested output capacity and observed
+input units before dispatch; never refund on failure/cancellation or trust usage
+events to release allowance. Persist reservations with fsync before send; an
+existing allocation journal cannot be reopened/reset after a restart. Unknown
+accounting, malformed input, cancellation, expiry, read limit, persistence error
+or uncertainty stops forwarding. Per-operation timeout and response-size bounds
+are separate from the absolute run deadline. Streaming may be buffered under
+those bounds for this offline test; it is not certified online streaming.
+
+S0 uses a deliberately conservative **UTF-8 byte quota** for synthetic HTTP
+request/response payloads, explicitly not a verified DeepSeek tokenizer. Unknown
+real-model input/output token accounting remains blocked for S1; do not rename
+byte counters “tokens”. Native request construction against a fake provider
+does not prove the real OpenCode free endpoint accepts routing/authentication or
+model limits. No real endpoint/credential path exists in this implementation.
+
+Test the state machine first, then loopback HTTP behavior in the unprivileged
+network-none container and the explicitly selected native request shape with fake responses only.
+Execute synthetic test programs in a separate network-none worker with no
+runtime/gate state, headers or control socket mounted. The trusted host test
+driver owns both containers and cleanup; no Docker socket enters either.
+This demonstrates an offline separation, not verified online egress/credential
+isolation or a general native-shell sandbox. Load `opencode` guidance in the
+main agent and `backend-security-coder` for the transport/validation boundary;
+no subagents, external tokenizer installs or native-template changes.
+
+S0 follow-up observation (2026-10-31): the actual binary was 2.2.5, not 2.2.0;
+the initial guard stopped before prompt submission. User allowed later versions,
+so only the observed 2.2.5 binary is frozen/revalidated. The S0-only config must
+explicitly allow its fake `integration.use` entry under 2.2.3+ semantics, with
+separate MCP/skill/plugin denials. `max_completion_tokens` is observed on the
+main request; exactly one of it and `max_tokens` is supported, never both.
+Cap-less requests are rejected. Byte accounting/loopback-only egress and unknown
+online allocation provenance remain S0-F1/F2, not a completed real-token boundary.
+See `tests/harness/S0.md` and current tasks for actual results and readiness.
+
+#### S1 accounting research and dependency decision (2026-10-31)
+
+Named blocker: establish real input/output accounting and the selected hosted
+endpoint's request projection before forwarding; a raw-byte quota is not renamed
+a token quota. S0 is now accepted and the exact S1 envelope conditionally
+authorized; do not re-request unchanged model/budget authorization or waive its
+conditions to obtain a result.
+
+Official [DeepSeek token usage](https://api-docs.deepseek.com/quick_start/token_usage)
+(Context7 `/websites/api-docs_deepseek` plus direct page) says character ratios
+are approximate and response usage is authoritative. It links the offline
+[V4 tokenizer archive](https://cdn.deepseek.com/api-docs/deepseek_v4_tokenizer.zip).
+Public source inspection only: SHA-256
+`e7310d1dafe0a86d8a5629fe78a7c763760f651db9b8682718a1781dcd6fe495`,
+retained at `/tmp/opencode/sdd-s1-research.f9hbu53h/public-tokenizer.zip`.
+No archive code was run or installed. It contains tokenizer JSON/config and a
+277-byte Python demo recommending `transformers` with `trust_remote_code=True`.
+**Do not execute that demo.** JSON describes byte-level BPE, no normalizer,
+a chat template and legacy `model_max_length=16384`; neither that stale-length
+field nor the archive alone proves the OpenCode-hosted V4.1 chat/tool projection.
+Keep server-inserted framing/tools/reasoning and gateway translation as explicit
+verification prerequisites, not locally invented constants.
+
+The existing host lacks `tokenizers` and `transformers`; no install was attempted.
+Hugging Face `/huggingface/tokenizers` docs support local
+`Tokenizer.from_file(...)` / `encode(..., add_special_tokens=False)` without
+running model-provided Python or calling the Hub. Candidate **for review only**:
+official PyPI `tokenizers==0.22.1`, Linux cp39-abi3 manylinux x86_64 wheel,
+3,250,221 bytes, SHA-256
+`e2ef6063d7a84994129732b47e7915e8710f27f99f3a3260b8a38fc7ccd083f4`.
+PyPI metadata declares `huggingface-hub<2,>=0.16.4`; do not install it or other
+transitives automatically. A scoped exception is needed for optional isolated
+lab dependency acquisition/import, with archive/member audit, pinned hashes,
+read-only mounts, no network while testing and no system/user/image/Go dependency
+changes. If that wheel cannot work without more reviewed dependencies, stop and
+report it rather than resolve packages or download model code implicitly.
+
+Official OpenCode Console models page was re-read on 2026-10-31: the exact free
+endpoint remains listed free with the stated no-training/zero-retention policy.
+No inference/catalog/account endpoint was probed. This public policy evidence
+does not establish availability/auth requirements or every actual request path.
+S1 still needs the separately reviewed network/credential/allocation boundary;
+do not turn the offline loopback reference into an internet forwarder by simply
+relaxing its destination guard. Tokenizer acquisition alone does not clear it.
+
+Planned online topology (not implemented/verified): the native runtime has only
+an internal pilot network to a trusted gate and a dedicated synthetic workspace;
+it receives no host home, provider credential, gate journal or Docker socket.
+Only the gate has provider egress, with a fixed TLS-verified host/path/model,
+no redirects/proxy inheritance, durable allocation-bound reservations and a
+single external deadline. Synthetic test execution remains a separate
+network-none worker driven by trusted checks, not a model-selected host shell.
+Unknown token projection, cap-less calls, unapproved destinations/headers,
+loss/restart of allocation state or any bypass stop forwarding. Prove the
+topology with fake upstream/canary negative controls before enabling exactly
+the approved real route. No paid account or primary auth store is needed or
+permitted merely to discover whether the credential-free free route works.
+
+#### Local source audit result and remaining decision (2026-10-31)
+
+The approved exact wheel was acquired and its members inspected, then only its
+package files were unpacked into disposable `wheel-library/` under the private
+research root. No pip/system/user/image install or automatic transitive package
+resolution. With readonly wheel/data mounts in the existing non-root network-none
+Python container, **four source-audit tests pass** without importing Transformers
+or Hugging Face Hub. They check fixed public-data hashes, independent special-token
+IDs, known text, disabled truncation/padding and a 40,000-token input that must
+not silently truncate. A literal plain system/user chat example counts 9 local
+tokens. Reproduce using `tests/harness/test_tokenizer_source.py` with explicitly
+prepared `/wheel` / `/token-source` mounts; it is not part of production or a live
+governor. The exact data identities and result paths live in tasks.
+
+**S0-F1 is narrowed, not closed.** A working local tokenizer does not establish
+the hosted `opencode/deepseek-v4.1-flash-free` chat/tool/reasoning projection.
+The inspected public template does not by itself prove the gateway's added
+framing/tool-schema treatment. The current strict pre-send input-token condition
+therefore remains unverified. Per the dependency decision, stop here rather than
+install more packages, label byte/character estimates exact or submit a real
+request to discover whether the original condition holds. The separate online
+egress/allocation proof also remains outstanding. Original S1 authorization is
+retained but no generation allowance is spent.
+
+Scope-review alternative **P1 (authorized by corrected choice, 2026-11-01)**: a distinct one-request
+observational measurement, not an acceptance pass or a relaxation silently
+applied to S1. If the user explicitly selects it, it consumes **one of S1's six
+total allowed upstream attempts**, not an extra allocation. Exact model and
+runtime stay unchanged, zero variant/fallback/paid usage, no provider credential,
+synthetic literal text only and no tool execution. Hard outgoing body limit
+**4,096 UTF-8 bytes**, requested output cap **256 tokens**, one primary session,
+zero children/retries, **90 seconds** for the request and the existing ten-minute
+overall limit. Input tokens would be measured/validated from the response, **not
+claimed pre-proven**. No receipt or result can label original S1's hard input
+condition satisfied on that basis. Stop after this attempt even on success;
+remaining original S1 attempts stay conditional. If usage/zero pricing is
+unavailable or uncertain, record unknown and do not continue. Online egress/
+request/allocation controls still must pass fake negative tests before any P1
+forwarding; this alternative is not permission to bypass those controls. The
+other choices are supply matching hosted-projection evidence or keep S1 blocked.
+
+P1 implementation boundary: keep S0's loopback/byte fixture unchanged. A separate
+lab-only controller accepts a short authenticated request from an internal-only
+native container, validates exact model/path/cap and the literal P1 user prompt,
+then emits a **fixed text-only canonical provider payload**, omitting tool schemas,
+native system/environment details and caller headers. Record both input/payload
+identities; do not claim the transformed payload is original S1 tool execution.
+Only the gate can reach a fixed TLS-verified `opencode.ai` chat-completions path;
+no redirect, automatic retry, runtime-selected URL, inherited proxy or provider
+credential. Forward only bounded genuine OpenCode client-identification headers
+needed by its signed-out free tier, never authorization/cookies/local gate tokens.
+If the endpoint requires an account or unsupported routing, stop rather than
+fetch credentials or substitute a paid route.
+
+Use a newly created private **stable P1 allocation directory** outside the repo,
+exclusive/fsynced reservation before network dispatch and no restart/reset/refund.
+The real allocation path is fixed for this authorization, not a fresh temp path
+on each invocation. A prior/uncertain marker prevents another attempt. Offline
+tests use separate fake allocations. Gate and runtime have separate containers;
+runtime is only on a dedicated internal network, gate alone also has outbound
+connectivity. No published ports, host home/state or Docker socket in either.
+Only trusted host code owns network/container creation and scoped cleanup.
+
+Before real execution test wrong/uncapped models, framing, body size, bad local
+capability, concurrency/replay/restart, redirect/error, deadlines and runtime
+direct-egress denial against fake upstreams. For P1, output-token requests and
+response-byte limits are separate units; never reuse S0's byte reservation as a
+token count. Buffer a bounded JSON response, retain only final text and allowlisted
+usage/model/ID/status metadata, discard reasoning/private headers, then adapt
+to the native client's SSE envelope if needed. Unknown or exceeded usage remains
+unknown/failure, not a reason to send a second request. Report published free
+pricing separately from observed billing, which may be unknown.
+
+P1 outcome (2026-11-01): the single approved attempt returned HTTP 429 and stopped.
+See tasks for exact source-bound offline proof and actual evidence. Native 2.2.5
+JSON-quotes the CLI literal; the gate accepts only that exact encoding or the
+literal/text part and still forwards the fixed canonical body above. Omit the
+synthetic `steps=1` setting, which inserts an assistant warning on the initial
+request; the gate reservation, denied tools and process deadline bound this lab.
+No general assistant-turn allowance was added. Driver completion is not model
+success; 1/6 attempts consumed, five remain conditional and may not run
+automatically. Do not retry 429, probe routes or reset the allocation.
+
+## Safety prerequisite research and public CI observation (2026-11-01)
+
+Scope: documentary evidence/public unauthenticated metadata only, per spec
+§Approval. Question: does OpenRouter establish a matching pre-send accounting
+contract and safe exact route for the requested candidate families, and can
+existing public CI evidence narrow B7-F1 without a new PR or credentials?
+Evidence threshold is an endpoint-specific contract, not local token counts,
+catalog flags or a successful upload step. Runtime remains frozen 2.2.5; no
+adapter/provider configuration was changed or executed.
+
+Planning decisions after this research: the user selected exact
+`openrouter/nvidia/nemotron-3-ultra-550b-a55b:free` first, proposed upstream NVIDIA,
+synthetic-only, no paid fallback. Ling is an investigated alternative, not the
+selected default. Later paid proposals must fit **$0.05/run and $0.25/month**;
+these are planning ceilings, not spend or credential/cap-management authority.
+The user retained **strict pre-send token guarantees** instead of a distinct
+post-measured exception. Therefore **online work stays blocked** on matching
+evidence; do not draft an exception as if selected, implement an adapter or
+transfer the original S1 attempts. Sole decision record: spec §Approval.
+
+### OpenRouter candidate metadata (not execution approval)
+
+Public `GET https://openrouter.ai/api/v1/models` and model-specific `/endpoints`
+metadata were inspected. Advertised USD **per million tokens**, not a run cap:
+
+| Exact OpenRouter model ID | Advertised input / output | Relevant limitation |
+| --- | --- | --- |
+| `inclusionai/ling-3.0-flash` | $0.021 / $0.063 at `novita`; $0.06 / $0.18 at `deepinfra/bf16` | Both exact routes appear in the public ZDR list with `safety_retention: false`. Catalog says reasoning optional/default-on; tools/max_tokens advertised, not behaviorally tested. Unselected alternative, not enabled. |
+| `nvidia/nemotron-3-ultra-550b-a55b:free` | $0 / $0 | Selected planning candidate, exact endpoint `nvidia`; absent from the inspected ZDR list. Provider policy says retention unknown/may train. Synthetic-only; no suffix removal or paid fallback. Endpoint metadata reported `status: -2`, not interpreted as a successful/available inference observation. |
+| `nvidia/nemotron-3.5-lightning:free` | $0 / $0 (model catalog) | Another possible interpretation of the user's Nemotron family; absent from the ZDR list. Exact endpoint/capability validation not performed. Not automatically selected. |
+| `z-ai/glm-5.3-flash` | From $0.0285 / $0.0923 (catalog/`relace/fp4` route) | Many providers/quantizations/prices; 34 exact-model ZDR entries observed, not permission to route to all of them. Catalog reasoning is mandatory/default max; a tiny visible-text cap is not a safe claim about total reasoning. Exact provider still requires a decision. |
+| `qwen/qwen3.7-flash` | From $0.03 / $0.13 (model catalog) | Additional cheap candidate only; endpoint/privacy checks outstanding. No rolling `latest`, auto router or broad cheap-model allowlist is proposed. |
+
+Catalog prices are time-sensitive routing offers, not verified paid eligibility,
+key/account allowance, native tool correctness or a comparative-quality result.
+In particular a private/ZDR endpoint cannot inherit the cheapest unrelated
+route's price. Match exact model **and endpoint**, pricing and retention before
+any later allocation; pin a provider rather than accepting default routing.
+
+### Accounting and isolation verdict
+
+Official [usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting)
+documents native token/cost/cache/reasoning counts **after** completion. Context7
+plus targeted official-document search found no authoritative pre-send hosted
+chat/tool projection contract for these routes; this is an unresolved evidence
+search, not proof that no such API could exist. Metadata says tokenizer `Other`
+and instruct type null. **S0-F1 remains open**; an OpenRouter switch does not
+satisfy original exact-model S1 or transfer its five remaining attempts.
+
+[Routing](https://openrouter.ai/docs/guides/routing/provider-selection) defaults
+`allow_fallbacks` true and `require_parameters` false; future reviewed payloads
+would need exact provider restriction, disabled fallbacks, required parameter
+support and appropriate data-policy/ZDR enforcement. `max_price` limits unit
+prices, not total requests or total spend.
+[Reasoning guidance](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)
+states reasoning is billed output and counts against the output limit on **most**
+providers; excluding returned reasoning does not make it free or disable it.
+That wording is not an endpoint-specific universal hard-output guarantee.
+[ZDR](https://openrouter.ai/docs/guides/features/zdr) is endpoint-specific and
+does not cover plugins/server-tool backends or eliminate disclosed legal/safety
+exceptions. [Provider logging](https://openrouter.ai/docs/guides/privacy/provider-logging)
+lists NVIDIA as unknown retention/may train; do not relax privacy to obtain a
+free result.
+
+[Key-limit documentation](https://openrouter.ai/docs/api_reference/limits)
+describes key limits/remaining allowance and effective budget layers. No
+authenticated account/key endpoint was called, key opened or cap changed. Paid
+planning still needs an explicit run/month ceiling and independently verified
+dedicated provider-side cap/remaining budget, counting all in-flight work.
+No key value belongs in conversation or Git.
+
+**S0-F2 remains open beyond P1's narrow boundary.** The frozen P1 courier only
+permits signed-out `opencode.ai` and transforms to fixed text; it cannot be
+relabeled an authenticated OpenRouter/native-tool boundary. A future adapter
+needs separate reviewed offline isolation, scoped secret delivery outside the
+runtime, exact upstream payload/routing enforcement and independent reconciliation
+of native sessions/usage. Current research authorizes neither its implementation
+nor an online experiment. Freeze model/provider/quantization and all other
+conditions within each future baseline/candidate comparison; mixed-model results
+cannot establish instruction benefit.
+
+### Existing public CI observation
+
+Unauthenticated GitHub API reconfirmed push run
+[`41083183856`](https://github.com/nawodyaishan/agentic-sdd/actions/runs/41083183856)
+on `ee8bd0dde118edf05ef4f41410e24f87a108046e`: quality job/gate/upload steps
+success. Artifact `12990182846`, `trusted-deterministic-checks`, 3,225 bytes,
+not expired at observation; API-advertised digest
+`sha256:c62d84829103251b457ccd9892c25383c69ea01c15ecb0158043fd75fa921463`.
+This is listing metadata, **not a downloaded-content digest or content review**.
+One unauthenticated archive GET returned **HTTP 401**; stopped without using
+credentials. `event=pull_request_target` run listing returned total_count **0**.
+Older `pull_request` evidence predates this workflow and is not a substitute.
+**B7-F1 remains open** for PR-path/content evidence; artifact existence/upload
+success are now independently observed. No PR/push/branch rule or service changed.
+
+Subsequently the user supplied the actual ZIP at `/home/nawo-ubuntu1/github/scp`.
+Its SHA-256 matches the GitHub upload digest; all nine members were inspected,
+the embedded/separate check results agree, six exit-zero check statuses and six
+log digests match. The two revisions are the same push commit, so this closes the
+**artifact-content observation**, not the separate PR/fork-path or remote-policy
+gaps. See tasks for exact evidence and scope. No user file was changed.
+
+Raw public API observations are in owner-private
+`/tmp/opencode/sdd-safety-research.owgkkz1x/`; tasks links their identities.
+Official prose above was inspected through Context7/Exa extraction; do not claim
+raw HTML hashes for it. No inference/account probe, dependency/model download,
+model child, fixture execution or code change occurred. Subsequent planning
+answers above retain strict blocking; no automatic next run. Missing inputs are
+matching authoritative token evidence and separately supplied CI content/PR-path
+evidence, not another unchanged model/budget confirmation.
+
 ## Specialist and tool assignments
 
 Use one main agent; no delegation is authorized. These skills are present in the current catalog; recheck availability when implementing. Load only the relevant guidance, not all entries together.
