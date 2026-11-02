@@ -32,6 +32,7 @@ Use with the [human test guide](vnext-human-test-guide.md). A blank row is
 | 12 | Optional: config preview wrote nothing | | |
 | 13 | Optional: evidence snapshot observed/refused correctly | | |
 | 14 | Optional: online login/chat, only if you chose `--online` | | Run `vnext-online-check.sh`; `--hi` is one live prompt |
+| 15 | Optional: SDD router inside container uses packaged skills | | Prompt in guide §3; expect spec/plan/tasks, no implementation |
 
 Allowed results: **pass**, **fail**, **blocked**, **not run**. Add one short
 note per row: what you asked, what you expected, what happened. Do not paste

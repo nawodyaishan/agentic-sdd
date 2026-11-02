@@ -129,5 +129,17 @@ exec docker run -it "$@" "$image" sh -c '
     printf "note: opencode is not mounted; set OPENCODE_BINARY to the host binary\n"
   fi
   command -v git >/dev/null 2>&1 || printf "note: git is absent; evidence identity steps are optional (see guide)\n"
+  if command -v agentic-sdd >/dev/null 2>&1; then
+    if agentic-sdd apply --home "$HOME" >/tmp/sdd-skills.log 2>&1; then
+      count=$(find "$HOME/.agents/skills" -name SKILL.md 2>/dev/null | wc -l | tr -d " ")
+      printf "SDD skills: %s installed under ~/.agents/skills (also codex/claude/agy)\n" "$count"
+    else
+      printf "warning: SDD skill install failed; see /tmp/sdd-skills.log\n"
+    fi
+    if agentic-sdd opencode candidate --feature demo --build-path src >/work/sdd-candidate.jsonc 2>/dev/null; then
+      printf "Inactive SDD config written to /work/sdd-candidate.jsonc (not activated)\n"
+    fi
+  fi
+  printf "SDD config examples: /src/integrations/opencode (inactive; not applied)\n"
   exec sh
 '

@@ -198,6 +198,26 @@ The binary is **mounted read-only from the host**, not downloaded into the
 image. If the TUI reports a render-library error, you are in an old container:
 exit and start a fresh one with the current script.
 
+### SDD skills and config inside the container
+
+On startup the interactive container installs the **18 Agentic SDD skills** from
+the embedded CLI into `~/.agents/skills` (and the corresponding codex/claude/agy
+directories). Verify:
+
+```sh
+find "$HOME/.agents/skills" -name SKILL.md | wc -l    # 18
+ls "$HOME/.agents/skills" | head
+```
+
+OpenCode discovers these skills without any host configuration. If the assistant
+answers with only the builtin `opencode` skill and no `agentic-sdd-*` skill, you
+are in an old container: exit and restart with the current script.
+
+The container deliberately **does not activate** the SDD OpenCode candidate,
+because that candidate denies providers. It writes an inactive copy to
+`/work/sdd-candidate.jsonc`; the examples under `/src/integrations/opencode` are
+read-only. Preview them, do not apply them in this cycle.
+
 ### Online mode — exact sequence (you drive)
 
 This is the only part that uses network and your login. Follow it in order.
@@ -281,6 +301,23 @@ Type `hi` and confirm a reply. Quit with the TUI’s quit key or `Ctrl-C`, then
 
 Record login result, exact model id, whether `hi` replied, and any error. The
 login lives only in the container’s ephemeral `/tmp` and disappears on exit.
+
+### SDD router inside the container (optional, online)
+
+After login, confirm OpenCode uses the packaged SDD skills rather than a generic
+answer. In the TUI, paste:
+
+> Use the agentic-sdd-router skill. Draft a spec, plan and tasks for a minimal
+> React + Go + SQLite post app: a textbox with Submit and a feed showing posts
+> from the database. Stop for my approval; do not implement anything yet.
+
+You should see: the router/feature-drafting behavior (three documents), no
+implementation, and a wait for your combined approval. It may ask a small
+number of clarifying questions.
+
+If you instead get a generic one-off plan or a builtin `opencode` skill answer,
+check the skill count above and restart the container. Record the outcome and
+the model used.
 
 **What changes and what does not**
 
