@@ -219,6 +219,26 @@ The script sets explicit resolvers (`1.1.1.1`, `8.8.8.8`) in online mode, becaus
 Docker can otherwise copy the host's `127.0.0.53` systemd-resolved stub, which is
 unreachable inside the container. Override with `SDD_CONTAINER_DNS` if needed.
 
+Check connectivity before logging in:
+
+```sh
+sh /src/tests/vnext-online-check.sh
+```
+
+Expected: `PASS dns-opencode-ai`, `PASS https-opencode-ai`, `PASS
+opencode-binary`, and `SKIP hi-response`. This makes no model call.
+
+After login, optionally test one tiny round trip (this **does** send one prompt
+and use your authenticated account):
+
+```sh
+SDD_HI_MODEL=<exact provider/model id> sh /src/tests/vnext-online-check.sh --hi
+```
+
+Expected: `PASS hi-response` and a short printed reply. Without `SDD_HI_MODEL`
+it stays skipped. Use only disposable, non-sensitive content; the response is
+printed truncated to 300 characters.
+
 What changes and what does not:
 
 - outbound network is enabled; **credentials stay in ephemeral `/tmp`** and are
