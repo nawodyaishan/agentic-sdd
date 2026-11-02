@@ -6,7 +6,9 @@ quality, speed or cost.
 
 Use a **safe, disposable project** (not production data). Do not change your
 normal OpenCode configuration in this cycle; the config section is preview-only.
-No credentials, payments or native OpenCode prompts are needed.
+The default cycle needs no credentials or payments. The optional online
+OpenCode mode uses your own login and one disposable prompt; it is separate from
+the delivered adapter, whose native admission stays blocked.
 
 Record each task in the [run sheet](vnext-human-cycle-run-sheet.md). For the
 design rationale, see the [final usage plan](vnext-human-test-plan.md).
@@ -25,8 +27,9 @@ design rationale, see the [final usage plan](vnext-human-test-plan.md).
 ## Before you start
 
 - Pick a small, real task you can throw away.
-- Use your normal assistant/chat for the workflow scenarios below. Native
-  OpenCode prompt execution is still blocked by design; do not try to enable it.
+- Use your normal assistant/chat for the workflow scenarios below. The delivered
+  adapter’s native prompt admission is still blocked; do not treat an optional
+  online OpenCode session as adapter evidence.
 - Decide a timebox (90 minutes suggested) and stop on anything unexpected.
 - Have the repository path available for the build check.
 
@@ -164,7 +167,7 @@ unless you explicitly asked for one.
 
 Record: did it stay focused?
 
-## 3. OpenCode inside the container (optional, 5 minutes)
+## 3. OpenCode inside the container (optional, 5–15 minutes)
 
 Start the interactive sandbox (not `--batch`):
 
@@ -195,67 +198,110 @@ The binary is **mounted read-only from the host**, not downloaded into the
 image. If the TUI reports a render-library error, you are in an old container:
 exit and start a fresh one with the current script.
 
-### Online mode (opt-in, you drive)
+### Online mode — exact sequence (you drive)
 
-The default container has `--network=none`, so OpenCode cannot reach a provider
-or complete device login. If you deliberately want a live session, add
-`--online`:
+This is the only part that uses network and your login. Follow it in order.
+
+**Step 1 — start the online container**
 
 ```sh
+cd ~/github/agentic-sdd
+make build
+mkdir -p /tmp/opencode/vnext-cycle-work
 SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
-  tests/vnext-container.sh --online
+  tests/vnext-container.sh --online --full
 ```
 
-Inside, log in yourself:
+Expected banner:
 
-```sh
-getent hosts opencode.ai    # expect IPv4/IPv6 addresses; if not, stop and report
-opencode auth login
-# follow the device-code URL in your host browser
-opencode
+```text
+Container mode: online network, no host home or mounted credentials.
+OpenCode: opencode v2.2.5 (mounted read-only)
 ```
 
-The script sets explicit resolvers (`1.1.1.1`, `8.8.8.8`) in online mode, because
-Docker can otherwise copy the host's `127.0.0.53` systemd-resolved stub, which is
-unreachable inside the container. Override with `SDD_CONTAINER_DNS` if needed.
+If it says `offline`, you are in the wrong container. Exit and rerun the command
+above.
 
-Check connectivity before logging in:
+**Step 2 — check connectivity (no model call)**
 
 ```sh
+getent hosts opencode.ai
 sh /src/tests/vnext-online-check.sh
 ```
 
-Expected: `PASS dns-opencode-ai`, `PASS https-opencode-ai`, `PASS
-opencode-binary`, and `SKIP hi-response`. This makes no model call.
+Expected: addresses from `getent`, then:
 
-After login, optionally test one tiny round trip (this **does** send one prompt
-and use your authenticated account):
+```text
+PASS dns-opencode-ai
+PASS https-opencode-ai
+PASS opencode-binary
+SKIP hi-response: connectivity only; use --hi with SDD_HI_MODEL for one prompt
 
-```sh
-SDD_HI_MODEL=<exact provider/model id> sh /src/tests/vnext-online-check.sh --hi
+Summary: 3 passed, 0 failed, 1 skipped
 ```
 
-Expected: `PASS hi-response` and a short printed reply. Without `SDD_HI_MODEL`
-it stays skipped. Use only disposable, non-sensitive content; the response is
-printed truncated to 300 characters.
+If DNS/HTTPS fails, stop. `cat /etc/resolv.conf` must contain `1.1.1.1` and
+`8.8.8.8`; if it contains only `127.0.0.53`, you are in a stale container.
 
-What changes and what does not:
+**Step 3 — log in**
 
-- outbound network is enabled; **credentials stay in ephemeral `/tmp`** and are
-  lost when the container exits;
+```sh
+opencode auth login
+```
+
+Open the printed device-code URL in your **host** browser and complete the code.
+Optional confirmation (no secrets printed):
+
+```sh
+opencode auth list
+```
+
+**Step 4 — one “hi” round trip (one model call)**
+
+```sh
+SDD_HI_MODEL=<exact provider/model id> \
+  sh /src/tests/vnext-online-check.sh --hi
+```
+
+Example from the usage catalog: `opencode/deepseek-v4.1-flash-free` (reported
+free; access/privacy are not verified here). Expected: `PASS hi-response` plus a
+short reply (truncated to 300 characters). Use only disposable, non-sensitive
+content. Without `SDD_HI_MODEL` the check stays skipped.
+
+**Step 5 — TUI check**
+
+```sh
+opencode
+```
+
+Type `hi` and confirm a reply. Quit with the TUI’s quit key or `Ctrl-C`, then
+`exit` to leave the container.
+
+**Step 6 — record**
+
+Record login result, exact model id, whether `hi` replied, and any error. The
+login lives only in the container’s ephemeral `/tmp` and disappears on exit.
+
+**What changes and what does not**
+
+- outbound network is enabled; credentials stay in ephemeral `/tmp`;
 - no host home, credential store, SSH keys or Docker socket is mounted;
-- the root filesystem and `/src` stay read-only; `/work` is the only writable
-  project mount;
+- root and `/src` stay read-only; `/work` is the only writable project mount;
 - use only a disposable project and non-sensitive data. “Free” does not prove
   privacy/ZDR or tool capability;
 - this is **outside** the model-free QA batch and is not evidence for native
-  admission, billing or support. No model call is made until you type one.
+  admission, billing or support.
 
-If login fails, record the error and stop. `EAI_AGAIN` or a transport error means
-the container is still offline or stale: check that the banner says
-`Container mode: online network`, then run `getent hosts opencode.ai`. Do not copy
-auth files into the container, disable the isolation flags or expose the Docker
-socket to fix it.
+### Common errors and the exact fix
+
+| You see | Meaning | Do |
+| --- | --- | --- |
+| `Transport error (POST https://opencode.ai/console/auth/device/code)` | Offline/stale container or DNS failure | Check the banner says `online network`; rerun Step 1, then Step 2. |
+| `EAI_AGAIN opencode.ai` or `getaddrinfo` | DNS cannot resolve | `cat /etc/resolv.conf`; if no `1.1.1.1`, restart with the current script and `--online`. |
+| `Failed to initialize OpenTUI render library` | Old container without `exec` on `/tmp` | Exit and start a fresh container with the current script. |
+| `cannot open /src/tests/...` | You are on the host, not inside | Inside the container use `/src/...`; on the host use `tests/...`. |
+| `No rule to make target 'build'` | Wrong directory | `cd ~/github/agentic-sdd` first. |
+| Batch shows old counts (e.g. 40 skills, 8 failures) | An older `agentic-sdd` from `PATH` | `make build`; the scripts prefer the checkout’s `bin/agentic-sdd`. |
 
 ## 4. Optional: inactive OpenCode configuration (10 minutes)
 
