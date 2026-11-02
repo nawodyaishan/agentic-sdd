@@ -5,6 +5,11 @@ description: "Draft a feature plan from the draft spec with specialist and tool 
 
 # Agentic SDD Plan
 
+For consequential unresolved design choices or returned stakeholder answers,
+use the [human-input contract](../agentic-sdd-router/references/human-input.md).
+Clarification resolves inputs, not implementation authority; do not restart
+an interview for facts already discoverable or decisions already settled.
+
 Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist and tool map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
 
 Use for `specs/<nnn-slug>/plan.md`, drafted from this feature's `spec.md` — the draft spec is sufficient input; no separate spec approval is required first. A sufficient top-level technical specification informs this plan; it does not replace the feature design.

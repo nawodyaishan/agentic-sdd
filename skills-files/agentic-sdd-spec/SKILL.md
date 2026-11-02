@@ -5,6 +5,11 @@ description: "Draft a feature spec from the relevant SRS and roadmap sections as
 
 # Agentic SDD Spec
 
+For a material unresolved choice, use the [human-input contract](../agentic-sdd-router/references/human-input.md)
+and `agentic-sdd-grilling` when needed; for unavailable stakeholder knowledge use
+`agentic-sdd-questionnaire`. Reuse settled inputs; a recipient answer is not
+confirmed requirement adoption or implementation consent.
+
 Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist and tool map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
 
 Use for a selected new feature or to repair a material requirement gap in an existing one. The global SRS is product intent; `specs/<nnn-slug>/spec.md` is the outcome contract for this feature.

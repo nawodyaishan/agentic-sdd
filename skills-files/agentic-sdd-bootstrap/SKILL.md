@@ -5,6 +5,11 @@ description: "Manually establish minimal SDD pointers, feature conventions and t
 
 # Agentic SDD Bootstrap
 
+When an authorized setup change edits agent instructions, use
+`agentic-sdd-writing-for-agents` for precise conditional pointers, not wholesale
+policy duplication. Explicit learning or explanation is a separate requested
+mode, not permission to create a teaching workspace during bootstrap.
+
 Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist and tool map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
 
 Run only when explicitly requested. Reuse existing repository instructions, governance and toolchain.

@@ -38,6 +38,12 @@ Implement the fix, select checks from the [testing guidance](../agentic-sdd-rout
 
 ## Both paths
 
+For late material answers or a batch decision, use the [human-input contract](../agentic-sdd-router/references/human-input.md).
+Reconcile affected contracts/task edges and preserve unaffected approval; return
+the concrete authorized continuation rather than a new universal approval form.
+Use `agentic-sdd-handoff` when a transfer or repository-required handover is due,
+within the current mode's write scope.
+
 Load specialist guidance into this main agent; a task label is not loaded guidance. If an assigned specialist or tool is unavailable or unsuitable, report that gap and use an adequate fallback transparently; do not silently substitute or invent an identifier. Use MCPs and CLIs only for a concrete need.
 
 Honor earlier authorization for the same scope; do not re-ask at each phase, but seek new authorization for changed consequences. Do not weaken tests. Drafting a migration or Terraform change does not authorize executing it against real systems. Diagnosis is process guidance, not another domain-specialist slot or permission to add instrumentation in read-only mode. Label the main agent's completion review as self-review; do not imply independent review.

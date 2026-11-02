@@ -14,9 +14,11 @@ import (
 // discovery itself. It verifies packaging, not whether an agent obeys prose.
 var canonicalSkills = []string{
 	"agentic-sdd-architecture-review", "agentic-sdd-bootstrap", "agentic-sdd-debugging",
-	"agentic-sdd-drift-retro", "agentic-sdd-implement", "agentic-sdd-plan",
-	"agentic-sdd-research-spec", "agentic-sdd-router", "agentic-sdd-spec",
-	"agentic-sdd-tasks", "agentic-sdd-verification-review",
+	"agentic-sdd-drift-retro", "agentic-sdd-grill-me", "agentic-sdd-grilling",
+	"agentic-sdd-handoff", "agentic-sdd-implement", "agentic-sdd-plan",
+	"agentic-sdd-questionnaire", "agentic-sdd-research-spec", "agentic-sdd-router", "agentic-sdd-spec",
+	"agentic-sdd-tasks", "agentic-sdd-teach", "agentic-sdd-verification-review",
+	"agentic-sdd-wait-what", "agentic-sdd-writing-for-agents",
 }
 
 func TestCanonicalDistributionIncludesDebuggingAndSiblingReferences(t *testing.T) {
@@ -30,7 +32,7 @@ func TestCanonicalDistributionIncludesDebuggingAndSiblingReferences(t *testing.T
 			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(names, canonicalSkills) {
-			t.Fatalf("%q discovery = %v, want eleven canonical skills", repo, names)
+			t.Fatalf("%q discovery = %v, want the complete eighteen-skill distribution", repo, names)
 		}
 		checkPackageLinks(t, source)
 	}
@@ -130,7 +132,7 @@ func TestCanonicalInstallPreviewNoopRestoreInIsolatedHome(t *testing.T) {
 				}
 			}
 			for _, client := range clientTargets(home) {
-				for name, body := range map[string]string{"unrelated": "preserve unrelated", "agentic-sdd-debugging": "previous private diagnosis instructions"} {
+				for name, body := range map[string]string{"unrelated": "preserve unrelated", "grilling": "existing third-party skill", "teach": "existing teaching skill", "agentic-sdd-debugging": "previous private diagnosis instructions"} {
 					dir := filepath.Join(client.path, name)
 					if err := os.MkdirAll(dir, 0755); err != nil {
 						t.Fatal(err)
@@ -176,6 +178,9 @@ func TestCanonicalInstallPreviewNoopRestoreInIsolatedHome(t *testing.T) {
 					}
 				}
 				checkPackageLinks(t, os.DirFS(client.path))
+				if read(t, filepath.Join(client.path, "grilling/SKILL.md")) != "existing third-party skill" || read(t, filepath.Join(client.path, "teach/SKILL.md")) != "existing teaching skill" {
+					t.Fatal("namespaced install changed an unrelated upstream skill")
+				}
 			}
 			path := filepath.Join(clientTargets(home)[0].path, "agentic-sdd-debugging/SKILL.md")
 			before, err := os.Stat(path)
@@ -213,6 +218,9 @@ func TestCanonicalInstallPreviewNoopRestoreInIsolatedHome(t *testing.T) {
 				}
 				if got := read(t, filepath.Join(client.path, "unrelated/SKILL.md")); got != "preserve unrelated" {
 					t.Fatal("unrelated skill changed")
+				}
+				if read(t, filepath.Join(client.path, "grilling/SKILL.md")) != "existing third-party skill" || read(t, filepath.Join(client.path, "teach/SKILL.md")) != "existing teaching skill" {
+					t.Fatal("restore changed an unrelated upstream skill")
 				}
 				if _, err := os.Stat(filepath.Join(client.path, "agentic-sdd-spec")); !os.IsNotExist(err) {
 					t.Fatal("restore retained freshly installed sibling")

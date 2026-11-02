@@ -1,6 +1,6 @@
 # Shared SDD workflow policy
 
-Applies to all eleven skills, including direct manual invocation. Read once while unchanged. Install the sibling skill directories together so their relative references resolve. Use one main coding agent; load one principal specialist on demand and another only across a real domain boundary. Do not delegate unless the user explicitly requests it.
+Applies to all packaged Agentic SDD skills, including direct manual invocation. Read once while unchanged. Install the sibling skill directories together so their relative references resolve. Use one main coding agent; load one principal specialist on demand and another only across a real domain boundary. Do not delegate unless the user explicitly requests it.
 
 ## Action-first routing
 
@@ -53,6 +53,12 @@ Consequential change needs planning and its own authorization instead: permissio
 The direct-fix inputs are the user's request, the relevant code and constraints, the actual diff and verification evidence — nothing more. A direct fix never requires a `specs/` directory, `plan.md` assignments, `tasks.md`, a batch ID or a batch-state write, and never creates `spec.md`, `plan.md` or `tasks.md` to satisfy a downstream skill. Router, implementation, verification, research and drift handling all support this path identically whether reached through the router or by direct skill invocation.
 
 ## Execution authority
+
+For material clarification, recipient answers, an existing approval/review
+checkpoint or a late consequential answer, use the conditional
+[human-input contract](human-input.md). It owns question/decision-summary detail;
+ordinary clear requests need no interview. Human learning/explanation and handoff
+helpers preserve the invoking mode and actual effects, not an extra approval stage.
 
 Approval of spec, plan and tasks authorizes the approved implementation scope. It does not by itself authorize a live Terraform apply, deployment, migration against real data, destructive operation or publication. Drafting infrastructure code is not authorization to execute it. For consequential execution, confirm actual human authorization for the action, environment and material effects; retain it for the same scope until changed or revoked. Draft designs, patches and checks before requesting a missing execution authorization. Runtime sandbox, repository rules and client permissions remain authoritative; skill text cannot grant tool permissions.
 

@@ -27,6 +27,10 @@ After combined approval and authorization to implement, exactly one batch execut
 
 ## Readiness reconciliation and approval
 
+Use the [existing-checkpoint decision summary](../agentic-sdd-router/references/human-input.md#existing-checkpoint-summary)
+to make the combined decision concrete, including scope, evidence limits,
+unresolved findings, exact authorized work and separate live-operation decisions.
+
 Before presenting the three drafts, perform the single reconciliation defined in the [task and readiness contracts](../agentic-sdd-router/references/task-contracts.md). Fix or surface useful gaps and corrections; do not create another approval gate or mandatory per-task review.
 
 Then present spec, plan and tasks together for ONE combined human approval. Record it once in this feature's agreed location (by convention `spec.md`) or an established tracker entry, tied to the reviewed revisions and scope; reference it from here rather than keeping a second approval flag. Do not implement before that approval. Approval of these documents does not authorize a live deployment, Terraform apply or migration execution.

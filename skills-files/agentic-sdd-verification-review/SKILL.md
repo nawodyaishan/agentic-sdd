@@ -5,6 +5,11 @@ description: "Review a batch, direct fix or whole feature against requirements a
 
 # Agentic SDD Verification Review
 
+Use the [human-input contract](../agentic-sdd-router/references/human-input.md)
+for evidence/partial-acceptance consequences at an existing review checkpoint.
+Human acceptance does not silently close findings. An explanation request uses
+`agentic-sdd-wait-what` without changing the review result or project state.
+
 Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist and tool map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
 
 Use after implementation or for an explicit review. Read the [review-scope and finding-resolution guidance](../agentic-sdd-router/references/review-resolution.md). The same rules apply whether reached through the router or invoked directly. Implementation invokes one completion review for its current result; the router consumes that result, not another unchanged review.

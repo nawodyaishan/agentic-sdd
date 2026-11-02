@@ -15,6 +15,11 @@ Before feature intake, identify what the user requested:
 
 | Requested action | Route |
 |---|---|
+| Explain where we are or re-pitch a proposal | `agentic-sdd-wait-what`; response only, no state change. |
+| Explicit learning request | `agentic-sdd-teach`; lightweight by default, no feature advancement or automatic workspace writes. |
+| Explicit transfer or required session handover | `agentic-sdd-handoff`; canonical-first within actual write authority. |
+| Explicitly challenge a plan / consequential blocked decision | `agentic-sdd-grilling`; investigate facts first and ask the ready frontier, not a mandatory intake interview. |
+| Knowledge held by a distinct stakeholder | `agentic-sdd-questionnaire`; recipient-specific discovery/answer reconciliation, never implicit sending. |
 | One named document | Draft only that document. If it is feature-scoped, select or create the feature folder needed to hold it; do not draft downstream documents. |
 | Review only | `agentic-sdd-verification-review`; change no project state. |
 | Diagnose an error or intermittent/unexpected behavior | `agentic-sdd-debugging`; retain the requested effects/mode and return evidence to the invoking stage. Do not assume diagnosis authorizes a fix. |
@@ -53,5 +58,10 @@ Preserve approval across ordinary progress updates; a material requirement, desi
 Bootstrap is explicitly initiated through `agentic-sdd-bootstrap`, not triggered by missing convention files. Routing through this skill and invoking a phase skill directly follow identical rules; the router adds no requirement that direct invocation lacks, and removes none. Verify current code state before trusting continuation notes or old test results.
 
 ## Output
+
+When maintaining agent-consumed instructions, use `agentic-sdd-writing-for-agents`
+within the authorized document scope. Helper names are package IDs, not permission
+to spawn agents or load every helper. Explicit-only entries require the user's
+actual request even if a runtime permits loading a hidden skill by ID.
 
 Briefly state the classified action, feature or direct-fix scope, current stage, approval and batch state, the missing decision if any, the selected specialist (or "none needed") and the checks. Stop at a needed human checkpoint after making the draft concrete. Continue authorized work when the relevant approval and authorization already exist. Do not spawn subagents unless the user requests them.

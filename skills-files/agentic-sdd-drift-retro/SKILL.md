@@ -5,6 +5,10 @@ description: "Handle material drift in feature work or a direct fix, update cano
 
 # Agentic SDD Drift Retro
 
+For a late answer that changes consequential scope, use the [human-input contract](../agentic-sdd-router/references/human-input.md)
+to identify affected requirements/contracts/dependencies and request only the
+necessary decision. An answer or shared understanding alone is not approval.
+
 Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist and tool map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
 
 Use after verification finds a meaningful discrepancy, at a useful milestone, during release preparation, or on explicit request. Ordinary drift checks belong to `agentic-sdd-verification-review`.
