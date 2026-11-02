@@ -26,6 +26,13 @@ die() {
   exit 2
 }
 
+batch=0
+case "${1:-}" in
+  --batch) batch=1 ;;
+  "") ;;
+  *) die "unknown argument $1; use --batch or no argument" ;;
+esac
+
 [ -n "$workspace" ] || die "set SDD_CONTAINER_WORKSPACE to a new disposable directory (absolute path)"
 [ -d "$workspace" ] || die "workspace does not exist: $workspace"
 workspace=$(CDPATH= cd -- "$workspace" && pwd -P)
@@ -41,14 +48,14 @@ fi
 if [ -n "$opencode" ] && { [ ! -f "$opencode" ] || [ ! -x "$opencode" ]; }; then
   die "OPENCODE_BINARY must be an executable file when set"
 fi
-if [ -z "${TERM:-}" ]; then
-  die "an interactive terminal is required"
+if [ "$batch" = 0 ] && [ -z "${TERM:-}" ]; then
+  die "an interactive terminal is required (or use --batch)"
 fi
 
 docker image inspect "$image" >/dev/null 2>&1 || die "container image not present locally; this script never pulls"
 
 set -- \
-  --rm -it --pull=never --network=none --read-only \
+  --rm --pull=never --network=none --read-only \
   --cap-drop=ALL --security-opt=no-new-privileges \
   --pids-limit=256 --memory=1g --cpus=1 \
   --user "$(id -u):$(id -g)" \
@@ -66,7 +73,12 @@ if [ -n "$opencode" ]; then
   set -- "$@" --mount "type=bind,src=$opencode,dst=/usr/local/bin/opencode,readonly"
 fi
 
-exec docker run "$@" "$image" sh -c '
+if [ "$batch" = 1 ]; then
+  printf 'Batch mode: no network, credentials or host home; workspace=%s\n' "$workspace"
+  exec docker run "$@" "$image" sh /src/tests/vnext-model-free-checks.sh
+fi
+
+exec docker run -it "$@" "$image" sh -c '
   mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" || exit 1
   printf "Model-free container. No network, credentials or host home.\n"
   printf "Workspace: /work (writable scratch)   Repo: /src (read-only)\n"

@@ -36,6 +36,54 @@ certification.
 - `agentic-sdd opencode config` is a read-only preview and is idempotent; two
   runs produce identical output and no `.opencode` directory.
 
+## Fast path — one copy-paste batch
+
+From the repository root, this single block builds the CLI, creates a scratch
+workspace and runs all model-free checks in the sandbox:
+
+```sh
+make build
+mkdir -p /tmp/opencode/vnext-cycle-work
+SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
+  tests/vnext-container.sh --batch
+```
+
+Expected tail:
+
+```text
+PASS cli-version
+PASS opencode-version
+PASS preview-no-write
+PASS apply-72-zero-links
+PASS apply-noop
+PASS edit-replaced-with-backup
+PASS canonical-after-apply
+PASS restore-pre-apply-copy
+PASS restore-then-canonical
+PASS candidate-preflight
+PASS config-preview-no-write
+PASS admission-blocked
+SKIP evidence-snapshot: git absent in this image; run the host fallback
+SKIP evidence-refuses-traversal: git absent in this image
+
+Summary: 12 passed, 0 failed, 2 skipped
+```
+
+Exit code 0 means every executed check passed. Any `FAIL` line means stop and
+record it; do not rerun until the cause is understood. The batch uses the same
+no-network, no-credential container as the manual steps, and it wipes only
+`/work/qa-project` and `/tmp/home` inside the container.
+
+Already inside the container? The same batch is one command:
+
+```sh
+sh /src/tests/vnext-model-free-checks.sh
+```
+
+The numbered sections below are the manual equivalent for inspection,
+troubleshooting and the host-side checks. The batch already covers them except
+git-based evidence, which is skipped in the default image.
+
 ## 1. What this cycle can and cannot prove
 
 **Model-free:** installer preview/apply/no-op/backup/restore, package closure,

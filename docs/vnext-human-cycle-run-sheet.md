@@ -28,6 +28,8 @@ make build
 mkdir -p /tmp/opencode/vnext-cycle-work
 SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work \
   tests/vnext-container.sh
+# One-command batch instead of the interactive shell:
+# SDD_CONTAINER_WORKSPACE=/tmp/opencode/vnext-cycle-work tests/vnext-container.sh --batch
 # OpenCode v2.2.5 is mounted read-only by default; NO_OPENCODE=1 omits it.
 # OPENCODE_BINARY=/path overrides the host binary.
 ```
