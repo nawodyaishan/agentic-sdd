@@ -383,6 +383,14 @@ continues to block affected online work; no new budget/allocation is created.
 
 ## Approval
 
+- **B5 review acceptance (2026-11-02):** user completed the B5 human review
+  ("i accept b5") of the delivered verification, reconciliation and final
+  human-cycle plan (commits `c043ae8`, `6cd7afc`, `c04177c`; implementation
+  identity `650f60d1…0135d`). This accepts the B5 delivery and the prepared plan
+  **as prepared**. It does not execute or accept the human usage cycle, certify
+  runtime support, publish the B5 commits, close any carried 004 finding or
+  authorize a release/tag. Next decisions are B5 publication and the separate
+  final-cycle launch.
 - **B4 publication and B5 authorization (2026-11-02):** user directed
   **“submit b4 commits, start B5”**. The five B4 commits (`2e2d461` → `1b8886f`
   → `a6e1809` → `0ec7f45` → `af0036e`) were pushed to `origin/main`
@@ -448,8 +456,9 @@ continues to block affected online work; no new budget/allocation is created.
   credential operation or walkthrough execution follows from either request.
 
 Current documents: [plan r1](plan.md) and [tasks r1](tasks.md). All selected
-implementation (T01–T12) is delivered at source level; B5 and the final handover
-await human review. The one integrated human usage cycle is prepared in the
-[final usage plan](../../docs/vnext-human-test-plan.md) but **not executed** and
-requires a separate launch decision. Preserve the single-batch execution rule and
-separate implementation/development review from human usage validation.
+implementation (T01–T12) is delivered and the B5 review is accepted. The one
+integrated human usage cycle is prepared in the
+[final usage plan](../../docs/vnext-human-test-plan.md) but **not executed**;
+its launch, B5 publication and any further fix/retest remain separate user
+decisions. Preserve the single-batch execution rule and separate
+implementation/development review from human usage validation.
