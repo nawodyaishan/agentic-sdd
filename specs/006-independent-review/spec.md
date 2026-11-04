@@ -2,8 +2,8 @@
 
 Revision: r2 · 3 November 2026
 
-Status: Combined spec/plan/tasks approval recorded 4 November 2026; B1 is awaiting
-human review and B2 is authorized. B3, B4 and the live pilot are not authorized.
+Status: Combined spec/plan/tasks approval recorded 4 November 2026; B1 and B2 are
+reviewed, and B3 is authorized. B4 and the live pilot are not authorized.
 
 Repository location: `specs/006-independent-review/spec.md`.
 
@@ -392,6 +392,14 @@ binary (sha256 `8d060e1d…`), a credential-free, network-disabled, unprivileged
 container, fresh state, the existing probe's endpoint allowlist, and no prompt,
 model, provider or real-home access. B3, B4, the live pilot, inference, VM access,
 real-home apply, installation and release remain unauthorized.
+
+**B3 authorization (4 November 2026):** after reviewing B2, the user said “start b3”.
+This records authority for B3 as defined in [tasks.md](tasks.md): T03 offline
+verification and packaging checks, and T04 scratch-only usage procedure, its
+verification, and the pilot brief. It does not authorize launching the RHEL pilot,
+VM or credential access, inference or provider probing, installing the example into
+a project or real home, changing the active runtime configuration, release or
+publication beyond the normal commit/push of the batch when requested.
 
 Earlier record: the user requested this spec's repository adoption and refinement,
 then plan/tasks drafting, on 3 November 2026.

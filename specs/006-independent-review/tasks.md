@@ -2,9 +2,9 @@
 
 Revision: r1 · 3 November 2026. Inputs: [spec r2](spec.md), [plan r1](plan.md).
 Single approval location: [spec §Approval](spec.md#approval).
-Combined approval recorded 4 November 2026. T01 (B1) is `awaiting human review`
-and was published. T02 (B2) is implemented and `awaiting human review`; T03–T05
-remain pending and unauthorized.
+Combined approval recorded 4 November 2026. T01 (B1) and T02 (B2) were reviewed
+and published. B3 (T03/T04) is authorized and `awaiting human review` after its
+offline checks; T05 remains pending and blocked.
 
 ## Execution boundary
 
@@ -36,7 +36,7 @@ Existing deterministic commit hooks/CI remain enabled and distinct from a pilot.
 
 ### T02 — Add inactive native profiles and exact-runtime boundary fixtures
 
-- **Status:** awaiting human review (B2 implemented 4 Nov 2026; offline probes only,
+- **Status:** reviewed by the user, 4 Nov 2026 (B2 implemented; offline probes only,
   no prompt or model). Depends on T01. **Covers:** AC-01/03/04/06/09.
   **Contracts:** C2/C4.
 - **Objective:** distribute a separate coordinator/reviewer example with explicit
@@ -64,8 +64,8 @@ Existing deterministic commit hooks/CI remain enabled and distinct from a pilot.
 
 ### T03 — Verify context, findings, freshness and portable distribution
 
-- **Status:** pending. Depends on T01/T02. **Covers:** AC-01/02/05/06/07/08/09.
-  **Contracts:** C1/C3/C5.
+- **Status:** awaiting human review (B3, 4 Nov 2026). Depends on T01/T02.
+  **Covers:** AC-01/02/05/06/07/08/09. **Contracts:** C1/C3/C5.
 - **Objective:** exercise the component contracts together without a model and
   verify portable distribution, independently derived expectations and preserved state.
 - **Targets:** focused `tests/harness/` fixtures; `internal/skillsync/package_test.go`
@@ -86,8 +86,8 @@ Existing deterministic commit hooks/CI remain enabled and distinct from a pilot.
 
 ### T04 — Prepare reversible usage and the final RHEL pilot
 
-- **Status:** pending. Depends on T02/T03. **Covers:** AC-03/04/06/09/10.
-  **Contracts:** C2/C4/C5.
+- **Status:** awaiting human review (B3, 4 Nov 2026); pilot not launched. Depends on
+  T02/T03. **Covers:** AC-03/04/06/09/10. **Contracts:** C2/C4/C5.
 - **Objective:** give the user one coherent opt-in path, including blocked
   prerequisites and a final pilot proposal, after development is delivered.
 - **Targets:** new `integrations/opencode/independent-review.md`, integration
@@ -138,8 +138,8 @@ These are execution units of one feature, not new roadmap phases.
 | Batch | Tasks | Outcome / completion and verification | Current state / next action |
 | --- | --- | --- | --- |
 | B1 — Portable procedure | T01 | Focused method and conditional pointers; source/link/branch inspection, no model. | `awaiting human review` (4 Nov 2026). Changed: new `skills-files/agentic-sdd-router/references/independent-review.md`; pointers in `skills-files/agentic-sdd-verification-review/SKILL.md` and `skills-files/agentic-sdd-router/references/review-resolution.md`. Checks: local links resolve (0 missing), frontmatter unchanged, 18 skill IDs unchanged, `make test`, `make vet`, `git diff --check` passed. Completion review: self-review, no supported defects. Next action: human review; B2 needs its own authorization including offline native probes. |
-| B2 — Inactive native integration | T02 | Opt-in profiles and isolated static/native boundary fixtures; denials and positive reads, exact runtime identity, no prompts. | `awaiting human review` (4 Nov 2026). Authorized by the user; see [spec §Approval](spec.md#approval). Changed: `integrations/opencode/independent-review.jsonc`, `tests/harness/test_independent_review.py`, `tests/harness/native_independent_review.py`, `tests/harness/native-independent-review.sh`. Checks: static 9/9; native probe 5/5 on the pinned 2.2.5 binary (sha256 `8d060e1d…`) in the network-none, read-only, non-root container; `test_opencode.py` 7/7; `make test`, `make vet`, `git diff --check` passed. Not observed: `variant` (not exposed by `/api/agent`), actual child invocation, compaction disable, path/symlink enforcement. Next action: human review; B3 needs its own authorization. |
-| B3 — Connected development and pilot preparation | T03/T04 | Independent offline scenarios, packaging/gates, scratch rollback and one bounded RHEL pilot brief; distinguish missing live proof. | Not started; requires B2 disposition and explicit B3 authorization. End `awaiting human review`; do not launch pilot. |
+| B2 — Inactive native integration | T02 | Opt-in profiles and isolated static/native boundary fixtures; denials and positive reads, exact runtime identity, no prompts. | Reviewed by the user (4 Nov 2026). Authorized by the user; see [spec §Approval](spec.md#approval). Changed: `integrations/opencode/independent-review.jsonc`, `tests/harness/test_independent_review.py`, `tests/harness/native_independent_review.py`, `tests/harness/native-independent-review.sh`. Checks: static 9/9; native probe 5/5 on the pinned 2.2.5 binary (sha256 `8d060e1d…`) in the network-none, read-only, non-root container; `test_opencode.py` 7/7; `make test`, `make vet`, `git diff --check` passed. Not observed: `variant` (not exposed by `/api/agent`), actual child invocation, compaction disable, path/symlink enforcement. Next action: human review; B3 needs its own authorization. |
+| B3 — Connected development and pilot preparation | T03/T04 | Independent offline scenarios, packaging/gates, scratch rollback and one bounded RHEL pilot brief; distinguish missing live proof. | `awaiting human review` (4 Nov 2026). Authorized by the user (“start b3”); see [spec §Approval](spec.md#approval). Changed: `internal/skillsync/package_test.go` (reference presence and pointers), `tests/harness/test_independent_review_docs.py` (required-rule oracle with seeded deletion/softening), `tests/harness/independent-review-transaction.sh` (scratch-only digest/backup/rollback walkthrough), `integrations/opencode/independent-review.md` (runbook and pilot brief), `integrations/opencode/README.md` (navigation). Checks: `make test`, `make vet`, `git diff --check`, 13/13 Python checks, transaction walkthrough, native probe 5/5, link check 0 missing. Not done: executable findings/freshness consumer (none exists; procedure-only), pilot fixtures and answer keys (deferred to B4), real-home or project config change. Next action: human review; B4 remains blocked. |
 | B4 — Final RHEL observation | T05 | Actual bounded native pilot and guided reconciliation; per-case results, evidence and user feedback. | Not started / live gate blocked. Requires B3 review, resolved prerequisites and separate exact VM/effect/model launch authorization. Stop for human acceptance. |
 
 At each actual batch boundary, record changed paths, current candidate identity,
@@ -217,5 +217,18 @@ credential, VM address, model route proof, install permission or pilot allocatio
   - Path and symlink escape through the read tool, compaction disabling, actual child
     context and cancellation are **not observed**; permission evaluation does not prove
     tool dispatch. These stay blockers for the affected claims (IR-01/IR-02).
-- **Next permitted action:** human review of B2. B3–B4 remain unauthorized; B4 remains
-  separately blocked.
+- 2026-11-04: user reviewed B2 and said “start b3”, recorded in
+  [spec §Approval](spec.md#approval). B3 done as in the table. Findings from B3 work:
+  - The 005 `agentic-sdd opencode config` helper rejects this example (`candidate must
+    retain the inactive selected defaults`); the runbook therefore uses a manual
+    procedure, walked through on temporary files.
+  - The packaged reference is covered by the existing byte-for-byte install and link
+    tests and by a new explicit presence test.
+  - Snapshot identity already covers staged, unstaged, untracked, deleted and mode
+    changes (`TestSnapshotDetectsWorkingTreeChanges`); reused, not duplicated.
+  - Not established: findings handling, freshness and no-duplicate-scheduling are
+    procedure text only. Only document rules are tested, which is not evidence of model
+    behavior.
+- **Next permitted action:** human review of B3. B4 remains blocked until the pilot
+  prerequisites in [the runbook](../../integrations/opencode/independent-review.md#pilot-brief--prepared-not-launched)
+  are supplied and separately authorized.
