@@ -2,8 +2,8 @@
 
 Revision: r2 · 3 November 2026
 
-Status: Draft specification adopted into the repository; combined approval,
-implementation and live pilot not authorized.
+Status: Combined spec/plan/tasks approval recorded 4 November 2026 for B1/T01 only;
+B2–B4 and the live pilot are not authorized.
 
 Repository location: `specs/006-independent-review/spec.md`.
 
@@ -376,10 +376,15 @@ combined approval or actual live execution before its separate decision.
 
 ## Approval
 
-**Status: Pending.** The user requested this spec's repository adoption and
-refinement, then requested plan/tasks drafting, in this conversation on
-3 November 2026. Current combined set: **spec r2, plan r1, tasks r1**. It has not
-received combined approval; no implementation batch is authorized.
+**Status: Approved for B1/T01 only.** Recorded 4 November 2026 by the user in this
+OpenCode session, through the router's approval question. The user approved the
+combined set **spec r2, plan r1, tasks r1** and authorized **B1 / T01 only**
+(portable independent-review method; deterministic checks; no model calls).
+B2, B3, B4, inference, VM access, real-home apply, installation and release remain
+unauthorized. Batch state lives in [tasks.md](tasks.md).
+
+Earlier record: the user requested this spec's repository adoption and refinement,
+then plan/tasks drafting, on 3 November 2026.
 
 **Publication authority only:** the user separately requested “and commit and
 push” for this drafting work. This authorizes publication of the scoped 006

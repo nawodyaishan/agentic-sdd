@@ -2,7 +2,8 @@
 
 Revision: r1 · 3 November 2026. Inputs: [spec r2](spec.md), [plan r1](plan.md).
 Single approval location: [spec §Approval](spec.md#approval).
-All tasks are pending; drafting/publication does not authorize implementation.
+Combined approval recorded 4 November 2026 with **B1/T01 authorization only**. T01
+is implemented and `awaiting human review`; T02–T05 remain pending.
 
 ## Execution boundary
 
@@ -16,7 +17,8 @@ Existing deterministic commit hooks/CI remain enabled and distinct from a pilot.
 
 ### T01 — Integrate the portable independent-review method
 
-- **Status:** pending. **Covers:** AC-01/02/05/06/07/08/09. **Contracts:** C1/C3.
+- **Status:** awaiting human review (B1 implemented; self-review `Ready` on B1 scope,
+  no model calls). **Covers:** AC-01/02/05/06/07/08/09. **Contracts:** C1/C3.
 - **Objective:** own focused context, evidence distinctions, bounded findings and
   reconciliation once, behind explicit independent-review invocation.
 - **Targets:** new router reference `independent-review.md`, existing
@@ -133,7 +135,7 @@ These are execution units of one feature, not new roadmap phases.
 
 | Batch | Tasks | Outcome / completion and verification | Current state / next action |
 | --- | --- | --- | --- |
-| B1 — Portable procedure | T01 | Focused method and conditional pointers; source/link/branch inspection, no model. | Not started; first independently ready batch after combined approval and explicit B1 authorization. Stop after one completion review. |
+| B1 — Portable procedure | T01 | Focused method and conditional pointers; source/link/branch inspection, no model. | `awaiting human review` (4 Nov 2026). Changed: new `skills-files/agentic-sdd-router/references/independent-review.md`; pointers in `skills-files/agentic-sdd-verification-review/SKILL.md` and `skills-files/agentic-sdd-router/references/review-resolution.md`. Checks: local links resolve (0 missing), frontmatter unchanged, 18 skill IDs unchanged, `make test`, `make vet`, `git diff --check` passed. Completion review: self-review, no supported defects. Next action: human review; B2 needs its own authorization including offline native probes. |
 | B2 — Inactive native integration | T02 | Opt-in profiles and isolated static/native boundary fixtures; denials and positive reads, exact runtime identity, no prompts. | Not started; requires B1 review and explicit B2 authority including offline probes. Stop for human review. |
 | B3 — Connected development and pilot preparation | T03/T04 | Independent offline scenarios, packaging/gates, scratch rollback and one bounded RHEL pilot brief; distinguish missing live proof. | Not started; requires B2 disposition and explicit B3 authorization. End `awaiting human review`; do not launch pilot. |
 | B4 — Final RHEL observation | T05 | Actual bounded native pilot and guided reconciliation; per-case results, evidence and user feedback. | Not started / live gate blocked. Requires B3 review, resolved prerequisites and separate exact VM/effect/model launch authorization. Stop for human acceptance. |
@@ -196,7 +198,9 @@ credential, VM address, model route proof, install permission or pilot allocatio
   Current official V2/Context7 docs informed design; no runtime or model probe run.
 - Checks for this documentation candidate and publication outcome are recorded in
   the session handover. No model compliance, native or RHEL acceptance is claimed.
-- **Next permitted action:** present combined documents for one human decision.
-  On approval plus explicit B1 authority, implement only T01; otherwise stay at
-  drafting/review. B4 remains separately blocked; no code or live effect follows
-  from publication.
+- 2026-11-04: user approved spec r2, plan r1 and tasks r1 combined and authorized
+  B1/T01 only, via the router's approval question. Recorded in
+  [spec §Approval](spec.md#approval). B1 implemented as above and published with the 006 B1 commits (see git log).
+  Session handover: `docs/handovers/2026-11-04_006b.md`.
+- **Next permitted action:** human review of B1 (method reference, pointers and the
+  self-review). B2–B4 remain unauthorized; B4 remains separately blocked.
