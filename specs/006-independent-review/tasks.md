@@ -64,7 +64,9 @@ Existing deterministic commit hooks/CI remain enabled and distinct from a pilot.
 
 ### T03 — Verify context, findings, freshness and portable distribution
 
-- **Status:** awaiting human review (B3, 4 Nov 2026). Depends on T01/T02.
+- **Status:** accepted by the user for the record, 5 Nov 2026 (B3, with the fixture
+  follow-up; the findings, freshness and scheduling gap below is closed for offline
+  scope). Depends on T01/T02.
   **Covers:** AC-01/02/05/06/07/08/09. **Contracts:** C1/C3/C5.
 - **Objective:** exercise the component contracts together without a model and
   verify portable distribution, independently derived expectations and preserved state.
@@ -226,9 +228,14 @@ credential, VM address, model route proof, install permission or pilot allocatio
     tests and by a new explicit presence test.
   - Snapshot identity already covers staged, unstaged, untracked, deleted and mode
     changes (`TestSnapshotDetectsWorkingTreeChanges`); reused, not duplicated.
-  - Not established: findings handling, freshness and no-duplicate-scheduling are
-    procedure text only. Only document rules are tested, which is not evidence of model
-    behavior.
+  - Follow-up, 5 Nov 2026: `tests/harness/test_independent_review_fixtures.py` with a
+    test-only consumer `tests/harness/independent_review_contract.py` covers scripted
+    reconciliation (15 outcomes, expectations written independently), rule coverage (each
+    rule changes at least one outcome), explicit-only and no-duplicate scheduling, and
+    freshness on the real `opencode evidence snapshot` binary in scratch Git repos. The
+    consumer is not shipped and is not evidence of model behavior.
+  - Still not established: model-produced reports, a runtime duplicate-scheduling
+    check, and bounded cancellation. These need the B4 observation.
 - **Next permitted action:** human review of B3. B4 remains blocked until the pilot
   prerequisites in [the runbook](../../integrations/opencode/independent-review.md#pilot-brief--prepared-not-launched)
   are supplied and separately authorized.
