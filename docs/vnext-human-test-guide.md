@@ -1,7 +1,9 @@
 # Feature 005 — human test guide (accepted container)
 
-**Status: accepted environment recorded in spec §Approval; the cycle is NOT
-executed.** About 90 minutes, possibly across sittings. The point is to check
+**Status:** the user reported the cycle complete and accepted its results for
+the pinned image; individual scenario outcomes remain unspecified. See the
+[continuation](../specs/005-vnext-completion/tasks.md#continuation-record).
+The original suggested time was about 90 minutes, possibly across sittings. The point is to check
 whether the workflow behaves sensibly for a human — not to judge model quality,
 speed or cost.
 
@@ -268,7 +270,8 @@ A pass means the observed behavior matched “You should see” **in this image*
 with the recorded model. It does not certify the normal setup, native admission,
 macOS, billing/provenance, adoption or benefit. Final status remains
 **implementation delivered; human usage validation not run** until your results
-are recorded and accepted.
+are recorded and accepted. The user has since reported and accepted the cycle;
+see the continuation for the scope and evidence limits.
 
 ## Technical appendix
 

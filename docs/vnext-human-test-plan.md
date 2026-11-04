@@ -1,6 +1,8 @@
 # vNext final human usage cycle — feature 005
 
-**Status: prepared for a separate actual launch decision; NOT executed.**
+**Status:** the user subsequently reported the cycle complete and accepted its
+results for the pinned image; individual scenario outcomes are unspecified. See
+the [continuation](../specs/005-vnext-completion/tasks.md#continuation-record).
 **Step-by-step testing instructions are in the [final human test
 guide](vnext-human-test-guide.md).** The fill-in [session run
 sheet](vnext-human-cycle-run-sheet.md) records your results; a blank row is not
@@ -48,7 +50,8 @@ unverified. Native recovery, not any fixture count, remains the gap.
 
 - The **user** chooses the workspace, setup, whether to adopt configuration,
   whether to use a real model/provider, and every live operation. The user runs
-  the hands-on scenarios in their normal setup.
+   the hands-on scenarios in their selected environment. The accepted cycle used
+   the pinned container, not the normal setup.
 - The **assistant** may explain steps, inspect evidence the user chooses to
   share, and reconcile notes when authorized. It must not run the human tests,
   access credentials, copy auth stores, change the shared service, install to a
@@ -136,8 +139,9 @@ retention policy in [evidence/README.md](../harness/evidence/README.md).
 
 ## Honest completion
 
-Status for this development feature is **implementation delivered; human usage
-validation not run**. Completing this plan or any scenario is not required to
+Status is **implementation delivered; human usage cycle reported complete and
+accepted for the pinned container**, with individual scenario outcomes
+unspecified. Completing this plan or any scenario is not required to
 call the implementation delivered, and running scenarios does not by itself
 certify support, safety, quality or benefit. Support remains **not certified**;
 native admission, actual adoption, macOS behavior and all carried findings stay

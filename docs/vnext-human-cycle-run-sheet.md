@@ -4,6 +4,11 @@ Use with the accepted-container [human test guide](vnext-human-test-guide.md).
 A blank row is **not run**, not a pass. Do not change your normal setup; the
 accepted environment is the pinned image.
 
+The user subsequently reported the cycle complete and accepted its results for
+the pinned image. This template was not filled with individual results; those
+outcomes and any other skips remain unspecified. See the
+[continuation](../specs/005-vnext-completion/tasks.md#continuation-record).
+
 ## Session
 
 | Field | Value |
@@ -49,7 +54,7 @@ Image id / OpenCode version / model:
 Passed / failed / blocked / not run:
 Most useful or confusing behavior:
 Finding IDs or next decision:
-Feature status: implementation delivered; human usage validation not run
+Feature status: implementation delivered; user-reported human cycle accepted for pinned image
 ```
 
 Send the completed rows or a short summary back for reconciliation. This record

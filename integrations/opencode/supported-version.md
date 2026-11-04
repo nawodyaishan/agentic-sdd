@@ -91,9 +91,11 @@ pending-human normalization, and the production evidence consumer/projection.
 local check contract and the offline Python reference/schema fixtures pass on
 the final source identity recorded in 005 tasks.
 
-Delivery does not certify runtime support. No real `opencode acp` process,
-model, provider, credential store or real-home adoption was used; strict
-admission remains denied; native tool/permission/selection/recovery behavior,
-macOS and billing/provenance stay unobserved. The one integrated human cycle is
-prepared in the [final usage plan](../../docs/vnext-human-test-plan.md) and is a
-separate launch decision. Support remains **not certified**.
+Delivery does not certify runtime support. Development verification used no real
+`opencode acp` process, model, provider, credential store or real-home adoption.
+The user later reported and accepted a model-backed human cycle in the pinned QA
+container; scenario-level outcomes remain unspecified. This is not an adapter
+admission observation. Strict admission remains denied; native tool/permission/
+selection/recovery behavior, macOS and billing/provenance stay unproven. See the
+[continuation](../../specs/005-vnext-completion/tasks.md#continuation-record).
+Support remains **not certified**.

@@ -124,7 +124,7 @@ The helpers adapt [Matt Pocock productivity principles](skills-files/agentic-sdd
 under the existing authority rules. They do not enable delegation, model evaluations,
 automatic interviews, external sending or a teaching workspace. Hidden/explicit-only
 skill metadata is not an access-control boundary. Behavioral benefit remains unproven;
-feature 005 schedules one human usage cycle after its entire selected implementation.
+feature 005's user-reported human cycle was accepted for the pinned QA image.
 
 ### Inactive OpenCode configuration helper
 
@@ -141,8 +141,9 @@ exports receipts from caller-supplied current observations, and composes a
 check result with an optional native observation without supplying approval or
 review. Current support remains uncertified; the
 [final human usage plan](docs/vnext-human-test-plan.md) and
-[step-by-step test guide](docs/vnext-human-test-guide.md) are prepared but not
-executed, and their launch is not implied by these implemented operations.
+[step-by-step test guide](docs/vnext-human-test-guide.md) describe that cycle;
+individual scenario outcomes remain unspecified. See the
+[remaining-work guide](docs/vnext-remaining-work-guide.md) for validation limits.
 
 Invoke the relevant skill through your client, then give it a concrete request:
 
