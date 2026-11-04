@@ -38,6 +38,29 @@ func TestCanonicalDistributionIncludesDebuggingAndSiblingReferences(t *testing.T
 	}
 }
 
+func TestIndependentReviewReferenceIsPackaged(t *testing.T) {
+	const reference = "agentic-sdd-router/references/independent-review.md"
+	for _, repo := range []string{"", filepath.Join("..", "..")} {
+		source, err := sourceFS(repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := fs.Stat(source, reference)
+		if err != nil || !info.Mode().IsRegular() {
+			t.Fatalf("%q: packaged independent-review reference missing: %v", repo, err)
+		}
+		for _, pointer := range []string{"agentic-sdd-verification-review/SKILL.md", "agentic-sdd-router/references/review-resolution.md"} {
+			data, err := fs.ReadFile(source, pointer)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(data, []byte("independent-review.md")) {
+				t.Fatalf("%q: %s does not point to the independent review method", repo, pointer)
+			}
+		}
+	}
+}
+
 func checkPackageLinks(t *testing.T, source fs.FS) {
 	t.Helper()
 	links := regexp.MustCompile(`\]\(([^)]+)\)`)

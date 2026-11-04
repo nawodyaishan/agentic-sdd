@@ -21,6 +21,9 @@ below is not an adopted 005 configuration or updated runtime certification.
   current-session commands; one selected feature/build path, providers denied.
 - [Higher-authority lockdown example](policy-lockdown.jsonc): separate, inactive;
   never installed automatically by a project/skill installer.
+- [Independent review example](independent-review.jsonc) and its
+  [runbook](independent-review.md) (006): one opt-in, read-only reviewer route with a
+  scratch-only, digest-checked procedure. Inactive; the pilot is not launched.
 - [Usage catalog](model-usage.json): user-selected DeepSeek/GLM free roles,
   dormant paid MiMo and synthetic-only Nemotron; all execution disabled.
 - [Manual adoption/rollback](adoption.md), [incident-derived spending/credential
