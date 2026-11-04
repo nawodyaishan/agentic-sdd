@@ -2,8 +2,8 @@
 
 Revision: r2 · 3 November 2026
 
-Status: Combined spec/plan/tasks approval recorded 4 November 2026 for B1/T01 only;
-B2–B4 and the live pilot are not authorized.
+Status: Combined spec/plan/tasks approval recorded 4 November 2026; B1 is awaiting
+human review and B2 is authorized. B3, B4 and the live pilot are not authorized.
 
 Repository location: `specs/006-independent-review/spec.md`.
 
@@ -380,8 +380,18 @@ combined approval or actual live execution before its separate decision.
 OpenCode session, through the router's approval question. The user approved the
 combined set **spec r2, plan r1, tasks r1** and authorized **B1 / T01 only**
 (portable independent-review method; deterministic checks; no model calls).
-B2, B3, B4, inference, VM access, real-home apply, installation and release remain
-unauthorized. Batch state lives in [tasks.md](tasks.md).
+B3, B4, inference, VM access, real-home apply, installation and release were not
+authorized by that approval; B2 is authorized below. Batch state lives in
+[tasks.md](tasks.md).
+
+**B2 authorization (4 November 2026):** after reviewing B1, the user asked for B1 to
+be committed and pushed (`a1f9cd4` on `origin/main`) and said “authorize the b2”.
+This records authority for B2 as defined in [tasks.md](tasks.md), including its
+offline native boundary probes, under the T02 fixture boundary: the exact 2.2.5
+binary (sha256 `8d060e1d…`), a credential-free, network-disabled, unprivileged
+container, fresh state, the existing probe's endpoint allowlist, and no prompt,
+model, provider or real-home access. B3, B4, the live pilot, inference, VM access,
+real-home apply, installation and release remain unauthorized.
 
 Earlier record: the user requested this spec's repository adoption and refinement,
 then plan/tasks drafting, on 3 November 2026.

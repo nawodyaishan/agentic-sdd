@@ -2,8 +2,9 @@
 
 Revision: r1 · 3 November 2026. Inputs: [spec r2](spec.md), [plan r1](plan.md).
 Single approval location: [spec §Approval](spec.md#approval).
-Combined approval recorded 4 November 2026 with **B1/T01 authorization only**. T01
-is implemented and `awaiting human review`; T02–T05 remain pending.
+Combined approval recorded 4 November 2026. T01 (B1) is `awaiting human review`
+and was published. T02 (B2) is implemented and `awaiting human review`; T03–T05
+remain pending and unauthorized.
 
 ## Execution boundary
 
@@ -35,7 +36,8 @@ Existing deterministic commit hooks/CI remain enabled and distinct from a pilot.
 
 ### T02 — Add inactive native profiles and exact-runtime boundary fixtures
 
-- **Status:** pending. Depends on T01. **Covers:** AC-01/03/04/06/09.
+- **Status:** awaiting human review (B2 implemented 4 Nov 2026; offline probes only,
+  no prompt or model). Depends on T01. **Covers:** AC-01/03/04/06/09.
   **Contracts:** C2/C4.
 - **Objective:** distribute a separate coordinator/reviewer example with explicit
   model binding, deny-first permissions and no default candidate regression.
@@ -136,7 +138,7 @@ These are execution units of one feature, not new roadmap phases.
 | Batch | Tasks | Outcome / completion and verification | Current state / next action |
 | --- | --- | --- | --- |
 | B1 — Portable procedure | T01 | Focused method and conditional pointers; source/link/branch inspection, no model. | `awaiting human review` (4 Nov 2026). Changed: new `skills-files/agentic-sdd-router/references/independent-review.md`; pointers in `skills-files/agentic-sdd-verification-review/SKILL.md` and `skills-files/agentic-sdd-router/references/review-resolution.md`. Checks: local links resolve (0 missing), frontmatter unchanged, 18 skill IDs unchanged, `make test`, `make vet`, `git diff --check` passed. Completion review: self-review, no supported defects. Next action: human review; B2 needs its own authorization including offline native probes. |
-| B2 — Inactive native integration | T02 | Opt-in profiles and isolated static/native boundary fixtures; denials and positive reads, exact runtime identity, no prompts. | Not started; requires B1 review and explicit B2 authority including offline probes. Stop for human review. |
+| B2 — Inactive native integration | T02 | Opt-in profiles and isolated static/native boundary fixtures; denials and positive reads, exact runtime identity, no prompts. | `awaiting human review` (4 Nov 2026). Authorized by the user; see [spec §Approval](spec.md#approval). Changed: `integrations/opencode/independent-review.jsonc`, `tests/harness/test_independent_review.py`, `tests/harness/native_independent_review.py`, `tests/harness/native-independent-review.sh`. Checks: static 9/9; native probe 5/5 on the pinned 2.2.5 binary (sha256 `8d060e1d…`) in the network-none, read-only, non-root container; `test_opencode.py` 7/7; `make test`, `make vet`, `git diff --check` passed. Not observed: `variant` (not exposed by `/api/agent`), actual child invocation, compaction disable, path/symlink enforcement. Next action: human review; B3 needs its own authorization. |
 | B3 — Connected development and pilot preparation | T03/T04 | Independent offline scenarios, packaging/gates, scratch rollback and one bounded RHEL pilot brief; distinguish missing live proof. | Not started; requires B2 disposition and explicit B3 authorization. End `awaiting human review`; do not launch pilot. |
 | B4 — Final RHEL observation | T05 | Actual bounded native pilot and guided reconciliation; per-case results, evidence and user feedback. | Not started / live gate blocked. Requires B3 review, resolved prerequisites and separate exact VM/effect/model launch authorization. Stop for human acceptance. |
 
@@ -202,5 +204,18 @@ credential, VM address, model route proof, install permission or pilot allocatio
   B1/T01 only, via the router's approval question. Recorded in
   [spec §Approval](spec.md#approval). B1 implemented as above and published with the 006 B1 commits (see git log).
   Session handover: `docs/handovers/2026-11-04_006b.md`.
-- **Next permitted action:** human review of B1 (method reference, pointers and the
-  self-review). B2–B4 remain unauthorized; B4 remains separately blocked.
+- 2026-11-04: user reviewed B1, asked for it to be committed and pushed (`22da737`,
+  `a1f9cd4`; `origin/main` updated), then authorized B2 (“authorize the b2”), recorded
+  in [spec §Approval](spec.md#approval) with the T02 fixture boundary. B2 implemented
+  as above. Offline observations (no prompt, no model, no provider):
+  - Static and profile/permission expectations pass; the example stays inactive and
+    the default and lockdown templates are unchanged.
+  - The runtime exposes `model` as `{id, providerID}` for both profiles; `variant`
+    is not exposed and is therefore **not observed**.
+  - A higher-authority `subagent:*` denial still blocks the coordinator's launch of the
+    reviewer, as intended. The reviewer keeps reads and its skill and denies delegation.
+  - Path and symlink escape through the read tool, compaction disabling, actual child
+    context and cancellation are **not observed**; permission evaluation does not prove
+    tool dispatch. These stay blockers for the affected claims (IR-01/IR-02).
+- **Next permitted action:** human review of B2. B3–B4 remain unauthorized; B4 remains
+  separately blocked.
