@@ -23,7 +23,9 @@ wider adapter blockers.
 
 | Check | Command | Observed on 4 Nov 2026 |
 | --- | --- | --- |
-| Static profile, permission and collision expectations | `python3 -B -m unittest discover -s tests/harness -p 'test_independent_review*.py'` | 13/13 pass |
+| Static profile, permission and collision expectations | `python3 -B -m unittest discover -s tests/harness -p 'test_independent_review*.py'` | 26/26 pass across the static, document and fixture files |
+| Report reconciliation and scheduling fixtures (test-only consumer; scripted reports) | `python3 -B -m unittest discover -s tests/harness -p test_independent_review_fixtures.py` | 15 scripted outcomes; every rule changes at least one outcome; no duplicate or implicit launch |
+| Freshness fixtures on the real snapshot binary (scratch Git repositories) | same command | each in-scope change invalidates identity, revert restores it, and out-of-scope work does not |
 | Scratch digest, backup, rollback and refusal walkthrough | `sh tests/harness/independent-review-transaction.sh` | all cases pass; temporary files only |
 | Offline native permission probe, pinned OpenCode 2.2.5 | `sh tests/harness/native-independent-review.sh` | 5/5 pass in a network-disabled, read-only, non-root container |
 | Packaged reference and pointers | `go test ./internal/skillsync` | pass; the reference ships and both pointers reach it |
@@ -103,20 +105,69 @@ do not widen them without a new decision.
 `8d060e1d2fbb9bb44cf09ae6ed1f3f6a7cff070b5227e2f90970132b23a92050`; the example
 and its static and native checks; the procedure above.
 
-**Still needed from the user before B4 can be proposed for launch** (minimum set):
+**User answers received, 5 Nov 2026 (not launch authorization):**
 
-1. RHEL target: release, host, user and the disposable workspace path. Do not
-   connect to or provision the VM to discover these.
-2. Model: current eligibility and data-privacy terms for `opencode/big-pickle`, its
-   price and remaining allowance, and either a dedicated provider-side cap or an
-   explicit decision that no paid use is allowed.
-3. Credential route as a secret reference the user supplies. Do not copy or read a
-   primary credential store.
-4. Enforcement evidence for request, token, deadline and cancellation limits, and
-   for how all parent, child and auxiliary requests are counted (IR-02). Without it,
+1. **Target:** RHEL 10 VM. The user will provide SSH access over Tailscale or the
+   local network. Host, user and workspace are still missing; no connection has been made.
+2. **Model and bounds:** `opencode/big-pickle`. The user asked for "any number" of
+   requests and input below 2 million tokens. This is not yet accepted: repository
+   policy requires explicit numeric request, token and deadline limits, and the C4
+   proposal (30 requests; 360,000 aggregate input) is the current bound. Widening it
+   needs a separate decision.
+3. **Key delivery:** the user offered a file or a secret manager such as Doppler.
+   Either route must put a dedicated, scoped key in place outside the repository and
+   chat. The route is not yet chosen.
+4. **Remaining questions:** to be asked one at a time as multiple-choice questions.
+5. **Cleanup and continuation (agent decision, delegated by the user):** see below.
+
+**Decisions recorded 5 Nov 2026 (answers to multiple-choice questions; not launch authorization):**
+
+- B3 accepted by the user for the record. B4 still needs its own launch authorization.
+- Bounds: the C4 proposal stands (30 requests, 12,000 input and 2,000 output per
+  request, 360,000 input and 60,000 output aggregate, zero retries).
+- Spend (superseded 5 Nov 2026): the user first chose free route only, then wrote
+  "i dont want any task blocked, so i can give key also" and chose a custom paid cap
+  without giving an amount. This is **not** spend approval. A paid run still needs: the
+  USD cap typed by the user, the paid model named (the catalog's $0 `opencode/big-pickle`
+  would not be the paid model), verified current prices and allowance, and a dedicated
+  provider-side cap. Until then the earlier free-route text below stands. The route still must
+  pass eligibility, privacy and allowance checks. Free access does not remove the
+  bounded-use requirement, and without a provider cap the request limit must be
+  enforced by the harness itself. That enforcement is not shown, so **IR-02 still
+  blocks B4** (see the pilot brief below).
+- Key delivery: a Doppler secret reference. The user should set up a Doppler service
+  token scoped to one project and config on the VM, and give me only the project and
+  config names. The token itself never goes in the repository or in chat. Whether the
+  free route needs any credential at all is still to be confirmed.
+- VM access: Tailscale SSH. The user will send the host name and user.
+
+**Catalog check (read-only, no inference):** the model catalog lists
+`opencode/big-pickle` with $0 input and output price. That is a price listing only.
+It does not establish eligibility, privacy terms, remaining allowance, or a
+provider-side cap, so those items remain open.
+
+**Cleanup and continuation (agent decision):**
+
+- The user owns the VM, the workspace and the key. The agent owns only the sessions and
+  processes it starts during the pilot.
+- On any stop (limit reached, unexpected request, breach, cancellation or timeout), the
+  agent cancels only its own owned session IDs through the supported cancel path,
+  confirms they stopped within 30 seconds, deletes its scratch fixtures and any injected
+  key file, and records the state as uncertain if confirmation fails.
+- The agent never retries or continues after a stop. Continuation needs a new explicit
+  decision from the user after they read the consolidated report.
+
+**Still needed before B4 can be proposed for launch:**
+
+1. RHEL 10 host, user, disposable workspace path and access method.
+2. Numeric bounds the user accepts. The options are the C4 proposal or a stated change
+   with the request ceiling still numeric.
+3. Verified eligibility, privacy terms and allowance for `opencode/big-pickle`, and a
+   dedicated provider-side cap or an explicit no-paid-use decision.
+4. The key delivery route: a file or a secret manager, with the reference only.
+5. Evidence that the request, token, deadline and cancellation limits are enforced and
+   that all parent, child and auxiliary requests are counted (IR-02). Without it,
    the pilot stays blocked.
-5. Cleanup owner, the owned session identifiers to stop, and who decides on
-   continuation after a stop.
 
-Until items 1–5 are supplied and separately authorized, no reviewer invocation,
-inference, VM access or credential read is permitted under this runbook.
+Until these are supplied and a separate launch authorization is recorded, no reviewer
+invocation, inference, VM access or credential read is permitted under this runbook.
