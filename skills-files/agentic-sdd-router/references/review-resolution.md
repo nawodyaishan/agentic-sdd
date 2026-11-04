@@ -32,4 +32,4 @@ Re-review addressed findings and changed dependencies, including regressions int
 
 ## Lifecycle ownership
 
-Implementation owns one completion-review invocation for its current authorized result and any permitted batch-state write. The reviewer returns findings/verdict; the router consumes implementation's result. A correction can justify scoped re-review. Standalone verification review remains manually invocable and writes no project state. Feature review finding an old-batch problem does not automatically authorize editing that batch.
+Implementation owns one completion-review invocation for its current authorized result and any permitted batch-state write. The reviewer returns findings/verdict; the router consumes implementation's result. A correction can justify scoped re-review. An explicitly requested independent review follows the [independent review method](independent-review.md) and still feeds this same owner; it does not add a second completion review. Standalone verification review remains manually invocable and writes no project state. Feature review finding an old-batch problem does not automatically authorize editing that batch.

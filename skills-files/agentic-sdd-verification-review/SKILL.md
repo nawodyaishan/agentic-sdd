@@ -14,6 +14,8 @@ Read the [shared workflow policy](../agentic-sdd-router/references/workflow-poli
 
 Use after implementation or for an explicit review. Read the [review-scope and finding-resolution guidance](../agentic-sdd-router/references/review-resolution.md). The same rules apply whether reached through the router or invoked directly. Implementation invokes one completion review for its current result; the router consumes that result, not another unchanged review.
 
+Only for an explicit independent-review request, also follow the [independent review method](../agentic-sdd-router/references/independent-review.md) for reviewer context, reconciliation and the blocked-route rule. Without that request this skill performs the ordinary review and labels it self-review.
+
 | | Feature batch | Direct fix |
 |---|---|---|
 | Inputs | The diff, approved `spec.md`/`plan.md` sections, the batch's `tasks.md` entries, the combined approval reference, applicable contracts and test evidence | The request, relevant code and constraints, the diff and verification evidence |
