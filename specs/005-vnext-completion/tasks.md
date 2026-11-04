@@ -239,7 +239,7 @@ B1 and B2 explicitly authorized sequentially. Specialist/tool assignments live i
 | B2 — Inactive runtime delivery | T05–T06 | Sanitized preflight/candidate and separate config transaction. Fake inventory/CLI and temporary-filesystem negative cases; Go local gates. | Delivered in source/tests; A1 artifact produced by `agentic-sdd opencode config preview` not yet run. Self-reviewed Ready for this source/distribution scope. |
 | B3 — Native pending/recovery integration | T07–T08 | Thin ACP client, strict admission, owned interruption and pending-human output. Fake-peer/owned-process tests only; Go local gates. | Delivered at source level with fake-peer tests; awaiting human review. No native/model experiment. |
 | B4 — Production evidence bridge | T09–T10 | Compatible v1 identity/validation/export connected to owned observations and existing check results. Independent golden/negative/composition cases; Go local gates. | Delivered, published to `origin/main` (`2e2d461`…`af0036e`); B5 authorized directly by the user on 2026-11-02. Offline only; unknown billing/provenance remains unknown. |
-| B5 — Complete-candidate handover | T11–T12 | Aggregate development verification, final core/helper coverage and single final human-cycle instructions. Reuse valid checks, inspect final diff and retained findings. | Delivered and human-reviewed (accepted) 2026-11-02; a pinned container environment for the accepted human cycle was subsequently built and recorded in spec §Approval. Awaiting the user-run cycle. |
+| B5 — Complete-candidate handover | T11–T12 | Aggregate development verification, final core/helper coverage and single final human-cycle instructions. Reuse valid checks, inspect final diff and retained findings. | Delivered and human-reviewed (accepted) 2026-11-02. The user subsequently reported the human cycle complete and accepted its results for the pinned container; see the continuation record. |
 
 The final human usage cycle is **not B6 automatically starting**, not an LLM test
 job and not authorized by implementation completion. The user owns its later
@@ -266,7 +266,7 @@ native run) must still establish; none of it is implied by delivery.
 | 11 pending/native status | T07/T08/T10 | Fake-peer form/permission/cancel/provider-error/unknown-event cases; checks-derived execution and null review in projection. | Real native pending, cancellation and status mapping. B3-F1/F2, B6-F1. |
 | 12 evidence/recovery | T07–T10 | v1 consumer/projection/export/reload/freshness and scoped-identity golden parity tests; unknowns explicit; caller-supplied provenance not certified. | Real native session/model/billing correlation. B6-F2. |
 | 13 development boundary | Every task; T11 integration | Required gates and focused fixtures run on the final source identity; no new CI/model/container campaign. | Later manual evidence must stay separate from development checks. |
-| 14 final-only human cycle | T12 | [Final human usage plan](../../docs/vnext-human-test-plan.md) prepared for the whole candidate; not executed. | User chooses workspace, launch scope and live/model permissions. |
+| 14 final-only human cycle | T12 | [Final human usage plan](../../docs/vnext-human-test-plan.md) prepared for the whole candidate. | User later reported the pinned-image cycle complete and accepted it; individual scenario results remain unspecified. See continuation. |
 | 15 truthful status/findings | T01/T12 | This disposition keeps 004 finding IDs open and separates missing implementation from missing observation; no support/benefit/savings claim. | Human acceptance and later observations; no wording closes findings. |
 
 ## Combined-draft readiness reconciliation
@@ -288,6 +288,26 @@ native run) must still establish; none of it is implied by delivery.
 
 ## Continuation record
 
+- **Closure, 2026-11-05:** The user requested that feature 005 be finished and
+  closed. Selected implementation T01–T12 is delivered and the user previously
+  accepted the pinned-container cycle described below. The 005 delivery scope is
+  closed with those evidence limits; this does not convert unspecified scenarios
+  into passes or close retained 004 findings. Native admission, recovery, billing,
+  provenance, real-home adoption and macOS behavior remain unverified where stated
+  below. Additional remediation or live operations require separate authorization.
+- Human usage cycle (2026-11-03): the user reported the cycle complete and
+  everything working, and explicitly accepted the results for the pinned image
+  and authorized this record update. User-provided terminal output identifies
+  image `sha256:35ed49cdc081db1f233d238568e7fd2455ede458377703b9eb05d0a30103258b`,
+  OpenCode 2.2.5 and 18 skills; its offline check reported 14 passed, 0 failed,
+  0 skipped. The online connectivity check reported 3 passed, 0 failed, 1
+  skipped (optional `hi`). The user-provided redacted session export identifies
+  provider/model `opencode/big-pickle`, variant `default`. Individual human
+  scenario results and any other skips are unspecified; no per-scenario pass is
+  inferred. This user acceptance is limited to the pinned image and does not
+  close 004 findings or establish normal-setup, native admission, macOS,
+  billing/provenance, adoption or benefit. No further batch or live operation is
+  authorized. Previous entries below are historical, not the current status.
 - Current execution (2026-11-02): user approved the combined r1 set and **B1 B2**,
   then completed B1/B2 human review and authorized **B3**, then completed the
   **B3 human review (accepted)** and authorized **B4**, then directed B4

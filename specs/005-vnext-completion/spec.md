@@ -1,6 +1,12 @@
 # vNext implementation completion and human-input helpers
 
-Revision: r1 — draft, 2026-11-01. **Spec only; not approved or implemented.**
+Revision: r1, 2026-11-01. The historical draft is approved and implemented; see
+§Approval and the current [continuation](tasks.md#continuation-record).
+
+**Feature closure:** On 5 November 2026 the user requested that 005 be finished
+and closed. The selected implementation and previously accepted pinned-container
+cycle are closed as a delivery scope, not as certification of unobserved behavior.
+The retained findings and evidence limitations in the continuation remain open.
 
 ## Outcome
 
@@ -41,8 +47,9 @@ scope selection, not silently dropped from an otherwise unlimited promise.
   baseline and unresolved findings. This feature does not reopen, rewrite or
   claim to satisfy their historical observations.
 - [Final human usage plan](../../docs/vnext-human-test-plan.md) supplies the one
-  integrated cycle prepared at B5. It is **not executed** and does not authorize
-  a launch; its earlier R3/R4 suggestions are out of scope. The user's
+  integrated cycle prepared at B5. The user later reported it complete and
+  accepted it for the pinned image; see the continuation for evidence limits.
+  Its earlier R3/R4 suggestions are out of scope. The user's
   **all-implementation-first, one-final-usage-cycle** direction still applies.
 
 ### Source provenance
@@ -489,9 +496,8 @@ continues to block affected online work; no new budget/allocation is created.
 Current documents: [plan r1](plan.md) and [tasks r1](tasks.md). All selected
 implementation (T01–T12) is delivered and the B5 review is accepted. The user
 chose the pinned `agentic-sdd-qa:005` container as the accepted final-cycle
-environment (identity in §Approval); the cycle is prepared in the
-[final usage plan](../../docs/vnext-human-test-plan.md) and
-[human test guide](../../docs/vnext-human-test-guide.md) but **not executed**.
-Its launch, model/login, B5 publication and any further fix/retest remain
-separate user decisions. Preserve the single-batch execution rule and separate
-implementation/development review from human usage validation.
+environment (identity in §Approval); the user subsequently reported the cycle
+complete and accepted its results for that image. Scenario-level outcomes remain
+unspecified; see the [continuation](tasks.md#continuation-record). Publication
+and any further fix/retest remain separate user decisions. Preserve the
+single-batch rule and separate development evidence from human usage validation.
