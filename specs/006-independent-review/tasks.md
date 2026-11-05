@@ -3,8 +3,9 @@
 Revision: r1 · 3 November 2026. Inputs: [spec r2](spec.md), [plan r1](plan.md).
 Single approval location: [spec §Approval](spec.md#approval).
 Combined approval recorded 4 November 2026. T01 (B1) and T02 (B2) were reviewed
-and published. B3 (T03/T04) is authorized and `awaiting human review` after its
-offline checks; T05/B4 is deferred by the user, not passed or accepted.
+and published. B3 (T03/T04) is delivered for its offline scope; T05/B4 is
+deferred by the user, not passed or accepted. `IR-06-01` remains a valid native
+access failure, so generic native review of a checkout is unsupported.
 
 ## Execution boundary
 
@@ -18,8 +19,9 @@ Existing deterministic commit hooks/CI remain enabled and distinct from a pilot.
 
 ### T01 — Integrate the portable independent-review method
 
-- **Status:** awaiting human review (B1 implemented; self-review `Ready` on B1 scope,
-  no model calls). **Covers:** AC-01/02/05/06/07/08/09. **Contracts:** C1/C3.
+- **Status:** reviewed by the user and published (see [spec §Approval](spec.md#approval));
+  the original B1 self-review was `Ready` on its portable scope, with no model calls.
+  **Covers:** AC-01/02/05/06/07/08/09. **Contracts:** C1/C3.
 - **Objective:** own focused context, evidence distinctions, bounded findings and
   reconciliation once, behind explicit independent-review invocation.
 - **Targets:** new router reference `independent-review.md`, existing
@@ -143,6 +145,10 @@ Existing deterministic commit hooks/CI remain enabled and distinct from a pilot.
 ## Explicit execution batches
 
 These are execution units of one feature, not new roadmap phases.
+
+The dated B1–B3 row observations below retain their original delivery evidence;
+later human decisions in spec §Approval and the continuation supersede their old
+review/next-action wording. They do not renew B4 authority; B4 remains deferred.
 
 | Batch | Tasks | Outcome / completion and verification | Current state / next action |
 | --- | --- | --- | --- |

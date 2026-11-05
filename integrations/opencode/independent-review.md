@@ -7,6 +7,12 @@ reviewer, call a model or authorize a pilot. Support remains
 [uncertified](supported-version.md); see [verification](verification.md) for the
 wider adapter blockers.
 
+**Generic native review of a checkout is unsupported.** `IR-06-01` (an allowed
+symlink escaping the intended exclusion) remains a failing native assertion, B4
+is deferred, and the proposed sanitized-export mitigation is not certified.
+Owners: [006 tasks](../../specs/006-independent-review/tasks.md) and
+[006 spec §Approval](../../specs/006-independent-review/spec.md#approval).
+
 ## What it is
 
 - [`independent-review.jsonc`](independent-review.jsonc): one read-only coordinator

@@ -46,7 +46,8 @@ image uses the already observed local RepoDigest; future CI explicitly provision
 that exact image. Local commands/fixtures never pull an absent image or install
 tools implicitly. Unavailable image/runtime prerequisites block without fallback.
 The Task setup action is pinned to a full commit and requests Task 3.54.0. Hosted
-execution of this Task-based workflow remains unobserved. An older trusted base
+execution of this Task-based workflow remains unobserved; the Task migration is
+committed at `0ee5aaf` by Feature 007's recorded direct adoption. An older trusted base
 whose contract uses Make local recipes rejects the Task contract as a changed
 required record; see [007-F1](../specs/007-taskfile-migration/tasks.md#continuation-record).
 

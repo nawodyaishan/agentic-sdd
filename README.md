@@ -17,7 +17,7 @@ agentic-sdd preview  # show changes without writing
 agentic-sdd apply    # back up replacements and install the skills
 ```
 
-OpenCode discovers the installed skills through `~/.agents/skills`. In your project, ask it: **“Use agentic-sdd-router to help me plan my next feature; stop for my review.”** The same portable skills also work with Codex, Claude Code, and Antigravity CLI. See [OpenCode's skill discovery documentation](https://opencode.ai/docs/skills/).
+OpenCode discovers the installed skills through `~/.agents/skills`. In your project, ask it: **“Use agentic-sdd-router to help me plan my next feature; stop for my review.”** The installer also supplies the same portable guidance to Codex, Claude Code, and Antigravity CLI; installation is not proof of identical client behavior. See [OpenCode's skill discovery documentation](https://opencode.ai/docs/skills/).
 
 Building from source? See [Quick start](#quick-start). Have feedback or want to contribute? [Open an issue](https://github.com/nawodyaishan/agentic-sdd/issues) or see [Contributing](CONTRIBUTING.md).
 
@@ -34,6 +34,27 @@ Two things live here:
 - **Deterministic checks:** run repository checks and retain bounded evidence without a model or provider key. See [the check runner](harness/README.md).
 - **Experimental OpenCode tools:** inspect inactive configuration candidates, prepare sessions, and work with offline evidence. Native execution remains blocked pending independent safety controls; see [usage and limits](integrations/opencode/usage.md).
 - **Container-based testing:** an isolated, model-free test cycle and opt-in online setup are documented in the [human test guide](docs/vnext-human-test-guide.md).
+
+## Support and release scope
+
+The `0.x` product is the portable workflow and preview-first skill installer, not
+an autonomous multi-agent runtime. This table describes the current source and
+distribution boundaries; it does **not** certify a new release candidate.
+
+| Surface | Distribution / platform | Support boundary and evidence limits |
+|---|---|---|
+| 18 portable skills and linked references | Canonical `skills-files/`, embedded in the installer; four [client destinations](#where-the-skills-go) | Human-led guidance, direct fixes, optional teaching and explicitly requested reviews. Cross-client discovery does not establish cross-client behavioral equivalence or model reliability. |
+| Skill installer, backups and restore | Configured macOS universal/Homebrew release; Go source usage on Linux | Preview-first installation, backup and staged replacement/restore; tests use isolated homes. New-candidate packaging and native macOS/Homebrew first use still require fresh evidence. See [CLI reference](#cli-reference). |
+| `sdd-check` and check/evidence contracts | **source-only** executable, not a Homebrew/release binary; Linux process behavior has focused coverage | Deterministic checks and bounded evidence, not agent approval or a sandbox. Darwin cross-builds do not establish native macOS execution/cancellation guarantees. See [runner limits](harness/README.md#b4-runner-usage-and-limitations). |
+| Trusted CI | Reviewed-base bootstrap and isolated Linux candidate execution | The six required checks are not the complete release-QA matrix. Candidate scripts/Taskfiles must not run on the privileged host. Task-based hosted outcomes and fork/PR paths need their own observations; direct adoption did not pass the old-base PR gate. See [trusted CI](harness/trusted-ci.md). |
+| OpenCode runtime integration and inactive examples | Experimental repository material plus CLI helper commands | Offline preparation/config/evidence commands are not native execution certification. Native ACP admission remains blocked while its required controls are unverified; no automatic model routing or billing firewall. See [usage and limits](integrations/opencode/usage.md). |
+| Native independent reviewer | **Unsupported** for generic checkout path isolation | **IR-06-01:** an allowed symlink escaped the intended exclusion. Feature 006 B4 is deferred/incomplete; the proposed C2 sanitized export is not certified. Do not launch this route from an example or earlier permission. See [observed failure](integrations/opencode/independent-review.md#actual-tool-dispatch-observations--5-november-2026). |
+
+Static instruction/fixture checks are not observed model compliance. Budget-model
+cost/quality advantages remain unmeasured. Windows runtime support and native
+macOS check-runner guarantees are not claimed. The [documentation index](docs/README.md)
+links active guidance and historical evidence; [Feature 008's working report](specs/008-core-release-quality/release-readiness.md)
+tracks release prerequisites, not publication permission.
 
 ![Agentic SDD architecture: the spec-driven workflow and Go CLI skill distribution](docs/agentic-sdd-architecture.png)
 

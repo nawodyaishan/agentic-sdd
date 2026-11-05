@@ -72,7 +72,8 @@ prior usage reconciliation, verified pre-send request/token enforcement, bounded
 cancellation and a dedicated scoped evaluation secret are not launch gates.
 Report unknown usage and controls honestly; do not copy or export credential
 stores. All unrelated runs retain the controls below, and this exception does not
-establish acceptance or authorize a different provider, model or fixture.
+establish acceptance or authorize a different provider, model or fixture. The
+single observation has been consumed; this exception authorizes no further launch.
 
 1. Record exact provider/model/variant, synthetic input identity, authorization,
    active session count (one), children (zero), maximum total requests including

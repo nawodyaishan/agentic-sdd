@@ -1,0 +1,63 @@
+# Documentation index
+
+Start here to find current guidance and distinguish it from historical research.
+Repository instructions and the feature approval and task records take precedence
+over advisory or historical documents. Existing paths are retained so links in
+specifications, evidence and handovers continue to work.
+
+## Current status and next decisions
+
+- [Public support and release scope](../README.md#support-and-release-scope) —
+  portable skills, installer, source-only checks and unsupported native experiments.
+- [Feature 008 approval](../specs/008-core-release-quality/spec.md#approval),
+  [batch continuation](../specs/008-core-release-quality/tasks.md#continuation-record),
+  and [working release inventory](../specs/008-core-release-quality/release-readiness.md) —
+  the selected core-quality effort; the inventory is not a release verdict.
+- [Remaining vNext work and adoption guide](vnext-remaining-work-guide.md) —
+  004/005 gap reference; use the owning feature records for actual current state.
+- [Feature 005 continuation](../specs/005-vnext-completion/tasks.md#continuation-record)
+  and [approval](../specs/005-vnext-completion/spec.md#approval) — canonical
+  batch state and approval record.
+- [Feature 004 acceptance map](../harness/acceptance.md) — retained findings and
+  blocked technical validation.
+- [Feature 006 approval](../specs/006-independent-review/spec.md#approval) and
+  [continuation](../specs/006-independent-review/tasks.md#continuation-record) —
+  native B4 deferred/incomplete; IR-06-01 remains open, not fixed by documentation.
+- [Feature 007 approval](../specs/007-taskfile-migration/spec.md#approval) and
+  [continuation](../specs/007-taskfile-migration/tasks.md#continuation-record) —
+  direct Taskfile adoption; old-base PR evidence was not established.
+- [OpenCode safety](../integrations/opencode/safety.md),
+  [adoption](../integrations/opencode/adoption.md), and
+  [recovery](../integrations/opencode/recovery.md) — operational boundaries.
+
+No index entry, historical handover, accepted partial delivery or technical
+verdict authorizes another batch, experimental execution or publication.
+
+## Pinned-image human-cycle evidence (Feature 005)
+
+- [Human test guide](vnext-human-test-guide.md) — pinned-container procedure.
+- [Run sheet](vnext-human-cycle-run-sheet.md) — scenario-level recording template.
+- [Human usage plan](vnext-human-test-plan.md) — scope and historical test design.
+
+The user reported the cycle complete and accepted it for the pinned image;
+individual scenario results remain unspecified. This is not cross-client,
+native-runtime or general safety certification. See the continuation record.
+
+## Advisory plans and historical research
+
+- [vNext adoption plan](Agentic-SDD-vNext-Adoption-Plan.md) — revision 6 advisory
+  proposal; its baseline predates feature 005 and is not current implementation status.
+- [Workflow audit](Agentic-SDD-Workflow-Audit-2026-09-24.md) — historical audit.
+- [Corrected September audit](../audits/Agentic-SDD-Workflow-Audit-2026-09-24%20%281%29.md) —
+  historical superseding report, not a new approval. The original also exists at
+  `audits/Agentic-SDD-Workflow-Audit-2026-09-24.md`; both paths are retained.
+- [Workflow research artifact](compass_artifact_wf-97cc6285-b594-5b61-ae30-2894cfe0b595_text_markdown.md)
+  and [Reddit research](reddit_research.md) — historical inputs, not current policy.
+- [Architecture illustration](agentic-sdd-architecture.png) — README asset.
+
+## Session handovers
+
+See [handovers/](handovers/) for the latest session pointer only. Older handovers
+were removed from the working tree at the owner's request; tracked versions
+remain in Git history and untracked material was privately archived, not published.
+Handovers are not approval records; re-read the owning continuation and current diff.

@@ -99,7 +99,9 @@ B1 and B2 explicitly authorized sequentially. Specialist/tool assignments live i
 
 ### T05 — Implement sanitized runtime preflight and inactive candidate
 
-- **Status:** pending. Depends on B1 delivery/review and B2 authorization.
+- **Status:** delivered in B2 (2026-11-02); scope and limits are in the
+  [continuation record](#continuation-record). Depends on B1 delivery/review and
+  B2 authorization.
 - **Covers:** AC-01/10/13/15. **Contracts:** C3/C4.
 - **Targets:** `cmd/agentic-sdd` command dispatch/help, `internal/opencodeadapter`,
   embedded inactive resources, existing JSONC/model/lockdown examples and
@@ -116,7 +118,8 @@ B1 and B2 explicitly authorized sequentially. Specialist/tool assignments live i
 
 ### T06 — Implement separate config preview/apply/rollback transaction
 
-- **Status:** pending. Depends on T05. **Covers:** AC-10/13. **Contract:** C3.
+- **Status:** delivered in B2 (2026-11-02); scope and limits are in the
+  [continuation record](#continuation-record). Depends on T05. **Covers:** AC-10/13. **Contract:** C3.
 - **Targets:** adapter CLI/config/files/manifest implementation and tests;
   `integrations/opencode/adoption.md`. Keep skillsync backup manifests unchanged.
 - **Objective:** user-curated candidate bytes, private external runtime-config
@@ -233,11 +236,15 @@ B1 and B2 explicitly authorized sequentially. Specialist/tool assignments live i
 
 ## Execution batches
 
+The rows retain original delivery observations. Current human acceptance and
+remaining evidence limits are owned by spec §Approval and the latest continuation
+entry; old not-yet-run/self-review wording is not a request to repeat experiments.
+
 | Batch | Tasks | Outcome and focused verification | State / next action |
 | --- | --- | --- | --- |
 | B1 — Portable helper suite | T01–T04 | Seven helpers, canonical lifecycle pointers, provenance/notices and safe eighteen-ID embedded/on-disk package. Focused source/link/semantic review and temporary-home packaging tests; local gates for Go test changes. | Delivered and self-reviewed Ready for this source/distribution scope. |
 | B2 — Inactive runtime delivery | T05–T06 | Sanitized preflight/candidate and separate config transaction. Fake inventory/CLI and temporary-filesystem negative cases; Go local gates. | Delivered in source/tests; A1 artifact produced by `agentic-sdd opencode config preview` not yet run. Self-reviewed Ready for this source/distribution scope. |
-| B3 — Native pending/recovery integration | T07–T08 | Thin ACP client, strict admission, owned interruption and pending-human output. Fake-peer/owned-process tests only; Go local gates. | Delivered at source level with fake-peer tests; awaiting human review. No native/model experiment. |
+| B3 — Native pending/recovery integration | T07–T08 | Thin ACP client, strict admission, owned interruption and pending-human output. Fake-peer/owned-process tests only; Go local gates. | Delivered at source level with fake-peer tests; B3 human review accepted 2026-11-02 ([spec §Approval](spec.md#approval)). No native/model experiment. |
 | B4 — Production evidence bridge | T09–T10 | Compatible v1 identity/validation/export connected to owned observations and existing check results. Independent golden/negative/composition cases; Go local gates. | Delivered, published to `origin/main` (`2e2d461`…`af0036e`); B5 authorized directly by the user on 2026-11-02. Offline only; unknown billing/provenance remains unknown. |
 | B5 — Complete-candidate handover | T11–T12 | Aggregate development verification, final core/helper coverage and single final human-cycle instructions. Reuse valid checks, inspect final diff and retained findings. | Delivered and human-reviewed (accepted) 2026-11-02. The user subsequently reported the human cycle complete and accepted its results for the pinned container; see the continuation record. |
 
