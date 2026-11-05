@@ -1,6 +1,6 @@
 # Feature 008 — Core Product Quality, Repository Maintainability & Release Readiness
 
-**Status:** Combined r1 approved; B1 accepted; later batches not authorized
+**Status:** Combined r1 approved; B1 accepted; B2 authorized under the r2 scope fence; later batches not authorized
 
 **Date:** 2026-11-05
 
@@ -12,7 +12,7 @@
 
 **Next release:** Undecided `v0.x` version, subject to review and verification
 
-**Authority:** [Approval](#approval) records combined r1 approval and B1-only execution with explicitly requested implementation delegation. No experimental model evaluation, local configuration change, real-home apply, release tag or publication is authorized.
+**Authority:** [Approval](#approval) records combined r1 approval, accepted B1 and B2-only execution under the r2 scope fence. Prior delegation and commit authority were bounded to B1 and the named WIP preservation. No experimental model evaluation, local configuration change, real-home apply, release tag or publication is authorized.
 
 ## 1. Product vision and outcome
 
@@ -193,10 +193,11 @@ This is section 12 and the sole combined-approval record for [spec r1](spec.md),
 - **Approver:** The repository owner in this conversation (no additional identity asserted).
 - **Approved revisions/scope:** Combined r1 spec, plan and tasks as presented, retaining the owner's explicit strict-008-only scope and exclusions.
 - **Decision evidence:** The owner said “i approve all 3 plan spec tasks” and requested use of `sdd-implement-1` and `sdd-implement-2`. After the response proposed recording approval and implementing B1 only, the owner switched out of Plan mode and said “start”. This authorizes that presented B1 scope, not B2–B5.
-- **Authorized implementation batch:** B1 (T01–T02), then verification and stop for human review. No later batch authorization recorded.
+- **Authorized implementation batch:** B1 (T01–T02) is accepted. On 2026-11-06, after plan/tasks r2 exclusions were presented and committed, the owner said “start b2”: authorize B2 (T03–T04) only under that fence, verify and stop for human review. B3–B5 remain unauthorized.
 - **B1 acceptance (2026-11-06):** the owner said “accept b1” after the delivered work, checks and residual issues were presented. This accepts the bounded documentation/source-inventory scope, not release readiness or excluded-feature behavior.
-- **Post-B1 scope direction:** the owner required plan/tasks updates before B2 to exclude deprecated 006/007 scopes. Plan/tasks r2 make that fence explicit; B2 still needs review and explicit authorization. Core Taskfile/trust verification required by R6/R9 remains within 008; no old-feature resumption is authorized.
+- **Post-B1 scope direction:** the owner required plan/tasks updates before B2 to exclude deprecated 006/007 scopes. Plan/tasks r2 make that fence explicit; the subsequent “start b2” applies to that presented scope. Core Taskfile/trust verification required by R6/R9 remains within 008; no old-feature resumption is authorized.
 - **Commit authority (2026-11-06):** the owner requested existing uncommitted 006/007 changes be saved as WIP and selected “Commit B1 only” for the separate reviewed B1 delivery. Use scoped separate commits, preserve unrelated/private work, and do not push. Saving WIP does not approve, test, certify or resume those features.
+- **B2 commit authority (2026-11-06):** the owner said “commit b2 and before start b3, give me tasks in b3”. Commit B2 only, preserve unrelated changes, and present B3's planned tasks. This does not authorize a push or B3 implementation, nor supply a separate B2 acceptance or release-readiness decision.
 - **Authorized delegation:** `sdd-implement-1` and `sdd-implement-2` for bounded, non-overlapping B1 work using configured models; parent integrates and verifies. This is development assistance, not authorization for experimental product model evaluations or native reviewers.
 - **Authorized model/network/credential/live actions:** Only the explicitly requested development-agent delegation above; no product model evaluation, native dispatch, credential/configuration change, real-home apply or other live action.
 - **Authorized tag, push, GitHub Release, or Homebrew tap change:** None.

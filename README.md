@@ -19,7 +19,9 @@ agentic-sdd apply    # back up replacements and install the skills
 
 OpenCode discovers the installed skills through `~/.agents/skills`. In your project, ask it: **“Use agentic-sdd-router to help me plan my next feature; stop for my review.”** The installer also supplies the same portable guidance to Codex, Claude Code, and Antigravity CLI; installation is not proof of identical client behavior. See [OpenCode's skill discovery documentation](https://opencode.ai/docs/skills/).
 
-Building from source? See [Quick start](#quick-start). Have feedback or want to contribute? [Open an issue](https://github.com/nawodyaishan/agentic-sdd/issues) or see [Contributing](CONTRIBUTING.md).
+New here? Follow the [safe first-use path and three worked examples](docs/getting-started.md): a direct fix, one feature batch, and review/resume. Teaching is optional.
+
+Building from source? See [Quick start](#quick-start). Have feedback or want to contribute? See [Contributing and security reporting](CONTRIBUTING.md#reporting-bugs-and-security-concerns); do not put sensitive details in a public issue.
 
 Two things live here:
 

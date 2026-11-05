@@ -38,6 +38,10 @@ Implement the fix, select checks from the [testing guidance](../agentic-sdd-rout
 
 ## Both paths
 
+Lead the completion summary with changed behavior and actual checks. Include
+risk-relevant review points, limitations and the next permitted action; keep it
+proportional to the change, not another review loop.
+
 For late material answers or a batch decision, use the [human-input contract](../agentic-sdd-router/references/human-input.md).
 Reconcile affected contracts/task edges and preserve unaffected approval; return
 the concrete authorized continuation rather than a new universal approval form.

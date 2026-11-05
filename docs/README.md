@@ -7,6 +7,8 @@ specifications, evidence and handovers continue to work.
 
 ## Current status and next decisions
 
+- [Getting started](getting-started.md) — safe preview and three compact core
+  experiences: direct fix, one approved feature batch, and review/resume.
 - [Public support and release scope](../README.md#support-and-release-scope) —
   portable skills, installer, source-only checks and unsupported native experiments.
 - [Feature 008 approval](../specs/008-core-release-quality/spec.md#approval),

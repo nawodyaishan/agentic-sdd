@@ -1,5 +1,19 @@
 # Harness fixtures
 
+## Core workflow text and onboarding checks
+
+Run `python3 -B -m unittest discover -s tests/harness -p test_core_workflow.py`
+with Python 3's standard library. This explicit selection reads canonical portable
+instructions and `core-workflow-scenarios.json`; prompts are data, never executed.
+It checks required clauses, source-link integrity, scenario completeness, honest
+`agent_observation: not_run` labels and compact onboarding/security-reporting guidance.
+In-memory clause removal, authority softening and missing-link/fixture mutations
+must be detected. These are **static text/fixture checks**, not model behavior or
+runtime enforcement. No client, provider, container, network or subprocess is launched.
+Do not substitute blanket discovery or import deprecated integration suites.
+
+## Historical comparison fixtures
+
 `scenarios.json` freezes model-behavior prompts, source revisions, exact one-match mutations and independent expected outcomes. Apply mutations **only in disposable isolated copies**, after verifying the base revision and match count. Never edit the live repository to construct a fixture. Later B2 observations and the spend-incident correction live in `harness/baseline.md`; B3 adds no model requests.
 
 The historical feature fixture starts after the restore core and before its CLI integration. The regression fixture disables the identical-tree fast path. The review fixture reverses the already-absent guard for removing a freshly installed skill. Independent sentinels/backup counts and before/after tree identities are the oracles, not the implementation's own return values.

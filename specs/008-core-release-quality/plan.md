@@ -1,6 +1,6 @@
 # Core release quality — plan
 
-Revision: r2, 2026-11-06 — owner-requested post-B1 scope clarification. Input: [spec r1](spec.md). Combined r1 approval, B1 acceptance and commit authority: [spec §Approval](spec.md#approval). B2 is not authorized; review this clarification before authorizing it. This design does not itself authorize publication or later batches.
+Revision: r2, 2026-11-06 — owner-requested post-B1 scope clarification. Input: [spec r1](spec.md). Combined r1 approval, B1 acceptance and B2-only execution under this scope fence: [spec §Approval](spec.md#approval). This design does not itself authorize publication or later batches; B1 delegation/commit permissions do not carry into B2.
 
 ## 1. Approach and inspected baseline
 

@@ -1,6 +1,6 @@
 # Core release quality — tasks and continuation
 
-Revision: r2, 2026-11-06 — owner-requested post-B1 exclusion clarification. Inputs: [spec r1](spec.md), [plan r2](plan.md). Single approval owner: [spec §Approval](spec.md#approval). Shared contracts C1–C5 and specialist/tool assignments live in the plan. B1 r1 delivery is accepted; B2 remains unauthorized pending review of this clarification and explicit batch authorization.
+Revision: r2, 2026-11-06 — owner-requested post-B1 exclusion clarification. Inputs: [spec r1](spec.md), [plan r2](plan.md). Single approval owner: [spec §Approval](spec.md#approval). Shared contracts C1–C5 and specialist/tool assignments live in the plan. B1 r1 delivery is accepted; B2 is delivered and awaiting human review under the r2 fence.
 
 ## Execution rules
 
@@ -32,6 +32,7 @@ The user's drafting correction explicitly requires strict Feature 008 scope and 
 
 ### T03 — Cover authority and incomplete-request branches
 
+- **Status:** delivered; awaiting B2 human review. Source checks and scenario definitions are not model-behavior evidence.
 - **Contract / coverage:** C2; AC-02/03/04/05/10/15/18. **Dependencies:** B1 reviewed; B2 authorized.
 - Inspect canonical instructions and existing scenario/test ownership; make a gap-to-change map. Add bounded independent cases for incomplete versus clear prompts, settled answers, ready questions, all routing/side-effect branches and the positive/negative authority cases in C2. Refine existing instructions only where a real gap is demonstrated.
 - Preserve one implementation completion-review owner and portable/host separation. No new skill, approval record, mandatory interview or automatic review loop.
@@ -40,6 +41,7 @@ The user's drafting correction explicitly requires strict Feature 008 scope and 
 
 ### T04 — Deliver concise first use and three worked experiences
 
+- **Status:** delivered; awaiting B2 human review. Linux source preview observed; fictional workflow walkthroughs remain distinct from actual-agent and native release-candidate evidence.
 - **Contract / coverage:** C1/C2; AC-01/02/04/05/07/13/15/18. **Dependencies:** T03.
 - Update README/current docs and CONTRIBUTING with safe prerequisites and a first-five-minutes path. Provide compact direct-fix, combined-approval/one-batch feature, and review/resume examples with exact stop points; link canonical rules and keep teaching optional.
 - Make security-reporting guidance navigable using a real maintained channel. Do not invent private reporting availability or add ceremonial files. Public install instructions may show explicit opt-in apply, but validation uses isolated homes only.
@@ -99,8 +101,8 @@ The user's drafting correction explicitly requires strict Feature 008 scope and 
 
 | Batch / included tasks | Outcome and completion verification | State / next action |
 |---|---|---|
-| **B1 — T01–T02** | Provenance/ownership and reconciled support/current-state navigation. Verify metadata, source-backed claims, retained approvals/findings and links; no moves/deletions by default. | Delivered; **accepted by the owner, 2026-11-06** (spec §Approval). Technical verdict: Ready for this documentation/source-inventory scope, not release readiness. Separate WIP/B1 commits and r2 exclusions were requested; B2 remains unauthorized. |
-| **B2 — T03–T04** | Bounded existing-guidance improvements, authority scenarios and three onboarding experiences. Focused instruction/reference/fixture checks and model-free walkthroughs; model behavior not_run. | Not started. Requires B1 review and B2 authorization; then stop awaiting human review. |
+| **B1 — T01–T02** | Provenance/ownership and reconciled support/current-state navigation. Verify metadata, source-backed claims, retained approvals/findings and links; no moves/deletions by default. | Delivered; **accepted by the owner, 2026-11-06** (spec §Approval). Technical verdict: Ready for this documentation/source-inventory scope, not release readiness. WIP/B1 commits are recorded below. |
+| **B2 — T03–T04** | Bounded existing-guidance improvements, authority scenarios and three onboarding experiences. Focused instruction/reference/fixture checks and model-free walkthroughs; model behavior not_run. | Delivered; **awaiting human review**. Completion **self-review: Ready for this bounded source/documentation scope**. Actual-agent observations remain not_run; B3 needs explicit authorization. |
 | **B3 — T05** | Accurate permission/restore contract with focused safety/idempotence evidence. Repository Go gates and isolated installer tests; behavioral escalation reviewed before action. | Not started. Requires B2 review and B3 authorization; then stop awaiting human review. |
 | **B4 — T06–T08** | Explicit safe release QA, trusted-CI negative evidence and candidate prerequisite list. Run selected suites and entry-point failures; preserve base-owned isolation and declare gaps. | Not started. Requires B3 review and B4 authorization; then stop awaiting human review. |
 | **B5 — T09–T11** | Same-candidate packaging/first use, final matrix, compatibility/notes and technical go/no-go. Clean-candidate and native prerequisites gate dependent claims; honest no-go allowed. | Not started. Requires B4 review and B5 authorization plus candidate prerequisites. Stop for human review; never publish automatically. |
@@ -111,7 +113,7 @@ The user's drafting correction explicitly requires strict Feature 008 scope and 
 |---|---|
 | AC-01 | T02/T04/T10/T11 |
 | AC-02/03/04/05 | T03/T04 (AC-03 principally T03) |
-| AC-06/07 | T02/T07/T11 |
+| AC-06/07 | T02/T11; T02 delivered status/exclusions, with no deprecated-feature follow-up assigned to T07 |
 | AC-08 | T05/T10 |
 | AC-09 | T01/T02/T09 |
 | AC-10 | T01/T03/T05/T06/T08/T09/T10 |
@@ -158,4 +160,28 @@ The owner accepted B1, requested existing 006/007 changes be saved separately as
 
 **Commit validation:** staged whitespace checking caught six Markdown hard-break space suffixes in the previously untracked spec header. Replaced them with blank-line formatting without changing requirements or approval meaning; staged whitespace, local-reference and r2 scope-fence checks must pass before committing. This is documentation validation, not a production or experimental test run.
 
-**Current position:** B1 accepted; 006/007 WIP preserved separately; r2 scope fence prepared for the authorized B1 documentation commit. **Next permitted action:** review r2 scope clarification and request explicit B2 authorization. B2–B5 remain unstarted; no delegation for a later batch follows from the prior B1 request. Scoped text/link/whitespace checks verify the clarification; no production, experimental or model behavior is claimed verified by those checks.
+**Historical acceptance checkpoint:** B1 accepted; 006/007 WIP preserved separately; r2 scope fence prepared for the authorized B1 documentation commit. The B2 execution record below supersedes its then-pending authorization. Scoped text/link/whitespace checks verified the clarification; no production, experimental or model behavior was claimed verified by those checks.
+
+### B2 start — 2026-11-06
+
+The owner said “start b2” after the r2 exclusions were presented. Scope: T03/T04, main agent using assigned writing guidance; no reuse of B1 delegation/commit authority, no 006/007 continuation, and no native/model evaluation. Starting HEAD: `dc694f0`; inherited AGENTS policy deletion and `docs/vnext-project-status.md` are protected by pre-edit hashes at `/tmp/opencode/008-b2-yr7n6fw3/`.
+
+Gap-to-change map from canonical instruction inspection: fact discovery, settled-answer reuse, at-most-three ready questions, limited-document/direct-fix/review/research/teaching effects, explicit batch authority and one completion-review owner already exist and should be characterized, not rewritten. Two small gaps remain: the incomplete-request branch does not explicitly distinguish established facts from assumptions while proposing scope/exclusions/acceptance conditions; the implementation summary does not explicitly ask for risk-relevant review points. T03 will cover those before changing the two existing owners. T04 supplies missing compact first-use/worked paths and an honest security-reporting route; no new mandatory workflow or skill is planned.
+
+### B2 completion — 2026-11-06
+
+- **State / review:** `awaiting human review`; one main-agent completion **self-review**, verdict **Ready for T03/T04's source/documentation scope**, not independent review, model compliance or release readiness. No open material finding in this batch. Review B2 and explicitly authorize B3 if desired; no further implementation, delegation or commit is authorized by “start b2”.
+- **Changed guidance:** only the existing `human-input.md` and implementation skill body: explicit facts/assumptions and proposed scope/exclusions/acceptance conditions for incomplete requests; risk-relevant review points in the shared completion summary. Existing owners retain routing, authority and the one completion-review lifecycle. No skill IDs, frontmatter, client destinations or runtime/install configuration changed.
+- **Coverage:** `tests/harness/core-workflow-scenarios.json` defines 21 core cases, all `agent_observation: not_run`. `test_core_workflow.py` checks 22 source rules, required scenario/claim metadata, references, direct-fix/limited-doc/review/research/teaching boundaries, negative authority cases and a positive named-batch case. Source/fixture expectations are independent of the instruction strings; the suite detects wording/coverage regressions, not actual agent actions or OS permission enforcement. No production policy evaluator, review loop or mandatory ledger was added.
+- **Onboarding:** `docs/getting-started.md` provides safe installed/source preview, a direct fix without feature paperwork, compact feature/combined-approval/B1 experience, and review/resume with explicit human stops and optional teaching. README, docs index and CONTRIBUTING link it. CONTRIBUTING gives an honest sensitive-report route without inventing private reporting availability; test ownership/explicit selection is documented in `tests/harness/README.md`.
+- **Test-first evidence:** two missing instruction clauses failed by assertion before either source edit, then passed. Three onboarding requirements (five failing assertions/subtests) failed before guide/entrypoint/security text was added, then passed. A review correction first detected the version-preflight download-settings gap, then added offline settings and a no-sandbox caveat. Logs: `/tmp/opencode/008-b2-yr7n6fw3/{red-text-tests.log,green-text-tests.log,red-onboarding-tests.log,red-offline-preflight.log,core-workflow-final.log}`.
+- **Checks:** explicit `python3 -B -m unittest discover -s tests/harness -p test_core_workflow.py` passed **11 tests**. Negative controls detected 22 in-memory clause removals, four softened-authority clauses, a broken reference, and missing/unknown/invented-pass fixture data. Existing `go test ./internal/skillsync` passed with fresh temporary homes and offline/sanitized Go settings; it covers the exact 18-ID embedded/on-disk distribution and installer safety without native/model suites. No Go source changed; full Go/vet/required/container release gates were not run for this batch.
+- **Observed first use:** documented Linux `go run ./cmd/agentic-sdd preview --home <disposable-home>` succeeded with 72 install-plan lines (18 skills × four destinations), no files in the selected home, and successful empty-home removal. The exact first shell block from the guide (offline version, temporary home, preview, empty-home removal) also passed. Build cache/tool HOME were separate temporary paths. This is a development-source preview, not real-home apply/restore, macOS/Homebrew, release packaging or an executed agent workflow. Command/environment/results: `/tmp/opencode/008-b2-yr7n6fw3/{first-use-preview.json,exact-guide-preview.json,skillsync-command.json}`.
+- **Documentation fact:** Context7's official Go source documentation confirmed `GOTOOLCHAIN=local` avoids toolchain switching/downloads and `GOPROXY=off` disables module retrieval; the guide uses those settings for both version and run. They are not an OS/network sandbox. Reference: <https://go.dev/doc/toolchain#select>.
+- **Unchanged / limitations:** two inherited dirty files are protected by baseline hashes; no 006/007 continuation, experimental suite or workflow was modified or executed. Shipped-reference integrity was checked only as part of the retained core package guard. No provider credential or real-user backup was inspected/copied, no real-home apply/model/native call or new delegation occurred. All 21 actual-agent observations remain not_run; no cost/reliability claim. B3 permission semantics, B4 full release QA and B5 same-candidate native/package evidence remain pending.
+- **Final source checks:** 13 B2 paths; two inherited files unchanged; 88 nonignored tracked/untracked Markdown files and 406 local targets resolve, including 33 scoped heading targets. Owned-file whitespace checks and `git diff --check` passed. One latest handover remains; no Go/runtime/trust inputs changed. The acceptance map keeps prior T02 status/exclusion work out of T07's remaining core verification scope.
+- **Evidence identity at delivery:** starting/ending implementation HEAD `dc694f0`; source/doc checks include untracked additions. Private final manifest/link results under `/tmp/opencode/008-b2-yr7n6fw3/` identify exact checked paths/hashes and preserved dirty-file identities, not a clean release candidate. B2 was delivered uncommitted; the subsequent commit permission is recorded below.
+
+### B2 commit request — 2026-11-06
+
+The owner requested “commit b2” and presentation of B3 tasks before starting it; actual authority is recorded in spec §Approval. Commit only the 13 B2-owned paths, preserving the inherited AGENTS policy deletion and untracked status draft. The resulting B2 commit is identified in Git history rather than embedding its own hash. No push or B3 implementation is authorized. B2's technical verdict remains a bounded self-review; do not infer a separate acceptance decision from permission to save the work. Next action: present T05/B3 and await the owner's review/explicit execution decision.

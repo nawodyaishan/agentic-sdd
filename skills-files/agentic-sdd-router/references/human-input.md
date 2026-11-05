@@ -12,6 +12,10 @@ tools in the main agent. Reuse settled answers; inaccessible facts remain unknow
 Human questions concern intent, unavailable stakeholder knowledge or consequential
 tradeoffs, not routine implementation choices. No implicit research delegation.
 
+For an incomplete request, distinguish established facts from assumptions.
+At the consequential checkpoint, propose scope, exclusions and acceptance conditions.
+Use a short response, not a mandatory form; clarification is not approval.
+
 Track dependencies and ask only the ready frontier, at most three independent
 questions per round. Give rationale, evidence/uncertainty, a recommendation and
 credible alternatives with consequences. Avoid yes-biased bundles. Defer a question
