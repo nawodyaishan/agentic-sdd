@@ -43,7 +43,7 @@ scope selection, not silently dropped from an otherwise unlimited promise.
 - Feature 004's [approval](../004-vnext-harness/spec.md#approval),
   [continuation](../004-vnext-harness/tasks.md#continuation-record),
   [acceptance map](../../harness/acceptance.md) and
-  [recovery handover](../../docs/handovers/2026-11-01_004.md) supply the delivered
+  [historical recovery handover](https://github.com/nawodyaishan/agentic-sdd/blob/0ee5aaf65df7485d872d5784b17d6435175a185f/docs/handovers/2026-11-01_004.md) supply the delivered
   baseline and unresolved findings. This feature does not reopen, rewrite or
   claim to satisfy their historical observations.
 - [Final human usage plan](../../docs/vnext-human-test-plan.md) supplies the one
