@@ -24,11 +24,11 @@ Keep client destinations and skill selection together in `internal/skillsync`. P
 - Back up every existing skill that will be replaced before modifying destinations.
 - Keep unrelated skills untouched and reject symlinks or special files in managed skill trees.
 - Preserve the no-op behavior: identical skills should not be replaced or backed up again.
-- Update README commands and the Makefile whenever the CLI path or flags change.
+- Update README commands and the Taskfile whenever the CLI path or flags change.
 
 ## Verification
 
-Run `make test`, `make vet`, and `git diff --check` after Go changes. Use a temporary home in tests. `make preview` is a useful read-only check against the local installation. Install the repository's Lefthook checks with `make hooks-install`.
+Run `task test`, `task vet`, and `git diff --check` after Go changes. Use a temporary home in tests. `task preview` is a useful read-only check against the local installation. Install the repository's Lefthook checks with `task hooks-install`.
 
 ## Evaluation spending and credentials
 
@@ -74,4 +74,4 @@ Structure, in this order: batch position and next authorized batch; what the ses
 
 ## Release and publish
 
-`.goreleaser.yml` builds darwin (amd64+arm64, merged into a universal binary) and publishes a Homebrew formula to `nawodyaishan/homebrew-tap`, driven by `.github/workflows/release.yml` on a `v*` tag push. `make tag V=vX.Y.Z MSG="..."` creates the tag; `make release` runs a local snapshot build (no publish, no tag required) to verify the pipeline. Writing a real `v*` tag, pushing it, or generating/rotating `HOMEBREW_TAP_TOKEN` are live-system operations requiring their own authorization — developing or testing this pipeline's code does not authorize them.
+`.goreleaser.yml` builds darwin (amd64+arm64, merged into a universal binary) and publishes a Homebrew formula to `nawodyaishan/homebrew-tap`, driven by `.github/workflows/release.yml` on a `v*` tag push. `task tag V=vX.Y.Z MSG="..."` creates the tag; `task release` runs a local snapshot build (no publish, no tag required) to verify the pipeline. Writing a real `v*` tag, pushing it, or generating/rotating `HOMEBREW_TAP_TOKEN` are live-system operations requiring their own authorization — developing or testing this pipeline's code does not authorize them.

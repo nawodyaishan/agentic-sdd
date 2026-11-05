@@ -58,7 +58,7 @@ def required_contract(trusted, candidate):
 
 def review_paths(before, after):
     return sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path) and (
-        path == "Makefile" or path.startswith((".github/workflows/", "harness/checks", "cmd/sdd-check/", "internal/harnesscheck/", "tests/"))
+        path in ("Makefile", "Taskfile.yml", "Taskfile.yaml") or path.startswith((".github/workflows/", "harness/checks", "cmd/sdd-check/", "internal/harnesscheck/", "tests/"))
         or path.endswith("_test.go")))
 
 

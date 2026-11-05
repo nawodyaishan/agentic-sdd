@@ -11,7 +11,7 @@ The pre-feature reference lacks the runner. B4 commit
 workflow or independent probe. **Never fall back to a candidate-owned launcher.**
 The caller-selected reviewed base must contain:
 
-- `tests/harness/trusted_ci.py`, loaded from that base;
+- `Taskfile.yml` for the Task entry point and `tests/harness/trusted_ci.py`, loaded from that base;
 - `cmd/sdd-check/` and `internal/harnesscheck/`;
 - `harness/checks.json` and `tests/harness/trusted-noop-probe.go.txt`.
 
@@ -35,8 +35,8 @@ Job permissions are **contents: read only**. Candidates receive no secrets,
 publish permissions, OIDC, provider credentials or shared build caches.
 
 `pull_request_target` is dangerous if fork code runs on the host. Host programs
-here are pinned checkout/upload actions, exact-image provisioning and the
-**base's** stdlib Python bootstrap/Go runner. Never add candidate Make, install
+here are pinned checkout/upload and Task setup actions, exact-image provisioning,
+the **base's** Taskfile, and its stdlib Python bootstrap/Go runner. Never add candidate Task, install
 hooks, scripts, plugins, dependency setup or candidate-derived host commands.
 Such a change requires a new trust review. Checkout is data; candidate execution
 occurs only inside the boundary below. No remote merge rules are administered.
@@ -45,6 +45,10 @@ Action v4 pins were resolved from official repositories on 2026-10-30. The Go
 image uses the already observed local RepoDigest; future CI explicitly provisions
 that exact image. Local commands/fixtures never pull an absent image or install
 tools implicitly. Unavailable image/runtime prerequisites block without fallback.
+The Task setup action is pinned to a full commit and requests Task 3.54.0. Hosted
+execution of this Task-based workflow remains unobserved. An older trusted base
+whose contract uses Make local recipes rejects the Task contract as a changed
+required record; see [007-F1](../specs/007-taskfile-migration/tasks.md#continuation-record).
 
 ## 2. Execution and independent evidence
 
@@ -67,7 +71,7 @@ container. The host runner transforms the base's six required definitions into
 isolated executions, preserving IDs, argv/target overrides, ordering, timeouts
 and failure semantics. This adapter supports the existing repository-root checks
 only; a different cwd/diff recipe blocks pending a reviewed adapter update.
-Candidate Makefiles are never executed.
+Candidate Taskfiles are never executed.
 
 Each candidate container has:
 
@@ -110,13 +114,13 @@ Required candidate definitions/IDs must exactly match the base. Removal,
 replacement, scope changes, duplicates or unreviewed required additions block
 before execution. New required definitions enter through reviewed base adoption.
 
-Make, workflow/gate and test changes, including deletions, appear in
+Taskfile, workflow/gate and test changes, including deletions, appear in
 `review_required_paths`. Humans must review them; the list neither rejects all
 legitimate test changes nor approves them automatically.
 
 A base-owned no-op probe is injected only into disposable staging. It uses
 independent filesystem expectations and temporary homes. The seeded no-op defect
-still fails when the candidate empties `make test`, deletes all original Go tests
+still fails when the candidate empties `task test`, deletes all original Go tests
 and supplies a forged passing receipt. This protects a known contract, not
 arbitrary test adequacy or intentionally conditional cheating. Other changed
 tests still require review.
@@ -124,11 +128,11 @@ tests still require review.
 ## 4. Local/CI consistency and verification
 
 Both entries use the same base-owned adapter, pinned image, required commands
-and independent probe. Invoke the **reviewed base's Makefile**, not a
+and independent probe. Invoke the **reviewed base's Taskfile**, not a
 candidate-controlled local recipe:
 
 ```sh
-make -C /absolute/reviewed-base verify-trusted \
+task --dir /absolute/reviewed-base verify-trusted \
   SDD_TRUSTED=/absolute/reviewed-base \
   SDD_CANDIDATE=/absolute/candidate \
   SDD_OUTPUT=/absolute/external/new-private-run
@@ -138,7 +142,7 @@ The CI equivalent is `python3 -B <base>/tests/harness/trusted_ci.py run` with
 the same explicit `--trusted`, `--candidate`, `--output`. Output must be new/empty,
 private, external and non-overlapping. Prerequisites: Python 3.9+, Git, non-root
 Linux, running Docker daemon and the exact local image. No Go installer dependency
-is added. Ordinary `make verify` remains available but is not this isolation boundary.
+is added. Ordinary `task verify` remains available but is not this isolation boundary.
 
 ```sh
 TMPDIR=/tmp/opencode python3 -B -m unittest discover -s tests/harness -p test_trusted_ci.py
@@ -146,8 +150,8 @@ sh tests/harness/trusted-ci-fixtures.sh
 ```
 
 Explicit container fixtures test bootstrap refusal, contract weakening, known
-defect/deleted coverage/empty Make/forged receipt, worker boundary, owned cleanup
-and interruption, and local Make versus CI-style entry on identical candidate
+defect/deleted coverage/empty Taskfile/forged receipt, worker boundary, owned cleanup
+and interruption, and local Task versus CI-style entry on identical candidate
 bytes. Comparison uses IDs/statuses and canonical contract/candidate identities;
 temporary paths/times differ. Local fixtures are **not** a hosted GitHub Actions
 observation. One hosted main-push run has since passed (candidate bytes equal to

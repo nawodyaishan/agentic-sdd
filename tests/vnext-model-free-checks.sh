@@ -16,7 +16,7 @@ elif [ -x "$REPO/bin/agentic-sdd" ]; then
 elif command -v agentic-sdd >/dev/null 2>&1; then
   CLI=agentic-sdd
 else
-  printf 'FAIL setup: no agentic-sdd binary; run make build\n'
+  printf 'FAIL setup: no agentic-sdd binary; run task build\n'
   exit 1
 fi
 base=$(mktemp -d "${TMPDIR:-/tmp}/sdd-qa.XXXXXX") || { printf 'FAIL setup: cannot create temp dir\n'; exit 1; }

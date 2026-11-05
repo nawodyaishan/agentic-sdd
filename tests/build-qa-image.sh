@@ -11,7 +11,7 @@ opencode=${OPENCODE_BINARY:-$(command -v opencode 2>/dev/null || true)}
 
 die() { printf 'error: %s\n' "$1" >&2; exit 2; }
 
-[ -x "$agentic" ] || die "build the CLI first: make build"
+[ -x "$agentic" ] || die "build the CLI first: task build"
 [ -n "$opencode" ] && [ -x "$opencode" ] || die "opencode binary not found; set OPENCODE_BINARY"
 docker image inspect "$base" >/dev/null 2>&1 || die "base image is not present locally"
 

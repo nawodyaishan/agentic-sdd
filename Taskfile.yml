@@ -1,0 +1,105 @@
+version: '3'
+
+vars:
+  GOCACHE: '{{.GOCACHE | default (printf "%s/.cache/go-build" .ROOT_DIR)}}'
+  SDD_OUTPUT: '{{.SDD_OUTPUT | default ""}}'
+  SDD_TRUSTED: '{{.SDD_TRUSTED | default ""}}'
+  SDD_CANDIDATE: '{{.SDD_CANDIDATE | default .ROOT_DIR}}'
+  V: '{{.V | default ""}}'
+  MSG: '{{.MSG | default ""}}'
+
+tasks:
+  default:
+    desc: Show available commands
+    cmds: [task --list]
+  help:
+    desc: Show available commands
+    cmds: [task --list]
+  preview:
+    desc: Preview skill installation
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd preview']
+  opencode-help:
+    desc: Show inactive OpenCode helper usage
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go run ./cmd/agentic-sdd opencode --help']
+  apply:
+    desc: Back up and install skills (requires explicit live authorization)
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd apply']
+  backups:
+    desc: List backups
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd backups']
+  logs:
+    desc: Show the latest apply or restore log
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd logs']
+  test:
+    desc: Run Go tests
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go test ./...']
+  vet:
+    desc: Run Go static analysis
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go vet ./...']
+  docker-e2e:
+    desc: Exercise installer in an isolated Docker container
+    cmds: [sh tests/docker-e2e.sh]
+  hooks-install:
+    desc: Install Lefthook Git hooks
+    cmds: [lefthook install]
+  mod-verify:
+    desc: Verify Go module dependencies
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go mod verify']
+  tidy-check:
+    desc: Check module tidiness with external evidence
+    cmds:
+      - |
+        sh -c '
+        umask 077
+        output="$1"
+        if [ -z "$output" ]; then output=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-tidy.XXXXXX") || exit 2; output=$(cd "$output" && pwd -P); fi
+        GOCACHE="$2" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go run ./cmd/sdd-check --scope focused --check tidy-check --workspace . --contract ./harness/checks.json --output "$output"
+        ' sh {{.SDD_OUTPUT | shellQuote}} {{.GOCACHE | shellQuote}}
+  build-darwin:
+    desc: Cross-compile both CLIs for Darwin amd64 and arm64
+    cmds:
+      - GOOS=darwin GOARCH=amd64 go build -trimpath -o bin/agentic-sdd_darwin_amd64 ./cmd/agentic-sdd
+      - GOOS=darwin GOARCH=arm64 go build -trimpath -o bin/agentic-sdd_darwin_arm64 ./cmd/agentic-sdd
+      - GOOS=darwin GOARCH=amd64 go build -trimpath -o bin/sdd-check_darwin_amd64 ./cmd/sdd-check
+      - GOOS=darwin GOARCH=arm64 go build -trimpath -o bin/sdd-check_darwin_arm64 ./cmd/sdd-check
+  build:
+    desc: Build the CLI for the current platform
+    cmds: [go build -trimpath -o bin/agentic-sdd ./cmd/agentic-sdd]
+  verify:
+    desc: Run required checks with external evidence
+    cmds:
+      - |
+        sh -c '
+        umask 077
+        output="$1"
+        if [ -z "$output" ]; then output=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-verify.XXXXXX") || exit 2; output=$(cd "$output" && pwd -P); fi
+        GOCACHE="$2" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go run ./cmd/sdd-check --scope required --workspace . --contract ./harness/checks.json --output "$output"
+        ' sh {{.SDD_OUTPUT | shellQuote}} {{.GOCACHE | shellQuote}}
+  verify-trusted:
+    desc: Run the reviewed base's isolated gate against a separate candidate
+    cmds:
+      - |
+        sh -c '
+        umask 077
+        SDD_TRUSTED="$1"; SDD_CANDIDATE="$2"
+        if [ -z "$SDD_TRUSTED" ] || [ ! -f "$SDD_TRUSTED/tests/harness/trusted_ci.py" ]; then
+          echo "SDD_TRUSTED must name a separate reviewed base containing the B7 bootstrap" >&2; exit 2
+        fi
+        output="$3"
+        if [ -z "$output" ]; then output=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-trusted.XXXXXX") || exit 2; fi
+        python3 -B "$SDD_TRUSTED/tests/harness/trusted_ci.py" run --trusted "$SDD_TRUSTED" --candidate "$SDD_CANDIDATE" --output "$output"
+        ' sh {{.SDD_TRUSTED | shellQuote}} {{.SDD_CANDIDATE | shellQuote}} {{.SDD_OUTPUT | shellQuote}}
+  tag:
+    desc: Create an annotated tag (separate live authorization required)
+    cmds:
+      - |
+        sh -c '
+        if [ -z "$1" ]; then echo "V is required (e.g. V=v0.1.0)" >&2; exit 1; fi
+        if [ -z "$2" ]; then echo "MSG is required" >&2; exit 1; fi
+        git tag -a "$1" -m "$2"
+        echo "Tagged $1 — push with: git push origin $1"
+        ' sh {{.V | shellQuote}} {{.MSG | shellQuote}}
+  release:
+    desc: Run a local GoReleaser snapshot without publishing
+    cmds:
+      - GOVERSION=$(go version | awk '{print $3}') goreleaser release --snapshot --clean

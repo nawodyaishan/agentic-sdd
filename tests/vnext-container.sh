@@ -67,7 +67,7 @@ case "$workspace/" in
   "$root"/*) die "workspace must be outside the implementation checkout" ;;
 esac
 if [ ! -f "$agentic" ] || [ ! -x "$agentic" ]; then
-  die "build the CLI first (make build) or set AGENTIC_SDD_BINARY"
+  die "build the CLI first (task build) or set AGENTIC_SDD_BINARY"
 fi
 if [ -n "$opencode" ] && { [ ! -f "$opencode" ] || [ ! -x "$opencode" ]; }; then
   die "OPENCODE_BINARY must be an executable file when set"

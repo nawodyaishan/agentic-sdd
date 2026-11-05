@@ -50,7 +50,7 @@ class TrustedContainerTests(unittest.TestCase):
         shutil.copytree(self.base, self.trusted); shutil.copytree(self.base, self.candidate)
         # Explicit development reference, not an assertion B7 is already trusted
         # on main. CI adoption requires a separately reviewed merge/commit.
-        for name in ("tests/harness/trusted_ci.py", "tests/harness/trusted-noop-probe.go.txt", "Makefile"):
+        for name in ("tests/harness/trusted_ci.py", "tests/harness/trusted-noop-probe.go.txt", "Taskfile.yml"):
             path = self.trusted / name; path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes((ROOT / name).read_bytes())
         self.env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.case),
@@ -59,7 +59,7 @@ class TrustedContainerTests(unittest.TestCase):
     def invoke(self, name, local=False):
         output = self.case / name
         if local:
-            argv = ["make", "-C", str(self.trusted), "verify-trusted", "SDD_TRUSTED=" + str(self.trusted),
+            argv = ["task", "--dir", str(self.trusted), "verify-trusted", "SDD_TRUSTED=" + str(self.trusted),
                     "SDD_CANDIDATE=" + str(self.candidate), "SDD_OUTPUT=" + str(output)]
         else:
             argv = ["python3", "-B", str(self.trusted / "tests/harness/trusted_ci.py"), "run", "--trusted", str(self.trusted),
@@ -132,19 +132,19 @@ func TestSyntheticCandidateBoundary(t *testing.T) {
         self.assertEqual(local["canonical_contract_sha256"], ci["canonical_contract_sha256"])
         self.assertEqual(local["candidate_input_sha256"], ci["candidate_input_sha256"])
 
-    def test_empty_make_deleted_coverage_and_forged_receipt_cannot_hide_noop_defect(self):
+    def test_empty_task_deleted_coverage_and_forged_receipt_cannot_hide_noop_defect(self):
         path = self.candidate / "internal/skillsync/sync.go"
         data = path.read_text(); self.assertEqual(1, data.count("if same {"))
         path.write_text(data.replace("if same {", "if false && same {"))
         for test in self.candidate.rglob("*_test.go"):
             test.unlink()  # Only this fixture's disposable source, never the checkout.
-        (self.candidate / "Makefile").write_text("test:\n\t@true\n")
-        subprocess.run(["make", "test"], cwd=self.candidate, env=self.env, check=True, capture_output=True, timeout=10)
+        (self.candidate / "Taskfile.yml").write_text("version: '3'\ntasks:\n  test:\n    cmds: ['true']\n")
+        subprocess.run(["task", "test"], cwd=self.candidate, env=self.env, check=True, capture_output=True, timeout=10)
         (self.candidate / "receipt.json").write_text('{"review":"Ready","execution":"completed"}')
         result, summary = self.invoke("weakened")
         self.assertNotEqual(0, result.returncode)
         self.assertEqual("failed", summary["execution"], summary)
-        self.assertIn("Makefile", summary["review_required_paths"])
+        self.assertIn("Taskfile.yml", summary["review_required_paths"])
         checks = {c["id"]: c for c in summary["check_result"]["checks"]}
         self.assertEqual("failed", checks["test"]["status"])
         self.assertIn("independent no-op contract", Path(checks["test"]["evidence"]).read_text())

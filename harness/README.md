@@ -29,7 +29,7 @@ Direct fixes have null feature/batch and no task IDs. Review never changes proje
 - `evidence` is a relative log filename beneath the run's external output directory. Reject traversal, absolute paths and symlink escapes. Keep logs owner-only; retain at most 10 MiB per check and record truncation. Truncated output cannot prove an assertion whose evidence is missing.
 - `expected_exit` is zero. A later step is not run if an earlier step fails; recording only the last step's success is invalid.
 
-Local recipes preserve the existing Make targets. The required entries also include direct equivalent commands so trusted CI need not run a candidate-weakened Makefile. Neither a trusted runner nor a schema proves candidate test adequacy; changed tests and gate definitions require review. The pre-change reference is recorded in the baseline, but contains no new runner: trusted-gate bootstrap remains a later prerequisite.
+Local recipes name the Task commands. The required entries also include direct equivalent commands so trusted CI need not run a candidate-weakened Taskfile. Neither a trusted runner nor a schema proves candidate test adequacy; changed tests and gate definitions require review.
 
 ## Result contract
 
@@ -82,8 +82,8 @@ go run ./cmd/sdd-check --scope required --workspace . \
   --contract harness/checks.json --output /absolute/external/new-run
 go run ./cmd/sdd-check --scope focused --check vet --check test \
   --workspace . --contract harness/checks.json --output /absolute/external/another-run
-make verify SDD_OUTPUT=/absolute/external/required-run
-make tidy-check SDD_OUTPUT=/absolute/external/tidy-run
+task verify SDD_OUTPUT=/absolute/external/required-run
+task tidy-check SDD_OUTPUT=/absolute/external/tidy-run
 ```
 
 `--scope` and `--output` are required. `--workspace` defaults to `.`;
@@ -121,7 +121,7 @@ contains no review verdict or authority/task-state write. Flag/input errors can
 occur before any safe output directory exists and are reported to the caller
 without creating evidence. Compiled CLI exits: 0 for all selected passes, 1 for
 failure/incomplete/cancelled execution or result-write failure, 2 for invalid
-input/blocked prerequisites. `go run`/Make may wrap a nonzero executable exit;
+input/blocked prerequisites. `go run`/Task may wrap a nonzero executable exit;
 inspect the structured result for the authoritative execution distinction.
 
 Executables are looked up without installing anything. The two current named
@@ -147,11 +147,11 @@ untrusted/daemonizing commands. It never kills unrelated process groups. No
 concurrent untrusted filesystem writer is permitted: Go 1.23 path validation
 is not a race-proof sandbox. Native OpenCode cancellation is separate T09 work.
 
-Make creates private temporary output when `SDD_OUTPUT` is omitted; set
+Task creates private temporary output when `SDD_OUTPUT` is omitted; set
 `TMPDIR` to an approved external location to choose its parent. Keep raw logs
 7 days by default and clean up manually, retaining explicitly accepted evidence
 with an owner/expiry. Do not commit logs or copy native credential databases.
-Go downloads are disabled at the Make runner entry points, but candidate code
+Go downloads are disabled at the Task runner entry points, but candidate code
 can still use the host network/credentials unless OS-isolated. Pending account
 caps/key rotation do not prevent these provider-free deterministic checks and
 remain separate from authorization to run any LLM. The user's B6 remediation

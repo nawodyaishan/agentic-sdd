@@ -9,8 +9,8 @@ pre-commit:
           exit 1
         fi
     - name: go-test
-      run: make test
+      run: task test
     - name: go-vet
-      run: make vet
+      run: task vet
     - name: whitespace
       run: git diff --cached --check

@@ -168,17 +168,17 @@ The Homebrew release provides a macOS universal binary. The published binary emb
 
 ## Quick start
 
-Requires **Go 1.23+**. `make` is optional.
+Requires **Go 1.23+**. The commands below use [Go Task](https://taskfile.dev/) (tested with 3.54.0); `make` targets have been replaced by `task` commands.
 
 ```sh
-make help           # list every command
-make preview        # show what would change; writes nothing
-make docker-e2e     # exercise preview and apply in an isolated container
-make apply          # back up existing skills, then install
-make logs           # show the latest apply or restore log
-make test           # run the safety and behavior tests
-make vet            # run go vet
-make hooks-install  # install the Lefthook pre-commit hook
+task help           # list every command
+task preview        # show what would change; writes nothing
+task docker-e2e     # exercise preview and apply in an isolated container
+task apply          # back up existing skills, then install
+task logs           # show the latest apply or restore log
+task test           # run the safety and behavior tests
+task vet            # run go vet
+task hooks-install  # install the Lefthook pre-commit hook
 ```
 
 Preview is always the default, so a bare invocation is safe. Prefer Go directly:
@@ -190,7 +190,7 @@ go run ./cmd/agentic-sdd logs               # show latest apply or restore log
 go run ./cmd/agentic-sdd --help             # full CLI help
 ```
 
-Before applying to your real home, `make docker-e2e` builds and exercises the CLI inside `golang:1.25-alpine` with the repository mounted read-only, no network, and a throwaway home. It checks preview, backup and install, a repeated apply, listing and restoring a backup, and an invalid command. It never touches your home directory. Docker must be running.
+Before applying to your real home, `task docker-e2e` builds and exercises the CLI inside `golang:1.25-alpine` with the repository mounted read-only, no network, and a throwaway home. It checks preview, backup and install, a repeated apply, listing and restoring a backup, and an invalid command. It never touches your home directory. Docker must be running.
 
 ## CLI reference
 
@@ -213,7 +213,7 @@ Before applying to your real home, `make docker-e2e` builds and exercises the CL
 
 Put flags after the command: `agentic-sdd preview --home /tmp/test-home`. Older flag-only scripts still work — no `--apply` previews, `--apply` installs.
 
-Every `apply` and writing `restore` creates a timestamped, private text log under `<home>/.agentic-sdd/logs/`, including its actions, result, and any error. The same action lines still appear on the terminal. `agentic-sdd logs` (or `make logs`) prints the latest log; use `--home PATH` to inspect an isolated home. Preview remains read-only and creates no log. Logs use the home directory even when `--repo` selects a repository backup location.
+Every `apply` and writing `restore` creates a timestamped, private text log under `<home>/.agentic-sdd/logs/`, including its actions, result, and any error. The same action lines still appear on the terminal. `agentic-sdd logs` (or `task logs`) prints the latest log; use `--home PATH` to inspect an isolated home. Preview remains read-only and creates no log. Logs use the home directory even when `--repo` selects a repository backup location.
 
 Exit codes: **0** success, a completed preview or cancel, **2** unknown command, bad flag, stray argument, a malformed backup id, or `--apply` combined with a command, **1** filesystem, logging, or sync failure, a backup that fails validation (home mismatch, digest mismatch, missing), or a not-found id. Usage errors and failures go to stderr; action output goes to stdout. A preview that lists replacements is a success — it just didn't install them.
 
@@ -269,7 +269,7 @@ A backup written by an older version of the CLI has none of these extra fields; 
 
 ## Working on the skills
 
-Edit the files in `skills-files/`, run `make preview` to confirm the intended clients pick them up, then `make apply`. Because `up to date` skills are skipped, iterating on one skill only rewrites that skill.
+Edit the files in `skills-files/`, run `task preview` to confirm the intended clients pick them up, then `task apply` only with explicit authorization for the real home. Because `up to date` skills are skipped, iterating on one skill only rewrites that skill.
 
 Keep shared rules in `workflow-policy.md` rather than repeating them in each `SKILL.md`, keep specialist and tool guidance in `specialists.md`, and keep machine-specific inventory and client configuration in `config/` — not in the portable skill text.
 
@@ -294,13 +294,13 @@ specs/                 Feature documents produced by the workflow itself
 backups/               Git-ignored copies from changed installations
 ```
 
-The installer CLI stays small; its filesystem behavior lives in `internal/skillsync`. `sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `manifest_test.go` covers the format 2 manifest and its digest; `restore_test.go` covers listing, backup validation (including every kind of malformed or tampered backup), and restore's preview/apply/rollback behavior. `cmd/agentic-sdd/main_test.go` covers help, usage errors, preview/apply compatibility, and every `backups`/`restore` form, including the interactive prompt. Run `make test` and `make vet` after changing the installer, and `make docker-e2e` before trusting an apply or a restore.
+The installer CLI stays small; its filesystem behavior lives in `internal/skillsync`. `sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `manifest_test.go` covers the format 2 manifest and its digest; `restore_test.go` covers listing, backup validation (including every kind of malformed or tampered backup), and restore's preview/apply/rollback behavior. `cmd/agentic-sdd/main_test.go` covers help, usage errors, preview/apply compatibility, and every `backups`/`restore` form, including the interactive prompt. Run `task test` and `task vet` after changing the installer, and `task docker-e2e` before trusting an apply or a restore.
 
 ### Deterministic checks (source checkout)
 
-`make verify` now runs the six required checks in [harness/checks.json](harness/checks.json),
+`task verify` runs the six required checks in [harness/checks.json](harness/checks.json),
 including whitespace checks and Darwin builds of both CLIs. Existing individual
-Make target names remain available. Runner-backed `verify`/`tidy-check` currently
+Task equivalents retain the target names. Runner-backed `verify`/`tidy-check` currently
 execute only on Linux; Darwin execution is explicitly blocked pending native
 cancellation validation (cross-compilation is not runtime certification).
 No LLM, provider key or OpenCode process is used
@@ -308,21 +308,21 @@ by the shipped runner/contract. The check runner is not added to the Homebrew
 formula or release artifacts by this change.
 
 ```sh
-make verify SDD_OUTPUT=/absolute/external/new-private-run
+task verify SDD_OUTPUT=/absolute/external/new-private-run
 go run ./cmd/sdd-check --scope focused --check test \
   --workspace . --contract harness/checks.json \
   --output /absolute/external/another-new-private-run
 ```
 
-Without `SDD_OUTPUT`, Make creates an owner-only temporary evidence directory.
+Without `SDD_OUTPUT`, Task creates an owner-only temporary evidence directory.
 Evidence includes `result.json` and logs (up to 10 MiB/check). Use a fresh output
-directory per run; existing evidence is never overwritten. `make tidy-check`
+directory per run; existing evidence is never overwritten. `task tidy-check`
 uses the same runner and detects new untracked `go.sum` as well as changed or
 deleted module files. It compares pre/post content, not a staged Git index.
 
-Make's runner entry points disable automatic Go toolchain/module downloads;
+Task's runner entry points disable automatic Go toolchain/module downloads;
 missing cached dependencies fail visibly rather than being fetched. Direct
-component Make targets retain their existing execution behavior. Commands can
+component tasks retain their existing execution behavior. Commands can
 write caches, module files and build outputs; candidate tests can do more.
 **The runner is not a sandbox or a protected CI gate**: use a trusted contract,
 and OS isolation without secrets/network for untrusted candidate code. Logs may
@@ -332,12 +332,12 @@ status/exit semantics, retention and cancellation limits: [harness/README.md](ha
 For isolated local/CI checks, B7 supplies a separate reviewed-base entry:
 
 ```sh
-make -C /absolute/reviewed-base verify-trusted \
+task --dir /absolute/reviewed-base verify-trusted \
   SDD_TRUSTED=/absolute/reviewed-base SDD_CANDIDATE=/absolute/candidate \
   SDD_OUTPUT=/absolute/external/new-private-run
 ```
 
-Use the base's Makefile and bootstrap, not the candidate's. This requires
+Use the base's Taskfile and bootstrap, not the candidate's. This requires
 non-root Linux, Python 3, Git, Docker and the exact preloaded image. Missing
 bootstrap/image inputs block; local runs never pull automatically. The proposed
 CI workflow must first be reviewed and adopted onto the trusted branch.
@@ -352,17 +352,17 @@ See the [acceptance evidence and remaining gaps](harness/acceptance.md).
 Releases are built by [GoReleaser](https://goreleaser.com) from `.goreleaser.yml` and published to `nawodyaishan/homebrew-tap` by `.github/workflows/release.yml` on every `v*` tag push:
 
 ```sh
-make verify              # mod-verify, tidy-check, vet, test, build-darwin
-make tag V=vX.Y.Z MSG="release message"
+task verify              # mod-verify, tidy-check, vet, test, build-darwin
+task tag V=vX.Y.Z MSG="release message"
 git push origin vX.Y.Z   # triggers .github/workflows/release.yml
 ```
 
-`make release` runs a local snapshot build (`goreleaser release --snapshot --clean`, no tag or publish required) to check the formula and archive output before tagging.
+`task release` runs a local snapshot build (`goreleaser release --snapshot --clean`, no tag or publish required) to check the formula and archive output before tagging.
 
 ## Contributing and license
 
 Contributions of all sizes are welcome: bug reports, documentation improvements, skill feedback, tests, and code. If you're new to the project, an issue describing what you tried and what happened is a great place to start. Please remove credentials and private project details from anything you share.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and pull request guidance. The pre-commit hook is configured in `lefthook.yml` and installed with `make hooks-install`. Available under the [MIT License](LICENSE).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and pull request guidance. The pre-commit hook is configured in `lefthook.yml` and installed with `task hooks-install`. Available under the [MIT License](LICENSE).
 
 If this matches how you already want to work with agents, `brew install nawodyaishan/tap/agentic-sdd` and try it on your next feature. Issues, skill improvements, and reports of where the workflow gets in your way are all welcome — [open an issue](https://github.com/nawodyaishan/agentic-sdd/issues) or a PR.

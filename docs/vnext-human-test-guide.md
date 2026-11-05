@@ -42,7 +42,7 @@ rationale: [final usage plan](vnext-human-test-plan.md).
 
 ```sh
 cd ~/github/agentic-sdd
-make build
+task build
 tests/build-qa-image.sh
 ```
 

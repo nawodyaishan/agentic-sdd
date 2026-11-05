@@ -6,28 +6,28 @@
       "prerequisites": ["go"], "timeout_seconds": 120,
       "effects": {"writes": ["Go cache if needed"], "network": "Possible toolchain/module retrieval unless disabled by execution environment"},
       "steps": [{"argv": ["go", "mod", "verify"], "env": {}}],
-      "local_recipe": ["make", "mod-verify"], "expected_exit": 0, "evidence": "mod-verify.log"
+      "local_recipe": ["task", "mod-verify"], "expected_exit": 0, "evidence": "mod-verify.log"
     },
     {
       "id": "tidy-check", "cwd": ".", "scopes": ["baseline", "focused", "required"],
       "prerequisites": ["go"], "timeout_seconds": 120,
       "effects": {"writes": ["go.mod", "go.sum", "Go module/cache directories"], "network": "Possible dependency retrieval unless disabled"},
       "steps": [{"argv": ["go", "mod", "tidy"], "env": {}}],
-      "local_recipe": ["make", "tidy-check"], "expected_exit": 0, "evidence": "tidy-check.log"
+      "local_recipe": ["task", "tidy-check"], "expected_exit": 0, "evidence": "tidy-check.log"
     },
     {
       "id": "vet", "cwd": ".", "scopes": ["baseline", "focused", "required"],
       "prerequisites": ["go"], "timeout_seconds": 180,
       "effects": {"writes": ["Go build/module cache"], "network": "Possible toolchain/module retrieval unless disabled"},
       "steps": [{"argv": ["go", "vet", "./..."], "env": {}}],
-      "local_recipe": ["make", "vet"], "expected_exit": 0, "evidence": "vet.log"
+      "local_recipe": ["task", "vet"], "expected_exit": 0, "evidence": "vet.log"
     },
     {
       "id": "test", "cwd": ".", "scopes": ["baseline", "focused", "required"],
       "prerequisites": ["go"], "timeout_seconds": 180,
       "effects": {"writes": ["Go cache", "temporary test homes", "arbitrary effects from executed candidate code: requires isolation"], "network": "Possible dependency retrieval or candidate test access unless isolated"},
       "steps": [{"argv": ["go", "test", "./..."], "env": {}}],
-      "local_recipe": ["make", "test"], "expected_exit": 0, "evidence": "test.log"
+      "local_recipe": ["task", "test"], "expected_exit": 0, "evidence": "test.log"
     },
     {
       "id": "build-darwin", "cwd": ".", "scopes": ["baseline", "focused", "required"],
@@ -39,7 +39,7 @@
         {"argv": ["go", "build", "-trimpath", "-o", "bin/sdd-check_darwin_amd64", "./cmd/sdd-check"], "env": {"GOOS": "darwin", "GOARCH": "amd64"}},
         {"argv": ["go", "build", "-trimpath", "-o", "bin/sdd-check_darwin_arm64", "./cmd/sdd-check"], "env": {"GOOS": "darwin", "GOARCH": "arm64"}}
       ],
-      "local_recipe": ["make", "build-darwin"], "expected_exit": 0, "evidence": "build-darwin.log"
+      "local_recipe": ["task", "build-darwin"], "expected_exit": 0, "evidence": "build-darwin.log"
     },
     {
       "id": "diff-check", "cwd": ".", "scopes": ["baseline", "focused", "required"],
@@ -53,7 +53,7 @@
       "prerequisites": ["docker", "running Docker daemon", "preloaded golang:1.25-alpine image"], "timeout_seconds": 180,
       "effects": {"writes": ["disposable container filesystem and test homes", "Docker daemon state"], "network": "Container network disabled; missing image must block rather than pull implicitly"},
       "steps": [{"argv": ["sh", "tests/docker-e2e.sh"], "env": {}}],
-      "local_recipe": ["make", "docker-e2e"], "expected_exit": 0, "evidence": "docker-e2e.log"
+      "local_recipe": ["task", "docker-e2e"], "expected_exit": 0, "evidence": "docker-e2e.log"
     }
   ]
 }

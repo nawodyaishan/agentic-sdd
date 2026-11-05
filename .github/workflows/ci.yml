@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main"]
   # Workflow/bootstrap are loaded from the base, never the PR's workflow.
-  # Candidate programs execute ONLY in the isolated gate below: no host Make,
+  # Candidate programs execute ONLY in the isolated gate below: no host Task,
   # setup hooks, credentials, shared cache, Docker socket or host home.
   pull_request_target:
     branches: ["main"]
@@ -36,14 +36,19 @@ jobs:
       - name: Provision exact reviewed toolchain image
         run: docker pull golang@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
 
+      - name: Install Task
+        uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2
+        with:
+          version: '3.54.0'
+
       - name: Run trusted deterministic gate
         env:
           EVIDENCE: ${{ runner.temp }}/agentic-sdd-gate
         run: >-
-          python3 -B gate-trusted/tests/harness/trusted_ci.py run
-          --trusted "$GITHUB_WORKSPACE/gate-trusted"
-          --candidate "$GITHUB_WORKSPACE/gate-candidate"
-          --output "$EVIDENCE"
+          task --dir "$GITHUB_WORKSPACE/gate-trusted" verify-trusted
+          "SDD_TRUSTED=$GITHUB_WORKSPACE/gate-trusted"
+          "SDD_CANDIDATE=$GITHUB_WORKSPACE/gate-candidate"
+          "SDD_OUTPUT=$EVIDENCE"
 
       - name: Retain observations, not an agent verdict
         if: always()
