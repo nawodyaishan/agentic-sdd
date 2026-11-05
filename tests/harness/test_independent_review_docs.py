@@ -45,6 +45,30 @@ class IndependentReviewDocContractTests(unittest.TestCase):
         for pointer in POINTERS:
             self.assertIn("independent-review.md", pointer.read_text(), pointer.name)
 
+    def test_runbook_distinguishes_agent_selection_from_skill_loading(self):
+        runbook = re.sub(
+            r"\s+", " ", (ROOT / "integrations/opencode/independent-review.md").read_text()
+        )
+        self.assertIn('Typing `use "sdd-review-coordinator"`', runbook)
+        self.assertIn("Do not use an uncorrected `opencode run`", runbook)
+        self.assertIn('env["PWD"]', runbook)
+        self.assertIn('cd "$WORKSPACE"', runbook)
+        self.assertIn('opencode "$WORKSPACE" --standalone', runbook)
+        self.assertIn("opencode --standalone debug agents", runbook)
+        self.assertIn("use `/agents`", runbook)
+        self.assertIn("answer key in a separate directory", runbook)
+        self.assertIn("workspace-local `.agents/skills/`", runbook)
+        self.assertIn("exact staged skill and reference files", runbook)
+        self.assertIn("Do not blanket-allow `.agents/**`", runbook)
+        self.assertIn("explicit-location sessions can see", runbook)
+        self.assertIn("live model-driven child dispatch remain unverified", runbook)
+
+    def test_runbook_keeps_native_symlink_failure_open(self):
+        text = (ROOT / "integrations/opencode/independent-review.md").read_text()
+        self.assertIn("**Fail — IR-06-01**", text)
+        self.assertIn("intentionally remains a failing assertion", text)
+        self.assertIn("not an\nonline launcher", text)
+
     def test_seeded_deletion_is_detected(self):
         text = REFERENCE.read_text()
         seeded = "\n".join(line for line in text.splitlines() if "cannot mark tasks accepted" not in line)

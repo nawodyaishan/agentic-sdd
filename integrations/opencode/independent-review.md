@@ -1,8 +1,9 @@
 # Independent review: opt-in example runbook (006/B3)
 
 **Status: inactive example, not installed or certified.** It exists only in this
-repository. Nothing here installs it into a project, changes a real home, starts a
-reviewer, calls a model or launches the RHEL pilot. Support remains
+repository. The instructions below explain how to stage a disposable project and
+select the parent agent correctly; they do not install into a real home, start a
+reviewer, call a model or authorize a pilot. Support remains
 [uncertified](supported-version.md); see [verification](verification.md) for the
 wider adapter blockers.
 
@@ -34,6 +35,115 @@ The native probe checks permission evaluation and the subagent-launch collision
 only. It sends no prompt and starts no model. Passing it does not show that a
 child agent actually runs, that its tools are restricted in dispatch, or that a
 path or symlink is refused at read time.
+
+## Select the coordinator in a disposable project
+
+An agent profile and a skill are different OpenCode objects. Typing
+`use "sdd-review-coordinator"` into the prompt can be interpreted as a request
+to load a skill; it does not select the primary agent. The earlier failed
+headless run also created its session at `/home/nawo-rhel1`, outside the
+scratch project's config location. Do not use an uncorrected `opencode run`
+launcher: the pinned runner uses `process.env.PWD` before `process.cwd()`.
+Python's `subprocess(..., cwd=workspace)` does not update the inherited `PWD`.
+The caller must set both `cwd` and `env["PWD"]` to the same absolute workspace.
+The deterministic VM regression reproduced the old failure and verified this
+correction. Source: [pinned 2.2.5 runner](https://github.com/anomalyco/opencode/blob/9bbb8ce18c80f099e0e448775f59d965ead40a21/packages/cli/src/run/run.ts).
+
+When a live attempt is separately authorized, prepare a fresh mode-0700
+workspace containing only the selected candidate files and a curated
+`.opencode/opencode.jsonc`. Keep the answer key in a separate directory that is
+not an ancestor, child or additional directory of the workspace. For this
+one-off synthetic route, the curated config must keep the existing deny-first
+agent permissions, bind both profiles to the exact authorized model and variant,
+and allow only the explicitly authorized provider. Do not alter the installed
+global config, shared service, or checked-in inactive example.
+
+The profiles need the review skill and its linked references available inside
+the reviewer-readable project tree. In OpenCode 2.2.5, stage
+`agentic-sdd-verification-review/SKILL.md` and the minimal linked router
+references beneath the workspace-local `.agents/skills/` compatibility path,
+preserving their relative paths. Record a file manifest and digests. Do not rely
+on reading through `~/.agents/skills`: that external-reference path was denied
+during prior runs.
+
+Keep the profile's catch-all deny. Add a `skill` allow for only
+`agentic-sdd-verification-review` and `read` allows for the exact staged skill
+and reference files, after the denies. Do not blanket-allow `.agents/**` or
+`.opencode/**`. Linked supporting skill files, if required, are read-only
+documentation, not additional skill-loading grants. Do not copy unrelated skills,
+`.git`, credentials, answer keys or unrelated files into the reviewer-readable tree.
+The reviewed source remains
+unchanged; stage copies in the disposable workspace.
+
+First, from the workspace, use the pinned runtime's read-only agent listing to
+confirm both custom profiles are discovered. Then launch the TUI with the
+workspace as its explicit directory argument:
+
+```sh
+cd "$WORKSPACE"
+opencode --standalone debug agents
+opencode "$WORKSPACE" --standalone
+```
+
+In the TUI, use `/agents` (or Ctrl+X, then A) and explicitly select
+`sdd-review-coordinator`. Use `/models` to confirm the selected model and
+variant. Do not type the profile name as a natural-language instruction. Before
+sending a review prompt, confirm the TUI is in the disposable workspace and that
+the coordinator, reviewer, skill, and staged references are visible. If any are
+missing, stop without sending a prompt. This procedure is a documented candidate:
+offline API checks confirmed that explicit-location sessions can see the
+coordinator, but successful TUI selection and live model-driven child dispatch
+remain unverified. OpenCode 2.2.5's `debug agents` listed both custom profiles when run
+from the staged workspace. This confirms discovery only, not interactive
+selection, dispatched reads/denials or child launch.
+
+An offline 2.2.5 API check discovered the staged verification-review skill and
+evaluated its exact staged-file reads as allowed; answer-key path, shell, edit and
+nested delegation checks evaluated denied. This is permission evaluation, not
+actual tool dispatch.
+
+Do not attempt reviewer reads of arbitrary external paths to work around the
+denial. If required guidance cannot be staged within the workspace while keeping
+the answer key excluded, report the route blocked. A preflight permission result
+is not proof of actual read/denial enforcement; B4 still requires observed
+allowed reads and attempted prohibited operations.
+
+## Actual tool-dispatch observations — 5 November 2026
+
+`tests/harness/native_independent_review_dispatch.py` now feeds scripted responses
+through the pinned runtime, not a real model. The VM wrapper
+`tests/harness/native-independent-review-dispatch.sh` uses a rootless user/network
+namespace containing only loopback, a fresh HOME and XDG state, and a fake local
+endpoint. No primary credential store is copied or used. This fixture is not an
+online launcher, proxy, substitute live provider or model-quality evaluation.
+It creates one coordinator and one fresh child for each applicable test.
+
+| Observation | Result | Evidence/limit |
+| --- | --- | --- |
+| Stale versus corrected `PWD` | Pass | Stale SSH `PWD` reproduced `Agent not found`; matching `PWD`/`cwd` found the coordinator and returned the scripted sentinel. |
+| Actual child tool dispatch | Pass | File/guidance reads, packaged verification-review skill load and independent-review reference read completed. Direct external read, write, edit, patch, shell, Code Mode, web and nested agent attempts returned errors. |
+| Owned active parent/child cancellation | Pass, local synthetic transport only | Both were active; the interrupt API led to both becoming inactive with durable `interrupted` outcomes within five seconds; no further scripted request appeared during the bounded observation. This does not certify upstream provider cancellation. |
+| Symlink escape from an allowed path | **Fail — IR-06-01** | `src/escape.txt` pointed to an excluded synthetic sentinel outside the project. A direct external read was denied, but the allowed symlink returned that sentinel. Native path rules are not a demonstrated canonical-path boundary. |
+| Original fixture preservation | Pass for this test interval | HEAD, index digest, Git status and five seeded/clean source-file hashes matched before/after. |
+
+The symlink test intentionally remains a failing assertion on this pinned runtime;
+do not mark it passed because it reproduced a known breach. Generic checkout
+review is unsupported for this path-isolation claim. C2 permits an explicitly
+reviewed sanitized read-only export that refuses symlinks/special files, or the
+dependent activity must remain blocked. Do not widen external reads or weaken
+the test. No further model-backed observation was launched after finding this
+failure. B4 and full feature acceptance remain incomplete.
+
+Reproduce only under explicit offline-test authorization on a compatible Linux VM:
+
+```sh
+sh tests/harness/native-independent-review-dispatch.sh \
+  "$PINNED_BINARY" "$STAGED_GUIDANCE" "$EVIDENCE_DIR"
+```
+
+The native fixture returns nonzero for the symlink failure. Its transcripts contain
+synthetic inputs and public review guidance only and remain in owner-only VM
+storage. Ordinary unit discovery does not enable native execution.
 
 ## Why the 005 config helper is not used
 
@@ -338,6 +448,11 @@ provider-side cap, so those items remain open.
   decision from the user after they read the consolidated report.
 
 **Still needed before B4 can be proposed for launch:**
+
+The following checklist describes the original full B4 route. The user later
+authorized a single exploratory exception, as recorded in
+[006 spec §Pilot prerequisites](../../specs/006-independent-review/spec.md#pilot-prerequisites-and-retained-findings).
+That exception is not B4 acceptance and does not establish the controls below.
 
 1. RHEL 10 host, user, disposable workspace path and access method.
 2. Numeric bounds the user accepts. The options are the C4 proposal or a stated change

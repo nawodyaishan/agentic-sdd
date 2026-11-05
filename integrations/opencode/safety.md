@@ -66,6 +66,14 @@ new run allocation or monthly remaining balance is inferred.
 
 ## Before any separately authorized online test
 
+**Single 006 exploratory exception:** For the one subscription observation
+authorized in [006's specification](../../specs/006-independent-review/spec.md#pilot-prerequisites-and-retained-findings),
+prior usage reconciliation, verified pre-send request/token enforcement, bounded
+cancellation and a dedicated scoped evaluation secret are not launch gates.
+Report unknown usage and controls honestly; do not copy or export credential
+stores. All unrelated runs retain the controls below, and this exception does not
+establish acceptance or authorize a different provider, model or fixture.
+
 1. Record exact provider/model/variant, synthetic input identity, authorization,
    active session count (one), children (zero), maximum total requests including
    auxiliary calls/retries, input/output tokens, deadline and stop condition.

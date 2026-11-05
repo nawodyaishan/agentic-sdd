@@ -153,6 +153,12 @@ affected findings/verdict stale, not silently current.
 
 ### C4 — Proposed pilot bounds and stop contract
 
+For the single user-authorized exploratory subscription observation described in
+[spec §Pilot prerequisites](spec.md#pilot-prerequisites-and-retained-findings),
+the pre-send accounting, enforcement and bounded-cancellation launch gates below
+are excepted, not demonstrated. The 20-minute deadline and other explicit user
+constraints apply. Do not apply this exception to other runs or to acceptance.
+
 These numerical ceilings are a **proposal**, not an inference allocation or
 claim that the native route enforces them:
 
@@ -259,6 +265,27 @@ invocation is the feature under test, not permission to delegate this drafting.
 | IR-03 | RHEL target, exact model availability/privacy and dedicated credential route unknown | Blocks VM operations/live pilot, not independent offline drafting or B1. |
 | IR-04 | Parent report can over-trust child advice or omit dirty code | C1/C3 fixtures, independent oracles, freshness checks and guided user summary. |
 | IR-05 | Global denials or config merges defeat the optional route | Detect/reject collision; keep user controls intact and preserve safe defaults. |
+| IR-06-01 | Actual 2.2.5 read dispatch follows an allowed symlink outside the project, even though a direct external read is denied | Demonstrated by the rootless, network-isolated scripted VM fixture. Generic checkout canonical-path isolation is unsupported. Keep the native regression failing; use C2's explicitly reviewed sanitized read-only export with symlink/special-file refusal, or leave the dependent activity blocked. |
+
+### B4 exact-runtime development observations — 5 November 2026
+
+The headless location bug is resolved for the scripted route: pinned CLI source
+prefers `PWD` over `process.cwd()`. Passing Python `cwd=` alone retained the SSH
+home `PWD`. The native regression reproduced `Agent not found` with stale `PWD`
+and passed with `PWD` and `cwd` set to the same fixture location.
+
+The new offline dispatch fixture uses one parent and one fresh child, a fresh
+HOME/XDG environment, a rootless user/network namespace with loopback only, and
+scripted local protocol responses. Actual skill/reference/file reads completed;
+direct external reads and prohibited write/edit/patch, shell, execute, web and
+nested-agent calls failed. The child context excluded the parent-only marker.
+Interrupting active owned work produced durable `interrupted` outcomes for both
+parent and child within five seconds in this synthetic-transport test. This is
+not upstream provider cancellation, general recovery, live review quality or
+complete request-limit certification. The symlink case remains a real failing
+assertion (IR-06-01), not a passing negative test. See the
+[runbook](../../integrations/opencode/independent-review.md#actual-tool-dispatch-observations--5-november-2026)
+and [task continuation](tasks.md#continuation-record) for evidence locations.
 
 **Draft technical assessment:** offline design is ready for combined human review;
 native support and live pilot remain **Blocked** on IR-01–IR-03. This is a main-agent
@@ -266,6 +293,89 @@ architecture assessment, not independent review or approval. No implementation
 gap is relabelled optional; B4 cannot be marked complete merely because B1–B3 pass.
 Retain 004 findings by their existing IDs; new observations apply only to this
 review route, not general recovery, billing or normal-home certification.
+
+## Pilot control investigation — 5 November 2026
+
+The user's proposed subscription allocation for `openai/gpt-6-luna-fast#high` is
+60 total requests, 720,000 input and 120,000 output tokens, per-request ceilings of
+24,000 input and 4,000 output, a 1,200-second total deadline, and zero retries.
+These are proposed allocations, not demonstrated controls or a B4 launch decision.
+They differ materially from C4 and require reconciliation and scoped human review;
+the [supervised proposal](supervised-pilot-proposal.md) predates these numbers and
+its statement that no numbers were supplied is historical.
+
+### Findings from public sources and existing observations
+
+- **Pinned source:** The reviewed 2.2.5 source identity used by this project is
+  [`9bbb8ce18c80f099e0e448775f59d965ead40a21`](https://github.com/anomalyco/opencode/tree/9bbb8ce18c80f099e0e448775f59d965ead40a21).
+  Its [runner](https://github.com/anomalyco/opencode/blob/9bbb8ce18c80f099e0e448775f59d965ead40a21/packages/core/src/session/runner/llm.ts)
+  loops within a logical step for retry/continuation, can reset the step on new
+  input, and can schedule title generation. Its
+  [retry policy](https://github.com/anomalyco/opencode/blob/9bbb8ce18c80f099e0e448775f59d965ead40a21/packages/core/src/model-retry.ts)
+  has retry scheduling; [title generation](https://github.com/anomalyco/opencode/blob/9bbb8ce18c80f099e0e448775f59d965ead40a21/packages/core/src/session/title.ts)
+  can make a separate model call. The source identity is a reviewed source contract,
+  not independent proof that the local binary was built from that commit. No
+  validated zero-retry or complete pre-send aggregate token/request control was
+  identified for the selected native parent/child route.
+- **Accounting:** Current [ACP documentation](https://opencode.ai/v2/docs/cli/acp)
+  says end-turn usage excludes child sessions. The prior parent streams similarly
+  omit child usage. Current [API documentation](https://opencode.ai/v2/docs/api)
+  lists session logs, statistics, usage-limit and interrupt endpoints, but neither
+  current docs nor the offline permission fixture verifies their 2.2.5 behavior,
+  pre-send enforcement or provider reconciliation. Unknown, failed, in-flight,
+  title, compaction and child requests cannot be counted as zero.
+- **Cancellation:** An earlier timeout reported a child still running at parent
+  shutdown; a later process check found it gone. That is not proof of a supported,
+  bounded interrupt of both owned sessions or upstream cancellation. No isolated
+  active parent/child interruption test was performed in this research session.
+- **Prior paid attempts:** The [runbook](../../integrations/opencode/independent-review.md)
+  records two completed client probe events, an interrupted probe, failed/no-route
+  and subsequent pilot attempts. Parent event totals and reported zero cost are
+  partial; child, auxiliary and provider-side totals remain unknown. The earlier
+  [004 acceptance](../../harness/acceptance.md) also records a distinct historical
+  spend incident and a P1 HTTP 429. These records cannot reconcile invoices,
+  remaining allowance or actual in-flight charges. No credential store or provider
+  account was accessed to fill the gap.
+- **Offline checks:** `sh tests/harness/native-independent-review.sh` passed 6/6;
+  this checks permission evaluation in a network-disabled container, not tool
+  dispatch, accounting or cancellation. `TMPDIR=/tmp/opencode python3 -B -m unittest
+  discover -s tests/harness -p test_offline_transport.py` ran 21 cases: 12 pass,
+  9 container-only cases skipped. The [S0 gate](../../tests/harness/S0.md) is a
+  loopback-only synthetic transport, counts UTF-8 bytes rather than verified model
+  tokens, and is not an online route.
+
+### Smallest candidate API route — proposal, not operational
+
+An independently reviewed candidate is OpenRouter model
+`openrouter/xiaomi/mimo-v2.6-flash`, synthetic inputs only, with one upstream
+provider pinned and fallback disabled. This is **not** the subscription model and
+must not be substituted without an explicit new model decision. The user—not the
+agent—would create a dedicated limited evaluation key, set a non-resetting $1
+key cap, verify remaining account allowance and provide it via a separately scoped
+secret reference. Do not include keys, account records or secret values here.
+
+[OpenRouter's key-limit documentation](https://openrouter.ai/docs/api/reference/limits)
+describes per-key limits and an in-flight budget, but the latter applies only to a
+subset of accounts; documented checks do not establish an absolute $1 cap under
+all concurrent/in-flight conditions. Its [usage documentation](https://openrouter.ai/docs/guides/guides/usage-accounting)
+describes response and generation-ID usage; absent terminal responses and delayed
+provider accounting remain unknown. A dollar cap is not a request count or token
+reservation. [Provider routing](https://openrouter.ai/docs/guides/routing/provider-selection)
+supports restricting providers and disabling fallback in API requests, but the
+pinned OpenCode adapter's ability to apply these options to every parent, child
+and auxiliary request is unverified. Current [model pricing](https://openrouter.ai/xiaomi/mimo-v2.6-flash)
+lists multiple upstream prices: for example Xiaomi at $0.14/M input and $0.28/M
+output. At those exact rates, the proposed aggregate maxima produce an illustrative
+$0.1344 token-only estimate, not a quote, expected bill or hard cap; charges,
+cache/reasoning treatment, provider selection and prices need verification at launch.
+
+The minimum missing engineering evidence is an enforceable pre-send reservation
+covering all model requests/tokens, retries and auxiliary calls, verified isolated
+credential delivery and egress, plus owned parent/child cancellation. The existing
+ACP admission is deliberately fail-closed, and C4 expressly excludes building a
+proxy or supervisor in 006. If native controls cannot prove these properties, a
+separately reviewed feature/design decision is required; this candidate is not yet
+a workable authorized route. Do not create a key or send inference during preparation.
 
 ## Documentation research
 

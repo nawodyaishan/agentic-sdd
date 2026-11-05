@@ -166,6 +166,26 @@ class IndependentReviewProbe(unittest.TestCase):
         self.effect(REVIEWER, "read", ["src/main.go"], "allow")
         self.effect(REVIEWER, "subagent", [REVIEWER], "deny")
 
+    def test_06_external_reference_permission_evaluation(self):
+        # Synthetic external files only: no host home, skills or credentials.
+        refs = self.root / "external" / "references"
+        refs.mkdir(parents=True, exist_ok=True)
+        reference = refs / "independent-review.md"
+        reference.write_text("synthetic review reference\n")
+        boundary = str(refs) + "/*"
+        self.example = json.loads(Path("/templates/independent-review.jsonc").read_text())
+        self.example["policies"].append({"action": "tool.use", "resource": "external_directory:" + boundary, "effect": "allow"})
+        for name in (COORDINATOR, REVIEWER):
+            self.example["agents"][name]["permissions"].extend([
+                {"action": "external_directory", "resource": boundary, "effect": "allow"},
+                {"action": "read", "resource": boundary, "effect": "allow"},
+            ])
+        self.write_config(self.project / ".opencode/opencode.jsonc", self.example)
+        for agent in (COORDINATOR, REVIEWER):
+            with self.subTest(agent=agent):
+                self.effect(agent, "external_directory", [boundary], "allow")
+                self.effect(agent, "read", [str(reference)], "allow")
+                self.effect(agent, "external_directory", [str(self.root / "private" / "*")], "deny")
 
 if __name__ == "__main__":
     unittest.main()

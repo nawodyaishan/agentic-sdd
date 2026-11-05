@@ -3,7 +3,8 @@
 Revision: r2 · 3 November 2026
 
 Status: Combined spec/plan/tasks approval recorded 4 November 2026; B1 and B2 are
-reviewed, and B3 is authorized. B4 and the live pilot are not authorized.
+reviewed, and B3 is authorized. B4 is now deferred by the user as recorded below;
+acceptance remains incomplete, with a demonstrated native symlink-boundary failure.
 
 Repository location: `specs/006-independent-review/spec.md`.
 
@@ -328,6 +329,18 @@ drafting, not implementation or a pilot.
 
 ## Pilot prerequisites and retained findings
 
+**One exploratory exception, 5 November 2026:** The user authorized one
+supervised synthetic-fixture observation using `openai/gpt-6-luna-fast#high`
+through their existing ChatGPT subscription, one parent and one inspection-only
+reviewer, a 20-minute deadline, no nested delegation, intentional retries,
+automatic provider/model fallback or additional attempts. For this observation
+only, unverified aggregate request/token enforcement, prior usage reconciliation,
+bounded cancellation and the absence of a dedicated evaluation secret do not
+themselves prohibit an attempt. Report these as unknown, not as demonstrated
+controls. This does not authorize copying credential stores, changing a shared
+service, another model or fixture, or changing AC-01–AC-10. The exception is
+subject to actual availability of the specified route and the user's constraints.
+
 Before live reviewer testing, identify exact runtime, effective tools/permissions,
 model/provider/variant, synthetic input, credential route, request/token/deadline/
 spend bounds and stop/cleanup ownership under [repository policy](../../AGENTS.md)
@@ -400,6 +413,23 @@ verification, and the pilot brief. It does not authorize launching the RHEL pilo
 VM or credential access, inference or provider probing, installing the example into
 a project or real home, changing the active runtime configuration, release or
 publication beyond the normal commit/push of the batch when requested.
+
+**Exploratory exception (5 November 2026):** The user authorized the single
+subscription observation described in §Pilot prerequisites and retained findings
+and requested removal of the named conflicting gates. This is not acceptance of
+B4 or a change to the original acceptance criteria.
+
+**B4 VM verification authorization (5 November 2026):** The user subsequently
+requested “do actual tool and all required work in vm to finish b4”. This session
+performed bounded, credential-free scripted native-dispatch and cancellation
+tests on the named RHEL VM. The tests are not external inference or a substitute
+live pilot. The observed symlink boundary failure blocks the affected live claim;
+the request does not turn a failed or missing criterion into acceptance or
+authorize changing unrelated shared services, credentials or publication.
+
+**B4 deferral (5 November 2026):** The user then said "skip b4, what next".
+Defer B4/T05 and stop scheduling its verification work. This is not B4 acceptance,
+a waiver of IR-06-01, full 006 acceptance, or approval of another feature/batch.
 
 Earlier record: the user requested this spec's repository adoption and refinement,
 then plan/tasks drafting, on 3 November 2026.
