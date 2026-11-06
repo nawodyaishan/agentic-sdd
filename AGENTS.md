@@ -84,3 +84,16 @@ Structure, in this order: batch position and next authorized batch; what the ses
 ## Release and publish
 
 `.goreleaser.yml` builds darwin (amd64+arm64, merged into a universal binary) and publishes a Homebrew formula to `nawodyaishan/homebrew-tap`, driven by `.github/workflows/release.yml` on a `v*` tag push. `task tag V=vX.Y.Z MSG="..."` creates the tag; `task release` runs a local snapshot build (no publish, no tag required) to verify the pipeline. Writing a real `v*` tag, pushing it, or generating/rotating `HOMEBREW_TAP_TOKEN` are live-system operations requiring their own authorization — developing or testing this pipeline's code does not authorize them.
+
+## Temporary 008 validation scope
+
+Temporary fence for Feature 008 test and validation selection. It applies until the owner explicitly changes it, and it grants no approval, batch authorization, ledger or orchestration rights.
+
+- **Do not select** excluded or blocked feature parts in any test or validation run: Feature 005 blocked native ACP, admission, online and runtime-certification experiments; Feature 006 native, profile, dispatch, pilot and C2-mitigation work; Feature 007 historical migration, adoption and old-base transition exercises. Their records stay historical evidence, not work queues.
+- **Do keep selecting** the maintained supported core: shipped portable skill assets, package/installer distribution and integrity checks, check-runner and evidence/receipt checks, the current `Taskfile.yml` commands, and the trusted-CI checks.
+- Keep `task test` (`go test ./...`) and the required checks in `harness/checks.json` unchanged. Never add a skip, filter, tolerance or exclusion to make an aggregate suite pass. When an aggregate suite would include excluded validations, run the explicitly named core selection for scoped evidence and report the required aggregate as `not_run` or `blocked` with its reason; a gate conflict stops for a human decision rather than weakening the gate.
+- `excluded` and `not_run` are not `pass`. Claim no model, native, online or external-evaluation behavior, and never write to a real user home.
+- Select Python checks explicitly by file pattern (for example `python3 -B -m unittest discover -s tests/harness -p test_core_workflow.py`); broad discovery across `tests/harness/` is not an approved selection.
+- A preserved or committed 005/006/007 work-in-progress change stays out of scope: being committed is not evidence and does not re-enable that work.
+
+Canonical sources: [spec 008](specs/008-core-release-quality/spec.md) §Approval, [plan 008](specs/008-core-release-quality/plan.md) §1 deprecated-feature work fence, and [tasks 008](specs/008-core-release-quality/tasks.md) for batch state. They own scope, approval and batch state; this section only restates the selection fence for test and validation runs.

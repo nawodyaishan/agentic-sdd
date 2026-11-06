@@ -31,6 +31,19 @@ task vet
 git diff --check
 ```
 
+### Temporary supported-core validation scope (008)
+
+While blocked 005/006/007 feature validations are excluded, use explicit local
+`task test-core` and `task vet-core` for **scoped evidence**. See the
+[temporary fence](AGENTS.md#temporary-008-validation-scope) and
+[selection ownership](tests/harness/README.md#supported-core-go-selection).
+The ordinary `task test`, `task vet` and trusted six-check contract are unchanged;
+core-only success is not their result. If those aggregate commands include an
+excluded validation, report the aggregate not_run/blocked and obtain a human gate
+decision—do not weaken it, hide a failure or count excluded work as passing.
+Commit hooks may still request the aggregate commands; do not bypass hooks or
+assume a scoped run authorizes committing/publishing.
+
 ## Change a skill
 
 Edit the canonical copy in `skills-files/agentic-sdd-*/`. Keep its `SKILL.md` frontmatter and any relative references valid. Use `task preview` to see how the change would affect installed skills. `task apply` writes to your user skill directories and creates a local backup, so run it only when you intend to update your own installation.

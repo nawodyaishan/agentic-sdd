@@ -1,5 +1,33 @@
 # Harness fixtures
 
+## Supported-core Go selection
+
+`task test-core` / `task vet-core` call `tests/supported-core-go.sh` with an explicit
+allowlist: `internal/skillsync`, `internal/harnesscheck`, `internal/harnessevidence`
+and `cmd/sdd-check`, then the production installer CLI files plus `main_test.go`.
+The helper is compiled as a production dependency, not exercised as a native
+runtime. `internal/opencodeadapter`'s experimental tests and the CLI's
+`opencode_test.go` are not selected; no 006 native/profile/dispatch/pilot or 007
+historical migration/adoption suite is selected. Shipped-reference/package and
+current core check/evidence tests stay covered regardless of their feature origin.
+
+The explicit CLI file list reflects the currently reviewed source layout. Go's
+file-list mode ignores build constraints; missing/new CLI files stop for selection
+review rather than silently changing scope. This profile has Linux evidence only,
+not a native macOS guarantee. It clears inherited test filters/foreign workspaces
+and disables toolchain/module retrieval; it is not an OS sandbox.
+
+Verify the selection with
+`python3 -B -m unittest discover -s tests/harness -p test_supported_core_go.py`.
+It uses fake Go in disposable fixtures to check exact argv/environment and failure
+propagation, not deprecated-feature or native behavior. Python 3.9+ and Go Task must already be
+available for the entry-point checks; absence must not be counted as a pass.
+
+**Not an aggregate gate:** the required `go test ./...`, `go vet ./...`, CI/bootstrap
+and `harness/checks.json` remain unchanged. A temporary scope conflict leaves the
+aggregate not_run/blocked with a human decision outstanding. Do not use a scoped
+pass to certify the aggregate or silently waive release-critical core checks.
+
 ## Core workflow text and onboarding checks
 
 Run `python3 -B -m unittest discover -s tests/harness -p test_core_workflow.py`

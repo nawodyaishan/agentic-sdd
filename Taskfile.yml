@@ -33,9 +33,15 @@ tasks:
   test:
     desc: Run Go tests
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go test ./...']
+  test-core:
+    desc: Run supported-core Go tests only (not the required aggregate gate)
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} sh tests/supported-core-go.sh test']
   vet:
     desc: Run Go static analysis
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go vet ./...']
+  vet-core:
+    desc: Run supported-core Go vet only (not the required aggregate gate)
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} sh tests/supported-core-go.sh vet']
   docker-e2e:
     desc: Exercise installer in an isolated Docker container
     cmds: [sh tests/docker-e2e.sh]

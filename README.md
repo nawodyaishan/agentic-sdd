@@ -203,6 +203,11 @@ The Homebrew release provides a macOS universal binary. The published binary emb
 
 Requires **Go 1.23+**. The commands below use [Go Task](https://taskfile.dev/) (tested with 3.54.0); `make` targets have been replaced by `task` commands.
 
+For current Feature 008 work, select `test-core`/`vet-core` under the
+[temporary exclusion fence](AGENTS.md#temporary-008-validation-scope). The aggregate
+commands remain listed for their normal contract, but must be reported not_run/blocked
+when that fence prevents running them; a scoped pass is not an aggregate pass.
+
 ```sh
 task help           # list every command
 task preview        # show what would change; writes nothing
@@ -211,6 +216,8 @@ task apply          # back up existing skills, then install
 task logs           # show the latest apply or restore log
 task test           # run the safety and behavior tests
 task vet            # run go vet
+task test-core      # scoped supported-core tests; not the required aggregate gate
+task vet-core       # scoped supported-core vet; not the required aggregate gate
 task hooks-install  # install the Lefthook pre-commit hook
 ```
 
@@ -271,7 +278,11 @@ Preview and apply plan identically, so a preview tells you exactly what an apply
 
 **Before writing anything**, the installer walks both the source and destination skill trees and refuses symlinks, special files, a non-directory where a skill directory belongs, a non-directory component anywhere between the destination and your home, and a source skill without a regular `SKILL.md`. It stops if no `agentic-sdd-*` skill is found at all.
 
-**Change detection is exact**: directory structure, file permissions, and SHA-256 of every file. Identical trees are reported `up to date`, are not backed up, and are not rewritten. When nothing differs, apply prints `All skills are up to date.` and creates no backup.
+**Change detection compares structure and content, not permissions.** For each skill it checks the same directory layout, entry names, file-versus-directory kind, and each file's size and SHA-256 content hash. Permission bits are not part of the comparison, so a skill whose content matches but whose modes differ is still reported `up to date`: it is not rewritten, not backed up, and not chmodded. When nothing differs, apply prints `All skills are up to date.` and creates no backup. Restore compares the destination against the saved tree the same way.
+
+**File modes are requested, then masked by your umask.** Apply and restore request 0755 for directories and 0644 for files; a `--repo` checkout's own modes are not carried over. Entries created during the copy get those modes minus whatever your umask removes — with umask `077`, for example, directories are commonly 0700 and files 0600. The top-level staged skill directory is explicitly set to 0755 after staging, so under a restrictive umask it can be wider than the subdirectories and files inside it; client skill directories created as needed follow the same umask rule. An `up to date` skill keeps its current modes, and restore re-applies these install modes rather than the modes saved in the backup.
+
+These are ordinary Unix mode-bit semantics, not ownership, ACL or extended-metadata preservation guarantees. The focused mode probes cover Linux with ordinary temporary directories and umasks `022`/`077`, not every filesystem policy.
 
 **Backups come first.** An apply (or restore) with changes creates a UTC-stamped directory: under `<repo>/backups` when `--repo` is set, or `<home>/.agentic-sdd/backups` when sourcing from the embedded skills (e.g. a Homebrew install):
 
@@ -282,7 +293,7 @@ backups/20260924T201717.833575000Z/
 └── claude/agentic-sdd-plan/...
 ```
 
-Only skills that already existed are copied there. A repository-local `backups/` directory is git-ignored because your previous skills may contain private content — keep or prune it on your own terms.
+Only skills that already existed are copied there. The saved trees and manifest are complete before any replacement is staged or installed. A copied backup tree keeps each directory's and file's ordinary read/write/execute permission bits as reported by the source, again subject to your umask, and is not chmodded afterwards. That copy is for content recovery: it is not a guarantee that restore will reproduce the original modes, which use the install modes above. A repository-local `backups/` directory is git-ignored because your previous skills may contain private content — keep or prune it on your own terms.
 
 **The manifest records what happened, not just what's saved.** Alongside the original `created`/`source`/`targets`/`skills` fields, every backup written by this version records:
 
@@ -294,7 +305,7 @@ Only skills that already existed are copied there. A repository-local `backups/`
 | `home` / `backup_root` | The absolute home and backup root the operation ran against |
 | `entries` | One record per changed skill: client, skill, destination path, and `replaced` (with a saved-copy path and a SHA-256 digest) or `installed` (nothing to save — it didn't exist before) |
 
-A backup written by an older version of the CLI has none of these extra fields; `agentic-sdd backups` marks it `[legacy]` and restores it on a best-effort basis (see below). The digest is checked before every restore, so a truncated or hand-edited backup is refused rather than silently applied.
+A backup written by an older version of the CLI has none of these extra fields; `agentic-sdd backups` marks it `[legacy]` and restores it on a best-effort basis (see below). The digest covers relative paths, entry kinds, and file contents — not permission bits — and it is an integrity check, not a signature. It is checked before every restore, so a changed or truncated saved tree is refused when it no longer matches the recorded digest. A permission-only edit does not invalidate that digest.
 
 **Installation is staged.** Every replacement is built in a temporary directory beside its destination before any installed skill is touched; installs then happen as renames. If one fails partway, the CLI restores what it already moved and removes what it already installed, and the backup remains for manual recovery.
 

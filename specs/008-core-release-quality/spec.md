@@ -1,10 +1,10 @@
 # Feature 008 — Core Product Quality, Repository Maintainability & Release Readiness
 
-**Status:** Combined r1 approved; B1 accepted; B2 authorized under the r2 scope fence; later batches not authorized
+**Status:** Core-first amendment drafted for combined review; prior approvals/delivery preserved; no new implementation authorized
 
 **Date:** 2026-11-05
 
-**Revision:** r1 — approved combined spec/plan/tasks scope; execution updates reference the approval record.
+**Revision:** r2 draft, 2026-11-06 — Option 1 plus minimum Option 2; review with plan/tasks r4. Historical r1 approval remains scoped to its recorded revisions.
 
 **Proposed repository path:** `specs/008-core-release-quality/spec.md`
 
@@ -12,7 +12,7 @@
 
 **Next release:** Undecided `v0.x` version, subject to review and verification
 
-**Authority:** [Approval](#approval) records combined r1 approval, accepted B1 and B2-only execution under the r2 scope fence. Prior delegation and commit authority were bounded to B1 and the named WIP preservation. No experimental model evaluation, local configuration change, real-home apply, release tag or publication is authorized.
+**Authority:** [Approval](#approval) preserves prior batch/commit decisions and records the owner's selection of the core-first direction and authorization to revise these documents. This amendment does not start B4a/B4b/B4c/B5 or authorize CI/runtime changes, a commit, push, real-home apply or publication.
 
 ## 1. Product vision and outcome
 
@@ -23,6 +23,8 @@ The intended audiences are (1) solo developers using OpenCode, Codex and Claude 
 **Release outcome:** A new user can safely preview/install, distinguish direct fixes from features, establish scope on an incomplete request, review an authorized batch, understand verification, and find the documented support limits. Maintainers can understand the active status without reconciling stale summaries, run release-critical checks on a selected candidate and determine a justified release go/no-go.
 
 The feature is successful only with evidence, not because a release was desired: a **documented no-go** is the correct outcome if any supported-core blocker remains. Publication always needs a separate human decision.
+
+The canonical [vision §6](../../docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md#6-non-negotiable-engineering-principles), [§7](../../docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md#7-product-architecture-and-ownership-boundaries) and [§10/H0](../../docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md#10-roadmap-by-evidence-gates-not-hype-or-deadlines) guide this release-first amendment. Conditional H1–H3 aspirations are not acceptance scope; the vision does not override feature approval or execution authority.
 
 ## 2. Scope boundary and existing architecture
 
@@ -35,6 +37,8 @@ The feature is successful only with evidence, not because a release was desired:
 - Existing `Taskfile.yml`, `AGENTS.md`, source/release tooling and GitHub/Homebrew distribution paths.
 
 **Experimental/unsupported in this release:** native OpenCode ACP model execution, automatic multi-model routing or billing firewall, general native independent reviewer filesystem isolation, automatic subagent orchestration, native macOS check-runner guarantees and cross-client behavioral equivalence. Feature 006 B4 remains blocked/deferred by the demonstrated `IR-06-01` symlink escape; no documentation improvement can certify that boundary.
+
+**Amended default:** normal Task commands, hooks, required CI and release builds target the working supported core. Experimental features and their behavioral suites are inactive/excluded by default and separated from that command/dependency graph. Keep their source/history rather than deleting it blindly; an explicitly opt-in experimental task/build path is not approval to execute it. Classify by capability and effect, not old feature number: retained installer, check/evidence, metadata and current Taskfile integrity remain core even if introduced in 005 or 007. Core boundary tests may prove that experiments cannot activate; they do not run or certify the experiments.
 
 Do not duplicate the existing `human-input.md`, `grilling`, `questionnaire`, `teach`, `implement`, `verification-review` or approval contracts. Keep portable methodology separate from host-specific runtime enforcement.
 
@@ -75,13 +79,13 @@ Reconcile misleading **current-facing** status statements in canonical project g
 
 Perform a tracked/ignored/untracked path and provenance inspection **before changing** structure. Retain `cmd/`, `internal/`, `skills-files/`, `specs/`, `harness/` and `integrations/opencode/` as principal ownership boundaries. Improve discoverability of active guides versus historical reports, handovers and audits; a concise `docs/README.md` index or equivalent is preferable to a bulk move. Identify actual duplicate documents before consolidation. Review `tests/harness/` ownership and entry points; reorganize only if it yields defensible maintenance value with path/reference regression coverage.
 
-Review `backups/` and `bin/` for tracked/generated/sensitive content and `.gitignore` correctness; **never discard, publish, or alter local user backups/artifacts merely because they appear in the tree**. Preserve all 18 skill names and linked references, root Go embed assets, import paths, installation destinations and release artifact behavior. Document any migration/path impact and rollback. Cosmetic conformity to a large Go template is not a sufficient reason for change.
+Review `backups/` and `bin/` for tracked/generated/sensitive content and `.gitignore` correctness; **never discard, publish, or alter local user backups/artifacts merely because they appear in the tree**. Preserve all 18 skill names and linked references, necessary root Go embed assets, import paths, installation destinations and supported-core artifact behavior. R11's deliberate experimental-availability change needs its explicit compatibility/asset disposition rather than silent removal. Document migration/path impact and rollback; cosmetic conformity to a large Go template is not sufficient reason for change.
 
 ### R6 — Complete and trustworthy release verification
 
 Create a candidate-specific verification matrix: Go tests/vet/format, skill/embed/reference integrity, installer/restore E2E, Taskfile regressions, relevant Python harness tests, evidence/check-runner tests, trusted-CI anti-weakening, release packaging and user first-run smoke. State exactly which checks run as required CI, separately isolated release QA, manual walkthrough, or `not_run`.
 
-Preserve **trusted-base ownership** of CI bootstrap/check contracts. Do not run untrusted candidate scripts with host secrets, privileged tokens or dangerous mounts. Do not blindly move all Python suites into `harness/checks.json`; preserve the check-runner's distinct trust/scope contract. Negative cases must show failure is detected. Report test identity, scope, environment, result and limitations, including unobserved fork/PR and native-platform paths.
+Preserve **trusted-base ownership** of CI bootstrap/check contracts. Align the six existing check roles to the reviewed supported-core selection rather than requiring literal `./...` breadth. Changes to required definitions need reviewed-base adoption; retain exact trusted/candidate comparison and meaningful independent core probes. Do not run candidate-controlled scripts on a privileged host or blindly move Python suites into the Go check contract. Separate isolated release QA from the mandatory CI gate. Negative cases must show real failures, missing coverage and candidate weakening are detected. A scoped developer pass is not an adopted required-gate pass.
 
 ### R7 — Installer permission/restore contract
 
@@ -93,11 +97,20 @@ Present a minimal safe first-five-minutes entry point and **three compact worked
 
 ### R9 — Integrated Taskfile, release candidate and decision
 
-Inspect Feature 007's actual Taskfile state before relying on it. Ensure documented developer commands, test invocations, CI, GoReleaser/release metadata, generated artifacts and Homebrew instructions refer to the maintained implementation. Choose a **clean, identified release candidate**. Validate packaging, embedded skills, metadata and the advertised macOS/Homebrew install path; distinguish Linux source usage and the unpublished `sdd-check` executable. Prepare factual release notes, known limitations, an exact candidate identification, compatibility disposition and a justified go/no-go. Version selection follows changes and remains `0.x` unless a separately approved compatibility contract exists.
+Reuse B1's Taskfile provenance and verify the current maintained command/CI/release inputs; do not reopen 007's historical migration work. Ensure developer commands, test invocations, CI, GoReleaser metadata, generated artifacts and Homebrew instructions agree with the supported core profile. Choose a **clean, identified release candidate**. Validate packaging, embedded skills, metadata and the advertised macOS/Homebrew install path; distinguish Linux source usage and the unpublished `sdd-check` executable. Prepare factual release notes, limitations, exact candidate identity, compatibility disposition and a justified go/no-go. Version selection remains `0.x` unless a separately approved compatibility contract exists.
+
+### R10 — Core-only defaults and separated experimental commands
+
+`task test`, `task vet`, `task verify`, configured hooks and normal build/release commands must agree on the supported core. Keep `test-core`/`vet-core` only as compatible aliases or parity-enforced entry points, not competing scope owners. The existing required check contract owns mandatory selection; preserve the six roles, accurate evidence/failure semantics and reviewed-base trust protections while updating test/vet definitions deliberately. Experimental tasks belong in a separately invoked task file, not automatically included, discovered as ordinary core commands or depended on by core validation/release. No blanket Python discovery, skip-to-green behavior or hidden relaxation of core assertions. New/unclassified surfaces require scope review.
+
+### R11 — Minimum technical default-inactive release boundary
+
+Default core binaries must not activate experimental OpenCode operations, load their runtime backend or expose them as supported functionality. Attempted experimental actions return an explicit unavailable/non-success response before configuration, credential, provider or native-process effects; targeted help may explain unavailability without advertising a working integration. Prefer a narrow compile-time CLI boundary over a runtime/orchestration rewrite. Normal build/test/release commands must not inherit flags that silently enable experiments. Preserve core command behavior, all 18 skill identities and necessary inert schema/embed assets; no active experimental configuration may be emitted to client discovery. Retained inert resources require an explicit artifact disposition. Any future experimental build/task invocation remains separately authorized and unsupported, not part of 008's validation.
 
 ## 5. Explicit non-goals
 
 - Completing Feature 006 B4 or treating the proposed sanitized-export C2 as certified.
+- Running experimental suites merely because they are offline, re-opening old 005/006/007 implementation/adoption work, or implementing vision H1–H3. Only the minimal core-default disable/separation boundary and its core safety checks are added here.
 - Enabling native ACP inference, launching paid/free model tests without separate authorization, general model routing, mandatory subagents or prompt-warming/caching infrastructure.
 - Replacing Agentic-SDD with Superpowers, Spec Kit or a different development methodology.
 - Creating a separate learner product, compulsory teaching, more approval records or a new current-state ledger.
@@ -128,6 +141,11 @@ Inspect Feature 007's actual Taskfile state before relying on it. Ensure documen
 | **AC-16** | Release report records exact commit/tree, known blockers, nonblocking experimental findings, supported compatibility scope, verification evidence, version recommendation, draft release notes and a reasoned **go/no-go**. |
 | **AC-17** | Compatibility-sensitive changes are classified and have migration notes or are excluded; no automatic `v1.0.0` promise is made. |
 | **AC-18** | Human acceptance of these artifacts does **not** start a later batch, spend models, modify real-user installs or authorize publication. Release action gets its own explicit approval. |
+| **AC-19** | Default test/vet/verify, configured hooks and release commands select the same approved supported core; experimental tasks/suites are not selected directly or transitively. Core aliases cannot drift; excluded suites are not reported as passes. |
+| **AC-20** | The default source build and release artifact have a verified inactive experimental CLI boundary: unsupported requests cause no config/credential/provider/native effects, ordinary help describes core support, and inherited build flags cannot silently enable experiments. All core commands remain functional. |
+| **AC-21** | G-008-01 is closed only by fresh evidence for the reviewed/adopted core gate on identified inputs—not by this policy decision, a local alias, relaxed comparison or re-labeled old results. Base-owned negative controls still detect core no-op defects, missing/altered required selection and attempted default experimental activation, including candidate test/task weakening. |
+| **AC-22** | Experimental commands/tests have an explicit non-default location and no dependency from normal tasks, hooks, CI or release. Preserved WIP/history is not activated, validated or advertised as core; boundary safety tests do not invoke experimental behavior. |
+| **AC-23** | Core/experimental capability and dependency mapping covers compiled dependencies, assets and CLI availability. Compatibility/migration notes explain changed experimental availability; required core schemas/references, embeds and installation destinations remain intact. No broad package/module reorganization is required without new reviewed evidence. |
 
 ## 7. Release gate and defect disposition
 
@@ -136,6 +154,8 @@ Inspect Feature 007's actual Taskfile state before relying on it. Ensure documen
 **May remain open if prominently excluded:** IR-06-01 and 006 B4 generic native reviewer; disabled native ACP admission; unresolved hosted token/billing or compaction questions; budget-model comparative metrics; cross-client behavior equivalence; native macOS runner; unproven divergent fork/PR route. A known critical defect in a shipped supported surface **cannot** be reclassified as experimental merely to obtain green status.
 
 **Not a release gate:** cosmetic reorganization; learner adoption metrics; adding autonomous agents; completion of all historical feature 004/006 research. No finding may be silently waived; accepted residual risk must have a named scope and human decision.
+
+G-008-01's policy direction is selected, but the existing machine gate remains unchanged and blocked until the reviewed implementation/adoption is verified. The release gate is the complete supported-core contract, not all experimental validations. A working experimental activation path in the default artifact, missing core coverage or a weakened trust boundary remains a core blocker. A green core gate is necessary, not sufficient: candidate-specific packaging, platform/first-use and other promised-core evidence are still required.
 
 ## 8. Structural target (illustrative, not a mandatory migration)
 
@@ -169,15 +189,16 @@ Go's official module guide supports the current `cmd/` + `internal/` organizatio
 
 ## 10. Design dependencies, unresolved decisions and risks
 
-**For subsequent `plan.md` / `tasks.md` design:**
+**Retained discovery decisions and remaining amendment dependencies; do not redo completed work:**
 
-1. Reinspect Feature 007's actual delivered/accepted state and Taskfile/CI/release invocation, rather than trusting stale heading rows.
-2. Establish tracked vs untracked provenance of `backups/`, `bin/`, docs duplicates and build outputs.
-3. Decide PQ-04 by focused source/test analysis: documentation correction vs a separately justified behavioral change.
+1. Reuse B1's provenance and verify changed current-core Taskfile/CI/release inputs, not old 007 transition records.
+2. Reuse the tracked/ignored/untracked inventory and refresh only changed candidate inputs; never inspect private backup payloads to regenerate it.
+3. Preserve B3's documentation-first permission contract/test evidence and obtain its review disposition; any behavioral change still needs separate justification/approval.
 4. Map exact build, Homebrew tap, check-runner support and required released artifacts at the chosen release candidate.
 5. Determine which additional checks are safe in ordinary CI and which belong to isolated release QA without compromising trusted-base isolation.
 6. Decide any docs/test path moves only after referencing every consumer and migration impact.
 7. Determine appropriate next `0.x` version from actual changes and compatibility; do not preselect it.
+8. For this amendment, map default CLI/backend dependencies and task/hook/release graphs without running excluded suites. Verify the smallest compile-time disable boundary and the reviewed core-gate adoption sequence; do not use a candidate-controlled selector as trusted CI authority.
 
 **Risks to mitigate:** accidental scope expansion into an orchestration rewrite; history presented as new consent; claim inflation from static test results; inadvertently weakening CI or permissions; unsafe cleanup of backups; broken installed skills due to path changes; release from a dirty/unidentified tree; premature 1.0 promise.
 
@@ -189,24 +210,32 @@ At feature completion, provide a bounded change summary, user-facing before/afte
 
 This is section 12 and the sole combined-approval record for [spec r1](spec.md), [plan r1](plan.md) and [tasks r1](tasks.md).
 
-- **Decision:** Approved, 2026-11-05.
+**Amendment checkpoint:** spec r2 + plan r4 + tasks r4 are drafts pending one combined review of the affected changes. Prior approval and B1–B3 execution/evidence remain historical authority for their actual scope; they do not authorize the new unstarted batches.
+
+- **Historical combined r1 decision:** Approved, 2026-11-05.
+- **Amendment decision:** Pending combined review of spec r2, plan r4 and tasks r4; selected direction/document editing is not approval of these unread revisions or implementation.
 - **Approver:** The repository owner in this conversation (no additional identity asserted).
 - **Approved revisions/scope:** Combined r1 spec, plan and tasks as presented, retaining the owner's explicit strict-008-only scope and exclusions.
 - **Decision evidence:** The owner said “i approve all 3 plan spec tasks” and requested use of `sdd-implement-1` and `sdd-implement-2`. After the response proposed recording approval and implementing B1 only, the owner switched out of Plan mode and said “start”. This authorizes that presented B1 scope, not B2–B5.
-- **Authorized implementation batch:** B1 (T01–T02) is accepted. On 2026-11-06, after plan/tasks r2 exclusions were presented and committed, the owner said “start b2”: authorize B2 (T03–T04) only under that fence, verify and stop for human review. B3–B5 remain unauthorized.
+- **Authorized implementation batch:** B1 (T01–T02) is accepted; B2 (T03–T04) was authorized and committed. On 2026-11-06, after B3 tasks were presented, the owner said “also add task to ingore excluded scopes (005 006 007 blocked parts) tests validations in test runs” and “start B3”. Authorize T05 plus bounded T05a test selection under that exclusion fence, verify and stop. No separate B2 acceptance is inferred; this is actual new B3 authority. B4/B5 remain unauthorized.
 - **B1 acceptance (2026-11-06):** the owner said “accept b1” after the delivered work, checks and residual issues were presented. This accepts the bounded documentation/source-inventory scope, not release readiness or excluded-feature behavior.
 - **Post-B1 scope direction:** the owner required plan/tasks updates before B2 to exclude deprecated 006/007 scopes. Plan/tasks r2 make that fence explicit; the subsequent “start b2” applies to that presented scope. Core Taskfile/trust verification required by R6/R9 remains within 008; no old-feature resumption is authorized.
 - **Commit authority (2026-11-06):** the owner requested existing uncommitted 006/007 changes be saved as WIP and selected “Commit B1 only” for the separate reviewed B1 delivery. Use scoped separate commits, preserve unrelated/private work, and do not push. Saving WIP does not approve, test, certify or resume those features.
 - **B2 commit authority (2026-11-06):** the owner said “commit b2 and before start b3, give me tasks in b3”. Commit B2 only, preserve unrelated changes, and present B3's planned tasks. This does not authorize a push or B3 implementation, nor supply a separate B2 acceptance or release-readiness decision.
-- **Authorized delegation:** `sdd-implement-1` and `sdd-implement-2` for bounded, non-overlapping B1 work using configured models; parent integrates and verifies. This is development assistance, not authorization for experimental product model evaluations or native reviewers.
+- **B3 scope/delegation (2026-11-06):** the subsequent “start B3” authorizes the presented installer contract work and the requested excluded-test selection task. The owner then requested parallel implementation and another subagent for temporary excluded scope in AGENTS.md: permit three bounded workers (isolated permission tests, README contract, append-only AGENTS scope). Parent owns test-selection implementation/integration/state and completion review. No B3 commit, push, experimental evaluation or live apply is authorized. Do not weaken the unchanged trusted required contract; record aggregate-gate conflicts explicitly rather than hiding excluded validations behind green skips.
+- **Authorized delegation:** bounded, non-overlapping B1 work and the later three explicitly requested B3 workers described above, using configured models; parent integrates and verifies. This is development assistance, not authorization for experimental product model evaluations or native reviewers.
 - **Authorized model/network/credential/live actions:** Only the explicitly requested development-agent delegation above; no product model evaluation, native dispatch, credential/configuration change, real-home apply or other live action.
-- **Authorized tag, push, GitHub Release, or Homebrew tap change:** None.
+- **Scoped commit and push authority (2026-11-06):** the owner said “and commit changes and push”. Commit and push only this session's reviewed Feature 008 scope: B3 permission/selection delivery, the core-first amendment drafts, and the latest-only handover documentation. Preserve unrelated work (including the inherited AGENTS spending-policy deletion and untracked `docs/vnext-project-status.md`). No tag, GitHub Release or Homebrew tap change.
+- **Authorized tag, push, GitHub Release, or Homebrew tap change:** No tag, GitHub Release or Homebrew tap change. Destination/scope of the recorded push is the current `main` and its existing upstream only.
+- **Core-first direction and document authority (2026-11-06):** after prioritizing the working release scope and canonical vision, the owner selected “Option 1 as the main approach, with the minimum parts of Option 2 needed to ensure experiments are actually inactive in the release” and requested edits to spec/plan/tasks. This selects the proposed policy and authorizes this reconciliation, not implementation or retrospective B3 acceptance. The later “resume” continues that document work only. No new delegation, commit, live trusted-base adoption or release action is authorized.
 
 The recorded decision covers all three reconciled r1 documents. Later batches and live operations require their own actual authorization. B1 completion review does not start B2.
 
 ## 13. References
 
 **Primary project evidence:** owner-provided `agentic-sdd-context-pack.md` (2026-11-05); read-only product-quality assessment at `0ee5aaf` with PQ-01–PQ-06; owner-provided `tree -L 6` output; canonical repository files including `AGENTS.md`, `skills-files/agentic-sdd-router/references/{workflow-policy,human-input}.md`, `harness/{checks.json,acceptance.md,trusted-ci.md}`, `specs/004-*` through `007-*`, and `integrations/opencode/{usage,independent-review,safety}.md`. Snapshot descriptions are not fresh test runs.
+
+**Core-first amendment sources:** canonical vision §§6/7/10/13; current CLI dispatch/help in `cmd/agentic-sdd/main.go`, the two helper entry points in `cmd/agentic-sdd/opencode.go`, inert `adapterfiles.go` embeds, `Taskfile.yml`, `lefthook.yml`, and trusted contract comparison/execution in `tests/harness/trusted_ci.py`. These support the narrow design; they do not establish runtime safety or adoption without fresh tests.
 
 **External best-practice references (guidance, not verification of this repository):**
 

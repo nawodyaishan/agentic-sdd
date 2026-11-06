@@ -1,16 +1,18 @@
 # Core release quality — tasks and continuation
 
-Revision: r2, 2026-11-06 — owner-requested post-B1 exclusion clarification. Inputs: [spec r1](spec.md), [plan r2](plan.md). Single approval owner: [spec §Approval](spec.md#approval). Shared contracts C1–C5 and specialist/tool assignments live in the plan. B1 r1 delivery is accepted; B2 is delivered and awaiting human review under the r2 fence.
+Revision: r4 draft, 2026-11-06 — core-first command/gate and minimum inactive-build amendment. Inputs: [spec r2 draft](spec.md), [plan r4 draft](plan.md). Single approval owner: [spec §Approval](spec.md#approval). Preserve B1–B3 delivery/evidence; review the affected amendment together before implementation. B3 still awaits review, G-008-01 remains technically open, and B4a/B4b/B4c/B5 are not authorized.
 
 ## Execution rules
 
-Execute only the batch authorized in spec §Approval, verify it, record `awaiting human review` and stop. Acceptance, `Ready`, bare `continue`, green checks and prior-feature authority do not start later batches. The owner's explicit delegation request covered B1 only. Separate post-B1 authority covers the WIP and B1 commits recorded below, not a push. No product model evaluation, native dispatch, credential/config change, real-home apply, tag/publication or branch-rule change is included.
+Execute only the batch authorized in spec §Approval, verify it, record `awaiting human review` and stop. Acceptance, `Ready`, bare `continue`, green checks and prior-feature authority do not start later batches. Earlier B1/B3 delegations and WIP/B1/B2 commit permissions remain bounded to their recorded scopes. The current request authorizes document revision plus a scoped commit and push of this session's reviewed 008 changes. It does not authorize new workers, implementation, trusted-base adoption, tag/release or publication. No product model evaluation, native dispatch, credential/config change, real-home apply or branch-rule change is included.
 
 Task/batch progress is recorded below; unstarted tasks remain pending. Existing dirty/untracked work is preserved. Every completion records changed paths, exact source/evidence identity, actual commands/results, omissions and next permitted action. Changes to requirements, compatibility or trust boundaries return the affected package for human review.
 
 The user's drafting correction explicitly requires strict Feature 008 scope and exclusion of out-of-scope components. References to 004–007 below are dependencies/status and supported-core evidence only, not authorization to resume or complete them. In particular, exclude 006 B4, native ACP/reviewer execution, C2 certification, orchestration and model evaluations.
 
 **Post-B1 owner direction:** deprecated 006/007 feature work is excluded from every remaining batch. B1's status reconciliation is historical completed work, not a standing task to revisit those features. Do not investigate or run 006 experiments or repair/replay 007 migration/adoption transitions. Separate WIP commits preserve existing changes only. Current core Taskfile commands, package/installer integrity and reviewed-base trust verification remain required under 008 R6/R9; verify them as core surfaces, not as old-feature completion. The plan's deprecated-feature fence governs all future task/test selection.
+
+**Selected amendment:** Option 1 is the main path, with only the minimum Option 2 default-inactive release boundary. Normal commands/gates verify the supported product; experimental tasks/suites are separate and opt-in, never normal dependencies. Core boundary denial/dependency checks are allowed core safety evidence, not experimental validation. The unstarted B4 is split below to bound build-boundary, trust/adoption and complete QA reviews. This draft supersedes proposed future work only; it does not change historical checks or declare G-008-01 resolved.
 
 ## Ordered tasks
 
@@ -49,52 +51,91 @@ The user's drafting correction explicitly requires strict Feature 008 scope and 
 
 ### T05 — Establish and verify permission/no-op/restore semantics
 
+- **Status:** implementation delivered; awaiting B3 human review. Core contract checks pass; aggregate verification remains blocked under G-008-01.
 - **Contract / coverage:** C3; AC-08/10/17. **Dependencies:** B2 reviewed; B3 authorized.
 - Trace comparison, requested install modes, root/child umask effects, backup copy/digest, stage/rollback and restore. Add missing focused assertions before changes for embedded and on-disk sources using temporary homes; document exact semantics in README/help where relevant.
 - Cover permission-only no-op/no backup, content replacement and repeat apply/restore, failed writes and backup-before-write. Reuse unchanged valid failure tests and add assertions only where coverage is absent.
 - **Verify / done when:** focused skillsync/CLI tests, `task test`, `task vet`, non-mutating formatting inspection, `git diff --check` and available isolated installer E2E agree with documentation. No exact-mode-preservation claim beyond observations. Any needed behavioral/compatibility change blocks that portion pending scope review; no silent chmod redesign.
 
+### T05a — Explicitly exclude blocked/out-of-scope validations
+
+- **Status:** implemented and locally verified; awaiting B3 human review and the G-008-01 gate-scope decision. **Coverage:** AC-08/11/12/15/18. **Depends on:** r3 scope fence.
+- Add local `test-core`/`vet-core` selections and regression tests that select only supported core packages and installer CLI tests. Exclude 005 blocked native ACP/admission/runtime certification, 006 profile/native/dispatch/pilot/mitigation suites, and 007 historical migration/adoption exercises. Do not delete fixtures or change supported core assertions to manufacture a pass.
+- Append temporary scope guidance to AGENTS.md only under the owner's explicit third-agent request; preserve its inherited content/deletion exactly. Document selections, exclusions and limits in current contributor/test guidance.
+- Verify selection using a fake Go recorder: exact core argv/files, no broad discovery, missing/stale selection rejection, offline settings, and nonzero failure propagation. Run actual selected core tests/vet in isolated temporary homes. Do not alter the six-check trusted contract or aggregate `task test`/`task vet` recipes. Report aggregate not_run/blocked if the temporary exclusions conflict with them; retain the human gate decision rather than silently substitute scoped evidence. B4 remains unstarted.
+
+This is the delivered r3 constraint/evidence. Deliberate future changes to default commands and required definitions belong only to the reviewed r4 tasks below; do not rewrite B3's scoped passes as results for the new contract.
+
+### T06a — Freeze the supported-core capability, dependency and command map
+
+- **Status:** proposed, not started. **Contracts / coverage:** C1/C4/C6; AC-01/10/11/17/19/20/22/23. **Dependencies:** combined amendment review, B3 checkpoint reconciled and explicit B4a authorization.
+- Map current capabilities, default CLI dispatch/help, Go/build/asset dependencies, root Task/hook/release dependency graphs and suite ownership. Start from C4's seven proposed core Go packages; retain shared core evidence/metadata/build safety regardless of old feature numbers. Classify excluded suites and inert resources explicitly. Use bounded source/build metadata, not native/model/experimental execution or old-feature research.
+- **Done when:** every supported promise has verification ownership, every excluded entry is unreachable from the proposed normal graph, compatibility impact is identified, and C6's narrow CLI split is viable. A material missing dependency or larger boundary needs affected-design review before T06b—not consequential guessing or a broad module move.
+
+### T06b — Implement the minimum default-inactive core build boundary
+
+- **Status:** proposed, not started. **Contracts / coverage:** C1/C6; AC-01/07/10/14/17/19/20/22/23. **Dependencies:** T06a; remains within B4a only.
+- Isolate the existing experimental CLI implementation/test file behind the namespaced opt-in tag and provide the small default-disabled entry points. Default attempted actions return explicit unavailable/non-success before configuration/credential/provider/process effects; core help and commands remain accurate. Preserve normal install/restore behavior, package identities and necessary inert schema/embed assets.
+- Remove experimental targets from ordinary Task discovery/dependencies into a separately invoked, non-auto-included experimental Taskfile if retained. Core build/release profiles cannot inherit flags enabling experiments. Update B3's CLI selector to core package/tag selection: explicit named Go files ignore build tags and must not accidentally compile the experimental variant. Core aliases stay scoped until T06c aligns the normal gate; legacy aggregate rows remain blocked meanwhile.
+- Update current help/README/contributor and build/support guidance for the core profile and changed experimental availability; preserve dated integration evidence instead of rewriting history. Portable OpenCode/shared skill installation is not disabled by gating the separate CLI helper.
+- **Verify / done when:** test-first core help/denial/no-effect/dependency cases, core-file selection and flag-injection/default-build controls pass; no experimental suite/native client/provider is invoked. Record compatibility/migration notes for changed experimental availability. B4a ends for review; it does not claim G-008-01 resolved or authorize a commit/hook bypass.
+
+### T06c — Align default core commands, required definitions and hooks
+
+- **Status:** proposed, not started. **Contracts / coverage:** C4/C6; AC-11/12/17/19/20/21/22/23. **Dependencies:** B4a review and explicit B4b authorization.
+- Make normal test/vet/verify, configured hooks and core aliases agree with the approved core map. Keep `harness/checks.json` as mandatory scope owner and preserve six roles/status semantics; update literal package argv/environment and parity tests deliberately. Do not execute a candidate selector/Taskfile on a privileged CI host or replace definitions with skip-to-green wrappers.
+- Replace the old-aggregate-pinning selector assertions with independent expected-core, canonical-contract/local-command parity and failure/coverage tests. Preserve real core failure detection, base-owned independent no-op protection and a narrow default-inactive boundary probe; candidate test deletion, empty tasks, forged receipts and activation mutants cannot authorize a green gate.
+- **Done when:** local/default command behavior and negative controls pass on identified source; required/base-candidate equality and privilege isolation remain intact; temporary guidance/docs describe the actual proposed policy. Old definitions remain historical, not silently passed. T07 still owns trusted-reference/adoption validation.
+
 ### T06 — Define the complete release verification matrix and safe entry point
 
-- **Contract / coverage:** C4; AC-10/11/12/15/17. **Dependencies:** B3 reviewed; B4 authorized.
-- Finalize exact suite allowlist, commands, environments and ownership from T01/C4. Separate ordinary six-check CI, isolated release QA, manual/native checks and excluded model/native experiments. Include all changed release-critical surfaces and negative controls; explain any excluded historical test.
-- Apply the r2 deprecated-feature fence: no 006 WIP/native/profile/dispatch/pilot suites or 007 historical migration/adoption exercises. Current-command Taskfile and trusted-core checks remain required; preservation commits are not verification evidence.
-- Add an explicit model-free Task release-QA entry and focused entry-point tests, using existing scripts/fixtures where appropriate. Inspect subprocess/environment effects before inclusion. Update test ownership/entry docs and contributor commands. Required missing/failing rows must fail, not disappear into skips.
-- **Verify / done when:** demonstrate the new entry's failure for a seeded failing suite/missing required prerequisite and no execution of native/online routes; command arguments/effects and external evidence paths are tested. Existing six-check equality stays intact. Any new image or trust design is reviewed before candidate execution; unavailable prerequisites remain blocked.
+- **Status:** proposed, not started. **Contract / coverage:** C4; AC-10/11/12/15/17/19/20/22/23. **Dependencies:** B4b review and explicit B4c authorization.
+- Complete the matrix in the existing release-readiness report from T06a's core map and reviewed definitions. Distinguish required core CI, separately isolated core Python/E2E/packaging QA, manual/native platform evidence and excluded behavior. No blanket discovery, experimental file patterns, old migration cases or automatic model tests. Core aliases are not another scope catalog.
+- Add only missing explicit model-free release-QA entry/negative checks after effect/prerequisite inspection; reuse existing fixtures safely. Missing required evidence fails/blocks its claim, never becomes an ignored skip. Do not move all Python into a Go-only CI image or execute candidate QA on a privileged host. Unavailable safe runtime/tooling blocks the corresponding row.
+- **Done when:** each promised-core surface has exact command/environment/identity/result ownership and the entry detects seeded failures, missing prerequisites and attempts to select experiments. The adopted CI gate remains meaningful and separate from the full release matrix; core green alone is not release go.
 
 ### T07 — Verify maintained core Task and trusted-CI boundaries
 
-- **Contract / coverage:** C1/C4; AC-11/12/15/18. **Dependencies:** T06. AC-06/07 status/exclusion work was delivered in T02, not reopened here.
-- Run relevant current-command Taskfile/trusted-CI units and explicit core container anti-weakening fixtures in the approved boundary. Compare reviewed-base and candidate identities for the maintained core, not old 007 migration/adoption transitions. Inspect current release workflow/tool pins and record the scope of each observation. No deprecated feature or experimental fixture work is included.
-- Obtain read-only hosted evidence for the exact core candidate SHA/run if accessible. Keep main-push, fork/PR and release-workflow outcomes separate; no 007 adoption project, new PR, push, workflow dispatch, branch-rule administration or credential setup.
-- **Verify / done when:** negative controls detect required-contract replacement, candidate task/test weakening, forged evidence and known no-op regression; no candidate code executes on the privileged host. Report fixture success and hosted/transition gaps separately. Preserve 007-F1's historical disposition even if new main CI evidence passes.
+- **Status:** proposed, not started. **Contract / coverage:** C1/C4/C6; AC-11/12/15/18/19/20/21. **Dependencies:** T06c; B4b only. Prior status reconciliation is not reopened.
+- Verify the new 008 core gate in explicitly labeled positive/negative reference fixtures: approved-definition match, unadopted/altered records refused, candidate task/test weakening, forged receipts, no-op defect and attempted default experimental activation. Extend existing base-owned mechanisms rather than trusting candidate test claims. No candidate code on the privileged host; preserve pinned isolated execution and complete evidence/failure semantics.
+- Specify the exact reviewed-reference/adoption sequence and required human actor/revision/hash evidence. A development fixture is not an adopted live base. Source/hash identity alone is not human approval. Do not bypass equality to make a new contract pass the previous base or replay old 007 exercises.
+- **Done when:** core-specific anti-weakening and unchanged privilege/isolation protections pass; adoption prerequisites and any unobserved hosted route remain explicit. Completion stops for review/actual trusted-reference designation; no remote operation is implied.
+
+### T07a — Validate the designated reviewed core reference without inventing adoption
+
+- **Status:** proposed, not started. **Contracts / coverage:** C4/C5; AC-11/12/18/19/21. **Dependencies:** B4b code review, an actual human designation of exact trusted bytes/revision, and B4c authorization. Any remote adoption/push requires its separate authority.
+- Validate matching reviewed-base/candidate definitions and fresh isolated required results for the designated core reference. Confirm independent probes still execute. Read exact hosted results if accessible/authorized; keep local reference, live branch, main-push, PR/fork and release observations distinct.
+- **Done when:** G-008-01 has actual evidence for its named claim/scope, or remains blocked with the missing trust/adoption/evidence decision identified. Do not label simulated adoption or local aliases as hosted/required completion. Other offline QA may proceed only within its authorization with blocked rows intact; no branch-rule, credential, PR, push or workflow-dispatch action is automatic.
 
 ### T08 — Run aggregate development QA and prepare candidate prerequisites
 
-- **Contract / coverage:** C4/C5; AC-10/11/12/15/17. **Dependencies:** T06/T07.
+- **Status:** proposed, not started. **Contract / coverage:** C4/C5/C6; AC-10/11/12/15/17/19/20/21/22/23. **Dependencies:** T06/T07a; B4c only.
 - Run the safe selected Go/Python/reference/embed/installer/Task suites on an identified development tree; retain logs externally and update matrix results. Perform one batch completion review, without claiming final-candidate coverage from a dirty development run.
 - Classify compatibility changes and path impacts, required reruns and prerequisites for clean-candidate/macOS validation. Identify the exact owner decisions needed for dirty-input disposition, candidate commit and native evidence.
 - **Verify / done when:** every matrix row has a command/owner/class and a truthful result or blocked/not-run reason; actual failures remain open. Missing safe environments stop affected executions. B4 can be delivered with explicit blockers; no-go conditions remain for B5.
 
 ### T09 — Freeze a clean release payload and packaging inputs
 
-- **Contract / coverage:** C5; AC-09/11/14/16/17/18. **Dependencies:** B4 reviewed; B5 authorized; owner-provided clean candidate/disposition.
+- **Contract / coverage:** C5/C6; AC-09/11/14/16/17/18/20/23. **Dependencies:** B4a–c reviewed; B5 authorized; owner-provided clean candidate/disposition.
 - Confirm clean commit/tree, exact selected inputs, trusted base, versions and manifest; preserve unrelated work outside this candidate without deleting/stashing/resetting it. An export supports preliminary checks only, not a claim of clean final Git identity.
 - Validate nonpublishing packaging config/snapshot in disposable storage; inspect archives, checksums, universal architectures, embedded 18 skills/references and metadata. GoReleaser hooks/cleanup must not overwrite local artifacts or use a publishing credential.
+- Confirm the artifact uses the same default-inactive core profile as tests/source commands; inventory retained inert assets and verify experimental runtime dependencies/activation are absent from the advertised default, not merely untested.
 - **Verify / done when:** exact payload identity and build settings are reproducible and every artifact maps to it; `sdd-check` remains honestly source-only. Missing clean candidate, packaging tool or safe execution prerequisites blocks T09 rather than authorizing commits/downloads or bypasses.
 
 ### T10 — Verify the identical candidate and first-run paths
 
-- **Contract / coverage:** C2/C3/C4/C5; AC-01/08/10/11/12/13/14/15/17. **Dependencies:** T09.
+- **Contract / coverage:** C2/C3/C4/C5/C6; AC-01/08/10/11/12/13/14/15/17/19/20/21/22/23. **Dependencies:** T09.
 - Rerun release-critical matrix rows against the frozen payload, including required/isolated QA and Linux source first run. Obtain actual macOS/Homebrew candidate evidence (help/version/preview and isolated-home install/no-op/backup/restore) without publishing a formula or substituting an older released binary.
 - Repeat all three worked paths as documented; distinguish manual/scripted instruction walkthrough from model compliance. Record platform/tool/config/evidence identity and all limits. No real-home skill apply or native check-runner certification.
+- Repeat safe default-help/disabled-experiment/no-discovery checks on the exact packaged/native artifact with synthetic input, not an experimental launch. A newer/different build or leaked tag invalidates the corresponding evidence.
 - **Verify / done when:** required candidate evidence is fresh and identity-consistent, or the report explicitly records fail/blocked/not-run and resulting no-go. Cross-compilation is not native execution; subsequent payload changes invalidate affected evidence.
 
 ### T11 — Produce the compatibility, release-notes and go/no-go decision package
 
-- **Contract / coverage:** C1/C5; AC-01/06/07/11/14/15/16/17/18. **Dependencies:** T09/T10 results, including blocked results.
+- **Contract / coverage:** C1/C5/C6; AC-01/06/07/11/14/15/16/17/18/19/20/21/22/23. **Dependencies:** T09/T10 results, including blocked results.
 - Complete `release-readiness.md`: before/after summary, path/compatibility inventory, exact payload versus report identity, verification matrix, supported-core blockers, excluded experimental findings, justified next `0.x` recommendation and draft release notes.
 - Apply spec §7 release gates; unresolved supported-core blockers require no-go. Distinguish technical readiness, human acceptance and separately authorized publication. Version selection stays with the owner; no tag or live release is part of B5.
+- Explain the core-default gate, changed experimental CLI/task availability, migration/opt-in limits and G-008-01's actual disposition. No experimental offline-unit exception is silently reintroduced and no unknown platform/cost/client claim is promoted by core green.
 - **Verify / done when:** each AC is traced to actual evidence or a named unmet condition; report and packaged claims agree; risk acceptance has an actual named human decision or remains pending. Return one completion review and stop. A completed no-go report does not mark unmet release ACs passed or claim full feature acceptance.
 
 ## Execution batches
@@ -102,10 +143,12 @@ The user's drafting correction explicitly requires strict Feature 008 scope and 
 | Batch / included tasks | Outcome and completion verification | State / next action |
 |---|---|---|
 | **B1 — T01–T02** | Provenance/ownership and reconciled support/current-state navigation. Verify metadata, source-backed claims, retained approvals/findings and links; no moves/deletions by default. | Delivered; **accepted by the owner, 2026-11-06** (spec §Approval). Technical verdict: Ready for this documentation/source-inventory scope, not release readiness. WIP/B1 commits are recorded below. |
-| **B2 — T03–T04** | Bounded existing-guidance improvements, authority scenarios and three onboarding experiences. Focused instruction/reference/fixture checks and model-free walkthroughs; model behavior not_run. | Delivered; **awaiting human review**. Completion **self-review: Ready for this bounded source/documentation scope**. Actual-agent observations remain not_run; B3 needs explicit authorization. |
-| **B3 — T05** | Accurate permission/restore contract with focused safety/idempotence evidence. Repository Go gates and isolated installer tests; behavioral escalation reviewed before action. | Not started. Requires B2 review and B3 authorization; then stop awaiting human review. |
-| **B4 — T06–T08** | Explicit safe release QA, trusted-CI negative evidence and candidate prerequisite list. Run selected suites and entry-point failures; preserve base-owned isolation and declare gaps. | Not started. Requires B3 review and B4 authorization; then stop awaiting human review. |
-| **B5 — T09–T11** | Same-candidate packaging/first use, final matrix, compatibility/notes and technical go/no-go. Clean-candidate and native prerequisites gate dependent claims; honest no-go allowed. | Not started. Requires B4 review and B5 authorization plus candidate prerequisites. Stop for human review; never publish automatically. |
+| **B2 — T03–T04** | Bounded existing-guidance improvements, authority scenarios and three onboarding experiences. Focused instruction/reference/fixture checks and model-free walkthroughs; model behavior not_run. | Delivered and committed `5c86d27`; the owner's explicit B3 instruction advanced the checkpoint without inventing a separate B2 acceptance decision. Actual-agent observations remain not_run. |
+| **B3 — T05/T05a** | Accurate permission/restore contract and explicit core-only validation selection. Focused safety/idempotence checks, scoped core Go validation and isolated installer E2E; aggregate-gate conflicts reported, not waived. | Implementation delivered; **awaiting human review**. Completion **self-review: Blocked for aggregate verification (G-008-01)**; all selected core checks pass. No permission-behavior change. B4 is not authorized. |
+| **B4a — T06a/T06b** | Supported-core map, minimum inactive default CLI/build profile and separated experimental Task surface. Core boundary/flag/dependency/no-effect tests only; old aggregate gate remains blocked pending B4b. | Proposed, not started. Needs combined amendment review, B3 checkpoint reconciliation and explicit B4a authorization; then stop awaiting human review. |
+| **B4b — T06c/T07** | Normal command/hook/required-core contract alignment and base-owned anti-weakening/adoption fixtures. No candidate-as-trusted shortcut or live action; report exact adoption prerequisites. | Proposed, not started. Needs B4a review and explicit B4b authorization; then stop for review/designation of the trusted reference. |
+| **B4c — T06/T07a/T08** | Complete core release-QA matrix, validation against the designated reviewed reference, aggregate development evidence and candidate prerequisites. Missing hosted/adoption evidence remains blocked, not simulated green. | Proposed, not started. Needs B4b review, explicit B4c authorization and T07a's actual trusted-reference decision; then stop awaiting human review. |
+| **B5 — T09–T11** | Same-candidate core packaging/first use/disabled-boundary evidence, final matrix, compatibility/notes and technical go/no-go. Clean-candidate/native prerequisites remain; honest no-go allowed. | Not started. Needs B4a–c review and explicit B5 authorization plus candidate prerequisites. Never publish automatically. |
 
 ## Acceptance reconciliation
 
@@ -116,13 +159,18 @@ The user's drafting correction explicitly requires strict Feature 008 scope and 
 | AC-06/07 | T02/T11; T02 delivered status/exclusions, with no deprecated-feature follow-up assigned to T07 |
 | AC-08 | T05/T10 |
 | AC-09 | T01/T02/T09 |
-| AC-10 | T01/T03/T05/T06/T08/T09/T10 |
-| AC-11/12 | T06/T07/T08/T10/T11 (AC-12 T07/T10) |
+| AC-10 | T01/T03/T05/T06a/T06b/T06/T08/T09/T10 |
+| AC-11/12 | T06a/T06c/T06/T07/T07a/T08/T10/T11; T07/T07a own trusted-gate evidence |
 | AC-13 | T04/T10 |
-| AC-14 | T01/T09/T10/T11 |
+| AC-14 | T01/T06b/T09/T10/T11 |
 | AC-15 | T03/T04/T06–T08/T10/T11 |
-| AC-16/17 | T09–T11; T05/T06/T08 supply compatibility inputs |
-| AC-18 | All batch stops; T02/T03/T07/T09/T11 |
+| AC-16/17 | T09–T11; T05/T06a/T06b/T06c/T06/T08 supply compatibility inputs |
+| AC-18 | All batch stops; T02/T03/T07/T07a/T09/T11 |
+| AC-19 | T06a/T06c/T06/T07/T07a/T08/T10/T11 |
+| AC-20 | T06a/T06b/T06c/T07/T09/T10/T11 |
+| AC-21 | T06c/T07/T07a/T08/T10/T11 |
+| AC-22 | T06a/T06b/T06c/T06/T08/T10/T11 |
+| AC-23 | T06a/T06b/T06c/T06/T08/T09/T10/T11 |
 
 No specialist/tool exceptions to the plan. No automatic subagents, model evaluations, hosted experiments or repository-wide cleanup. A material path/trust/permission behavior change needs affected-document reconciliation before execution.
 
@@ -132,7 +180,7 @@ No specialist/tool exceptions to the plan. No automatic subagents, model evaluat
 
 **Historical drafting checkpoint:** the package was presented for combined review with no batch started. The approval and execution update below supersedes that checkpoint. Later candidate inclusion, native evidence, version selection and live operations remain separate decisions at their ready checkpoints. Drafting verification results follow; no production/model/packaging suite is claimed run.
 
-Draft verification: `git diff --check` passed; a non-mutating local Markdown check passed for spec/plan/tasks and the original drafting handover `docs/handovers/2026-11-05_008.md` (subsequently privately archived by owner-requested cleanup), checking local file/heading links and trailing whitespace, including untracked drafts that Git's ordinary diff does not inspect. The [current handover](../../docs/handovers/2026-11-05_008b.md) links the active continuation. Acceptance coverage was reconciled against AC-01–AC-18 and the user's strict-scope correction. These checks establish draft consistency only. Go, Python production suites, container/native probes, packaging and model behavior remain `not_run` in this drafting session.
+Draft verification: `git diff --check` passed; a non-mutating local Markdown check passed for spec/plan/tasks and the original drafting handover `docs/handovers/2026-11-05_008.md` (subsequently privately archived by owner-requested cleanup), checking local file/heading links and trailing whitespace, including untracked drafts that Git's ordinary diff does not inspect. The later [session handover](../../docs/handovers/2026-11-06_008.md) links the active continuation. Acceptance coverage was reconciled against AC-01–AC-18 and the user's strict-scope correction. These checks establish draft consistency only. Go, Python production suites, container/native probes, packaging and model behavior remain `not_run` in this drafting session.
 
 2026-11-05 — B1 start: the owner approved the combined r1 package, requested `sdd-implement-1` and `sdd-implement-2`, then said “start” after B1-only execution was presented. Actual authority is recorded once in spec §Approval. T01 is delegated to the first implementation agent; the second prepares T02 independently without file edits until the inventory prerequisite is available. Parent owns public support/navigation integration, approval, this ledger, handover and final verification. Non-overlapping write scopes preserve existing dirty work. B1 is in progress; B2–B5 remain unstarted and unauthorized. No product inference/native probe or live action is included.
 
@@ -185,3 +233,38 @@ Gap-to-change map from canonical instruction inspection: fact discovery, settled
 ### B2 commit request — 2026-11-06
 
 The owner requested “commit b2” and presentation of B3 tasks before starting it; actual authority is recorded in spec §Approval. Commit only the 13 B2-owned paths, preserving the inherited AGENTS policy deletion and untracked status draft. The resulting B2 commit is identified in Git history rather than embedding its own hash. No push or B3 implementation is authorized. B2's technical verdict remains a bounded self-review; do not infer a separate acceptance decision from permission to save the work. Next action: present T05/B3 and await the owner's review/explicit execution decision.
+
+### B3 start and added exclusion task — 2026-11-06
+
+After B2 commit `5c86d27` and presentation of T05, the owner added blocked 005/006/007 test/validation exclusions and said “start B3”, then requested parallel workers and a third worker for temporary AGENTS guidance. Actual authority is in spec §Approval. Main owns T05a, plan/task reconciliation and final review; workers own only `internal/skillsync/permissions_test.go`, README.md, and append-only AGENTS.md respectively. No deprecated-context investigation, native/model test, real-home apply, commit or push is included.
+
+Starting HEAD `5c86d27`; protected pre-edit hashes and scoped evidence are at `/tmp/opencode/008-b3-vkzt1faz/`. AGENTS' existing bytes must remain an unchanged prefix before the authorized appended fence; the status draft must remain byte-identical. The standard aggregate Go recipes still include excluded test packages: selecting core-only checks is explicit scoped evidence, not a required-gate pass. Record that conflict as a limitation/decision if it persists.
+
+### B3 delivery and completion self-review — 2026-11-06
+
+- **Position:** T05/T05a implementation delivered; `awaiting human review`. Verdict **Blocked for aggregate-verification completeness (G-008-01)**, not an observed installer failure. The scoped core work passes. No B4, commit, push, live apply or new model evaluation is authorized by this checkpoint.
+- **Delegation:** requested parallel workers added only `internal/skillsync/permissions_test.go`, the README permission contract, and the append-only temporary AGENTS fence. Their sessions reported MiniMax M3.1 Flash, DeepSeek V4.1 Flash, and MiniMax M3.1 Flash respectively; no fallback was attempted. Parent added explicit core selections/tests/docs, reviewed source/test agreement, strengthened fixture adequacy, and owns this one completion self-review and state write.
+- **Permission contract:** README now agrees with source and focused runtime observations: content/layout comparison ignores permission-only changes; apply/restore no-op does not chmod or create another backup; requested child modes are 0755/0644 subject to umask, while the installed skill root is explicitly chmodded 0755; backups copy ordinary mode bits subject to umask; restore normalizes copied modes, not exact saved metadata; the digest excludes permission bits and is not a signature. CLI help made no contradictory permission claim, so no CLI/flag change was needed. No production installer code or compatibility behavior changed.
+- **Tests:** the new permission file has three top-level characterization tests with 12 source/operation/mask subcases. Umask probes use test-owned shell children, never process-global Go umask mutation. The child-only helper is skipped when discovered normally but exercised by the eight install/restore probe children; that is not an excluded behavior test counted as passing. Existing backup-before-write, failed-write and rollback coverage remains in the selected skillsync suite.
+- **B3-F1 — resolved, test adequacy:** parent review found that some original fixture values could coincide after umask or leave a purported mode-only digest edit unchanged. Added failing discrimination assertions first; then used executable source modes, a genuinely flipped backup mode bit, and group/other bits removed by umask 077. Current fixtures pass baseline and detect three synthetic production mutations (mode-sensitive comparison, missing root chmod, copying source file modes) in a minimal disposable core-only copy. The real production sources remained byte-identical. This was a fixture correction, not an installer behavior defect or permission redesign.
+- **Selections:** `task test-core` / `task vet-core` select four maintained core packages plus the production CLI files and `main_test.go`. The experimental CLI test file and adapter test package are not selected; production dependencies still compile, without native runtime certification. The script clears inherited test filters/foreign Go workspaces, disables retrieval, rejects missing/new CLI files for review, and propagates failures. Python selections are explicit; no deprecated/native/online/profile or historical migration suite was run. AGENTS now states the owner's temporary scope; the pre-existing AGENTS prefix/deletion is preserved.
+- **Executed checks:** `task test-core` and `task vet-core` passed; final focused permission tests passed; skillsync repeated under ambient umask 077 passed; `task docker-e2e` passed with the already local image and network disabled; explicit `test_supported_core_go.py` passed nine tests and `test_core_workflow.py` passed 11. Core selection tests use fake Go, including exact aggregate-wiring checks in a disposable fixture; those are not actual aggregate Go runs. Missing/stale selections, inherited filters, failure propagation and a narrowed aggregate recipe are detected. Non-mutating Go formatting, shell syntax, Markdown/link and whitespace checks cover the final tree.
+- **E2E limit:** existing Docker E2E builds the trusted local source through a read-only checkout mount and uses synthetic homes. It is not untrusted-candidate/host-isolation certification, native macOS evidence or a real-home apply. Its production build inputs did not change during parent fixture strengthening; no image/tool download was performed.
+- **G-008-01 — valid, unresolved gate-scope conflict:** `Taskfile.yml` aggregate `test`/`vet` still invoke `go test ./...` / `go vet ./...`, and `harness/checks.json` retains all six required definitions byte-for-byte. Those aggregate selections include excluded validations. Actual aggregate `task test`, `task vet` and `task verify` are **not_run under the owner-requested fence**, not passed. Core-only success does not satisfy or waive that gate. Before an aggregate/release claim or any operation that triggers it, the owner must decide whether to retain the temporary blocked rows or authorize a separately reviewed 008 gate-scope/adoption change; do not repair the old 007 transition or silently narrow CI. Commit hooks can also request aggregates: no hook bypass is authorized.
+- **Evidence:** private root `/tmp/opencode/008-b3-vkzt1faz/` contains `test-core-final.log`, `vet-core-final.log`, `ambient-077-final.log`, `docker-e2e.log`, focused/negative-control logs, `negative-controls.json`, selection-test red/green logs, baseline hashes and the final checked-file manifest. B3's original evidence checkpoint was HEAD `5c86d27`. The scoped commit requested on 2026-11-06 records the reviewed delivery in Git history; the pre-existing status draft is unchanged and the inherited AGENTS spending-policy deletion remains unstaged. No ignored backup/build artifact, shipped skill identity, trusted workflow or required contract was modified.
+- **Final source audit:** 12 B3-owned paths; original AGENTS prefix and unrelated status draft preserved; 88 nonignored Markdown files/412 local targets and 21 scoped heading targets resolve. Required gate/workflow/build inputs are unchanged; removing only the two additive core Task entries reproduces the original Taskfile exactly. The manifest at `/tmp/opencode/008-b3-vkzt1faz/verification.json` records exact checked-file hashes and keeps aggregate outcomes explicitly not_run.
+- **Next permitted action:** review the B3 contract/core selection and decide G-008-01's gate policy. B4 and any commit/push need their actual authorization. Blocked experimental work stays excluded, not converted into passing evidence.
+
+### Core-first amendment draft — 2026-11-06
+
+The owner prioritized the working release scope and canonical vision, selected Option 1 with minimum Option 2, requested spec/plan/tasks edits, then said “resume” during that document work. The policy direction is selected; exact spec r2/plan r4/tasks r4 changes are **pending one combined affected-scope review**. No B3 acceptance, new implementation, delegation, commit/push or live adoption is inferred. Actual decision evidence stays in spec §Approval.
+
+Proposed outcome: ordinary commands/hooks/CI/release verify only the supported core; experimental commands/tests are explicit non-default artifacts; a narrow CLI build-tag/stub boundary keeps experiments inactive in default source/release artifacts. Preserve meaningful core coverage, base-owned independent probes and full reviewed/candidate comparison. G-008-01 remains an implementation/adoption/evidence issue, not a policy question requiring experiments to be re-enabled.
+
+The unstarted B4 is replaced by B4a (map + minimal inactive boundary), B4b (normal core commands/required contract/hooks + trust fixtures), and B4c (designated-reference validation + complete core QA). B5 still validates the same clean candidate and advertised platforms/artifacts. Each batch needs actual authorization and a review stop; live trusted-base changes remain separate. Do not execute the opt-in experimental task/build path under this amendment.
+
+Drafting baseline: HEAD `0bab31e` (canonical vision commit); existing B3 changes and unrelated work remain in place. Only the three feature documents and the required existing latest handover are changed in this drafting turn. Source boundary inspection was limited to CLI dispatch/help signatures and inert embed declarations; no experimental implementation internals, runtime/native/model tests or gate commands were run. Earlier B3 evidence retains its original identity and cannot establish the new gate/profile results.
+
+**Current position / next action:** present spec r2 + plan r4 + tasks r4 for combined review of the amendment, preserving unaffected prior approval. Reconcile the pending B3 checkpoint and obtain explicit B4a authorization before code changes. Draft link/heading/whitespace and outside-scope preservation checks validate documents only, not the future gate or release. The owner separately authorized a scoped commit and push of this session's 008 changes; Git history/remote record the result. No actual CI/runtime/Taskfile/hook changes or publication occurred in this document revision.
+
+Draft checks: four feature/handover documents, 30 local file links/15 heading targets, unique AC-01–AC-23 and 16 defined tasks reconciled with seven explicit batches. Prior continuation/evidence remains an unchanged prefix; 218 non-target tracked/untracked files retain their pre-revision bytes. `git diff --check` passed. Draft hashes/preservation results are private at `/tmp/opencode/008-core-amendment-43gx1wdy/verification.json`; no software, native, model or CI test was run or claimed for this amendment.
