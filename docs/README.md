@@ -5,6 +5,13 @@ Repository instructions and the feature approval and task records take precedenc
 over advisory or historical documents. Existing paths are retained so links in
 specifications, evidence and handovers continue to work.
 
+## Product vision
+
+- [Agentic-SDD product vision and evolution strategy](vision/Agentic-SDD-Project-Vision-and-Evolution.md) —
+  mission, audiences, engineering principles, and conditional long-term
+  direction. It is the product compass, not a feature approval, batch record or
+  release commitment.
+
 ## Current status and next decisions
 
 - [Getting started](getting-started.md) — safe preview and three compact core

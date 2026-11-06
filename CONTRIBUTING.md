@@ -5,6 +5,18 @@ Thanks for improving Agentic SDD. Changes to skills and the installer are both w
 For the safe first-use path and three worked workflow examples, start with
 [Getting started](docs/getting-started.md). Teaching is optional, not a contribution prerequisite.
 
+## Product vision and design choices
+
+Read the [project vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)
+before proposing a new command, agent, document set, directory or workflow step.
+It records the observed problems, engineering principles and evidence gates used
+to judge additions.
+
+Contributions should explain the user value, the smallest useful change, how
+success will be measured, and any migration, security or authority consequence.
+The vision informs those decisions; it does not grant approval or override an
+approved feature scope, a security requirement, or maintainer authorization.
+
 ## Set up
 
 1. Install Go 1.23 or newer and [Lefthook](https://lefthook.dev/install/).

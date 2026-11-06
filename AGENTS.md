@@ -4,6 +4,15 @@
 
 This repository holds the canonical Agentic SDD skill files and a Go CLI that installs them into user skill directories. Treat `skills-files/` as the source of truth. Keep `backups/` local and out of Git; it may contain private previous skill content.
 
+## Product vision and engineering principles
+
+[docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md) is the canonical product compass: mission, audiences, non-negotiable engineering principles, and conditional long-term direction.
+
+- Consider it when selecting or scoping a feature, making consequential architectural, security or operational decisions, implementing, and reviewing. Reference the relevant section instead of copying it.
+- It guides trade-offs but never overrides an approved feature's `spec.md`/`plan.md`/`tasks.md`, harness evidence, security policy, or an explicit human authorization. Surface a conflict for a human decision.
+- Keep its status honest: the vision's horizons are conditional aspirations, not current supported capability. Current support lives in README's release scope, the feature records and `harness/` evidence.
+- Changing the vision is a public strategy decision, separate from implementing a feature.
+
 ## Go layout
 
 - `cmd/agentic-sdd/main.go`: CLI flags, home-directory default, process exit behavior, and interactive backup selection (`backups`, `restore`).
@@ -57,7 +66,7 @@ Run `task test`, `task vet`, and `git diff --check` after Go changes. Use a temp
 
 ## SDD feature conventions
 
-This repository has no top-level product SRS, technical spec, or roadmap document. Each feature lives in `specs/<nnn-slug>/` (`spec.md`, `plan.md`, `tasks.md`); see `specs/008-core-release-quality/` for the current one. The combined human approval for a feature's spec/plan/tasks is recorded once, in that feature's `spec.md` under `## Approval`. Batch state and continuation notes live in that feature's `tasks.md`. Status summaries in README, docs, handovers and feature task rows are pointers; they do not create approval or batch authorization.
+This repository has no top-level product SRS or technical specification; long-lived product strategy lives in the [vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md). A feature `spec.md` may link the vision by section where that explains intent or audience, but does not copy it or treat it as acceptance scope. Each feature lives in `specs/<nnn-slug>/` (`spec.md`, `plan.md`, `tasks.md`); see `specs/008-core-release-quality/` for the current one. The combined human approval for a feature's spec/plan/tasks is recorded once, in that feature's `spec.md` under `## Approval`. Batch state and continuation notes live in that feature's `tasks.md`. Status summaries in README, docs, handovers and feature task rows are pointers; they do not create approval or batch authorization.
 
 `preview` (default) versus `apply`/`--apply` is this repo's dev-versus-live boundary: approval to develop or test installer code never authorizes running `apply` against a real user home; only an explicit, separately authorized real-home apply does.
 

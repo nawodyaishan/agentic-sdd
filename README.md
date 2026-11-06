@@ -74,6 +74,16 @@ AI can generate changes faster than you can understand and review them. Agentic 
 
 The goal is useful progress you can explain, verify, and maintain.
 
+## Product vision
+
+The long-lived direction lives in [Agentic-SDD — Product Vision, Audiences, and Evolution Strategy](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md):
+
+> **Spec-driven engineering for coding agents, with human control, meaningful verification, and optional learning support.**
+
+It serves individual developers, learners, experienced engineers, platform/SRE teams and open-source maintainers with one portable methodology. Success means engineering mastery and leverage — not generated-code volume. The vision guides scoping, architecture, implementation and review decisions; it is **not** a feature approval, release commitment, or a substitute for approved specifications, harness evidence, security policy, or human authorization.
+
+Today's supported surfaces are the ones in [Support and release scope](#support-and-release-scope). The vision's longer horizons are conditional aspirations that need their own reviewed scope, plan and evidence before anything is claimed as delivered.
+
 ## The workflow
 
 ### 1. Select the next feature
