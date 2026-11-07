@@ -16,6 +16,8 @@ specifications, evidence and handovers continue to work.
 
 - [Getting started](getting-started.md) — safe preview and three compact core
   experiences: direct fix, one approved feature batch, and review/resume.
+- [Installer reference](installer-reference.md) — commands, flags, backups,
+  restore, file permissions, and logs.
 - [Public support and release scope](../README.md#support-and-release-scope) —
   portable skills, installer, source-only checks and unsupported native experiments.
 - [Feature 008 approval](../specs/008-core-release-quality/spec.md#approval),

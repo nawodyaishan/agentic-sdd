@@ -1,417 +1,194 @@
 # Agentic SDD
 
-[![Release](https://img.shields.io/github/v/release/nawodyaishan/agentic-sdd?label=release)](https://github.com/nawodyaishan/agentic-sdd/releases/latest)
-[![Homebrew](https://img.shields.io/badge/homebrew-nawodyaishan%2Ftap%2Fagentic--sdd-fbb040)](https://github.com/nawodyaishan/homebrew-tap)
-[![Go Report](https://img.shields.io/badge/go-1.23%2B-00ADD8)](go.mod)
+### Build software with AI. Stay the engineer.
+
+[![Release](https://img.shields.io/github/v/release/nawodyaishan/agentic-sdd)](https://github.com/nawodyaishan/agentic-sdd/releases/latest)
+[![CI](https://github.com/nawodyaishan/agentic-sdd/actions/workflows/ci.yml/badge.svg)](https://github.com/nawodyaishan/agentic-sdd/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**Open-source spec-driven development skills for OpenCode and other coding agents — one feature, one human approval, one reviewable batch at a time.**
+**Turn an idea into changes you can understand, review, and maintain—not just code an agent generated.**
 
-If you've ever had an agent "helpfully" finish a whole feature you never approved, or drift three files past what you asked for, this is the guardrail: agents draft, you approve once, agents implement in reviewable batches, you stay the one who says go.
+Agentic SDD is an open-source toolkit of **18 engineering skills for coding agents**. It gives you a practical way to scope work, plan meaningful changes, debug failures, and verify results—with you in charge of the decisions.
 
-For macOS, install the CLI and review its plan before choosing to install the skills:
+Use it with **OpenCode, Codex, Claude Code, or Antigravity CLI**. Start with one agent. Add teaching or specialist reviews when you need them. No agent fleet or new runtime required.
 
-```sh
-brew install nawodyaishan/tap/agentic-sdd
-agentic-sdd preview  # show changes without writing
-agentic-sdd apply    # back up replacements and install the skills
-```
+[Get started](#quick-start) · [See the workflow](#the-workflow) · [Read the examples](docs/getting-started.md) · [Explore the vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)
 
-OpenCode discovers the installed skills through `~/.agents/skills`. In your project, ask it: **“Use agentic-sdd-router to help me plan my next feature; stop for my review.”** The installer also supplies the same portable guidance to Codex, Claude Code, and Antigravity CLI; installation is not proof of identical client behavior. See [OpenCode's skill discovery documentation](https://opencode.ai/docs/skills/).
+## Why Agentic SDD?
 
-New here? Follow the [safe first-use path and three worked examples](docs/getting-started.md): a direct fix, one feature batch, and review/resume. Teaching is optional.
+Writing code is getting faster. Knowing **what to build, why it works, and whether it's ready** still takes engineering judgment.
 
-Building from source? See [Quick start](#quick-start). Have feedback or want to contribute? See [Contributing and security reporting](CONTRIBUTING.md#reporting-bugs-and-security-concerns); do not put sensitive details in a public issue.
+Agentic SDD helps you bring that judgment into your work with AI:
 
-Two things live here:
+- **Agree on the outcome before the implementation.** Make requirements and important trade-offs visible instead of letting the agent guess.
+- **Keep changes reviewable.** Work in manageable batches, with a clear summary of what changed and what was checked.
+- **Skip unnecessary ceremony.** A small bug fix stays a small bug fix. Larger features get a connected specification, plan, and task list.
+- **Learn without switching workflows.** Ask for explanations, hints, or debugging practice when a topic is unfamiliar. Teaching is optional.
+- **Pick up where you left off.** Keep decisions and progress in your repository rather than relying only on a long chat.
 
-- [`skills-files/`](skills-files/) — eighteen skills for the workflow and focused human-input helpers. This is the product.
-- `cmd/` + `internal/` — the safe skill installer and deterministic check runner (with experimental OpenCode configuration helpers compiled out of default release builds). None is a new agent orchestration engine.
+> **Learning first when developing competence. Delegation first when applying established competence. Verification always.**
 
-### Highlights
+## Who is it for?
 
-- **Human-led workflow:** draft a spec, plan, and tasks together; implement only an approved batch and stop for review.
-- **18 portable skills:** plan, implement, debug, review, hand off, teach, and ask better questions without requiring agent delegation.
-- **Safe installation:** preview changes, back up replaced skills, restore when needed, and leave unrelated skills alone.
-- **Deterministic checks:** run repository checks and retain bounded evidence without a model or provider key. See [the check runner](harness/README.md).
-- **Experimental OpenCode tools:** opt-in tools (`-tags agentic_sdd_experimental`) to inspect inactive configuration candidates, prepare sessions, and work with offline evidence. Compiled out of default builds (exit 2 unavailable); native execution remains blocked pending independent safety controls; see [usage and limits](integrations/opencode/usage.md).
-- **Container-based testing:** an isolated, model-free test cycle and opt-in online setup are documented in the [human test guide](docs/vnext-human-test-guide.md).
+| If you're… | Use Agentic SDD to… |
+|---|---|
+| Building solo with a coding agent | Deliver useful changes without losing track of scope or review. |
+| A student, intern, or self-taught developer | Practice professional engineering while building something real. |
+| An experienced engineer | Delegate familiar work while keeping technical decisions and acceptance in your hands. |
+| Working in backend, platform, DevOps, or SRE | Make risks, recovery steps, and permission for live operations explicit. |
+| Maintaining open source or a small team | Give contributors and their agents a shared way to prepare and explain changes. |
 
-## Support and release scope
-
-The `0.x` product is the portable workflow and preview-first skill installer, not
-an autonomous multi-agent runtime. This table describes the current source and
-distribution boundaries; it does **not** certify a new release candidate.
-
-| Surface | Distribution / platform | Support boundary and evidence limits |
-|---|---|---|
-| 18 portable skills and linked references | Canonical `skills-files/`, embedded in the installer; four [client destinations](#where-the-skills-go) | Human-led guidance, direct fixes, optional teaching and explicitly requested reviews. Cross-client discovery does not establish cross-client behavioral equivalence or model reliability. |
-| Skill installer, backups and restore | Configured macOS universal/Homebrew release; Go source usage on Linux | Preview-first installation, backup and staged replacement/restore; tests use isolated homes. Darwin universal packaging integrity is cross-compiled and snapshot-verified; Linux CI runner / isolated Linux first-use evidence is sufficient for candidate qualification, while native macOS/Homebrew runtime execution remains unobserved. See [CLI reference](#cli-reference). |
-| `sdd-check` and check/evidence contracts | **source-only** executable, not a Homebrew/release binary; Linux process behavior has focused coverage | Deterministic checks and bounded evidence, not agent approval or a sandbox. Darwin cross-builds do not establish native macOS execution/cancellation guarantees. See [runner limits](harness/README.md#b4-runner-usage-and-limitations). |
-| Trusted CI | Reviewed-base bootstrap and isolated Linux candidate execution | The six required checks are not the complete release-QA matrix. Candidate scripts/Taskfiles must not run on the privileged host. Task-based hosted outcomes and fork/PR paths need their own observations; direct adoption did not pass the old-base PR gate. See [trusted CI](harness/trusted-ci.md). |
-| OpenCode runtime integration and inactive examples | Experimental repository material (opt-in CLI helper compiled out of default builds) | Offline preparation/config/evidence commands are not native execution certification. In default builds, the CLI helper is inactive (exit 2); experimental tasks live in `Taskfile.experimental.yml`. Native ACP admission remains blocked while its required controls are unverified; no automatic model routing or billing firewall. Portable OpenCode skill installation remains core. See [usage and limits](integrations/opencode/usage.md). |
-| Native independent reviewer | **Unsupported** for generic checkout path isolation | **IR-06-01:** an allowed symlink escaped the intended exclusion. Feature 006 B4 is deferred/incomplete; the proposed C2 sanitized export is not certified. Do not launch this route from an example or earlier permission. See [observed failure](integrations/opencode/independent-review.md#actual-tool-dispatch-observations--5-november-2026). |
-
-Static instruction/fixture checks are not observed model compliance. Budget-model
-cost/quality advantages remain unmeasured. Windows runtime support and native
-macOS check-runner guarantees are not claimed. The [documentation index](docs/README.md)
-links active guidance and historical evidence; [Feature 008's working report](specs/008-core-release-quality/release-readiness.md)
-tracks release prerequisites, not publication permission.
-
-![Agentic SDD architecture: the spec-driven workflow and Go CLI skill distribution](docs/agentic-sdd-architecture.png)
-
----
-
-## Why
-
-AI can generate changes faster than you can understand and review them. Agentic SDD organizes that work around your review capacity: agree on the feature, implement a manageable batch, verify it, then decide what happens next.
-
-- **One main agent, manageable review.** Follow one implementation and one set of decisions at a time. The agent loads specialist guidance as needed; separate agents are used only when you request them.
-- **Review the complete approach before coding.** Read the feature's requirements, design, and tasks together, then give one combined approval.
-- **Control the pace.** Each implementation batch ends with verification and a review summary. You choose when the next batch begins.
-- **Reuse your existing work.** Start from your SRS, technical specification, roadmap, and repository conventions. Read relevant sections and create supporting documents only when they serve a purpose.
-- **Carry the same workflow across clients.** Keep a shared set of skills for OpenCode, Claude Code, Codex, and Antigravity CLI, with client-specific settings kept separate.
-
-The goal is useful progress you can explain, verify, and maintain.
-
-## Product vision
-
-The long-lived direction lives in [Agentic-SDD — Product Vision, Audiences, and Evolution Strategy](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md):
-
-> **Spec-driven engineering for coding agents, with human control, meaningful verification, and optional learning support.**
-
-It serves individual developers, learners, experienced engineers, platform/SRE teams and open-source maintainers with one portable methodology. Success means engineering mastery and leverage — not generated-code volume. The vision guides scoping, architecture, implementation and review decisions; it is **not** a feature approval, release commitment, or a substitute for approved specifications, harness evidence, security policy, or human authorization.
-
-Today's supported surfaces are the ones in [Support and release scope](#support-and-release-scope). The vision's longer horizons are conditional aspirations that need their own reviewed scope, plan and evidence before anything is claimed as delivered.
-
-## The workflow
-
-### 1. Select the next feature
-
-Choose one coherent outcome from your existing project documents or request. Draft this feature in detail; leave future work in the roadmap.
-
-A feature may span several sessions. Its implementation batches should be small enough for focused work and comfortable review.
-
-### 2. Prepare three connected documents
-
-The agent drafts these in order inside `specs/<number>-<feature>/`:
-
-| Document | What you review |
-| :--- | :--- |
-| `spec.md` | Outcome, scope, exclusions, and acceptance criteria |
-| `plan.md` | Technical approach, design decisions, relevant risks, specialist skills, and tools |
-| `tasks.md` | Ordered tasks, dependencies, implementation batches, and verification |
-
-The agent reconciles the three drafts and presents them together. **One combined human approval is required before implementation.**
-
-### 3. Implement one batch
-
-Authorize a selected batch. The main agent loads the specialist guidance needed for its tasks, implements the changes, and runs relevant checks.
-
-Specialization does not require another agent: the same agent can use Go, React, Kubernetes, or Terraform guidance as the work requires. Tools are selected for concrete needs, and simple tasks may need no additional specialist.
-
-### 4. Review the result and continue
-
-The agent summarizes the changes, verification, deviations, and remaining issues, records `awaiting human review`, and stops.
-
-You can request corrections or authorize the next batch. On resume, the agent checks the recorded state and current code before continuing. Passing tests alone do not start another batch.
-
-**For smaller work:** clearly scoped fixes with understood consequences can go directly to implementation and verification, without feature documents.
-
-**For reviews:** a review-only request produces findings without changing code, documents, or workflow status.
-
-**For live operations:** approving infrastructure or migration code does not authorize applying it to real systems.
-
-## The skill set
-
-Start with **`agentic-sdd-router`** when beginning or resuming work. Use **`agentic-sdd-implement`** when you already know which approved batch or direct fix to execute.
-
-All eighteen skills are manually invocable. You do not need to call every skill for every change. `agentic-sdd-debugging` supplies diagnosis process, not an extra domain-specialist role or permission to spawn another agent.
-
-These are the canonical source skills. Existing client installations change
-only through the normal, separately authorized installer update—not during
-development or packaging tests.
-
-| Skill | When to use it |
-| :--- | :--- |
-| `agentic-sdd-router` | Start, resume, or choose the appropriate next step |
-| `agentic-sdd-bootstrap` | Add missing project pointers and conventions when requested |
-| `agentic-sdd-spec` | Define a feature's outcome and acceptance criteria |
-| `agentic-sdd-plan` | Design the approach and assign specialist guidance and tools |
-| `agentic-sdd-tasks` | Turn the approach into tasks and reviewable batches |
-| `agentic-sdd-implement` | Execute one authorized batch or direct fix |
-| `agentic-sdd-debugging` | Diagnose failures or uncertainty within the current scope and authority |
-| `agentic-sdd-verification-review` | Check the actual changes against requirements and evidence |
-| `agentic-sdd-architecture-review` | Examine consequential design or operational decisions |
-| `agentic-sdd-research-spec` | Resolve a specific question blocking progress |
-| `agentic-sdd-drift-retro` | Address meaningful drift or capture a useful lesson |
-| `agentic-sdd-grill-me` | Explicitly challenge a proposal through the grilling procedure |
-| `agentic-sdd-grilling` | Resolve consequential ready questions without a mandatory interview |
-| `agentic-sdd-questionnaire` | Prepare recipient discovery questions and reconcile attributed answers |
-| `agentic-sdd-writing-for-agents` | Maintain precise agent-consumed instructions and references |
-| `agentic-sdd-handoff` | Prepare a canonical-first, sanitized session transfer |
-| `agentic-sdd-wait-what` | Re-explain status or a proposal without changing project state |
-| `agentic-sdd-teach` | Teach a requested concept; persistent learning files are opt-in |
-
-The helpers adapt [Matt Pocock productivity principles](skills-files/agentic-sdd-router/references/matt-pocock-notice.md)
-under the existing authority rules. They do not enable delegation, model evaluations,
-automatic interviews, external sending or a teaching workspace. Hidden/explicit-only
-skill metadata is not an access-control boundary. Behavioral benefit remains unproven;
-feature 005's user-reported human cycle was accepted for the pinned QA image.
-
-### Inactive OpenCode configuration helper
-
-The experimental `opencode` CLI helper is compiled out of default release and core
-builds (`!agentic_sdd_experimental`); invoking `agentic-sdd opencode` returns exit 2
-(`unavailable in this build`). Its task lives in the separated, non-default
-`Taskfile.experimental.yml` (`task --taskfile Taskfile.experimental.yml opencode-help`).
-When compiled with the opt-in `-tags agentic_sdd_experimental` flag, `agentic-sdd opencode --help`
-describes file-only candidate/preflight, config preview/apply/rollback, the narrow `session`
-group and the offline `evidence` receipt consumer; see [usage and safety limits](integrations/opencode/usage.md).
-No native model, shared service or credential store is accessed. Config preview
-is the default, and explicit config writes need separate actual live
-authorization. `session prepare` is offline; `session run` is a
-strict-admission ACP client that stays blocked while
-token/egress/accounting/credential controls are unverified, and the transport is
-exercised only by fake peers. `evidence` measures scoped identity, validates or
-exports receipts from caller-supplied current observations, and composes a
-check result with an optional native observation without supplying approval or
-review. Current support remains uncertified; the
-[final human usage plan](docs/vnext-human-test-plan.md) and
-[step-by-step test guide](docs/vnext-human-test-guide.md) describe that cycle;
-individual scenario outcomes remain unspecified. See the
-[remaining-work guide](docs/vnext-remaining-work-guide.md) for validation limits.
-Note that portable OpenCode skill installation (`~/.agents/skills`) remains part of
-the supported core installer regardless of whether the experimental CLI helper is compiled in.
-
-Invoke the relevant skill through your client, then give it a concrete request:
-
-- **Start:** "Use the relevant documents in `Docs/` to draft the next feature's spec, plan, and tasks. Stop for my combined review."
-- **Implement:** "I approve this feature's documents. Implement batch B1, verify it, and stop for my review."
-- **Resume:** "Check the current feature and batch state. Tell me the next action; preserve any pending review."
-- **Direct fix:** "Fix this validation bug and run focused checks."
-- **Review:** "Review this diff against the approved feature. Report findings only."
-- **Diagnose:** "Investigate this intermittent test failure. Separate setup from the target behavior; recommend checks but make no edits."
-
-Requesting only a spec, plan, or review keeps the work limited to that request.
-
-Shared workflow rules live in [`workflow-policy.md`](skills-files/agentic-sdd-router/references/workflow-policy.md), and specialist/tool selection lives in [`specialists.md`](skills-files/agentic-sdd-router/references/specialists.md). Install the skill directories together so these references remain available.
-
-## Install
-
-```sh
-brew install nawodyaishan/tap/agentic-sdd
-```
-
-The Homebrew release provides a macOS universal binary. The published binary embeds `skills-files/`, so `agentic-sdd preview`/`apply` work from any directory with no repository checkout needed. Run `agentic-sdd version` to check what you have installed. On other platforms, use a source checkout and the Go commands below.
+One methodology, not a separate process for every experience level.
 
 ## Quick start
 
-Requires **Go 1.23+**. The commands below use [Go Task](https://taskfile.dev/) (tested with 3.54.0); `make` targets have been replaced by `task` commands.
+### 1. Install the toolkit
 
-Default `task test` and `task vet` run the 7 supported-core Go packages (`.`, `./internal/version`, `./internal/skillsync`, `./internal/harnesscheck`, `./internal/harnessevidence`, `./cmd/agentic-sdd`, `./cmd/sdd-check`), while `task test-core` and `task vet-core` are retained as parity-enforced aliases (`sh tests/supported-core-go.sh test|vet`). Experimental tasks are separated into `Taskfile.experimental.yml` and are not part of default task discovery or dependencies.
-
-```sh
-task help           # list default core commands
-task preview        # show what would change; writes nothing
-task docker-e2e     # exercise preview and apply in an isolated container
-task apply          # back up existing skills, then install
-task logs           # show the latest apply or restore log
-task test           # run supported-core Go tests (7 packages)
-task vet            # run go vet on supported-core Go packages
-task test-core      # parity-enforced core test alias
-task vet-core       # parity-enforced core vet alias
-task hooks-install  # install the Lefthook pre-commit hook
-```
-
-Preview is always the default, so a bare invocation is safe. Prefer Go directly:
+**macOS with Homebrew:**
 
 ```sh
-go run ./cmd/agentic-sdd                    # preview
-go run ./cmd/agentic-sdd apply              # install
-go run ./cmd/agentic-sdd logs               # show latest apply or restore log
-go run ./cmd/agentic-sdd --help             # full CLI help
+brew install nawodyaishan/tap/agentic-sdd
+agentic-sdd preview
 ```
 
-Before applying to your real home, `task docker-e2e` builds and exercises the CLI inside `golang:1.25-alpine` with the repository mounted read-only, no network, and a throwaway home. It checks preview, backup and install, a repeated apply, listing and restoring a backup, and an invalid command. It never touches your home directory. Docker must be running.
+Preview shows which skills would be installed or replaced. **It does not write changes.** When you're happy with the plan:
 
-## CLI reference
+```sh
+agentic-sdd apply
+```
 
-Default CLI commands are `preview`, `apply`, `backups`, `logs`, `restore`, `help`, `version`. The experimental `opencode` helper is compiled out of default builds (`!agentic_sdd_experimental`) and returns exit 2 (`unavailable in this build`); its task lives in `Taskfile.experimental.yml`.
+Already installed? Run `brew upgrade nawodyaishan/tap/agentic-sdd`, then preview and apply to update your installed skills.
 
-| Invocation | Behavior |
-| :--- | :--- |
-| `agentic-sdd` / `agentic-sdd preview` | Print one line per skill per client — `install`, `replace + back up`, or `up to date` — then stop without writing. |
-| `agentic-sdd apply` | Back up every skill it will replace, stage the new copies, then install. A second apply is a no-op. |
-| `agentic-sdd logs` | Show the latest apply or restore log and its path. |
-| `agentic-sdd version` | Print version, commit, build date, and Go version. `--version` works too. |
-| `agentic-sdd backups` | List backups newest first: id, time, operation, tool version, source, and what each holds. Read-only. |
-| `agentic-sdd restore [ID]` / `restore preview [ID]` | Show what restoring backup `ID` would change, without writing. With no `ID` on a terminal, list backups and prompt for a number. |
-| `agentic-sdd restore ID --apply` / `restore apply ID` | Restore backup `ID`: back up whatever it's about to change into a new backup, then install the saved skills and remove any it freshly installed. Interactive selection asks `[y/N]` before writing. |
-| `agentic-sdd help [preview\|apply\|backups\|logs\|restore\|version]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
+<details>
+<summary><strong>Linux or a source checkout</strong></summary>
 
-| Flag | Meaning |
-| :--- | :--- |
-| `--repo PATH` | Repository containing `skills-files/` (default: skills embedded in the binary; pass this to source from a checkout instead) |
-| `--home PATH` | Home directory holding the client skill directories (default: your home) |
-| `--apply` | Legacy form of the `apply` command, or the writing flag for `restore`; cannot be combined with a named command |
+With Go 1.23 or newer installed:
 
-Put flags after the command: `agentic-sdd preview --home /tmp/test-home`. Older flag-only scripts still work — no `--apply` previews, `--apply` installs.
+```sh
+git clone https://github.com/nawodyaishan/agentic-sdd.git
+cd agentic-sdd
+go run ./cmd/agentic-sdd preview
+```
 
-Every `apply` and writing `restore` creates a timestamped, private text log under `<home>/.agentic-sdd/logs/`, including its actions, result, and any error. The same action lines still appear on the terminal. `agentic-sdd logs` (or `task logs`) prints the latest log; use `--home PATH` to inspect an isolated home. Preview remains read-only and creates no log. Logs use the home directory even when `--repo` selects a repository backup location.
+After reviewing the preview, install the skills:
 
-Exit codes: **0** success, a completed preview or cancel, **2** unknown command, bad flag, stray argument, a malformed backup id, `--apply` combined with a command, or attempting an unavailable experimental command (`opencode` in default builds), **1** filesystem, logging, or sync failure, a backup that fails validation (home mismatch, digest mismatch, missing), or a not-found id. Usage errors and failures go to stderr; action output goes to stdout. A preview that lists replacements is a success — it just didn't install them.
+```sh
+go run ./cmd/agentic-sdd apply
+```
+
+These commands install skills into your home directory. To try a read-only preview with a disposable home first, follow the [first-five-minutes guide](docs/getting-started.md#first-five-minutes-preview-then-stop).
+
+</details>
+
+### 2. Start in your project
+
+Open your coding agent in the repository you want to work on. Ask it to load the router skill:
+
+> Use `agentic-sdd-router`. Help me plan a feature for this project. Inspect what's already here, ask about important decisions you can't resolve, and stop before implementation.
+
+The router helps choose the right next step. You don't need to memorize all 18 skills or invoke them in sequence.
+
+### 3. Try a real task
+
+**Fix something small**
+
+> Use `agentic-sdd-implement` to fix this validation bug. Keep the change focused, add a regression test, and report what you checked.
+
+**Plan a larger change**
+
+> Use `agentic-sdd-router` to draft a spec, plan, and tasks for CSV export. Preserve the existing output format. Present the three documents together for my review; don't implement yet.
+
+**Learn an unfamiliar part of your code**
+
+> Use `agentic-sdd-teach` to help me understand this retry loop. Ask me to reason through a failure case before showing the answer.
+
+**Get a review without edits**
+
+> Use `agentic-sdd-verification-review` to review this diff against the requirements. Report findings only; don't change files.
+
+See the [worked examples](docs/getting-started.md) for a full feature, a direct fix, and resuming work safely.
+
+## The workflow
+
+**Understand → Scope → Plan → Implement → Verify → Review**
+
+For a feature that needs planning, your agent prepares three connected documents:
+
+| Document | The question it answers |
+|---|---|
+| `spec.md` | What are we building, what's out of scope, and how will we know it works? |
+| `plan.md` | How should we build it, and what risks or trade-offs matter? |
+| `tasks.md` | What do we do first, how do we check it, and where do we stop? |
+
+Review them together and give **one combined approval**. Then authorize one implementation batch. The agent works on that batch, runs relevant checks, explains the result, and stops for your review.
+
+You decide whether to request corrections or start the next batch. Passing tests isn't permission to keep going, and approving code isn't permission to deploy it.
+
+**For a clear, small fix:** go straight to implementation and verification. No feature paperwork required.
+
+## What comes in the toolkit?
+
+The skills cover the engineering work around writing code—not just generating it.
+
+| What you need | Skills to reach for |
+|---|---|
+| Start or resume work | Router, bootstrap, handoff |
+| Shape a feature | Spec, plan, tasks, focused research |
+| Make and check changes | Implementation, debugging, verification review, architecture review |
+| Think through a decision | Grilling, questionnaires, plain-language clarification |
+| Learn and improve the process | Teaching, drift/retrospective, writing for agents |
+
+Browse the [18 skills and their instructions](skills-files/). The helpers include adaptations of [Matt Pocock's productivity principles](skills-files/agentic-sdd-router/references/matt-pocock-notice.md).
 
 ## Where the skills go
 
+The installer copies the same toolkit to all four destinations:
+
 | Client | Skill directory |
-| :--- | :--- |
+|---|---|
 | OpenCode and shared agents | `~/.agents/skills` |
 | Codex | `~/.codex/skills` |
 | Claude Code | `~/.claude/skills` |
-| Antigravity CLI (`agy`) | `~/.gemini/antigravity-cli/skills` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/skills` |
 
-All four are written every run. The installer selects only directories named `agentic-sdd-*` and copies **the complete directory**, so `references/` and any other supporting files travel with `SKILL.md`. Every other skill you have is left untouched.
-
-These destinations follow the [OpenCode](https://opencode.ai/docs/skills/), [Codex](https://developers.openai.com/codex/skills), [Claude Code](https://code.claude.com/docs/en/skills.md), and [Antigravity](https://antigravity.google/docs/skills/) documentation. OpenCode can discover both the shared and Claude-compatible directories; its own configuration and project-local skills can affect discovery. Antigravity IDE's legacy `~/.gemini/antigravity/skills` is a different directory and is not used here.
-
-Client-specific invocation settings stay out of the portable skill text; local notes live in `config/`.
+Only `agentic-sdd-*` skills are managed; unrelated skills are left alone. Client discovery and invocation can differ—portable instructions don't guarantee identical behavior across every client or model.
 
 ## Safety model
 
-Preview and apply plan identically, so a preview tells you exactly what an apply would do.
-
-**Before writing anything**, the installer walks both the source and destination skill trees and refuses symlinks, special files, a non-directory where a skill directory belongs, a non-directory component anywhere between the destination and your home, and a source skill without a regular `SKILL.md`. It stops if no `agentic-sdd-*` skill is found at all.
-
-**Change detection compares structure and content, not permissions.** For each skill it checks the same directory layout, entry names, file-versus-directory kind, and each file's size and SHA-256 content hash. Permission bits are not part of the comparison, so a skill whose content matches but whose modes differ is still reported `up to date`: it is not rewritten, not backed up, and not chmodded. When nothing differs, apply prints `All skills are up to date.` and creates no backup. Restore compares the destination against the saved tree the same way.
-
-**File modes are requested, then masked by your umask.** Apply and restore request 0755 for directories and 0644 for files; a `--repo` checkout's own modes are not carried over. Entries created during the copy get those modes minus whatever your umask removes — with umask `077`, for example, directories are commonly 0700 and files 0600. The top-level staged skill directory is explicitly set to 0755 after staging, so under a restrictive umask it can be wider than the subdirectories and files inside it; client skill directories created as needed follow the same umask rule. An `up to date` skill keeps its current modes, and restore re-applies these install modes rather than the modes saved in the backup.
-
-These are ordinary Unix mode-bit semantics, not ownership, ACL or extended-metadata preservation guarantees. The focused mode probes cover Linux with ordinary temporary directories and umasks `022`/`077`, not every filesystem policy.
-
-**Backups come first.** An apply (or restore) with changes creates a UTC-stamped directory: under `<repo>/backups` when `--repo` is set, or `<home>/.agentic-sdd/backups` when sourcing from the embedded skills (e.g. a Homebrew install):
-
-```text
-backups/20260924T201717.833575000Z/
-├── manifest.json        # what this backup holds and where it came from
-├── agents/agentic-sdd-plan/...
-└── claude/agentic-sdd-plan/...
-```
-
-Only skills that already existed are copied there. The saved trees and manifest are complete before any replacement is staged or installed. A copied backup tree keeps each directory's and file's ordinary read/write/execute permission bits as reported by the source, again subject to your umask, and is not chmodded afterwards. That copy is for content recovery: it is not a guarantee that restore will reproduce the original modes, which use the install modes above. A repository-local `backups/` directory is git-ignored because your previous skills may contain private content — keep or prune it on your own terms.
-
-**The manifest records what happened, not just what's saved.** Alongside the original `created`/`source`/`targets`/`skills` fields, every backup written by this version records:
-
-| Field | Meaning |
-| :--- | :--- |
-| `id` / `created_at` | The backup's directory name, and the same moment as an RFC 3339 timestamp |
-| `operation` | `apply`, or `restore` (with `restored_from` naming the backup that was restored) |
-| `tool` | The version, commit, build date, and Go version of the binary that wrote it |
-| `home` / `backup_root` | The absolute home and backup root the operation ran against |
-| `entries` | One record per changed skill: client, skill, destination path, and `replaced` (with a saved-copy path and a SHA-256 digest) or `installed` (nothing to save — it didn't exist before) |
-
-A backup written by an older version of the CLI has none of these extra fields; `agentic-sdd backups` marks it `[legacy]` and restores it on a best-effort basis (see below). The digest covers relative paths, entry kinds, and file contents — not permission bits — and it is an integrity check, not a signature. It is checked before every restore, so a changed or truncated saved tree is refused when it no longer matches the recorded digest. A permission-only edit does not invalidate that digest.
-
-**Installation is staged.** Every replacement is built in a temporary directory beside its destination before any installed skill is touched; installs then happen as renames. If one fails partway, the CLI restores what it already moved and removes what it already installed, and the backup remains for manual recovery.
-
-**Restoring a backup** follows the same contract. `agentic-sdd restore <ID>` previews; `--apply` (or `restore apply <ID>`) backs up whatever it's about to change — into a new backup you can restore to undo the restore itself — then puts back every skill that backup recorded as `replaced`, and removes every skill it recorded as `installed` (a fresh install that apply made, which restoring should undo too). Destinations always come from your current `--home`, never from paths recorded in the manifest, so a restore cannot write outside your four client skill directories, and it refuses a backup made for a different home. A `[legacy]` backup has no `installed` records, so restoring it only puts back the skills it actually saved — anything a later apply installed fresh is left as is. Either way, restoring is a no-op if nothing differs, and a failure partway through rolls back exactly like apply's does.
-
-## Working on the skills
-
-Edit the files in `skills-files/`, run `task preview` to confirm the intended clients pick them up, then `task apply` only with explicit authorization for the real home. Because `up to date` skills are skipped, iterating on one skill only rewrites that skill.
-
-Keep shared rules in `workflow-policy.md` rather than repeating them in each `SKILL.md`, keep specialist and tool guidance in `specialists.md`, and keep machine-specific inventory and client configuration in `config/` — not in the portable skill text.
-
-## Repository layout
-
-```text
-cmd/agentic-sdd/       CLI parsing, defaults, exit codes, interactive backup selection
-internal/skillsync/    Planning, comparison, backup, staged install, rollback, restore
-internal/version/      Build-time version metadata, injected via -ldflags at release
-skillsfiles.go         go:embed of skills-files/, so an installed binary needs no checkout
-skills-files/          The eighteen Agentic SDD skills and shared references
-.goreleaser.yml        Darwin build, universal binary, Homebrew formula publishing
-.github/workflows/     release.yml (tag-triggered publish), ci.yml (build/test/vet)
-tests/                 Docker end-to-end scripts
-cmd/sdd-check/         Deterministic check CLI (source checkout; no model runtime)
-internal/harnesscheck/ Check contract validation, execution, bounded logs and cancellation
-harness/               Portable check contracts and evidence guidance
-config/                Local inventory and client overlay notes
-docs/                  Background research
-audits/                Workflow audits
-specs/                 Feature documents produced by the workflow itself
-backups/               Git-ignored copies from changed installations
-```
-
-The installer CLI stays small; its filesystem behavior lives in `internal/skillsync`. `sync_test.go` covers backup and replacement, symlink and conflict refusals, and rollback; `manifest_test.go` covers the format 2 manifest and its digest; `restore_test.go` covers listing, backup validation (including every kind of malformed or tampered backup), and restore's preview/apply/rollback behavior. `cmd/agentic-sdd/main_test.go` covers help, usage errors, preview/apply compatibility, and every `backups`/`restore` form, including the interactive prompt. Run `task test` and `task vet` after changing the installer, and `task docker-e2e` before trusting an apply or a restore.
-
-### Deterministic checks (source checkout)
-
-`task verify` runs the six required checks in [harness/checks.json](harness/checks.json),
-including whitespace checks and Darwin builds of both CLIs. Existing individual
-Task equivalents retain the target names. Runner-backed `verify`/`tidy-check` currently
-execute only on Linux; Darwin execution is explicitly blocked pending native
-cancellation validation (cross-compilation is not runtime certification).
-No LLM, provider key or OpenCode process is used
-by the shipped runner/contract. The check runner is not added to the Homebrew
-formula or release artifacts by this change.
+The installer **previews by default**, backs up existing skills before replacing them, and provides a preview-first restore command. Repeating an apply with unchanged skill content leaves those skills alone. It rejects symlinks and special files in managed skill trees.
 
 ```sh
-task verify SDD_OUTPUT=/absolute/external/new-private-run
-go run ./cmd/sdd-check --scope focused --check test \
-  --workspace . --contract harness/checks.json \
-  --output /absolute/external/another-new-private-run
+agentic-sdd backups             # list saved installations
+agentic-sdd restore BACKUP_ID   # preview a restore
 ```
 
-Without `SDD_OUTPUT`, Task creates an owner-only temporary evidence directory.
-Evidence includes `result.json` and logs (up to 10 MiB/check). Use a fresh output
-directory per run; existing evidence is never overwritten. `task tidy-check`
-uses the same runner and detects new untracked `go.sum` as well as changed or
-deleted module files. It compares pre/post content, not a staged Git index.
+To carry out a reviewed restore, use `agentic-sdd restore apply BACKUP_ID`.
 
-Task's runner entry points disable automatic Go toolchain/module downloads;
-missing cached dependencies fail visibly rather than being fetched. Direct
-component tasks retain their existing execution behavior. Commands can
-write caches, module files and build outputs; candidate tests can do more.
-**The runner is not a sandbox or a protected CI gate**: use a trusted contract,
-and OS isolation without secrets/network for untrusted candidate code. Logs may
-contain sensitive check output; keep them private and out of Git. Full flags,
-status/exit semantics, retention and cancellation limits: [harness/README.md](harness/README.md).
+Backups recover skill content, not exact original permissions or ownership. For flags, storage locations, permission behavior, and recovery details, see the [installer reference](docs/installer-reference.md).
 
-For isolated local/CI checks, B7 supplies a separate reviewed-base entry:
+**The workflow is guidance, not a security sandbox.** Your agent client's permissions, execution environment, and your review remain important. No prompt can guarantee correct code, prevent every unwanted action, or enforce a spending limit.
 
-```sh
-task --dir /absolute/reviewed-base verify-trusted \
-  SDD_TRUSTED=/absolute/reviewed-base SDD_CANDIDATE=/absolute/candidate \
-  SDD_OUTPUT=/absolute/external/new-private-run
-```
+## Support and release scope
 
-Use the base's Taskfile and bootstrap, not the candidate's. This requires
-non-root Linux, Python 3, Git, Docker and the exact preloaded image. Missing
-bootstrap/image inputs block; local runs never pull automatically. The proposed
-CI workflow must first be reviewed and adopted onto the trusted branch.
-See [trusted bootstrap, isolation and anti-weakening limits](harness/trusted-ci.md).
+- **Available today:** 18 portable skills, the preview-first installer, backups, and restore. No premium model or multiple subagents are required by the workflow; your chosen agent still needs its own setup.
+- **Distribution:** macOS universal binary through Homebrew or [GitHub Releases](https://github.com/nawodyaishan/agentic-sdd/releases/latest); Go source usage on Linux. Linux CI and isolated installer tests provide execution coverage. Native macOS/Homebrew runtime testing remains unobserved; Windows runtime support is not claimed.
+- **Not part of the default product:** autonomous orchestration, automatic model routing, or native independent-review execution. Experimental OpenCode runtime tooling is separate and disabled in the default CLI; you do **not** need it to use the portable skills with OpenCode. See [integration limits](integrations/opencode/usage.md).
 
-Feature-wide support/adoption remains blocked on native acceptance and a useful
-controlled comparison; passing checks alone do not certify those guarantees.
-See the [acceptance evidence and remaining gaps](harness/acceptance.md).
+We don't promise zero hallucinations, guaranteed cost savings, or identical results across models. The goal is a clearer engineering process and evidence you can inspect.
 
-## Releasing
+## Explore further
 
-Releases are built by [GoReleaser](https://goreleaser.com) from `.goreleaser.yml` and published to `nawodyaishan/homebrew-tap` by `.github/workflows/release.yml` on every `v*` tag push:
+- **[Getting started](docs/getting-started.md)** — first-use walkthrough and worked examples.
+- **[Installer reference](docs/installer-reference.md)** — commands, backups, restore, and file behavior.
+- **[Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)** — why the project exists and where it could go.
+- **[Documentation](docs/README.md)** — guides and technical background.
+- **[Contributing](CONTRIBUTING.md)** — development setup, tests, and how to propose improvements.
+- **[Check runner](harness/README.md)** — source-only verification tooling for contributors.
 
-```sh
-task verify              # mod-verify, tidy-check, vet, test, build-darwin
-task tag V=vX.Y.Z MSG="release message"
-git push origin vX.Y.Z   # triggers .github/workflows/release.yml
-```
+## Help make it better
 
-`task release` runs a local snapshot build (`goreleaser release --snapshot --clean`, no tag or publish required) to check the formula and archive output before tagging.
+Tried it on a real project? Tell us where it helped—and where it got in your way. Bug reports, clearer examples, skill improvements, and tests are welcome.
 
-## Contributing and license
+[Open an issue](https://github.com/nawodyaishan/agentic-sdd/issues) or read the [contribution guide](CONTRIBUTING.md). For security concerns, follow the [reporting guidance](CONTRIBUTING.md#reporting-bugs-and-security-concerns); don't post credentials or private project details publicly.
 
-Contributions of all sizes are welcome: bug reports, documentation improvements, skill feedback, tests, and code. If you're new to the project, an issue describing what you tried and what happened is a great place to start. Please remove credentials and private project details from anything you share.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and pull request guidance. The pre-commit hook is configured in `lefthook.yml` and installed with `task hooks-install`. Available under the [MIT License](LICENSE).
-
-If this matches how you already want to work with agents, `brew install nawodyaishan/tap/agentic-sdd` and try it on your next feature. Issues, skill improvements, and reports of where the workflow gets in your way are all welcome — [open an issue](https://github.com/nawodyaishan/agentic-sdd/issues) or a PR.
+Open source under the [MIT License](LICENSE).
