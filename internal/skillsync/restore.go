@@ -28,10 +28,12 @@ func ValidateBackupID(id string) error {
 	return nil
 }
 
-// restoreRecord is one skill a backup can restore, normalized from either
-// manifest format and cross-checked against what loadBackup actually found
-// on disk in the backup.
+// restoreRecord is one skill or agent profile a backup can restore, normalized
+// from either manifest format and cross-checked against what loadBackup
+// actually found on disk in the backup.
 type restoreRecord struct {
+	kind      string
+	isFile    bool
 	client    string
 	skill     string
 	action    string // actionReplaced or actionInstalled
@@ -152,12 +154,16 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 			return manifest{}, nil, fmt.Errorf("backup %s was made for a different home (%s, current %s)", id, m.Home, wantHome)
 		}
 	}
+	if m.Format == 3 || len(m.OpenCodeTargets) > 0 {
+		wantOpenCodeTargets := []string{openCodeAgentsTarget(home).path}
+		if !slices.Equal(m.OpenCodeTargets, wantOpenCodeTargets) {
+			return manifest{}, nil, fmt.Errorf("backup %s was made for a different home (opencode_targets %v, current %v)", id, m.OpenCodeTargets, wantOpenCodeTargets)
+		}
+	}
 
-	// Allowlist top-level entries (manifest.json plus known client dirs),
+	// Allowlist top-level entries (manifest.json plus known client dirs and opencode-agents),
 	// then confirm every saved tree really is an agentic-sdd-* directory
-	// with a regular SKILL.md, refusing symlinks and special files. Every
-	// Lstat below happens before checkTreeFS walks anything, because
-	// fs.WalkDir's own root lookup on an os.DirFS follows a symlink.
+	// with a regular SKILL.md, or a regular sdd-*.md agent profile, refusing symlinks and special files.
 	topEntries, err := os.ReadDir(backupDir)
 	if err != nil {
 		return manifest{}, nil, err
@@ -171,6 +177,36 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 			}
 			if !info.Mode().IsRegular() {
 				return manifest{}, nil, fmt.Errorf("refusing special manifest.json in backup %s", id)
+			}
+			continue
+		}
+		if te.Name() == "opencode-agents" {
+			clientDir := filepath.Join(backupDir, te.Name())
+			clientInfo, err := os.Lstat(clientDir)
+			if err != nil {
+				return manifest{}, nil, err
+			}
+			if !clientInfo.IsDir() {
+				return manifest{}, nil, fmt.Errorf("refusing non-directory client entry %s in backup %s", clientDir, id)
+			}
+			agentEntries, err := os.ReadDir(clientDir)
+			if err != nil {
+				return manifest{}, nil, err
+			}
+			for _, se := range agentEntries {
+				if !strings.HasPrefix(se.Name(), "sdd-") || !strings.HasSuffix(se.Name(), ".md") {
+					return manifest{}, nil, fmt.Errorf("refusing non-agent entry %s/%s in backup %s", te.Name(), se.Name(), id)
+				}
+				agentFile := filepath.Join(clientDir, se.Name())
+				agentInfo, err := os.Lstat(agentFile)
+				if err != nil {
+					return manifest{}, nil, err
+				}
+				if !agentInfo.Mode().IsRegular() {
+					return manifest{}, nil, fmt.Errorf("refusing special file or symlink %s in backup %s", agentFile, id)
+				}
+				rel := filepath.Join(te.Name(), se.Name())
+				diskTrees[rel] = true
 			}
 			continue
 		}
@@ -225,6 +261,43 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 
 	records := make([]restoreRecord, 0, len(m.Entries))
 	for _, e := range m.Entries {
+		if e.Kind == "opencode-agent" || e.Client == "opencode-agents" {
+			if e.Client != "opencode-agents" {
+				return manifest{}, nil, fmt.Errorf("backup %s opencode-agent entry has invalid client %s", id, e.Client)
+			}
+			if !strings.HasPrefix(e.Skill, "sdd-") || !strings.HasSuffix(e.Skill, ".md") {
+				return manifest{}, nil, fmt.Errorf("backup %s entry has invalid agent file name %s", id, e.Skill)
+			}
+			wantPath := filepath.Join(openCodeAgentsTarget(home).path, e.Skill)
+			if e.Path != wantPath {
+				return manifest{}, nil, fmt.Errorf("backup %s entry %s/%s path %q does not match current home (want %q)", id, e.Client, e.Skill, e.Path, wantPath)
+			}
+			rel := filepath.Join(e.Client, e.Skill)
+			switch e.Action {
+			case actionReplaced:
+				if !diskTrees[rel] {
+					return manifest{}, nil, fmt.Errorf("backup %s entry %s has no saved file", id, rel)
+				}
+				delete(diskTrees, rel)
+				digest, err := fileDigest(os.DirFS(backupDir), rel)
+				if err != nil {
+					return manifest{}, nil, err
+				}
+				if e.SHA256 != "" && digest != e.SHA256 {
+					return manifest{}, nil, fmt.Errorf("backup %s entry %s failed digest verification", id, rel)
+				}
+				records = append(records, restoreRecord{kind: "opencode-agent", isFile: true, client: e.Client, skill: e.Skill, action: actionReplaced, backupRel: rel})
+			case actionInstalled:
+				if diskTrees[rel] {
+					return manifest{}, nil, fmt.Errorf("backup %s entry %s unexpectedly has a saved file", id, rel)
+				}
+				records = append(records, restoreRecord{kind: "opencode-agent", isFile: true, client: e.Client, skill: e.Skill, action: actionInstalled})
+			default:
+				return manifest{}, nil, fmt.Errorf("backup %s entry %s has unknown action %q", id, rel, e.Action)
+			}
+			continue
+		}
+
 		path, known := clientPath[e.Client]
 		if !known {
 			return manifest{}, nil, fmt.Errorf("backup %s entry references unknown client %s", id, e.Client)
@@ -250,12 +323,12 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 			if e.SHA256 != "" && digest != e.SHA256 {
 				return manifest{}, nil, fmt.Errorf("backup %s entry %s failed digest verification", id, rel)
 			}
-			records = append(records, restoreRecord{client: e.Client, skill: e.Skill, action: actionReplaced, backupRel: rel})
+			records = append(records, restoreRecord{kind: "skill", client: e.Client, skill: e.Skill, action: actionReplaced, backupRel: rel})
 		case actionInstalled:
 			if diskTrees[rel] {
 				return manifest{}, nil, fmt.Errorf("backup %s entry %s unexpectedly has a saved tree", id, rel)
 			}
-			records = append(records, restoreRecord{client: e.Client, skill: e.Skill, action: actionInstalled})
+			records = append(records, restoreRecord{kind: "skill", client: e.Client, skill: e.Skill, action: actionInstalled})
 		default:
 			return manifest{}, nil, fmt.Errorf("backup %s entry %s has unknown action %q", id, rel, e.Action)
 		}
@@ -293,10 +366,11 @@ func Restore(repo, home, id string, apply bool, out io.Writer) error {
 	}
 	backupDir := filepath.Join(root, id)
 	targets := clientTargets(home)
-	targetByName := make(map[string]target, len(targets))
+	targetByName := make(map[string]target, len(targets)+1)
 	for _, t := range targets {
 		targetByName[t.name] = t
 	}
+	targetByName["opencode-agents"] = openCodeAgentsTarget(home)
 
 	if m.isLegacy() {
 		fmt.Fprintln(out, "Legacy backup: only the saved skills are recorded; any skill installed fresh by that apply is left as is.")
@@ -322,39 +396,71 @@ func Restore(repo, home, id string, apply bool, out io.Writer) error {
 			return statErr
 		}
 		exists := statErr == nil
-		if exists && !info.IsDir() {
-			return fmt.Errorf("refusing non-directory target %s", path)
-		}
-		if exists {
-			if err := checkTree(path); err != nil {
-				return err
+		if r.isFile {
+			if exists && !info.Mode().IsRegular() {
+				return fmt.Errorf("refusing special file or symlink %s", path)
 			}
-		}
-		switch r.action {
-		case actionReplaced:
-			if exists {
-				same, err := sameSourceTarget(source, r.backupRel, path)
-				if err != nil {
-					return err
+			switch r.action {
+			case actionReplaced:
+				if exists {
+					same, err := sameSourceTargetFile(source, r.backupRel, path)
+					if err != nil {
+						return err
+					}
+					if same {
+						fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
+						continue
+					}
 				}
-				if same {
+				verb := "restore"
+				if exists {
+					verb = "replace + back up"
+				}
+				fmt.Fprintf(out, "%s %s/%s\n", verb, r.client, r.skill)
+				changes = append(changes, change{target: t, skill: r.skill, src: r.backupRel, source: source, isFile: true, old: exists})
+			case actionInstalled:
+				if !exists {
 					fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
 					continue
 				}
+				fmt.Fprintf(out, "remove + back up %s/%s\n", r.client, r.skill)
+				changes = append(changes, change{target: t, skill: r.skill, source: source, isFile: true, old: true, remove: true})
 			}
-			verb := "restore"
+		} else {
+			if exists && !info.IsDir() {
+				return fmt.Errorf("refusing non-directory target %s", path)
+			}
 			if exists {
-				verb = "replace + back up"
+				if err := checkTree(path); err != nil {
+					return err
+				}
 			}
-			fmt.Fprintf(out, "%s %s/%s\n", verb, r.client, r.skill)
-			changes = append(changes, change{target: t, skill: r.skill, src: r.backupRel, old: exists})
-		case actionInstalled:
-			if !exists {
-				fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
-				continue
+			switch r.action {
+			case actionReplaced:
+				if exists {
+					same, err := sameSourceTarget(source, r.backupRel, path)
+					if err != nil {
+						return err
+					}
+					if same {
+						fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
+						continue
+					}
+				}
+				verb := "restore"
+				if exists {
+					verb = "replace + back up"
+				}
+				fmt.Fprintf(out, "%s %s/%s\n", verb, r.client, r.skill)
+				changes = append(changes, change{target: t, skill: r.skill, src: r.backupRel, source: source, old: exists})
+			case actionInstalled:
+				if !exists {
+					fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
+					continue
+				}
+				fmt.Fprintf(out, "remove + back up %s/%s\n", r.client, r.skill)
+				changes = append(changes, change{target: t, skill: r.skill, source: source, old: true, remove: true})
 			}
-			fmt.Fprintf(out, "remove + back up %s/%s\n", r.client, r.skill)
-			changes = append(changes, change{target: t, skill: r.skill, old: true, remove: true})
 		}
 	}
 
@@ -368,7 +474,9 @@ func Restore(repo, home, id string, apply bool, out io.Writer) error {
 	}
 	skillSet := map[string]bool{}
 	for _, c := range changes {
-		skillSet[c.skill] = true
+		if !c.isFile {
+			skillSet[c.skill] = true
+		}
 	}
 	names := make([]string, 0, len(skillSet))
 	for s := range skillSet {

@@ -48,9 +48,16 @@ func runLogs(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func runApplyWithLog(repo, home string, stdout, stderr io.Writer) int {
-	return runOperationWithLog(repo, home, "apply", stdout, stderr, func(out io.Writer) error {
-		return skillsync.Sync(repo, home, true, out)
+func runApplyWithLog(repo, home string, opts skillsync.Options, stdout, stderr io.Writer) int {
+	cmdName := "apply"
+	if opts.WithOpenCode {
+		cmdName += " --with-opencode"
+		if opts.OpenCodeFreeFirst {
+			cmdName += " --opencode-free-first"
+		}
+	}
+	return runOperationWithLog(repo, home, cmdName, stdout, stderr, func(out io.Writer) error {
+		return skillsync.SyncWithOptions(repo, home, true, opts, out)
 	})
 }
 

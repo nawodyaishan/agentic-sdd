@@ -34,6 +34,16 @@ func sourceFS(repo string) (fs.FS, error) {
 	return fs.Sub(os.DirFS(repo), "skills-files")
 }
 
+// openCodePackFS resolves the tree of opt-in OpenCode pack assets.
+// When repo is empty, it uses the embedded skillsfiles.OpenCodePackFiles.
+// Otherwise it reads from <repo>/opencode-pack.
+func openCodePackFS(repo string) (fs.FS, error) {
+	if repo == "" {
+		return fs.Sub(skillsfiles.OpenCodePackFiles, "opencode-pack")
+	}
+	return fs.Sub(os.DirFS(repo), "opencode-pack")
+}
+
 func checkTreeFS(source fs.FS, root string) error {
 	return fs.WalkDir(source, root, func(p string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -160,4 +170,45 @@ func copyFromSource(source fs.FS, srcPath, dst string) error {
 		}
 	}
 	return nil
+}
+
+// sameSourceTargetFile reports whether the regular file at srcPath in source
+// matches dstPath on disk by size and SHA-256 hash. Permission bits are not
+// compared, matching sameSourceTarget.
+func sameSourceTargetFile(source fs.FS, srcPath, dstPath string) (bool, error) {
+	srcInfo, err := fs.Stat(source, srcPath)
+	if err != nil {
+		return false, err
+	}
+	if srcInfo.IsDir() {
+		return false, fmt.Errorf("source file %s is a directory", srcPath)
+	}
+	dstInfo, err := os.Lstat(dstPath)
+	if err != nil {
+		return false, err
+	}
+	if !dstInfo.Mode().IsRegular() {
+		return false, nil
+	}
+	if srcInfo.Size() != dstInfo.Size() {
+		return false, nil
+	}
+	srcFile, err := source.Open(srcPath)
+	if err != nil {
+		return false, err
+	}
+	defer srcFile.Close()
+	dstFile, err := os.Open(dstPath)
+	if err != nil {
+		return false, err
+	}
+	defer dstFile.Close()
+	srcHash, dstHash := sha256.New(), sha256.New()
+	if _, err := io.Copy(srcHash, srcFile); err != nil {
+		return false, err
+	}
+	if _, err := io.Copy(dstHash, dstFile); err != nil {
+		return false, err
+	}
+	return bytes.Equal(srcHash.Sum(nil), dstHash.Sum(nil)), nil
 }

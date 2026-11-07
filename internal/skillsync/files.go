@@ -92,3 +92,33 @@ func copyContents(src, dst string) error {
 	}
 	return nil
 }
+
+// copyFile copies a regular file from src to dst, refusing symlinks or special files.
+func copyFile(src, dst string) error {
+	info, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("refusing special file or symlink %s", src)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	file, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
+	if err != nil {
+		_ = in.Close()
+		return err
+	}
+	_, copyErr := io.Copy(file, in)
+	closeErr := file.Close()
+	_ = in.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	return closeErr
+}

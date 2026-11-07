@@ -42,15 +42,19 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 			}
 			printVersion(stdout)
 			return 0
-		case "opencode":
+		case "opencode", "opencode-harness":
 			return runOpenCode(args[1:], stdout, stderr)
 		case "help":
 			if len(args) > 2 || (len(args) == 2 && !isHelpTopic(args[1])) {
 				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|logs|restore]")
 				return 2
 			}
-			if len(args) == 2 && args[1] == "opencode" {
+			if len(args) == 2 && (args[1] == "opencode" || args[1] == "opencode-harness") {
 				printOpenCodeUsage(stdout)
+				return 0
+			}
+			if len(args) == 2 && args[1] == "orchestrate" {
+				printOrchestrateUsage(stdout)
 				return 0
 			}
 			printUsage(stdout)
@@ -73,11 +77,13 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 	fs := flag.NewFlagSet("agentic-sdd", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var repo, home string
-	var legacyApply, showVersion bool
+	var legacyApply, showVersion, withOpenCode, openCodeFreeFirst bool
 	fs.StringVar(&repo, "repo", "", "repository containing skills-files (default: skills embedded in this binary)")
 	fs.StringVar(&home, "home", "", "user home (defaults to os.UserHomeDir)")
 	fs.BoolVar(&legacyApply, "apply", false, "back up and install skills (legacy form)")
 	fs.BoolVar(&showVersion, "version", false, "print version information")
+	fs.BoolVar(&withOpenCode, "with-opencode", false, "install opt-in OpenCode orchestration pack and agent profiles")
+	fs.BoolVar(&openCodeFreeFirst, "opencode-free-first", false, "use Free-first model ladder preset for OpenCode implementation/test profiles")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			printUsage(stdout)
@@ -90,6 +96,10 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 	if showVersion {
 		printVersion(stdout)
 		return 0
+	}
+	if openCodeFreeFirst && !withOpenCode {
+		fmt.Fprintln(stderr, "error: --opencode-free-first requires --with-opencode")
+		return 2
 	}
 	if fs.NArg() != 0 {
 		fmt.Fprintf(stderr, "error: unexpected argument %q\n", fs.Arg(0))
@@ -111,10 +121,14 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 		fmt.Fprintln(stderr, "error:", err)
 		return 1
 	}
-	if command == "apply" {
-		return runApplyWithLog(repo, home, stdout, stderr)
+	opts := skillsync.Options{
+		WithOpenCode:      withOpenCode,
+		OpenCodeFreeFirst: openCodeFreeFirst,
 	}
-	if err := skillsync.Sync(repo, home, false, stdout); err != nil {
+	if command == "apply" {
+		return runApplyWithLog(repo, home, opts, stdout, stderr)
+	}
+	if err := skillsync.SyncWithOptions(repo, home, false, opts, stdout); err != nil {
 		fmt.Fprintln(stderr, "error:", err)
 		return 1
 	}
@@ -123,10 +137,22 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 
 func isHelpTopic(s string) bool {
 	switch s {
-	case "preview", "apply", "backups", "logs", "restore", "opencode":
+	case "preview", "apply", "backups", "logs", "restore", "opencode", "opencode-harness", "orchestrate":
 		return true
 	}
 	return false
+}
+
+func printOrchestrateUsage(out io.Writer) {
+	fmt.Fprint(out, `Usage: agentic-sdd [preview|apply] --with-opencode [--opencode-free-first] [--repo PATH] [--home PATH]
+
+OpenCode Orchestration Options:
+  --with-opencode        Install the opt-in agentic-sdd-orchestrate skill into client
+                         skill directories and place OpenCode v2 agent profiles in
+                         ~/.config/opencode/agents.
+  --opencode-free-first  Preset OpenCode writer and test profiles to prefer free models
+                         first before scoped-approval models (requires --with-opencode).
+`)
 }
 
 // resolveHome returns home unchanged if set, or the user's real home

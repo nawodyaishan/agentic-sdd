@@ -20,17 +20,19 @@ type target struct {
 	path string
 }
 
-// change describes one destination skill directory to install, replace or
-// remove. src is the corresponding path within the operation's source tree;
-// for a plain apply it always equals skill, but a restore's source is
-// rooted at the backup directory, where the path is "<client>/<skill>".
-// remove is set only by a restore undoing a fresh install: there is no
-// source content to stage, so the destination is simply backed up and
-// deleted rather than replaced.
+// openCodeAgentsTarget returns the target descriptor for OpenCode agent profiles.
+func openCodeAgentsTarget(home string) target {
+	return target{name: "opencode-agents", path: filepath.Join(home, ".config", "opencode", "agents")}
+}
+
+// change describes one destination skill directory or agent file to install,
+// replace or remove.
 type change struct {
 	target target
 	skill  string
 	src    string
+	source fs.FS
+	isFile bool
 	old    bool
 	remove bool
 	stage  string
@@ -45,13 +47,23 @@ type operation struct {
 	restoredFrom string
 }
 
+// Options configures optional skill and agent synchronization.
+type Options struct {
+	WithOpenCode      bool
+	OpenCodeFreeFirst bool
+}
+
 // Sync previews or installs agentic-sdd skills into user skill directories.
-// When repo is empty, skills are read from the tree embedded in the binary
-// (skillsfiles.Files), so an installed binary needs no repository checkout;
-// an explicit repo overrides this with an on-disk "<repo>/skills-files"
-// checkout, and backups are then kept alongside it at "<repo>/backups" as
-// before. With no explicit repo, backups go under "<home>/.agentic-sdd/backups".
+// It is a convenience wrapper for SyncWithOptions with default Options.
 func Sync(repo, home string, apply bool, out io.Writer) error {
+	return SyncWithOptions(repo, home, apply, Options{}, out)
+}
+
+// SyncWithOptions previews or installs skills with the specified options.
+func SyncWithOptions(repo, home string, apply bool, opts Options, out io.Writer) error {
+	if opts.OpenCodeFreeFirst && !opts.WithOpenCode {
+		return errors.New("--opencode-free-first requires --with-opencode")
+	}
 	var err error
 	if repo != "" {
 		repo, err = filepath.Abs(repo)
@@ -76,6 +88,136 @@ func Sync(repo, home string, apply bool, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+
+	if opts.WithOpenCode {
+		packFS, err := openCodePackFS(repo)
+		if err != nil {
+			return err
+		}
+		packSkillsFS, err := fs.Sub(packFS, "skills")
+		if err != nil {
+			return err
+		}
+
+		for _, t := range targets {
+			path := filepath.Join(t.path, "agentic-sdd-orchestrate")
+			info, err := os.Lstat(path)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			old := err == nil
+			if old && !info.IsDir() {
+				return fmt.Errorf("refusing non-directory target %s", path)
+			}
+			if old {
+				if err := checkTree(path); err != nil {
+					return err
+				}
+				same, err := sameSourceTarget(packSkillsFS, "agentic-sdd-orchestrate", path)
+				if err != nil {
+					return err
+				}
+				if same {
+					fmt.Fprintf(out, "up to date %s/agentic-sdd-orchestrate\n", t.name)
+					continue
+				}
+			}
+			changes = append(changes, change{target: t, skill: "agentic-sdd-orchestrate", src: "agentic-sdd-orchestrate", source: packSkillsFS, old: old})
+			verb := "install"
+			if old {
+				verb = "replace + back up"
+			}
+			fmt.Fprintf(out, "%s %s/agentic-sdd-orchestrate\n", verb, t.name)
+		}
+		names = append(names, "agentic-sdd-orchestrate")
+		sort.Strings(names)
+
+		agentTarget := openCodeAgentsTarget(home)
+		if err := checkParents(agentTarget.path, home); err != nil {
+			return err
+		}
+
+		agentEntries, err := fs.ReadDir(packFS, "agents")
+		if err != nil {
+			return err
+		}
+		for _, entry := range agentEntries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			filename := entry.Name()
+			srcRel := "agents/" + filename
+			dstPath := filepath.Join(agentTarget.path, filename)
+			info, err := os.Lstat(dstPath)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			old := err == nil
+			if old && !info.Mode().IsRegular() {
+				return fmt.Errorf("refusing special file or symlink %s", dstPath)
+			}
+			if old {
+				same, err := sameSourceTargetFile(packFS, srcRel, dstPath)
+				if err != nil {
+					return err
+				}
+				if same {
+					fmt.Fprintf(out, "up to date opencode-agents/%s\n", filename)
+					continue
+				}
+			}
+			changes = append(changes, change{target: agentTarget, skill: filename, src: srcRel, source: packFS, isFile: true, old: old})
+			verb := "install"
+			if old {
+				verb = "replace + back up"
+			}
+			fmt.Fprintf(out, "%s opencode-agents/%s\n", verb, filename)
+		}
+
+		if opts.OpenCodeFreeFirst {
+			freeEntries, err := fs.ReadDir(packFS, "presets/free-first")
+			if err != nil {
+				return err
+			}
+			for _, entry := range freeEntries {
+				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+					continue
+				}
+				filename := entry.Name()
+				srcRel := "presets/free-first/" + filename
+				dstPath := filepath.Join(agentTarget.path, filename)
+				info, err := os.Lstat(dstPath)
+				if err != nil && !os.IsNotExist(err) {
+					return err
+				}
+				old := err == nil
+				if old && !info.Mode().IsRegular() {
+					return fmt.Errorf("refusing special file or symlink %s", dstPath)
+				}
+				if old {
+					same, err := sameSourceTargetFile(packFS, srcRel, dstPath)
+					if err != nil {
+						return err
+					}
+					if same {
+						fmt.Fprintf(out, "up to date opencode-agents/%s\n", filename)
+						continue
+					}
+				}
+				changes = append(changes, change{target: agentTarget, skill: filename, src: srcRel, source: packFS, isFile: true, old: old})
+				verb := "install"
+				if old {
+					verb = "replace + back up"
+				}
+				fmt.Fprintf(out, "%s opencode-agents/%s\n", verb, filename)
+			}
+
+			if _, err := os.Lstat(filepath.Join(home, ".config", "opencode", "AGENTS.md")); err == nil {
+				fmt.Fprintln(out, `Note: ~/.config/opencode/AGENTS.md was not modified; use "agentic-sdd restore <BACKUP_ID>" to revert Free-first agent profiles.`)
+			}
+		}
+	}
+
 	if !apply {
 		fmt.Fprintln(out, "Preview only. Run with apply (or --apply) to install.")
 		return nil
@@ -200,8 +342,21 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 		if !c.old {
 			continue
 		}
-		if err := copyTree(filepath.Join(c.target.path, c.skill), filepath.Join(backup, c.target.name, c.skill)); err != nil {
-			return fmt.Errorf("backup %s/%s: %w", c.target.name, c.skill, err)
+		if c.isFile {
+			if err := copyFile(filepath.Join(c.target.path, c.skill), filepath.Join(backup, c.target.name, c.skill)); err != nil {
+				return fmt.Errorf("backup %s/%s: %w", c.target.name, c.skill, err)
+			}
+		} else {
+			if err := copyTree(filepath.Join(c.target.path, c.skill), filepath.Join(backup, c.target.name, c.skill)); err != nil {
+				return fmt.Errorf("backup %s/%s: %w", c.target.name, c.skill, err)
+			}
+		}
+	}
+	hasFileChanges := false
+	for _, c := range changes {
+		if c.isFile {
+			hasFileChanges = true
+			break
 		}
 	}
 	entries := make([]entry, 0, len(changes))
@@ -211,22 +366,43 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 			Skill:  c.skill,
 			Path:   filepath.Join(c.target.path, c.skill),
 		}
+		if c.isFile {
+			e.Kind = "opencode-agent"
+		} else if hasFileChanges {
+			e.Kind = "skill"
+		}
 		if c.old {
 			e.Action = actionReplaced
 			e.Backup = filepath.Join(c.target.name, c.skill)
-			digest, err := treeDigest(os.DirFS(backup), e.Backup)
-			if err != nil {
-				return fmt.Errorf("digest %s: %w", e.Backup, err)
+			if c.isFile {
+				digest, err := fileDigest(os.DirFS(backup), e.Backup)
+				if err != nil {
+					return fmt.Errorf("digest %s: %w", e.Backup, err)
+				}
+				e.SHA256 = digest
+			} else {
+				digest, err := treeDigest(os.DirFS(backup), e.Backup)
+				if err != nil {
+					return fmt.Errorf("digest %s: %w", e.Backup, err)
+				}
+				e.SHA256 = digest
 			}
-			e.SHA256 = digest
 		} else {
 			e.Action = actionInstalled
 		}
 		entries = append(entries, e)
 	}
+
+	format := 2
+	var openCodeTargets []string
+	if hasFileChanges {
+		format = 3
+		openCodeTargets = []string{openCodeAgentsTarget(home).path}
+	}
+
 	m := manifest{
 		Created: stamp, Source: sourceLabel, Skills: names,
-		Format: 2, ID: stamp, CreatedAt: now.Format(time.RFC3339Nano),
+		Format: format, ID: stamp, CreatedAt: now.Format(time.RFC3339Nano),
 		Operation: op.kind, RestoredFrom: op.restoredFrom,
 		Tool: &toolInfo{
 			Version:   version.Version,
@@ -234,9 +410,10 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 			Date:      version.Date,
 			GoVersion: version.GoVersion,
 		},
-		Home:       home,
-		BackupRoot: backupRoot,
-		Entries:    entries,
+		Home:            home,
+		BackupRoot:      backupRoot,
+		OpenCodeTargets: openCodeTargets,
+		Entries:         entries,
 	}
 	for _, t := range targets {
 		m.Targets = append(m.Targets, t.path)
@@ -248,9 +425,7 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 	if err := os.WriteFile(filepath.Join(backup, "manifest.json"), append(data, '\n'), 0600); err != nil {
 		return err
 	}
-	// Build every replacement before touching an installed skill. A remove
-	// change has no source content to stage: it is only backed up above and
-	// deleted below.
+	// Build every replacement before touching an installed skill or agent profile.
 	for i := range changes {
 		c := &changes[i]
 		if err := os.MkdirAll(c.target.path, 0755); err != nil {
@@ -260,18 +435,56 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 		if c.remove {
 			continue
 		}
-		c.stage, err = os.MkdirTemp(c.target.path, ".agentic-sdd-stage-")
-		if err != nil {
-			cleanupStages(changes)
-			return err
+		srcFS := c.source
+		if srcFS == nil {
+			srcFS = source
 		}
-		if err := copyFromSource(source, c.src, c.stage); err != nil {
-			cleanupStages(changes)
-			return err
-		}
-		if err := os.Chmod(c.stage, installedDirMode); err != nil {
-			cleanupStages(changes)
-			return err
+		if c.isFile {
+			stageF, err := os.CreateTemp(c.target.path, ".agentic-sdd-stage-*")
+			if err != nil {
+				cleanupStages(changes)
+				return err
+			}
+			c.stage = stageF.Name()
+			in, err := srcFS.Open(c.src)
+			if err != nil {
+				_ = stageF.Close()
+				cleanupStages(changes)
+				return err
+			}
+			_, copyErr := io.Copy(stageF, in)
+			closeInErr := in.Close()
+			closeFErr := stageF.Close()
+			if copyErr != nil {
+				cleanupStages(changes)
+				return copyErr
+			}
+			if closeInErr != nil {
+				cleanupStages(changes)
+				return closeInErr
+			}
+			if closeFErr != nil {
+				cleanupStages(changes)
+				return closeFErr
+			}
+			if err := os.Chmod(c.stage, installedFileMode); err != nil {
+				cleanupStages(changes)
+				return err
+			}
+		} else {
+			c.stage, err = os.MkdirTemp(c.target.path, ".agentic-sdd-stage-")
+			if err != nil {
+				cleanupStages(changes)
+				return err
+			}
+			if err := copyFromSource(srcFS, c.src, c.stage); err != nil {
+				cleanupStages(changes)
+				return err
+			}
+			if err := os.Chmod(c.stage, installedDirMode); err != nil {
+				cleanupStages(changes)
+				return err
+			}
 		}
 	}
 	var done []int
@@ -279,21 +492,42 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 		c := &changes[i]
 		path := filepath.Join(c.target.path, c.skill)
 		if c.old {
-			c.undo, err = os.MkdirTemp(c.target.path, ".agentic-sdd-undo-")
-			if err != nil {
-				err = errors.Join(err, rollback(changes, done))
-				cleanupStages(changes)
-				return err
-			}
-			if err = os.Remove(c.undo); err != nil {
-				err = errors.Join(err, rollback(changes, done))
-				cleanupStages(changes)
-				return err
-			}
-			if err = os.Rename(path, c.undo); err != nil {
-				err = errors.Join(err, rollback(changes, done))
-				cleanupStages(changes)
-				return err
+			if c.isFile {
+				undoF, err := os.CreateTemp(c.target.path, ".agentic-sdd-undo-*")
+				if err != nil {
+					err = errors.Join(err, rollback(changes, done))
+					cleanupStages(changes)
+					return err
+				}
+				c.undo = undoF.Name()
+				_ = undoF.Close()
+				if err = os.Remove(c.undo); err != nil {
+					err = errors.Join(err, rollback(changes, done))
+					cleanupStages(changes)
+					return err
+				}
+				if err = os.Rename(path, c.undo); err != nil {
+					err = errors.Join(err, rollback(changes, done))
+					cleanupStages(changes)
+					return err
+				}
+			} else {
+				c.undo, err = os.MkdirTemp(c.target.path, ".agentic-sdd-undo-")
+				if err != nil {
+					err = errors.Join(err, rollback(changes, done))
+					cleanupStages(changes)
+					return err
+				}
+				if err = os.Remove(c.undo); err != nil {
+					err = errors.Join(err, rollback(changes, done))
+					cleanupStages(changes)
+					return err
+				}
+				if err = os.Rename(path, c.undo); err != nil {
+					err = errors.Join(err, rollback(changes, done))
+					cleanupStages(changes)
+					return err
+				}
 			}
 		}
 		if !c.remove {

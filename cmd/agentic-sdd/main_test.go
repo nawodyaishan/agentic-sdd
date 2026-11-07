@@ -548,3 +548,84 @@ func TestApplyRefusesSymlinkedLogDirectory(t *testing.T) {
 		t.Fatalf("log wrote through symlink: %v, %v", entries, err)
 	}
 }
+
+func TestRunOpenCodeFlagsAndHelp(t *testing.T) {
+	t.Run("help orchestrate prints options", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		code := runNonInteractive([]string{"help", "orchestrate"}, &stdout, &stderr)
+		if code != 0 {
+			t.Fatalf("help orchestrate exited %d, stderr %q", code, stderr.String())
+		}
+		got := stdout.String()
+		if !strings.Contains(got, "--with-opencode") || !strings.Contains(got, "--opencode-free-first") {
+			t.Fatalf("help orchestrate output missing expected options:\n%s", got)
+		}
+	})
+
+	t.Run("opencode-free-first alone exits 2", func(t *testing.T) {
+		home := t.TempDir()
+		var stdout, stderr bytes.Buffer
+		code := runNonInteractive([]string{"preview", "--opencode-free-first", "--home", home}, &stdout, &stderr)
+		if code != 2 {
+			t.Fatalf("preview exited %d, want 2; stderr %q", code, stderr.String())
+		}
+		if !strings.Contains(stderr.String(), "--opencode-free-first requires --with-opencode") {
+			t.Fatalf("stderr missing requirement message: %q", stderr.String())
+		}
+
+		stderr.Reset()
+		code = runNonInteractive([]string{"apply", "--opencode-free-first", "--home", home}, &stdout, &stderr)
+		if code != 2 {
+			t.Fatalf("apply exited %d, want 2; stderr %q", code, stderr.String())
+		}
+		if !strings.Contains(stderr.String(), "--opencode-free-first requires --with-opencode") {
+			t.Fatalf("stderr missing requirement message: %q", stderr.String())
+		}
+	})
+
+	t.Run("preview with-opencode and apply with-opencode", func(t *testing.T) {
+		home := t.TempDir()
+		var stdout, stderr bytes.Buffer
+		code := runNonInteractive([]string{"preview", "--with-opencode", "--home", home}, &stdout, &stderr)
+		if code != 0 {
+			t.Fatalf("preview exited %d: %s", code, stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "install opencode-agents/sdd-orchestrator.md") {
+			t.Fatalf("preview output missing opencode-agents: %s", stdout.String())
+		}
+		if _, err := os.Stat(filepath.Join(home, ".config", "opencode")); !os.IsNotExist(err) {
+			t.Fatalf("preview created .config/opencode: %v", err)
+		}
+
+		stdout.Reset()
+		code = runNonInteractive([]string{"apply", "--with-opencode", "--home", home}, &stdout, &stderr)
+		if code != 0 {
+			t.Fatalf("apply exited %d: %s", code, stderr.String())
+		}
+		if _, err := os.Stat(filepath.Join(home, ".config", "opencode", "agents", "sdd-orchestrator.md")); err != nil {
+			t.Fatalf("missing installed agent file: %v", err)
+		}
+		entries, err := os.ReadDir(logsDir(home))
+		if err != nil || len(entries) != 1 {
+			t.Fatalf("apply logs: %v, %v", entries, err)
+		}
+		logData, err := os.ReadFile(filepath.Join(logsDir(home), entries[0].Name()))
+		if err != nil || !strings.Contains(string(logData), "Command: apply --with-opencode") {
+			t.Fatalf("log content missing command: %q, %v", logData, err)
+		}
+	})
+
+	t.Run("opencode-harness denial in default build", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		code := runNonInteractive([]string{"opencode-harness"}, &stdout, &stderr)
+		if code != 2 || !strings.Contains(stderr.String(), "unavailable in this build") {
+			t.Fatalf("opencode-harness exited %d, stderr %q", code, stderr.String())
+		}
+		stdout.Reset()
+		stderr.Reset()
+		code = runNonInteractive([]string{"help", "opencode-harness"}, &stdout, &stderr)
+		if code != 0 || !strings.Contains(stdout.String(), "unavailable in this build") {
+			t.Fatalf("help opencode-harness exited %d, stdout %q", code, stdout.String())
+		}
+	})
+}

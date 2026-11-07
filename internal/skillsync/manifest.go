@@ -24,16 +24,17 @@ type manifest struct {
 	Targets []string `json:"targets"`
 	Skills  []string `json:"skills"`
 
-	// Format 2 fields.
-	Format       int       `json:"format,omitempty"`
-	ID           string    `json:"id,omitempty"`
-	CreatedAt    string    `json:"created_at,omitempty"`
-	Operation    string    `json:"operation,omitempty"`
-	RestoredFrom string    `json:"restored_from,omitempty"`
-	Tool         *toolInfo `json:"tool,omitempty"`
-	Home         string    `json:"home,omitempty"`
-	BackupRoot   string    `json:"backup_root,omitempty"`
-	Entries      []entry   `json:"entries,omitempty"`
+	// Format 2 & 3 fields.
+	Format          int       `json:"format,omitempty"`
+	ID              string    `json:"id,omitempty"`
+	CreatedAt       string    `json:"created_at,omitempty"`
+	Operation       string    `json:"operation,omitempty"`
+	RestoredFrom    string    `json:"restored_from,omitempty"`
+	Tool            *toolInfo `json:"tool,omitempty"`
+	Home            string    `json:"home,omitempty"`
+	BackupRoot      string    `json:"backup_root,omitempty"`
+	OpenCodeTargets []string  `json:"opencode_targets,omitempty"`
+	Entries         []entry   `json:"entries,omitempty"`
 }
 
 // toolInfo records the agentic-sdd build that wrote a format 2 manifest.
@@ -50,6 +51,7 @@ type toolInfo struct {
 // Backup, with SHA256 over that saved tree), or "installed" when it did
 // not (nothing to save).
 type entry struct {
+	Kind   string `json:"kind,omitempty"`
 	Client string `json:"client"`
 	Skill  string `json:"skill"`
 	Path   string `json:"path"`
@@ -113,6 +115,28 @@ func treeDigest(source fs.FS, root string) (string, error) {
 		return copyErr
 	})
 	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// fileDigest returns a hex-encoded SHA-256 digest over the raw bytes of the
+// regular file at relPath in source.
+func fileDigest(source fs.FS, relPath string) (string, error) {
+	info, err := fs.Stat(source, relPath)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("refusing special file %s", relPath)
+	}
+	f, err := source.Open(relPath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
