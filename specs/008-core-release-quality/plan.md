@@ -1,6 +1,6 @@
 # Core release quality — plan
 
-Revision: r4 approved, 2026-11-07; amended 2026-11-07 for core contract approval, commit/push authorization, GoReleaser snapshot, and Linux CI runner / isolated Linux evidence sufficiency for AC-14/T10. Input: [spec r2](spec.md). Single approval owner: [spec §Approval](spec.md#approval). B4a–B5 executed; commit and push authorized; tagging/releasing and trusted reference designation remain separate decisions.
+Revision: r4 approved, 2026-11-07; amended 2026-11-07 for core contract approval, commit/push authorization, GoReleaser snapshot, and Linux CI runner / isolated Linux evidence sufficiency for AC-14/T10. Input: [spec r2](spec.md). Single approval owner: [spec §Approval](spec.md#approval). B4a–B5 executed; commit and push completed at checkpoint 7d3e99b (7d3e99b083f094ab4aba17e835bdcca39ee4abd5); tagging/releasing and trusted reference designation remain separate decisions.
 
 ## 1. Approach and inspected baseline
 

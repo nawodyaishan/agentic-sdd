@@ -1,6 +1,6 @@
 # Feature 008 — Core Product Quality, Repository Maintainability & Release Readiness
 
-**Status:** Core-first amendment approved; macOS native runtime requirement dropped in favor of Linux CI / isolated Linux runner sufficiency; commit and push authorized; tagging/releasing and trusted-reference designation remain separate decisions
+**Status:** Core-first amendment approved; macOS native runtime requirement dropped in favor of Linux CI / isolated Linux runner sufficiency; commit and push completed at checkpoint 7d3e99b (7d3e99b083f094ab4aba17e835bdcca39ee4abd5); tagging/releasing and trusted-reference designation remain separate decisions
 
 **Date:** 2026-11-05
 
@@ -12,7 +12,7 @@
 
 **Next release:** Undecided `v0.x` version, subject to review and verification
 
-**Authority:** [Approval](#approval) preserves prior batch/commit decisions and records the owner's combined approval of spec r2/plan r4/tasks r4, execution of B4a–B5, approval of the exact core contract, authorization of commit and push, authorization of GoReleaser install/snapshot, and the amendment dropping native macOS/Homebrew runtime evidence as a release qualification requirement (Linux CI runner / isolated Linux evidence sufficiency). Tagging, release publication, and trusted reference designation (G-008-01) remain separate decisions.
+**Authority:** [Approval](#approval) preserves prior batch/commit decisions and records the owner's combined approval of spec r2/plan r4/tasks r4, execution of B4a–B5, approval of the exact core contract, authorization of commit and push (completed at checkpoint 7d3e99b), authorization of GoReleaser install/snapshot, and the amendment dropping native macOS/Homebrew runtime evidence as a release qualification requirement (Linux CI runner / isolated Linux evidence sufficiency). Tagging, release publication, and trusted reference designation (G-008-01) remain separate decisions.
 
 ## 1. Product vision and outcome
 
@@ -242,7 +242,9 @@ This is section 12 and the sole combined-approval record for [spec r1](spec.md),
   5. **No release or tag authority:** No authorization is granted to create a Git tag (`v*`), publish a GitHub Release, or push to the Homebrew tap.
   6. **Trusted reference designation:** Gate `G-008-01` remains open until a clean candidate commit is created and designated by the human owner as the reviewed trusted reference (the exact candidate SHA is not yet chosen).
 
-The recorded decision covers all three reconciled r1 documents. Later batches and live operations require their own actual authorization. B1 completion review does not start B2.
+- **Release authorization (2026-11-07):** The owner requested “release the version using tag” and selected `v0.5.0` after being informed that pushing a `v*` tag triggers GitHub Release and Homebrew tap publication and that cleanup is uncommitted, trusted-reference designation remains open, and review verdicts remain provisional. This authorizes committing the final cleanup, creating and pushing `v0.5.0`, and the resulting existing release workflow publication. It does not retrospectively mark missing checks, Opus review, independent reference designation, native macOS execution, or full-feature acceptance complete. Prior no-publication statements above describe earlier authorization boundaries.
+
+The recorded decisions cover their stated revisions and scope. B1 completion review does not start B2.
 
 ## 13. References
 
