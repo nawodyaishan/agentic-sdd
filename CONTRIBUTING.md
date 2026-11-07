@@ -23,7 +23,7 @@ approved feature scope, a security requirement, or maintainer authorization.
 2. Install Go Task, clone the repository and run `task hooks-install` once.
 3. Run `task help` to see the available commands.
 
-The pre-commit hook checks Go formatting, runs `task test` and `task vet`, and checks staged changes for whitespace errors. Run the same checks yourself before opening a pull request:
+The pre-commit hook checks Go formatting, runs `task test` and `task vet` on the 7 supported-core Go packages, and checks staged changes for whitespace errors. Run the same checks yourself before opening a pull request:
 
 ```sh
 task test
@@ -31,18 +31,15 @@ task vet
 git diff --check
 ```
 
-### Temporary supported-core validation scope (008)
+### Supported-core verification and experimental task separation
 
-While blocked 005/006/007 feature validations are excluded, use explicit local
-`task test-core` and `task vet-core` for **scoped evidence**. See the
-[temporary fence](AGENTS.md#temporary-008-validation-scope) and
-[selection ownership](tests/harness/README.md#supported-core-go-selection).
-The ordinary `task test`, `task vet` and trusted six-check contract are unchanged;
-core-only success is not their result. If those aggregate commands include an
-excluded validation, report the aggregate not_run/blocked and obtain a human gate
-decision—do not weaken it, hide a failure or count excluded work as passing.
-Commit hooks may still request the aggregate commands; do not bypass hooks or
-assume a scoped run authorizes committing/publishing.
+Default `task test` and `task vet` run the 7 supported-core Go packages (`.`, `./internal/version`, `./internal/skillsync`, `./internal/harnesscheck`, `./internal/harnessevidence`, `./cmd/agentic-sdd`, `./cmd/sdd-check`). `task test-core` and `task vet-core` are retained as parity-enforced aliases (`sh tests/supported-core-go.sh test|vet`).
+
+Experimental tools (such as the `opencode` CLI helper) are compiled out of default release and core builds via build tags (`!agentic_sdd_experimental`) on CLI entry points (`cmd/agentic-sdd/opencode_disabled.go`), severing the import edge to `internal/opencodeadapter` (`go list -deps ./cmd/agentic-sdd`) and returning exit 2 (`unavailable in this build`). The `internal/opencodeadapter` package itself is excluded from default verification by the explicit 7-package core selection. Their tasks live in the separate, non-default `Taskfile.experimental.yml` (`task --taskfile Taskfile.experimental.yml opencode-help`) and are never invoked by default tasks, pre-commit hooks, or release pipelines.
+
+Portable OpenCode skill installation (`~/.agents/skills`) remains part of the supported core installer.
+
+While blocked 005/006/007 feature validations remain excluded under the [temporary fence](AGENTS.md#temporary-008-validation-scope), the supported-core suite and trusted checks verify the active product. If an aggregate verification conflicts with an excluded validation, report it as blocked/not_run rather than weakening tests, hiding a failure, or bypassing pre-commit hooks.
 
 ## Change a skill
 

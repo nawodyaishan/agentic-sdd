@@ -50,9 +50,28 @@ class TrustedContainerTests(unittest.TestCase):
         shutil.copytree(self.base, self.trusted); shutil.copytree(self.base, self.candidate)
         # Explicit development reference, not an assertion B7 is already trusted
         # on main. CI adoption requires a separately reviewed merge/commit.
-        for name in ("tests/harness/trusted_ci.py", "tests/harness/trusted-noop-probe.go.txt", "Taskfile.yml"):
-            path = self.trusted / name; path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes((ROOT / name).read_bytes())
+        for name in (
+            "tests/harness/trusted_ci.py",
+            "tests/harness/trusted-noop-probe.go.txt",
+            "tests/harness/trusted-boundary-probe.go.txt",
+            "Taskfile.yml",
+            "harness/checks.json",
+            "cmd/agentic-sdd/main.go",
+            "cmd/agentic-sdd/opencode.go",
+            "cmd/agentic-sdd/opencode_test.go",
+            "cmd/agentic-sdd/opencode_disabled.go",
+            "cmd/agentic-sdd/opencode_disabled_test.go",
+        ):
+            src = ROOT / name
+            if src.is_file():
+                for target in (self.trusted, self.candidate):
+                    dst = target / name
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    dst.write_bytes(src.read_bytes())
+        for target in (self.trusted, self.candidate):
+            pkg = target / "internal/harnessevidence"
+            if not pkg.exists() and (ROOT / "internal/harnessevidence").is_dir():
+                shutil.copytree(ROOT / "internal/harnessevidence", pkg)
         self.env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.case),
                     "TMPDIR": str(self.case), "SDD_HOST_CANARY": "synthetic-host-env-not-for-candidate"}
 
@@ -136,7 +155,7 @@ func TestSyntheticCandidateBoundary(t *testing.T) {
         path = self.candidate / "internal/skillsync/sync.go"
         data = path.read_text(); self.assertEqual(1, data.count("if same {"))
         path.write_text(data.replace("if same {", "if false && same {"))
-        for test in self.candidate.rglob("*_test.go"):
+        for test in (self.candidate / "internal/skillsync").glob("*_test.go"):
             test.unlink()  # Only this fixture's disposable source, never the checkout.
         (self.candidate / "Taskfile.yml").write_text("version: '3'\ntasks:\n  test:\n    cmds: ['true']\n")
         subprocess.run(["task", "test"], cwd=self.candidate, env=self.env, check=True, capture_output=True, timeout=10)
@@ -148,6 +167,30 @@ func TestSyntheticCandidateBoundary(t *testing.T) {
         checks = {c["id"]: c for c in summary["check_result"]["checks"]}
         self.assertEqual("failed", checks["test"]["status"])
         self.assertIn("independent no-op contract", Path(checks["test"]["evidence"]).read_text())
+        self.assertEqual("not_run", checks["build-darwin"]["status"])
+
+    def test_deleted_coverage_and_activation_mutant_fails_via_boundary_probe(self):
+        disabled_test = self.candidate / "cmd/agentic-sdd/opencode_disabled_test.go"
+        if disabled_test.exists():
+            disabled_test.unlink()
+        mutant = (
+            "//go:build !agentic_sdd_experimental\n\n"
+            "package main\n\n"
+            "import \"io\"\n\n"
+            "func printOpenCodeUsage(out io.Writer) {}\n\n"
+            "func runOpenCode(args []string, stdout, stderr io.Writer) int {\n"
+            "    return 0\n"
+            "}\n"
+        )
+        (self.candidate / "cmd/agentic-sdd/opencode_disabled.go").write_text(mutant)
+        result, summary = self.invoke("activation-mutant")
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual("failed", summary["execution"], summary)
+        self.assertIn("cmd/agentic-sdd/opencode_disabled_test.go", summary["review_required_paths"])
+        checks = {c["id"]: c for c in summary["check_result"]["checks"]}
+        self.assertEqual("failed", checks["test"]["status"])
+        evidence_text = Path(checks["test"]["evidence"]).read_text()
+        self.assertIn("TestSDDTrustedDefaultBuildBoundary", evidence_text)
         self.assertEqual("not_run", checks["build-darwin"]["status"])
 
     def test_cleanup_stops_only_cid_owned_container(self):

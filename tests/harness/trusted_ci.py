@@ -18,7 +18,11 @@ REQUIRED = ["mod-verify", "tidy-check", "vet", "test", "build-darwin", "diff-che
 EXCLUDED = {".cache", ".codegraph", "backups", "bin", "__pycache__"}
 SENSITIVE_DIRS = {".local", ".config", ".opencode", ".claude", ".codex", ".agents", ".ssh", ".aws", ".azure", ".kube", ".gnupg", ".secrets"}
 SENSITIVE_FILES = {"auth.json", "credentials.json", "tokens.json", ".netrc", ".git-credentials", ".npmrc", ".pypirc", ".envrc"}
-PROBE = "internal/skillsync/zz_sdd_trusted_noop_test.go"
+PROBES = (
+    ("tests/harness/trusted-noop-probe.go.txt", "internal/skillsync/zz_sdd_trusted_noop_test.go"),
+    ("tests/harness/trusted-boundary-probe.go.txt", "cmd/agentic-sdd/zz_sdd_trusted_boundary_test.go"),
+)
+PROBE = PROBES[0][1]
 
 
 def digest(data):
@@ -245,7 +249,7 @@ def run_gate(trusted, candidate, output):
             if project == Path.home().resolve() or not (project / "go.mod").is_file() or (project / "go.mod").is_symlink():
                 raise ValueError("credential-free project source required, never a home directory")
         for path in ("cmd/sdd-check/main.go", "internal/harnesscheck/runner.go", "harness/checks.json",
-                     "tests/harness/trusted-noop-probe.go.txt"):
+                     "tests/harness/trusted-noop-probe.go.txt", "tests/harness/trusted-boundary-probe.go.txt"):
             if not (trusted / path).is_file() or (trusted / path).is_symlink():
                 raise ValueError("trusted base lacks bootstrap/runner/probe; adopt reviewed B7 first")
         base, work = private / "trusted", private / "candidate"
@@ -260,8 +264,9 @@ def run_gate(trusted, candidate, output):
                        review_required_paths=review_paths(base_manifest, candidate_manifest))
         summary["phase"] = "contract-comparison"
         selected = required_contract(load_json(base / "harness/checks.json"), load_json(work / "harness/checks.json"))
-        if (work / PROBE).exists():
-            raise ValueError("candidate collides with reserved independent probe")
+        for _, probe_target in PROBES:
+            if (work / probe_target).exists():
+                raise ValueError("candidate collides with reserved independent probe")
         summary["phase"] = "image-preflight"
         subprocess.run(["docker", "image", "inspect", IMAGE], env=env, check=True, capture_output=True, timeout=15)
         cache = private / "bootstrap-cache"; cache.mkdir(mode=0o700)
@@ -275,9 +280,14 @@ def run_gate(trusted, candidate, output):
         if bootstrap.returncode or not binary.is_file() or binary.is_symlink():
             raise ValueError("trusted runner bootstrap did not complete")
         summary["runner_sha256"] = digest(binary.read_bytes())
-        probe = (base / "tests/harness/trusted-noop-probe.go.txt").read_bytes()
-        (work / PROBE).write_bytes(probe)
-        summary["probe_sha256"] = digest(probe)
+        probe_digests = {}
+        for probe_src, probe_target in PROBES:
+            probe_bytes = (base / probe_src).read_bytes()
+            target_path = work / probe_target
+            target_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            target_path.write_bytes(probe_bytes)
+            probe_digests[probe_target] = digest(probe_bytes)
+        summary["probe_sha256"] = probe_digests
         initial = inventory(work)
         for ch in selected:
             ch["cwd"] = "."

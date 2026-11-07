@@ -1,0 +1,9 @@
+version: '3'
+
+vars:
+  GOCACHE: '{{.GOCACHE | default (printf "%s/.cache/go-build" .ROOT_DIR)}}'
+
+tasks:
+  opencode-help:
+    desc: Show inactive OpenCode helper usage
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off go run -tags agentic_sdd_experimental ./cmd/agentic-sdd opencode --help']

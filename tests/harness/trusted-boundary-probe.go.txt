@@ -1,0 +1,29 @@
+// Trusted independent boundary probe. Copied only into disposable candidate staging.
+package main
+
+import (
+	"bytes"
+	"strings"
+	"testing"
+)
+
+func TestSDDTrustedDefaultBuildBoundary(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := runNonInteractive([]string{"opencode", "--help"}, &stdout, &stderr)
+	if code != 2 {
+		t.Fatalf("default build opencode --help exit code = %d; want 2", code)
+	}
+	if !strings.Contains(stderr.String(), "unavailable in this build") {
+		t.Fatalf("default build opencode --help stderr = %q; want containing %q", stderr.String(), "unavailable in this build")
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = runNonInteractive([]string{"--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("default build --help exit code = %d; want 0", code)
+	}
+	if strings.Contains(strings.ToLower(stdout.String()), "opencode") {
+		t.Fatalf("default build --help stdout unexpectedly contained %q: %s", "opencode", stdout.String())
+	}
+}

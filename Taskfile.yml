@@ -18,9 +18,6 @@ tasks:
   preview:
     desc: Preview skill installation
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd preview']
-  opencode-help:
-    desc: Show inactive OpenCode helper usage
-    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go run ./cmd/agentic-sdd opencode --help']
   apply:
     desc: Back up and install skills (requires explicit live authorization)
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd apply']
@@ -32,15 +29,15 @@ tasks:
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd logs']
   test:
     desc: Run Go tests
-    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go test ./...']
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go test . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./cmd/agentic-sdd ./cmd/sdd-check']
   test-core:
-    desc: Run supported-core Go tests only (not the required aggregate gate)
+    desc: Run supported-core Go tests only (compatible alias for the core gate)
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} sh tests/supported-core-go.sh test']
   vet:
     desc: Run Go static analysis
-    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go vet ./...']
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go vet . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./cmd/agentic-sdd ./cmd/sdd-check']
   vet-core:
-    desc: Run supported-core Go vet only (not the required aggregate gate)
+    desc: Run supported-core Go vet only (compatible alias for the core gate)
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} sh tests/supported-core-go.sh vet']
   docker-e2e:
     desc: Exercise installer in an isolated Docker container

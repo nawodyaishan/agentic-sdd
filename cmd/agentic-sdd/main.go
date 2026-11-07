@@ -368,8 +368,7 @@ func printUsage(out io.Writer) {
        agentic-sdd logs [--home PATH]
        agentic-sdd restore [ID] [--apply] [--repo PATH] [--home PATH]
        agentic-sdd restore list|preview|apply [ID] [--repo PATH] [--home PATH]
-       agentic-sdd opencode [candidate|preflight|config] [OPTIONS]
-       agentic-sdd help [preview|apply|backups|logs|restore|opencode]
+       agentic-sdd help [preview|apply|backups|logs|restore]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -378,7 +377,6 @@ Commands:
   backups        List backups newest first (same as "restore list").
   logs           Show the latest apply or restore log.
   restore        Preview or restore a backup, selected by id or number.
-  opencode       Prepare inactive config and preview explicit config transactions.
 
 restore forms:
   restore                   Interactively list backups and pick one to preview.

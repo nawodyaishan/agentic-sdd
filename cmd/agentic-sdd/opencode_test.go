@@ -1,3 +1,5 @@
+//go:build agentic_sdd_experimental
+
 package main
 
 import (

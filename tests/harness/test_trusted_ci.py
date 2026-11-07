@@ -1,4 +1,13 @@
-"""Trusted-gate policy tests; no provider/native state or container required."""
+"""Trusted-gate policy tests; no provider/native state or container required.
+
+Adoption sequence per harness/trusted-ci.md and spec 008 C4:
+1. Review the exact new definitions and bootstrap/probe changes.
+2. Validate positive/negative cases in labeled disposable development-reference fixtures.
+3. Obtain actual human approval of the trusted revision/scope.
+4. Separately authorize any live trusted-branch adoption/push.
+The old base is expected to reject unadopted definitions. Never disable comparison
+or treat a candidate-local copy as an already trusted live base.
+"""
 import copy
 import json
 import os
@@ -11,6 +20,15 @@ import trusted_ci as gate
 
 
 ROOT = Path(__file__).resolve().parents[2]
+CORE_PACKAGES = [
+    ".",
+    "./internal/version",
+    "./internal/skillsync",
+    "./internal/harnesscheck",
+    "./internal/harnessevidence",
+    "./cmd/agentic-sdd",
+    "./cmd/sdd-check",
+]
 
 
 class TrustedPolicyTests(unittest.TestCase):
@@ -21,7 +39,40 @@ class TrustedPolicyTests(unittest.TestCase):
         selected = gate.required_contract(self.contract, copy.deepcopy(self.contract))
         self.assertEqual(["mod-verify", "tidy-check", "vet", "test", "build-darwin", "diff-check"],
                          [ch["id"] for ch in selected])
-        self.assertEqual(["go", "test", "./..."], selected[3]["steps"][0]["argv"])
+        self.assertEqual(["go", "vet", *CORE_PACKAGES], selected[2]["steps"][0]["argv"])
+        self.assertEqual(["go", "test", *CORE_PACKAGES], selected[3]["steps"][0]["argv"])
+
+    def test_unadopted_contract_rejection(self):
+        old_contract = copy.deepcopy(self.contract)
+        old_contract["checks"][2]["steps"][0]["argv"] = ["go", "vet", "./..."]
+        old_contract["checks"][3]["steps"][0]["argv"] = ["go", "test", "./..."]
+        # Old base contract rejects candidate with new 7-core-package contract
+        with self.assertRaisesRegex(ValueError, "reviewed adoption required"):
+            gate.required_contract(old_contract, self.contract)
+        # New base contract rejects candidate with old ./... contract
+        with self.assertRaisesRegex(ValueError, "reviewed adoption required"):
+            gate.required_contract(self.contract, old_contract)
+
+    def test_probes_presence_and_collision_checks(self):
+        self.assertEqual(len(gate.PROBES), 2)
+        probe_targets = [target for _, target in gate.PROBES]
+        self.assertIn("internal/skillsync/zz_sdd_trusted_noop_test.go", probe_targets)
+        self.assertIn("cmd/agentic-sdd/zz_sdd_trusted_boundary_test.go", probe_targets)
+        for src, _ in gate.PROBES:
+            self.assertTrue((ROOT / src).is_file(), f"missing probe file {src}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp) / "work"
+            work.mkdir()
+            for _, target in gate.PROBES:
+                probe_file = work / target
+                probe_file.parent.mkdir(parents=True, exist_ok=True)
+                probe_file.write_text("// collision canary\n")
+                with self.assertRaisesRegex(ValueError, "candidate collides with reserved independent probe"):
+                    for _, t in gate.PROBES:
+                        if (work / t).exists():
+                            raise ValueError("candidate collides with reserved independent probe")
+                probe_file.unlink()
 
     def test_removed_replaced_or_relabelled_required_gate_is_rejected(self):
         for change in ("remove", "command", "scope", "extra", "duplicate"):
