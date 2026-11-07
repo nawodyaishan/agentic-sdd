@@ -39,34 +39,11 @@ Keep client destinations and skill selection together in `internal/skillsync`. P
 
 Run `task test`, `task vet`, and `git diff --check` after Go changes. Use a temporary home in tests. `task preview` is a useful read-only check against the local installation. Install the repository's Lefthook checks with `task hooks-install`.
 
-## Evaluation spending and credentials
 
-- Additional model calls through CLI subprocesses, SDKs, HTTP, smoke probes,
-  retries, titles or summaries are external usage, not ordinary deterministic
-  tests. Batch approval does not authorize them. Require explicit authorization
-  for the exact provider/model, data scope and bounded request/token/deadline
-  limits. A general suggestion that models are cheap/free is not a billing cap.
-- Never clone, export or seed an evaluation workspace from the primary OpenCode
-  database/auth store. Use a fresh credential-free environment for offline
-  checks; any separately authorized online fixture needs a dedicated scoped
-  evaluation credential, supplied by the user through a secret reference.
-- No paid fallback, provider probing, suffix removal from `:free`, model
-  escalation, warming or background inference. Use the exact reviewed model ID;
-  free price, tool capability and private-data eligibility are independent checks.
-  Failure or uncertainty stops the affected run.
-- Paid evaluation requires verified current prices, remaining allowance and a
-  dedicated provider-side key cap within the run/month allocation. Include all
-  requests and in-flight work. Missing/delayed usage is unknown, not zero; stop
-  rather than rely on JSON event totals or a mental estimate. Subscription usage
-  also requires limits even when it produces no per-token bill.
-- Keep provider controls/config adoption, key rotation/logout and removal of old
-  credential-bearing sandboxes user-controlled. Do not change the real home or
-  shared service while developing this adapter. See
-  `integrations/opencode/safety.md` for incident-derived controls and open actions.
 
 ## SDD feature conventions
 
-This repository has no top-level product SRS or technical specification; long-lived product strategy lives in the [vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md). A feature `spec.md` may link the vision by section where that explains intent or audience, but does not copy it or treat it as acceptance scope. Each feature lives in `specs/<nnn-slug>/` (`spec.md`, `plan.md`, `tasks.md`); see `specs/008-core-release-quality/` for the current one. The combined human approval for a feature's spec/plan/tasks is recorded once, in that feature's `spec.md` under `## Approval`. Batch state and continuation notes live in that feature's `tasks.md`. Status summaries in README, docs, handovers and feature task rows are pointers; they do not create approval or batch authorization.
+This repository has no top-level product SRS or technical specification; long-lived product strategy lives in the [vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md). Each feature lives in `specs/<nnn-slug>/` (`spec.md`, `plan.md`, `tasks.md`); see `specs/008-core-release-quality/` for the current one. A feature `spec.md` may link the vision by section where that explains intent or audience, but does not copy it or treat it as acceptance scope. The combined human approval for a feature's spec/plan/tasks is recorded once, in that feature's `spec.md` under `## Approval`. Batch state and continuation notes live in that feature's `tasks.md`. Status summaries in README, docs, handovers and feature task rows are pointers; they do not create approval or batch authorization.
 
 `preview` (default) versus `apply`/`--apply` is this repo's dev-versus-live boundary: approval to develop or test installer code never authorizes running `apply` against a real user home; only an explicit, separately authorized real-home apply does.
 
