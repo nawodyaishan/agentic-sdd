@@ -3,16 +3,16 @@
 ### Build software with AI. Stay the engineer.
 
 [![Release](https://img.shields.io/github/v/release/nawodyaishan/agentic-sdd)](https://github.com/nawodyaishan/agentic-sdd/releases/latest)
-[![CI](https://github.com/nawodyaishan/agentic-sdd/actions/workflows/ci.yml/badge.svg)](https://github.com/nawodyaishan/agentic-sdd/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/nawodyaishan/agentic-sdd/ci.yml?label=CI)](https://github.com/nawodyaishan/agentic-sdd/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **Turn an idea into changes you can understand, review, and maintain—not just code an agent generated.**
 
-Agentic SDD is an open-source toolkit of **18 engineering skills for coding agents**. It gives you a practical way to scope work, plan meaningful changes, debug failures, and verify results—with you in charge of the decisions.
+Agentic SDD is an open-source toolkit of **18 core engineering skills** plus an **opt-in OpenCode Orchestration Pack (`--with-opencode`)** for coding agents. It gives you a practical way to scope work, plan meaningful changes, delegate bounded tasks to specialized subagents, debug failures, and verify results—with you in charge of the decisions.
 
-Use it with **OpenCode, Codex, Claude Code, or Antigravity CLI**. Start with one agent. Add teaching or specialist reviews when you need them. No agent fleet or new runtime required.
+Use it with **OpenCode, Codex, Claude Code, or Antigravity CLI**. Start with one agent, or opt into multi-model specialist orchestration (`sdd-orchestrator`, OpenAI `gpt-6.1-sol` / `gpt-6.1-terra`, Claude Opus/Sonnet, Gemini Flash, DeepSeek, and Console Free models) when you want it.
 
-[Get started](#quick-start) · [See the workflow](#the-workflow) · [Read the examples](docs/getting-started.md) · [Explore the vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)
+[Quick start](#quick-start) · [Usage guide](#complete-usage-guide) · [OpenCode orchestration (`--with-opencode`)](#opencode-orchestration-pack---with-opencode) · [Full orchestration docs](docs/orchestration-guide.md) · [Installer reference](docs/installer-reference.md) · [Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)
 
 ## Why Agentic SDD?
 
@@ -23,22 +23,10 @@ Agentic SDD helps you bring that judgment into your work with AI:
 - **Agree on the outcome before the implementation.** Make requirements and important trade-offs visible instead of letting the agent guess.
 - **Keep changes reviewable.** Work in manageable batches, with a clear summary of what changed and what was checked.
 - **Skip unnecessary ceremony.** A small bug fix stays a small bug fix. Larger features get a connected specification, plan, and task list.
+- **Delegate deliberately without losing control.** One human-facing orchestrator scopes subagent tasks, checks their diffs and test results, and reports back in one consolidated summary.
 - **Learn without switching workflows.** Ask for explanations, hints, or debugging practice when a topic is unfamiliar. Teaching is optional.
-- **Pick up where you left off.** Keep decisions and progress in your repository rather than relying only on a long chat.
 
 > **Learning first when developing competence. Delegation first when applying established competence. Verification always.**
-
-## Who is it for?
-
-| If you're… | Use Agentic SDD to… |
-|---|---|
-| Building solo with a coding agent | Deliver useful changes without losing track of scope or review. |
-| A student, intern, or self-taught developer | Practice professional engineering while building something real. |
-| An experienced engineer | Delegate familiar work while keeping technical decisions and acceptance in your hands. |
-| Working in backend, platform, DevOps, or SRE | Make risks, recovery steps, and permission for live operations explicit. |
-| Maintaining open source or a small team | Give contributors and their agents a shared way to prepare and explain changes. |
-
-One methodology, not a separate process for every experience level.
 
 ## Quick start
 
@@ -57,7 +45,20 @@ Preview shows which skills would be installed or replaced. **It does not write c
 agentic-sdd apply
 ```
 
-Already installed? Run `brew upgrade nawodyaishan/tap/agentic-sdd`, then preview and apply to update your installed skills.
+**Install with the OpenCode Orchestration Pack (`--with-opencode`):**
+
+```sh
+# Preview core skills + agentic-sdd-orchestrate + 14 OpenCode v2 agent profiles
+agentic-sdd preview --with-opencode
+
+# Apply (backs up any existing managed profiles first)
+agentic-sdd apply --with-opencode
+
+# Optional: also configure routine implement/test profiles to try Free models first
+agentic-sdd apply --with-opencode --opencode-free-first
+```
+
+Already installed? Run `brew upgrade nawodyaishan/tap/agentic-sdd`, then preview and apply to update your installed skills and profiles.
 
 <details>
 <summary><strong>Linux or a source checkout</strong></summary>
@@ -68,45 +69,80 @@ With Go 1.23 or newer installed:
 git clone https://github.com/nawodyaishan/agentic-sdd.git
 cd agentic-sdd
 go run ./cmd/agentic-sdd preview
-```
-
-After reviewing the preview, install the skills:
-
-```sh
 go run ./cmd/agentic-sdd apply
+
+# Or with the OpenCode orchestration pack:
+go run ./cmd/agentic-sdd preview --with-opencode
+go run ./cmd/agentic-sdd apply --with-opencode
 ```
 
-These commands install skills into your home directory. To try a read-only preview with a disposable home first, follow the [first-five-minutes guide](docs/getting-started.md#first-five-minutes-preview-then-stop).
+To try a read-only preview with a disposable home first, pass `--home /tmp/test-home` or follow the [first-five-minutes guide](docs/getting-started.md#first-five-minutes-preview-then-stop).
 
 </details>
 
-### 2. Start in your project
+---
 
-Open your coding agent in the repository you want to work on. Ask it to load the router skill:
+## Complete usage guide
 
-> Use `agentic-sdd-router`. Help me plan a feature for this project. Inspect what's already here, ask about important decisions you can't resolve, and stop before implementation.
+### CLI commands at a glance
 
-The router helps choose the right next step. You don't need to memorize all 18 skills or invoke them in sequence.
+| Command | What it does |
+|---|---|
+| `agentic-sdd` or `agentic-sdd preview` | Preview installing/updating the 18 core skills across all 4 client directories (no files written). |
+| `agentic-sdd apply` | Back up changed existing skills, then install the 18 core skills. |
+| `agentic-sdd preview --with-opencode` | Preview installing the 18 core skills, `agentic-sdd-orchestrate`, and 14 OpenCode v2 agent profiles in `~/.config/opencode/agents/`. |
+| `agentic-sdd apply --with-opencode` | Back up any replaced skills/profiles and install the core skills + OpenCode orchestration pack. |
+| `agentic-sdd apply --with-opencode --opencode-free-first` | Above + back up and preset the 4 routine implement/test profiles (`sdd-implement-1/-2`, `sdd-test-implement-1/-2`) to use the Free-first model ladder. |
+| `agentic-sdd backups` | List all saved backups newest first (both skill directories and `opencode-agents` profiles). |
+| `agentic-sdd restore [BACKUP_ID]` | Preview restoring a backup (or select one interactively on a terminal). |
+| `agentic-sdd restore apply [BACKUP_ID]` | Back up current state and restore skills and OpenCode agent profiles from `BACKUP_ID`. |
+| `agentic-sdd logs` | Show the latest `apply` or `restore` log under `~/.agentic-sdd/logs/`. |
+| `agentic-sdd version` | Print version, commit, build date, and Go version. |
+| `agentic-sdd help orchestrate` | Show usage and flags for the OpenCode orchestration pack. |
 
-### 3. Try a real task
+All commands accept `--home PATH` (to target an isolated home directory) and `--repo PATH` (to read `skills-files/` and `opencode-pack/` from a local checkout instead of the embedded binary assets).
 
-**Fix something small**
+### Everyday prompts in your project
 
-> Use `agentic-sdd-implement` to fix this validation bug. Keep the change focused, add a regression test, and report what you checked.
+1. **Start or plan a feature (with combined human approval):**
+   > Use `agentic-sdd-router`. Inspect this repository, ask at most the consequential questions you can't resolve from the code, and draft `spec.md`, `plan.md`, and `tasks.md` for my combined approval. Stop before implementing.
+2. **Fix a small bug directly (no `specs/` paperwork):**
+   > Use `agentic-sdd-implement` to fix this nil-pointer bug. Keep the diff minimal, run the focused test suite, and report what changed.
+3. **Implement one approved batch with specialist subagents (`--with-opencode`):**
+   > I approve `spec.md`, `plan.md`, and `tasks.md`. Use `agentic-sdd-orchestrate` to implement Batch B1 with `sdd-openai-implement` (or `sdd-implement-9r-1`), then verify the diff with `sdd-review-verification-2` and stop for my review.
+4. **Run a high-depth architecture or specification review:**
+   > Use `agentic-sdd-orchestrate` to dispatch `sdd-openai-architect` (or `sdd-architecture-review-9r`) on our draft `spec.md` and `plan.md`. Reconcile its findings against the codebase and present a ranked summary.
+5. **Learn an unfamiliar concept or stress-test a design:**
+   > Use `agentic-sdd-teach` to walk me through how `internal/skillsync/restore.go` validates backup digests, or use `agentic-sdd-grilling` to challenge my migration plan.
 
-**Plan a larger change**
+For complete walkthroughs, see the [Full Usage & Orchestration Guide](docs/orchestration-guide.md) and [Getting Started Examples](docs/getting-started.md).
 
-> Use `agentic-sdd-router` to draft a spec, plan, and tasks for CSV export. Preserve the existing output format. Present the three documents together for my review; don't implement yet.
+---
 
-**Learn an unfamiliar part of your code**
+## OpenCode Orchestration Pack (`--with-opencode`)
 
-> Use `agentic-sdd-teach` to help me understand this retry loop. Ask me to reason through a failure case before showing the answer.
+When you opt into `--with-opencode`, the CLI installs **`agentic-sdd-orchestrate`** into the 4 client skill directories and places **14 OpenCode v2 agent profiles** in `~/.config/opencode/agents/`:
 
-**Get a review without edits**
+| Profile | Mode & Role | Default Model | MCP Access (`execute` + tools) |
+|---|---|---|---|
+| `sdd-orchestrator` | Primary communicator (`mode: primary`) | Active session model | Inherits session tools |
+| `sdd-openai-architect` | Read-only architecture, spec & critical decision advisor | `openai/gpt-6.1-sol` | `codegraph_*`, `context7_*`, `exa_web_search_exa`, `exa_web_fetch_exa` |
+| `sdd-openai-implement` | Authorized complex implementation, debugging & refactoring | `openai/gpt-6.1-terra` | `codegraph_*`, `context7_*` (`exa_*` denied) |
+| `sdd-architecture-advisor` | Read-only architecture & operational risk critique | `9router/ag/claude-sonnet-5-5-high` | `codegraph_*`, `context7_*`, `exa_web_search_exa`, `exa_web_fetch_exa` |
+| `sdd-debug-diagnose` | Read-only root-cause hypotheses & triage | `opencode/deepseek-v4.1-flash-free` | `codegraph_*`, `context7_*` |
+| `sdd-test-design` | Read-only test cases & negative-path design | `opencode/deepseek-v4.1-flash-free` | `codegraph_*`, `context7_*` |
+| `sdd-research-librarian` | Read-only upstream docs & API version research | `opencode/deepseek-v4.1-flash-free` | `codegraph_*`, `context7_*`, `exa_web_search_exa`, `exa_web_fetch_exa` |
+| `sdd-docs-worker` | Bounded documentation writer | `opencode/deepseek-v4.1-flash-free` | `codegraph_*`, `context7_*` |
+| `sdd-visual-inspector` | Read-only screenshot, diagram & log image inspector | `opencode/glm-5.3-flash-free` | `codegraph_*`, `context7_*` |
+| `sdd-architecture-review-9r` | Read-only Opus architecture review (backed up & updated) | `9router/ag/claude-opus-5-5-high` | `codegraph_*`, `context7_*`, `exa_web_search_exa`, `exa_web_fetch_exa` |
+| `sdd-code-review-9r` | Read-only Opus code/verification review (backed up & updated) | `9router/ag/claude-opus-5-5-high` | `codegraph_*`, `context7_*`, `exa_web_search_exa`, `exa_web_fetch_exa` |
+| `sdd-review-verification-1` | Read-only GLM verification review (backed up & updated) | `opencode-go/glm-5.3-flash` | `codegraph_*`, `context7_*` |
+| `sdd-review-verification-2` | Read-only Beam Free supplementary review (backed up & updated) | `opencode/beam-free` | `codegraph_*`, `context7_*` |
+| `sdd-lightweight` | Bounded read-only discovery (`steps: 10`, backed up & updated) | `opencode/beam-free` | `codegraph_*`, `context7_*` |
 
-> Use `agentic-sdd-verification-review` to review this diff against the requirements. Report findings only; don't change files.
+With `--opencode-free-first`, the installer also backs up and updates `sdd-implement-1`, `sdd-implement-2`, `sdd-test-implement-1`, and `sdd-test-implement-2` to start on `opencode/deepseek-v4.1-flash-free`. Your `opencode.json`, `AGENTS.md`, `sdd-spec-9r.md`, `sdd-plan-9r.md`, `sdd-implement-9r-*.md`, and `vision.md` remain untouched. See [`opencode-pack/README.md`](opencode-pack/README.md) and [`opencode-pack/routing.md`](opencode-pack/routing.md) for full details.
 
-See the [worked examples](docs/getting-started.md) for a full feature, a direct fix, and resuming work safely.
+---
 
 ## The workflow
 
@@ -122,73 +158,49 @@ For a feature that needs planning, your agent prepares three connected documents
 
 Review them together and give **one combined approval**. Then authorize one implementation batch. The agent works on that batch, runs relevant checks, explains the result, and stops for your review.
 
-You decide whether to request corrections or start the next batch. Passing tests isn't permission to keep going, and approving code isn't permission to deploy it.
-
 **For a clear, small fix:** go straight to implementation and verification. No feature paperwork required.
 
 ## What comes in the toolkit?
 
-The skills cover the engineering work around writing code—not just generating it.
-
 | What you need | Skills to reach for |
 |---|---|
-| Start or resume work | Router, bootstrap, handoff |
-| Shape a feature | Spec, plan, tasks, focused research |
-| Make and check changes | Implementation, debugging, verification review, architecture review |
-| Think through a decision | Grilling, questionnaires, plain-language clarification |
-| Learn and improve the process | Teaching, drift/retrospective, writing for agents |
+| Start, resume, or orchestrate work | `agentic-sdd-router`, `agentic-sdd-orchestrate` (`--with-opencode`), `agentic-sdd-bootstrap`, `agentic-sdd-handoff` |
+| Shape a feature | `agentic-sdd-spec`, `agentic-sdd-plan`, `agentic-sdd-tasks`, `agentic-sdd-research-spec` |
+| Make and check changes | `agentic-sdd-implement`, `agentic-sdd-debugging`, `agentic-sdd-verification-review`, `agentic-sdd-architecture-review` |
+| Think through a decision | `agentic-sdd-grilling`, `agentic-sdd-grill-me`, `agentic-sdd-questionnaire`, `agentic-sdd-wait-what` |
+| Learn and improve the process | `agentic-sdd-teach`, `agentic-sdd-drift-retro`, `agentic-sdd-writing-for-agents` |
 
-Browse the [18 skills and their instructions](skills-files/). The helpers include adaptations of [Matt Pocock's productivity principles](skills-files/agentic-sdd-router/references/matt-pocock-notice.md).
+Browse the [18 core skills](skills-files/) and the [opt-in OpenCode orchestration pack](opencode-pack/). The helpers include adaptations of [Matt Pocock's productivity principles](skills-files/agentic-sdd-router/references/matt-pocock-notice.md).
 
-## Where the skills go
+## Where the files go
 
-The installer copies the same toolkit to all four destinations:
-
-| Client | Skill directory |
-|---|---|
-| OpenCode and shared agents | `~/.agents/skills` |
-| Codex | `~/.codex/skills` |
-| Claude Code | `~/.claude/skills` |
-| Antigravity CLI | `~/.gemini/antigravity-cli/skills` |
-
-Only `agentic-sdd-*` skills are managed; unrelated skills are left alone. Client discovery and invocation can differ—portable instructions don't guarantee identical behavior across every client or model.
+| Target | Path | Managed by |
+|---|---|---|
+| OpenCode and shared agents | `~/.agents/skills` | Default & `--with-opencode` |
+| Codex | `~/.codex/skills` | Default & `--with-opencode` |
+| Claude Code | `~/.claude/skills` | Default & `--with-opencode` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/skills` | Default & `--with-opencode` |
+| OpenCode v2 agent profiles | `~/.config/opencode/agents/*.md` | `--with-opencode` (`--opencode-free-first`) only |
 
 ## Safety model
 
-The installer **previews by default**, backs up existing skills before replacing them, and provides a preview-first restore command. Repeating an apply with unchanged skill content leaves those skills alone. It rejects symlinks and special files in managed skill trees.
+The installer **previews by default**, backs up existing skills and `.md` agent profiles with SHA-256 digests before replacing them, stages updates atomically, and provides a preview-first `restore` command. Repeating an `apply` with unchanged content is a clean no-op. It rejects symlinks and special files in managed targets.
 
 ```sh
-agentic-sdd backups             # list saved installations
-agentic-sdd restore BACKUP_ID   # preview a restore
+agentic-sdd backups                   # list saved installations
+agentic-sdd restore BACKUP_ID         # preview a restore
+agentic-sdd restore apply BACKUP_ID   # restore skills and OpenCode agent profiles
 ```
 
-To carry out a reviewed restore, use `agentic-sdd restore apply BACKUP_ID`.
-
-Backups recover skill content, not exact original permissions or ownership. For flags, storage locations, permission behavior, and recovery details, see the [installer reference](docs/installer-reference.md).
-
-**The workflow is guidance, not a security sandbox.** Your agent client's permissions, execution environment, and your review remain important. No prompt can guarantee correct code, prevent every unwanted action, or enforce a spending limit.
-
-## Support and release scope
-
-- **Available today:** 18 portable skills, the preview-first installer, backups, and restore. No premium model or multiple subagents are required by the workflow; your chosen agent still needs its own setup.
-- **Distribution:** macOS universal binary through Homebrew or [GitHub Releases](https://github.com/nawodyaishan/agentic-sdd/releases/latest); Go source usage on Linux. Linux CI and isolated installer tests provide execution coverage. Native macOS/Homebrew runtime testing remains unobserved; Windows runtime support is not claimed.
-- **Not part of the default product:** autonomous orchestration, automatic model routing, or native independent-review execution. Experimental OpenCode runtime tooling is separate and disabled in the default CLI; you do **not** need it to use the portable skills with OpenCode. See [integration limits](integrations/opencode/usage.md).
-
-We don't promise zero hallucinations, guaranteed cost savings, or identical results across models. The goal is a clearer engineering process and evidence you can inspect.
+**The workflow is guidance, not an OS security sandbox.** Your agent client's permissions, execution environment, and your review remain essential.
 
 ## Explore further
 
+- **[Full Usage & Orchestration Guide](docs/orchestration-guide.md)** — complete CLI, orchestration, OpenAI/Claude/Gemini/DeepSeek specialist, and MCP usage guide.
 - **[Getting started](docs/getting-started.md)** — first-use walkthrough and worked examples.
-- **[Installer reference](docs/installer-reference.md)** — commands, backups, restore, and file behavior.
-- **[Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)** — why the project exists and where it could go.
-- **[Documentation](docs/README.md)** — guides and technical background.
-- **[Contributing](CONTRIBUTING.md)** — development setup, tests, and how to propose improvements.
-- **[Check runner](harness/README.md)** — source-only verification tooling for contributors.
-
-## Help make it better
-
-Tried it on a real project? Tell us where it helped—and where it got in your way. Bug reports, clearer examples, skill improvements, and tests are welcome.
-
-[Open an issue](https://github.com/nawodyaishan/agentic-sdd/issues) or read the [contribution guide](CONTRIBUTING.md). For security concerns, follow the [reporting guidance](CONTRIBUTING.md#reporting-bugs-and-security-concerns); don't post credentials or private project details publicly.
+- **[Installer reference](docs/installer-reference.md)** — commands, Format 2/3 backups, restore, and file behavior.
+- **[OpenCode pack reference](opencode-pack/README.md)** & **[Model routing policy](opencode-pack/routing.md)** — specialist profiles, permissions, and fallback ladders.
+- **[Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)** — why the project exists and where it is headed.
+- **[Documentation index](docs/README.md)** & **[Contributing](CONTRIBUTING.md)**.
 
 Open source under the [MIT License](LICENSE).

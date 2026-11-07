@@ -13,6 +13,7 @@ The `agentic-sdd` CLI installs the portable skill toolkit. It does not run your 
 | `agentic-sdd backups` | List backups newest first, including their ID, operation, source, and contents. |
 | `agentic-sdd restore BACKUP_ID` | Preview what restoring the selected backup would change. |
 | `agentic-sdd restore apply BACKUP_ID` | Back up the affected current skills, then restore the selected backup. |
+| `agentic-sdd help orchestrate` | Show usage for opt-in OpenCode orchestration options. |
 | `agentic-sdd --help` | Show commands, flags, and defaults. |
 
 `restore preview BACKUP_ID` is another preview form; `restore BACKUP_ID --apply` is another writing form. With no backup ID on a terminal, restore lists available backups and offers interactive selection. Writing through interactive selection asks for confirmation.
@@ -30,12 +31,16 @@ agentic-sdd preview --home /path/to/disposable-home
 | `--home PATH` | Select the home directory containing the four client skill destinations; defaults to your home. |
 | `--repo PATH` | Read skills from a checkout containing `skills-files/` instead of the skills embedded in the binary. Also selects the checkout's `backups/` directory for backups. |
 | `--apply` | Legacy flag-only installation form, or a writing flag for restore. Do not combine flag-only installation with a named command. |
+| `--with-opencode` | Opt-in flag: install `agentic-sdd-orchestrate` across the four client skill directories and install/update OpenCode v2 agent profiles under `<home>/.config/opencode/agents/`. |
+| `--opencode-free-first` | Opt-in preset flag: preset OpenCode writer and test profiles to prefer free models first (requires `--with-opencode`). |
 
 The binary embeds the skills, so ordinary installed-binary use needs no repository checkout. Editing a checkout does not update skills already installed in your home; review a preview and explicitly apply when you want that update.
 
 ## Destinations and managed files
 
 Every install targets all four directories listed in [Where the skills go](../README.md#where-the-skills-go). The installer manages only `agentic-sdd-*` directories and copies each complete directory, including `SKILL.md` and supporting references. Unrelated skills are left untouched.
+
+When `--with-opencode` is passed, the installer also installs `agentic-sdd-orchestrate` across all four client skill directories (never in `~/.config/opencode/skills`) and manages the 14 OpenCode v2 agent profiles under `<home>/.config/opencode/agents/` (`sdd-orchestrator.md`, the six task specialists, the two optional OpenAI specialists `sdd-openai-architect.md` and `sdd-openai-implement.md`, and the five MCP-updated review/discovery profiles; derived strictly from `--home`). Staged `.md` agent files use `.agentic-sdd-stage-*` temporary files (never ending in `.md`) with mode `0644`.
 
 Before writing, it rejects symlinks, special files, conflicting non-directory path components, and source skills without a regular `SKILL.md`. It also refuses a source with no matching skills.
 
@@ -54,7 +59,7 @@ Backups are stored under:
 - `<home>/.agentic-sdd/backups/` when using embedded skills.
 - `<repo>/backups/` when `--repo` selects a checkout.
 
-Each backup has a UTC timestamp ID, saved skill trees where applicable, and a `manifest.json`. The manifest records the operation, tool metadata, home, backup root, and per-skill entries: `replaced` with a saved copy and digest, or `installed` when there was no previous copy to save. Restore records the source backup ID as well.
+Each backup has a UTC timestamp ID, saved skill trees where applicable, and a `manifest.json`. The manifest records the operation, tool metadata, home, backup root, and per-skill entries: `replaced` with a saved copy and digest, or `installed` when there was no previous copy to save. Restore records the source backup ID as well. When `--with-opencode` is used, backups record Format 3 manifests with `opencode_targets` and `kind: "opencode-agent"` for individual agent files, using dedicated single-file SHA-256 digests (`fileDigest`). Restore handles Format 3 backups automatically without requiring extra flags.
 
 Backup data is complete before replacement begins. Each new skill tree is staged beside its destination, then installed by rename. If installation fails partway, rollback restores changes already made and leaves the backup for recovery.
 

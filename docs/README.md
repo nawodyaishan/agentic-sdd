@@ -16,8 +16,15 @@ specifications, evidence and handovers continue to work.
 
 - [Getting started](getting-started.md) — safe preview and three compact core
   experiences: direct fix, one approved feature batch, and review/resume.
+- [Full usage and orchestration guide](orchestration-guide.md) — complete guide
+  to core skills, `--with-opencode`, `--opencode-free-first`, OpenAI/Claude/Gemini/DeepSeek
+  specialist subagents, MCP tools (`codegraph`, `context7`, `exa`), and backup/restore.
 - [Installer reference](installer-reference.md) — commands, flags, backups,
   restore, file permissions, and logs.
+- [Feature 009 spec](../specs/009-opencode-orchestration/spec.md),
+  [plan](../specs/009-opencode-orchestration/plan.md), and
+  [tasks](../specs/009-opencode-orchestration/tasks.md) — optional OpenCode
+  orchestration pack (`opencode-pack/`), delegation skill, and model routing.
 - [Public support and release scope](../README.md#support-and-release-scope) —
   portable skills, installer, source-only checks and unsupported native experiments.
 - [Feature 008 approval](../specs/008-core-release-quality/spec.md#approval),

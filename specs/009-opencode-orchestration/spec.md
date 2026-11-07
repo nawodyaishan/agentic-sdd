@@ -1,8 +1,8 @@
 # Feature 009 — Optional OpenCode Orchestration, Delegation Skill, Model Routing & Context Efficiency
 
-**Status:** DRAFT v6 — updated with Claude Opus 5.5 architecture review & owner decisions (1–10); awaiting combined spec/plan/tasks approval  
-**Revision date:** 2026-11-07  
-**Canonical path:** `specs/009-opencode-orchestration/spec.md`  
+**Status:** Approved v6 (2026-11-07) — Batches B1 and B2 implemented and verified; awaiting human review
+**Revision date:** 2026-11-07
+**Canonical path:** `specs/009-opencode-orchestration/spec.md`
 **Primary update:** Incorporates `specs/009-opencode-orchestration/refrences/opencode-fleet-consolidated-report.md` (2026-11-07), owner decisions D1–D6 (2026-11-06), `sdd-architecture-review-9r` findings (H1–H5, M1–M9, L1–L5) with owner approvals 1–10 (2026-11-07), Exa-verified OpenCode v2 permission/Code Mode rules (`execute` + `codegraph_*` + `context7_*` + `exa_web_search_exa`/`exa_web_fetch_exa`), dedicated `opencode-pack/` directory separated from legacy 005/006/007 `integrations/opencode/`, user-friendly Go CLI flags (`--with-opencode`, `--opencode-free-first`), and strictly lean Go-CLI-only verification (8 isolated-home Go CLI tests; no skills runtime checks or broad QA suites).
 
 > **Authority notice:** Owner decisions authorize this *specification design*, not changes to the real global `~/.config/opencode` installation; model inference; credentials or spending; native reviewer activation; release publication; or any implementation batch. Existing Agentic-SDD spec → plan → tasks, combined human approval, one authorized implementation batch, and stop-for-review rules govern Feature 009.
@@ -102,6 +102,8 @@ agentic-sdd backups / restore [ID] [--apply]      -> Lists and restores both ski
 | `sdd-docs-worker.md` | Additive (new) | `opencode/deepseek-v4.1-flash-free` (alt: `opencode-go/deepseek-v4.1-flash`, `9router/ag/gemini-3.8-flash-high`) | Writer; allows `read` (except `.env*`), `edit`, `glob`, `grep`, `skill`, `execute`, `codegraph_*`, `context7_*`; explicitly denies `subagent`, `shell`, `exa_*` |
 | `sdd-architecture-advisor.md` | Additive (new) | `9router/ag/claude-sonnet-5-5-high` (fallback: `9router/ag/gemini-4-argon-high` → `opencode-go/deepseek-v4.1-flash#max`) | Deny-by-default; allows `read` (except `.env*`), `glob`, `grep`, `skill`, `execute`, `codegraph_*`, `context7_*`, `exa_web_search_exa`, `exa_web_fetch_exa`; denies `subagent`, `shell`, `edit` |
 | `sdd-visual-inspector.md` | Additive (new) | `opencode/glm-5.3-flash-free` (fallback: `opencode-go/glm-5.3-flash`) | Deny-by-default; allows `read` (except `.env*`), `glob`, `grep`, `execute`, `codegraph_*`, `context7_*`; denies `subagent`, `shell`, `edit`, `exa_*` |
+| `sdd-openai-architect.md` | Additive (new) | `openai/gpt-6.1-sol` (verified from OpenCode model catalogue; stop on missing access/unauthorized spend) | Read-only advisory (`mode: subagent`); deny-by-default; allows `read` (except `.env*`), `glob`, `grep`, `skill`, `execute`, `codegraph_*`, `context7_*`, `exa_web_search_exa`, `exa_web_fetch_exa`, `external_directory`, `git diff`, `git status --short`; denies `subagent`, `edit` |
+| `sdd-openai-implement.md` | Additive (new) | `openai/gpt-6.1-terra` (verified from OpenCode model catalogue; stop on missing access/unauthorized spend) | Authorized batch writer (`mode: subagent`); allows `edit`, `execute`, `codegraph_*`, `context7_*`; denies `.env*` reads, `subagent`, `exa_*` |
 | `sdd-architecture-review-9r.md` | Updated (Option B, backed up) | `9router/ag/claude-opus-5-5-high` (preserved) | Deny-by-default; preserves `read`/`glob`/`grep`/`skill`/`external_directory`/`git diff`/`git status --short` + adds `execute`, `codegraph_*`, `context7_*`, `exa_web_search_exa`, `exa_web_fetch_exa`; denies `subagent`, `edit` |
 | `sdd-code-review-9r.md` | Updated (Option B, backed up) | `9router/ag/claude-opus-5-5-high` (preserved) | Same permissions as `sdd-architecture-review-9r.md` |
 | `sdd-review-verification-1.md` | Updated (Option B, backed up) | `opencode-go/glm-5.3-flash` (preserved) | Same as above but without `exa_*` (explicitly denies `exa_*`, `subagent`, `edit`) |
@@ -109,6 +111,20 @@ agentic-sdd backups / restore [ID] [--apply]      -> Lists and restores both ski
 | `sdd-lightweight.md` | Updated (Option B, backed up) | `opencode/beam-free`, `steps: 10` (preserved) | Preserves `.env*`/`*secret*`/`*credential*` denies + adds `execute`, `codegraph_*`, `context7_*`; denies `subagent`, `shell`, `edit`, `exa_*` |
 
 All Exa-enabled profiles include a prompt rule prohibiting private repository code, secrets, or internal identifiers in external search queries.
+
+### FR-05 — Optional OpenAI specialist subagents (`sdd-openai-architect`, `sdd-openai-implement`)
+
+Add two optional OpenAI-powered subagents to the Feature 009 orchestration fleet using verified provider-qualified model IDs from the connected OpenCode v2.2.5 catalogue (`opencode models`):
+
+| Subagent | Verified model ID | Responsibility |
+|---|---|---|
+| `sdd-openai-architect` | `openai/gpt-6.1-sol` | Architecture review, specification review, complex reasoning, critical technical decisions, and high-impact engineering analysis |
+| `sdd-openai-implement` | `openai/gpt-6.1-terra` | Complex feature implementation, difficult debugging, refactoring, and implementation of approved engineering tasks |
+
+1. Both subagents are available for explicit selection and delegation by the main orchestrator when installed via `--with-opencode`.
+2. `sdd-openai-architect` operates strictly in **read-only advisory mode** (`edit` and `subagent` denied), reviewing specifications, architecture, implementation plans, and technical risks without modifying files or authorizing work.
+3. `sdd-openai-implement` may modify files and run relevant tests only within an explicitly authorized implementation batch.
+4. Missing model access or unauthorized spending results in a clear stop (`blocked`) rather than silent cross-provider fallback, and neither subagent replaces existing Free-first or OpenCode Go routing.
 
 ### FR-03 — Opt-in Free-first writer/test preset (`--opencode-free-first`)
 
@@ -218,8 +234,10 @@ All architectural review items (1–10) are settled by owner decision:
 
 ## 11. Approval
 
-- **Combined `spec.md`/`plan.md`/`tasks.md` approval:** Pending (drafting `plan.md` and `tasks.md` next for combined approval).
+- **Combined `spec.md`/`plan.md`/`tasks.md` approval:** **Approved (2026-11-07)** for `spec.md` (v6), `plan.md` (r1), and `tasks.md` (r1).
+- **Approver:** The repository owner in this conversation.
+- **Decision evidence (2026-11-07):** After `spec.md` (v6), `plan.md` (r1), and `tasks.md` (r1) were presented for combined approval, the owner instructed: *"start implementation both batches using 9r gemini flash implement agent and opencode free implement agent / grant both implementation agents use of codegraph and context7 / thenverify implementation using free agent"*.
+- **Authorized implementation batches:** Both `B1` (`T01`, `T02`) and `B2` (`T03`, `T04`, `T05`), delegated to `sdd-implement-9r-1` (9Router Gemini Flash) and `sdd-implement-free-1` / `sdd-implement-free-2` (OpenCode Console Free) with `codegraph` and `context7` MCP access enabled, followed by verification review using `sdd-review-verification-2` (Beam Free).
 - **Owner spec & architecture decisions (2026-11-07):** Owner approved items 1–10 from the `sdd-architecture-review-9r` review, including Option B for MCP profile updates, dedicated `opencode-pack/` directory separated from 005/006/007 harness, pinned specialist models, and the 8 Go-CLI-only verification checks.
-- **Implementation batch authorization:** None yet.
-- **Global OpenCode configuration changes (`~/.config/opencode`):** None authorized.
-- **Release publication:** None authorized.
+- **Global OpenCode configuration changes (`~/.config/opencode`):** Only the explicitly requested `codegraph` and `context7` permission grant for the delegated implementation agents if needed; no `agentic-sdd apply` against the real home.
+- **Release publication:** Authorized (2026-11-07): after accepting Batches `B1` and `B2`, the owner authorized adding `sdd-openai-architect` (`openai/gpt-6.1-sol`) and `sdd-openai-implement` (`openai/gpt-6.1-terra`), updating `README.md` with a complete usage guide (`docs/orchestration-guide.md`), updating the GitHub repository About section and topics, and committing, pushing, and tagging the next release (`v0.6.0`).
