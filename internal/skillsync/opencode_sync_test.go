@@ -110,13 +110,16 @@ func TestApplyWithOpenCodeAdditive(t *testing.T) {
 		if err != nil || !info.IsDir() {
 			t.Fatalf("agentic-sdd-orchestrate missing in %s", target.name)
 		}
+		if info.Mode().Perm() != 0755 {
+			t.Fatalf("agentic-sdd-orchestrate dir mode is %o, want 0755", info.Mode().Perm())
+		}
 		skillMD := filepath.Join(orchDir, "SKILL.md")
 		mdInfo, err := os.Stat(skillMD)
 		if err != nil || !mdInfo.Mode().IsRegular() {
 			t.Fatalf("SKILL.md missing or non-regular in %s", orchDir)
 		}
-		if mdInfo.Mode().Perm() != 0644 {
-			t.Fatalf("SKILL.md mode is %o, want 0644", mdInfo.Mode().Perm())
+		if perm := mdInfo.Mode().Perm(); perm != 0644 && perm != 0600 {
+			t.Fatalf("SKILL.md mode is %o, want 0644 (or 0600 under umask 077)", perm)
 		}
 	}
 
