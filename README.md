@@ -26,7 +26,7 @@ Building from source? See [Quick start](#quick-start). Have feedback or want to 
 Two things live here:
 
 - [`skills-files/`](skills-files/) — eighteen skills for the workflow and focused human-input helpers. This is the product.
-- `cmd/` + `internal/` — the safe skill installer, deterministic check runner and inactive OpenCode configuration helper. None is a new agent orchestration engine.
+- `cmd/` + `internal/` — the safe skill installer and deterministic check runner (with experimental OpenCode configuration helpers compiled out of default release builds). None is a new agent orchestration engine.
 
 ### Highlights
 
@@ -34,7 +34,7 @@ Two things live here:
 - **18 portable skills:** plan, implement, debug, review, hand off, teach, and ask better questions without requiring agent delegation.
 - **Safe installation:** preview changes, back up replaced skills, restore when needed, and leave unrelated skills alone.
 - **Deterministic checks:** run repository checks and retain bounded evidence without a model or provider key. See [the check runner](harness/README.md).
-- **Experimental OpenCode tools:** inspect inactive configuration candidates, prepare sessions, and work with offline evidence. Native execution remains blocked pending independent safety controls; see [usage and limits](integrations/opencode/usage.md).
+- **Experimental OpenCode tools:** opt-in tools (`-tags agentic_sdd_experimental`) to inspect inactive configuration candidates, prepare sessions, and work with offline evidence. Compiled out of default builds (exit 2 unavailable); native execution remains blocked pending independent safety controls; see [usage and limits](integrations/opencode/usage.md).
 - **Container-based testing:** an isolated, model-free test cycle and opt-in online setup are documented in the [human test guide](docs/vnext-human-test-guide.md).
 
 ## Support and release scope
@@ -46,10 +46,10 @@ distribution boundaries; it does **not** certify a new release candidate.
 | Surface | Distribution / platform | Support boundary and evidence limits |
 |---|---|---|
 | 18 portable skills and linked references | Canonical `skills-files/`, embedded in the installer; four [client destinations](#where-the-skills-go) | Human-led guidance, direct fixes, optional teaching and explicitly requested reviews. Cross-client discovery does not establish cross-client behavioral equivalence or model reliability. |
-| Skill installer, backups and restore | Configured macOS universal/Homebrew release; Go source usage on Linux | Preview-first installation, backup and staged replacement/restore; tests use isolated homes. New-candidate packaging and native macOS/Homebrew first use still require fresh evidence. See [CLI reference](#cli-reference). |
+| Skill installer, backups and restore | Configured macOS universal/Homebrew release; Go source usage on Linux | Preview-first installation, backup and staged replacement/restore; tests use isolated homes. Darwin universal packaging integrity is cross-compiled and snapshot-verified; Linux CI runner / isolated Linux first-use evidence is sufficient for candidate qualification, while native macOS/Homebrew runtime execution remains unobserved. See [CLI reference](#cli-reference). |
 | `sdd-check` and check/evidence contracts | **source-only** executable, not a Homebrew/release binary; Linux process behavior has focused coverage | Deterministic checks and bounded evidence, not agent approval or a sandbox. Darwin cross-builds do not establish native macOS execution/cancellation guarantees. See [runner limits](harness/README.md#b4-runner-usage-and-limitations). |
 | Trusted CI | Reviewed-base bootstrap and isolated Linux candidate execution | The six required checks are not the complete release-QA matrix. Candidate scripts/Taskfiles must not run on the privileged host. Task-based hosted outcomes and fork/PR paths need their own observations; direct adoption did not pass the old-base PR gate. See [trusted CI](harness/trusted-ci.md). |
-| OpenCode runtime integration and inactive examples | Experimental repository material plus CLI helper commands | Offline preparation/config/evidence commands are not native execution certification. Native ACP admission remains blocked while its required controls are unverified; no automatic model routing or billing firewall. See [usage and limits](integrations/opencode/usage.md). |
+| OpenCode runtime integration and inactive examples | Experimental repository material (opt-in CLI helper compiled out of default builds) | Offline preparation/config/evidence commands are not native execution certification. In default builds, the CLI helper is inactive (exit 2); experimental tasks live in `Taskfile.experimental.yml`. Native ACP admission remains blocked while its required controls are unverified; no automatic model routing or billing firewall. Portable OpenCode skill installation remains core. See [usage and limits](integrations/opencode/usage.md). |
 | Native independent reviewer | **Unsupported** for generic checkout path isolation | **IR-06-01:** an allowed symlink escaped the intended exclusion. Feature 006 B4 is deferred/incomplete; the proposed C2 sanitized export is not certified. Do not launch this route from an example or earlier permission. See [observed failure](integrations/opencode/independent-review.md#actual-tool-dispatch-observations--5-november-2026). |
 
 Static instruction/fixture checks are not observed model compliance. Budget-model
@@ -161,9 +161,13 @@ feature 005's user-reported human cycle was accepted for the pinned QA image.
 
 ### Inactive OpenCode configuration helper
 
-`agentic-sdd opencode --help` describes file-only candidate/preflight, config
-preview/apply/rollback, the narrow `session` group and the offline `evidence`
-receipt consumer; see [usage and safety limits](integrations/opencode/usage.md).
+The experimental `opencode` CLI helper is compiled out of default release and core
+builds (`!agentic_sdd_experimental`); invoking `agentic-sdd opencode` returns exit 2
+(`unavailable in this build`). Its task lives in the separated, non-default
+`Taskfile.experimental.yml` (`task --taskfile Taskfile.experimental.yml opencode-help`).
+When compiled with the opt-in `-tags agentic_sdd_experimental` flag, `agentic-sdd opencode --help`
+describes file-only candidate/preflight, config preview/apply/rollback, the narrow `session`
+group and the offline `evidence` receipt consumer; see [usage and safety limits](integrations/opencode/usage.md).
 No native model, shared service or credential store is accessed. Config preview
 is the default, and explicit config writes need separate actual live
 authorization. `session prepare` is offline; `session run` is a
@@ -177,6 +181,8 @@ review. Current support remains uncertified; the
 [step-by-step test guide](docs/vnext-human-test-guide.md) describe that cycle;
 individual scenario outcomes remain unspecified. See the
 [remaining-work guide](docs/vnext-remaining-work-guide.md) for validation limits.
+Note that portable OpenCode skill installation (`~/.agents/skills`) remains part of
+the supported core installer regardless of whether the experimental CLI helper is compiled in.
 
 Invoke the relevant skill through your client, then give it a concrete request:
 
@@ -203,21 +209,18 @@ The Homebrew release provides a macOS universal binary. The published binary emb
 
 Requires **Go 1.23+**. The commands below use [Go Task](https://taskfile.dev/) (tested with 3.54.0); `make` targets have been replaced by `task` commands.
 
-For current Feature 008 work, select `test-core`/`vet-core` under the
-[temporary exclusion fence](AGENTS.md#temporary-008-validation-scope). The aggregate
-commands remain listed for their normal contract, but must be reported not_run/blocked
-when that fence prevents running them; a scoped pass is not an aggregate pass.
+Default `task test` and `task vet` run the 7 supported-core Go packages (`.`, `./internal/version`, `./internal/skillsync`, `./internal/harnesscheck`, `./internal/harnessevidence`, `./cmd/agentic-sdd`, `./cmd/sdd-check`), while `task test-core` and `task vet-core` are retained as parity-enforced aliases (`sh tests/supported-core-go.sh test|vet`). Experimental tasks are separated into `Taskfile.experimental.yml` and are not part of default task discovery or dependencies.
 
 ```sh
-task help           # list every command
+task help           # list default core commands
 task preview        # show what would change; writes nothing
 task docker-e2e     # exercise preview and apply in an isolated container
 task apply          # back up existing skills, then install
 task logs           # show the latest apply or restore log
-task test           # run the safety and behavior tests
-task vet            # run go vet
-task test-core      # scoped supported-core tests; not the required aggregate gate
-task vet-core       # scoped supported-core vet; not the required aggregate gate
+task test           # run supported-core Go tests (7 packages)
+task vet            # run go vet on supported-core Go packages
+task test-core      # parity-enforced core test alias
+task vet-core       # parity-enforced core vet alias
 task hooks-install  # install the Lefthook pre-commit hook
 ```
 
@@ -234,6 +237,8 @@ Before applying to your real home, `task docker-e2e` builds and exercises the CL
 
 ## CLI reference
 
+Default CLI commands are `preview`, `apply`, `backups`, `logs`, `restore`, `help`, `version`. The experimental `opencode` helper is compiled out of default builds (`!agentic_sdd_experimental`) and returns exit 2 (`unavailable in this build`); its task lives in `Taskfile.experimental.yml`.
+
 | Invocation | Behavior |
 | :--- | :--- |
 | `agentic-sdd` / `agentic-sdd preview` | Print one line per skill per client — `install`, `replace + back up`, or `up to date` — then stop without writing. |
@@ -243,7 +248,7 @@ Before applying to your real home, `task docker-e2e` builds and exercises the CL
 | `agentic-sdd backups` | List backups newest first: id, time, operation, tool version, source, and what each holds. Read-only. |
 | `agentic-sdd restore [ID]` / `restore preview [ID]` | Show what restoring backup `ID` would change, without writing. With no `ID` on a terminal, list backups and prompt for a number. |
 | `agentic-sdd restore ID --apply` / `restore apply ID` | Restore backup `ID`: back up whatever it's about to change into a new backup, then install the saved skills and remove any it freshly installed. Interactive selection asks `[y/N]` before writing. |
-| `agentic-sdd help [preview\|apply\|backups\|logs\|restore]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
+| `agentic-sdd help [preview\|apply\|backups\|logs\|restore\|version]` | Show commands, flags, and defaults. `--help` and `-h` work too. |
 
 | Flag | Meaning |
 | :--- | :--- |
@@ -255,7 +260,7 @@ Put flags after the command: `agentic-sdd preview --home /tmp/test-home`. Older 
 
 Every `apply` and writing `restore` creates a timestamped, private text log under `<home>/.agentic-sdd/logs/`, including its actions, result, and any error. The same action lines still appear on the terminal. `agentic-sdd logs` (or `task logs`) prints the latest log; use `--home PATH` to inspect an isolated home. Preview remains read-only and creates no log. Logs use the home directory even when `--repo` selects a repository backup location.
 
-Exit codes: **0** success, a completed preview or cancel, **2** unknown command, bad flag, stray argument, a malformed backup id, or `--apply` combined with a command, **1** filesystem, logging, or sync failure, a backup that fails validation (home mismatch, digest mismatch, missing), or a not-found id. Usage errors and failures go to stderr; action output goes to stdout. A preview that lists replacements is a success — it just didn't install them.
+Exit codes: **0** success, a completed preview or cancel, **2** unknown command, bad flag, stray argument, a malformed backup id, `--apply` combined with a command, or attempting an unavailable experimental command (`opencode` in default builds), **1** filesystem, logging, or sync failure, a backup that fails validation (home mismatch, digest mismatch, missing), or a not-found id. Usage errors and failures go to stderr; action output goes to stdout. A preview that lists replacements is a success — it just didn't install them.
 
 ## Where the skills go
 

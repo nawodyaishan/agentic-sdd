@@ -1,10 +1,10 @@
 # Feature 008 — Core Product Quality, Repository Maintainability & Release Readiness
 
-**Status:** Core-first amendment drafted for combined review; prior approvals/delivery preserved; no new implementation authorized
+**Status:** Core-first amendment approved; macOS native runtime requirement dropped in favor of Linux CI / isolated Linux runner sufficiency; commit and push authorized; tagging/releasing and trusted-reference designation remain separate decisions
 
 **Date:** 2026-11-05
 
-**Revision:** r2 draft, 2026-11-06 — Option 1 plus minimum Option 2; review with plan/tasks r4. Historical r1 approval remains scoped to its recorded revisions.
+**Revision:** r2 approved, 2026-11-07 — Option 1 plus minimum Option 2; amended 2026-11-07 for exact core contract approval, commit/push authorization, GoReleaser snapshot, and Linux CI runner evidence sufficiency for AC-14/T10. Historical r1 approval and B1–B3 delivery remain scoped to their recorded revisions.
 
 **Proposed repository path:** `specs/008-core-release-quality/spec.md`
 
@@ -12,7 +12,7 @@
 
 **Next release:** Undecided `v0.x` version, subject to review and verification
 
-**Authority:** [Approval](#approval) preserves prior batch/commit decisions and records the owner's selection of the core-first direction and authorization to revise these documents. This amendment does not start B4a/B4b/B4c/B5 or authorize CI/runtime changes, a commit, push, real-home apply or publication.
+**Authority:** [Approval](#approval) preserves prior batch/commit decisions and records the owner's combined approval of spec r2/plan r4/tasks r4, execution of B4a–B5, approval of the exact core contract, authorization of commit and push, authorization of GoReleaser install/snapshot, and the amendment dropping native macOS/Homebrew runtime evidence as a release qualification requirement (Linux CI runner / isolated Linux evidence sufficiency). Tagging, release publication, and trusted reference designation (G-008-01) remain separate decisions.
 
 ## 1. Product vision and outcome
 
@@ -136,7 +136,7 @@ Default core binaries must not activate experimental OpenCode operations, load t
 | **AC-11** | A release verification matrix records exact suite, command, environment, candidate identity, result and whether CI/manual/not-run. Critical changed surfaces have fresh, relevant evidence; exceptions are explicit. |
 | **AC-12** | Trusted CI invariants and negative/anti-weakening checks still hold; no candidate-controlled code is executed in a privileged trusted-base context. |
 | **AC-13** | First-use installation and all three worked examples are repeatable with documented prerequisites and correct human stop points. Teaching remains opt-in. |
-| **AC-14** | Release-candidate packaging, CLI metadata, macOS/Homebrew route, source-only tooling and distribution claims are verified for the **same exact candidate**. |
+| **AC-14** | Release-candidate packaging, CLI metadata, Linux CI / isolated Linux first-run smoke, Darwin cross-build/package integrity, source-only tooling and distribution claims are verified for the **same exact candidate**; Linux CI runner / isolated Linux execution evidence is sufficient for candidate release qualification, while native macOS/Homebrew runtime execution remains unobserved (not pass). |
 | **AC-15** | Model scenario `not_run` statuses and unmeasured cost/quality claims remain honest; evidence types are not conflated. |
 | **AC-16** | Release report records exact commit/tree, known blockers, nonblocking experimental findings, supported compatibility scope, verification evidence, version recommendation, draft release notes and a reasoned **go/no-go**. |
 | **AC-17** | Compatibility-sensitive changes are classified and have migration notes or are excluded; no automatic `v1.0.0` promise is made. |
@@ -151,7 +151,7 @@ Default core binaries must not activate experimental OpenCode operations, load t
 
 **Release-blocking for the promised core:** broken or incomplete packaged skills, unsafe installer/restore regressions, materially misleading support claims, missing fresh verification of changed release-critical behavior, compromised reviewed-base CI boundaries, invalid release artifact/version metadata, or contradictory live-looking approval/continuation guidance with security impact.
 
-**May remain open if prominently excluded:** IR-06-01 and 006 B4 generic native reviewer; disabled native ACP admission; unresolved hosted token/billing or compaction questions; budget-model comparative metrics; cross-client behavior equivalence; native macOS runner; unproven divergent fork/PR route. A known critical defect in a shipped supported surface **cannot** be reclassified as experimental merely to obtain green status.
+**May remain open if prominently excluded:** IR-06-01 and 006 B4 generic native reviewer; disabled native ACP admission; unresolved hosted token/billing or compaction questions; budget-model comparative metrics; cross-client behavior equivalence; native macOS runner and native Homebrew runtime execution (per 2026-11-07 amendment, Linux CI runner / isolated Linux evidence is sufficient for candidate release qualification; Darwin cross-compilation and package integrity remain required, while native macOS execution remains unobserved, not pass; Linux local QA is NOT hosted CI observation); unproven divergent fork/PR route. A known critical defect in a shipped supported surface **cannot** be reclassified as experimental merely to obtain green status.
 
 **Not a release gate:** cosmetic reorganization; learner adoption metrics; adding autonomous agents; completion of all historical feature 004/006 research. No finding may be silently waived; accepted residual risk must have a named scope and human decision.
 
@@ -210,10 +210,10 @@ At feature completion, provide a bounded change summary, user-facing before/afte
 
 This is section 12 and the sole combined-approval record for [spec r1](spec.md), [plan r1](plan.md) and [tasks r1](tasks.md).
 
-**Amendment checkpoint:** spec r2 + plan r4 + tasks r4 are drafts pending one combined review of the affected changes. Prior approval and B1–B3 execution/evidence remain historical authority for their actual scope; they do not authorize the new unstarted batches.
+**Amendment checkpoint:** spec r2 + plan r4 + tasks r4 combined review completed and approved on 2026-11-07; B4a–B5 executed. The 2026-11-07 documentation amendment records the owner's approval of the exact core contract, authorization to commit and push all reviewed changes, authorization to install GoReleaser and run snapshot, and the decision dropping native macOS/Homebrew runtime evidence as an AC-14/T10 release qualification requirement in favor of Linux CI / isolated Linux runner evidence sufficiency.
 
 - **Historical combined r1 decision:** Approved, 2026-11-05.
-- **Amendment decision:** Pending combined review of spec r2, plan r4 and tasks r4; selected direction/document editing is not approval of these unread revisions or implementation.
+- **Amendment decision:** Approved, 2026-11-07 (combined spec r2, plan r4, tasks r4); documentation amendment approved 2026-11-07.
 - **Approver:** The repository owner in this conversation (no additional identity asserted).
 - **Approved revisions/scope:** Combined r1 spec, plan and tasks as presented, retaining the owner's explicit strict-008-only scope and exclusions.
 - **Decision evidence:** The owner said “i approve all 3 plan spec tasks” and requested use of `sdd-implement-1` and `sdd-implement-2`. After the response proposed recording approval and implementing B1 only, the owner switched out of Plan mode and said “start”. This authorizes that presented B1 scope, not B2–B5.
@@ -228,6 +228,19 @@ This is section 12 and the sole combined-approval record for [spec r1](spec.md),
 - **Scoped commit and push authority (2026-11-06):** the owner said “and commit changes and push”. Commit and push only this session's reviewed Feature 008 scope: B3 permission/selection delivery, the core-first amendment drafts, and the latest-only handover documentation. Preserve unrelated work (including the inherited AGENTS spending-policy deletion and untracked `docs/vnext-project-status.md`). No tag, GitHub Release or Homebrew tap change.
 - **Authorized tag, push, GitHub Release, or Homebrew tap change:** No tag, GitHub Release or Homebrew tap change. Destination/scope of the recorded push is the current `main` and its existing upstream only.
 - **Core-first direction and document authority (2026-11-06):** after prioritizing the working release scope and canonical vision, the owner selected “Option 1 as the main approach, with the minimum parts of Option 2 needed to ensure experiments are actually inactive in the release” and requested edits to spec/plan/tasks. This selects the proposed policy and authorizes this reconciliation, not implementation or retrospective B3 acceptance. The later “resume” continues that document work only. No new delegation, commit, live trusted-base adoption or release action is authorized.
+
+- **Amendment approval and B4a–B5 authorization (2026-11-07):** after the handover and the pending-review state were presented, the owner chose “Approve and start B4a and B4b” and followed up with “start again b4a using gemini flash subagent / also start b4b b4c b4d using same type of gemini flash agents or deepseek go agents / also if for less demand work use free model subagents” (the remaining batches in `tasks.md` are B4a, B4b, B4c and B5). This records combined approval of spec r2, plan r4 and tasks r4 and authorizes B4a (T06a/T06b), B4b (T06c/T07), B4c (T06/T07a/T08) and B5 (T09–T11) using `sdd-implement-9r-1` (Gemini 3.8 Flash High) or `sdd-implement-1`/`sdd-implement-2` (DeepSeek Go) for core code/test batches and `sdd-implement-free-1` / `sdd-implement-free-2` for lower-demand documentation/matrix work, respecting task dependencies and leaving any unmet live/clean-candidate/native/designated-reference prerequisites explicitly blocked rather than simulated green. No commit, push, tag, release, live trusted-base push, hook bypass, experimental suite/opt-in build, real-home apply, credential change or model evaluation is authorized. G-008-01 stays open until fresh core evidence and an actual designated trusted reference exist.
+
+- **Core contract, commit/push, GoReleaser, and release requirement amendment (2026-11-07):** Condensed owner direction (bracketed text supplies context for “do it”):
+  > *"i approve exact core contract / commmit changes / all changes approved to commit and push / [install GoReleaser and snapshot] do it / drop Native macOS / Homebrew evidence — AC-14 / T10 as a requirment, linux ci runner is enough"*
+
+  This records actual human owner authorization with the following explicit scope and boundaries:
+  1. **Core contract approval:** Approves the exact supported-core contract delivered in B4b (7-package selection in `harness/checks.json` with SHA-256 `f42851cc793fb384ce26ea3ecc428caf748a454396a2017892ab7e5029d49b17`, Taskfile core alignment, and default-inactive experimental CLI boundary).
+  2. **Commit and push authority:** Authorizes committing all reviewed Feature 008 changes and pushing them to upstream `main`. Unrelated dirty/untracked files remain preserved as instructed.
+  3. **GoReleaser snapshot authority:** Authorizes installing GoReleaser in the host environment and executing non-publishing snapshot validation (`task release`).
+  4. **Release requirement amendment (AC-14 / T10):** Drops native macOS / Homebrew runtime execution evidence as a mandatory blocking requirement for candidate release qualification; Linux CI runner / isolated Linux execution evidence is sufficient. Darwin cross-build compilation and package integrity (Mach-O binaries, universal architecture build, embedded skills, ldflags, no experimental dependencies) remain strictly required. Native macOS runtime execution and Homebrew formula execution remain unobserved (not pass). Historical reports remain dated history and are not retroactively green. Linux local QA is NOT hosted CI observation; hosted CI observation on GitHub Actions remains required before public release.
+  5. **No release or tag authority:** No authorization is granted to create a Git tag (`v*`), publish a GitHub Release, or push to the Homebrew tap.
+  6. **Trusted reference designation:** Gate `G-008-01` remains open until a clean candidate commit is created and designated by the human owner as the reviewed trusted reference (the exact candidate SHA is not yet chosen).
 
 The recorded decision covers all three reconciled r1 documents. Later batches and live operations require their own actual authorization. B1 completion review does not start B2.
 

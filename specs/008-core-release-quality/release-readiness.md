@@ -345,3 +345,260 @@ Link resolution (Python standard library, read-only) covered 118 Markdown files 
 
 **Next permitted action:** B1 (T01 + T02) verification by the parent, then `awaiting human review`. T02 must not
 overwrite `docs/README.md`; B2+ require their own authorization.
+
+## Freeze of Supported-Core Capability, Dependency and Command Map (T06a)
+
+This section records the technical baseline and capability/dependency map frozen under Feature 008 task T06a for the supported-core product and its default-inactive experimental boundary.
+
+### 1. Supported-Core Go Packages and Verification Ownership
+
+The supported-core Go codebase consists of exactly 7 packages:
+1. `.` (module root, package `skillsfiles`): Compile, build tag, and embed integrity for `SkillsFiles` and `AdapterFiles`. No standalone test suite; verified via compilation, package embed tests (`internal/skillsync`), and root build checks.
+2. `./internal/version`: Build-time version metadata injection (`Version`, `Commit`, `Date`, `GoVersion`). Integrity verified via build/version assertion checks (`agentic-sdd version`).
+3. `./internal/skillsync`: Core skill planning, backup, installation, rollback, permissions, and manifest verification. Behavioral unit and characterization tests live in `internal/skillsync/*_test.go` (including `package_test.go` and `permissions_test.go`).
+4. `./internal/harnesscheck`: Deterministic check runner execution, process isolation, environment sanitization, and execution contract verification. Behavioral tests in `internal/harnesscheck/*_test.go`.
+5. `./internal/harnessevidence`: Check receipt schemas, snapshot hashing, export, and verification. Behavioral tests in `internal/harnessevidence/*_test.go`.
+6. `./cmd/agentic-sdd`: Core CLI entry point, flag parsing, command dispatch, and usage output. Behavioral tests in `cmd/agentic-sdd/*_test.go`.
+7. `./cmd/sdd-check`: Check runner CLI executable (source-only). Behavioral tests in `cmd/sdd-check/*_test.go`.
+
+Verification ownership distinction: `.` and `./internal/version` provide compile/embed/version metadata integrity, whereas behavioral test suites reside in `skillsync`, `harnesscheck`, `harnessevidence`, `cmd/agentic-sdd`, and `cmd/sdd-check`.
+
+### 2. Default CLI Dispatch Surface vs. Default-Inactive Experimental Boundary
+
+- **Supported-core CLI dispatch/help surface:** The default build exposes only core commands: `preview`, `apply`, `backups`, `logs`, `restore`, `help`, and `version`. `printUsage` advertises solely these supported commands.
+- **Default-inactive `opencode` subcommand:** In default builds (compiled under `!agentic_sdd_experimental`), `cmd/agentic-sdd/opencode_disabled.go` stubs the command to exit with status 2 and diagnostic `"unavailable in this build"` immediately, before reading configuration, credentials, or launching subprocesses.
+- **Experimental CLI build tag:** The actual implementation in `cmd/agentic-sdd/opencode.go` and its test file `cmd/agentic-sdd/opencode_test.go` require the `-tags agentic_sdd_experimental` Go build tag (complemented by `!agentic_sdd_experimental` on `cmd/agentic-sdd/opencode_disabled.go` and `cmd/agentic-sdd/opencode_disabled_test.go`). This severs the import edge to `internal/opencodeadapter` in all default builds and release binaries (`go list -deps ./cmd/agentic-sdd`), while `internal/opencodeadapter` itself is excluded from default verification by the explicit 7-package core selection (not by a build tag on `internal/opencodeadapter/*.go`). Both are strictly excluded from default source builds, default tests, and release binaries.
+
+### 3. Embedded Assets: Active Core vs. Inert Resources
+
+- **Active core assets (`skillsfiles.go`):** Embeds `all:skills-files` into `skillsfiles.Files` (`SkillsFiles`), containing the canonical 18 portable skills and referenced documentation. Extracted and installed by the core CLI into client skill directories (`~/.agents/skills`, `~/.codex/skills`, `~/.claude/skills`, `~/.gemini/antigravity-cli/skills`).
+- **Inert embedded resources (`adapterfiles.go`):** Embeds `integrations/opencode/{opencode.jsonc,policy-lockdown.jsonc,model-usage.json}` and `harness/evidence/receipt.schema.json` into `skillsfiles.AdapterFiles` (`AdapterFiles`). These resources are inert: no core command, install step, or default workflow extracts, writes, or activates them.
+
+### 4. Command Graphs: Core Taskfile vs. Separated Experimental Tasks
+
+- **Supported-core command graph:** The root `Taskfile.yml`, Lefthook pre-commit configuration, and `.goreleaser.yml` define and execute only the supported-core pipeline (`preview`, `apply`, `test`, `vet`, `verify`, `docker-e2e`, `hooks-install`, etc.). Default `task test` and `task vet` run the 7 supported-core Go packages, aligned with `task test-core` and `task vet-core`.
+- **Separated experimental tasks:** Experimental tasks (such as `opencode-help`) are isolated in `Taskfile.experimental.yml`. This file is not automatically included in `Taskfile.yml` and is never a dependency of any default task, hook, or release step. Invoking it requires explicit `--taskfile Taskfile.experimental.yml` targeting.
+
+### 5. Classification of Excluded Suites
+
+The following suites and experiments remain strictly excluded from supported-core verification, CI gates, and release qualification:
+- Feature 005 native ACP admission, container runtime experiments, and online model evaluation.
+- Feature 006 native independent review, profile, dispatch, pilot, and C2 mitigation suites (`test_s0_native.py`, `native_independent_review*.py`, `test_independent_review*.py`, `IR-06-01` paths).
+- Feature 007 historical migration and transition adoption exercises.
+- Experimental adapter unit tests in `internal/opencodeadapter` and Python test `test_opencode.py`.
+
+These suites cannot certify supported-core release readiness, cannot be run as normal dependencies, and are not marked passing by core test success.
+
+### 6. Compatibility Note
+
+- `agentic-sdd opencode ...` and `task opencode-help` are no longer active in default builds or root `Taskfile.yml`. Attempted execution under default builds returns exit 2 ("unavailable in this build").
+- **Portable OpenCode skill installation remains fully supported:** The core installer continues to discover and install the 18 portable skills to OpenCode's standard discovery path (`~/.agents/skills`, alongside `~/.config/opencode/skills`) and other client targets. Only the separate, experimental CLI helper and runtime adapter are gated.
+
+## Complete Core Release Verification Matrix and Development QA (B4c: T06, T07a, T08)
+
+This section records the aggregate verification matrix, automated test evidence, and trusted-reference baseline comparison executed under Feature 008 tasks T06, T07a, and T08.
+
+All automated verification runs were executed under strict environment isolation:
+- Sanitized environment: `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS=`.
+- No writes to real user directories: process `HOME` redirected to `/tmp/antigravity/008-b4c-b5/env-home` (0 entries before and after).
+- Ephemeral build and test caches located in `/tmp/antigravity/gocache`.
+- Evidence summary root: `/tmp/antigravity/008-b4c-b5/evidence-summary.json`.
+
+### 1. Verification Matrix Across Supported-Core and Excluded Surfaces
+
+| Surface / Check | Entry Point / Command | Environment / Scope | Exit Code | Result | Evidence / Notes |
+|---|---|---|---|---|---|
+| **Required Core CI Checks** (`task verify`) | `sdd-check --scope required --contract ./harness/checks.json` via `task verify` | Host offline, `SDD_OUTPUT=/tmp/antigravity/008-b4c-b5/verify` | 0 | **PASS (6/6 checks passed)**: `mod-verify`, `tidy-check`, `vet`, `test`, `build-darwin`, `diff-check` | `/tmp/antigravity/008-b4c-b5/verify/result.json`; contract SHA-256: `f42851cc793fb384ce26ea3ecc428caf748a454396a2017892ab7e5029d49b17`. Note: `docker-e2e` is focused scope, not required. |
+| **Parity Aliases (Test)** | `task test-core` | Host offline, 7 core packages | 0 | **PASS (7/7 packages)**: `.` (no test files), `./internal/version` (no test files), `./internal/skillsync` (ok), `./internal/harnesscheck` (ok), `./internal/harnessevidence` (ok), `./cmd/agentic-sdd` (ok 0.314s), `./cmd/sdd-check` (ok) | `/tmp/antigravity/008-b4c-b5/logs/02-task-test-core.log` |
+| **Parity Aliases (Vet)** | `task vet-core` | Host offline, 7 core packages | 0 | **PASS** (vet clean across all 7 supported-core packages) | `/tmp/antigravity/008-b4c-b5/logs/02-task-vet-core.log` |
+| **Portable 18 Skills & Reference Closure** | `go test ./internal/skillsync` (`package_test.go`, `permissions_test.go`, etc.) | Isolated temp homes (`t.TempDir()`) | 0 | **PASS**: 18/18 canonical skills verified, 4 client targets (`.agents/skills`, `.codex/skills`, `.claude/skills`, `.gemini/antigravity-cli/skills`), 0 broken links across 67 skill links and 518 repo links, embed closure via `skillsfiles.go` | `internal/skillsync` test logs; characterization baseline |
+| **Isolated Docker Installer E2E** | `sh tests/docker-e2e.sh` | Docker container, `--network none --pull=never --mount src=repo,dst=/src,readonly golang:1.25-alpine` | 0 | **PASS**: clean-container lifecycle: preview (72 plans), apply (72 installed), no-op repeat apply, backup creation, restore, and restore-undo | `/tmp/antigravity/008-b4c-b5/logs/06-docker-e2e.log` |
+| **Shipped Workflow & Authority Scenarios** | `python3 -B -m unittest discover -s tests/harness -p test_core_workflow.py` | Local Python stdlib, synthetic workspaces | 0 | **PASS (11/11 tests)**: static instruction & scenario checks for feature/fix/review routes, negative authority stop points (bare continue, stale handoff, ready verdict, approval vs batch) | `/tmp/antigravity/008-b4c-b5/logs/03-test_core_workflow.py.log`; online model evaluation explicitly **not_run** |
+| **Taskfile Integrity & Core Selectors** | `python3 -B -m unittest discover -s tests/harness -p test_taskfile.py` | Local Python stdlib, fake `go` on PATH | 0 | **PASS (10/10 tests)**: Taskfile `--list`, tag refusal, verify-trusted refusal, sanitized verify env, core selector parity | `/tmp/antigravity/008-b4c-b5/logs/05-test_taskfile.py.log` |
+| **Core Go Package Selection Parity** | `python3 -B -m unittest discover -s tests/harness -p test_supported_core_go.py` | Local Python stdlib | 0 | **PASS (8/8 tests)**: verifies all 7 core packages selected consistently across `Taskfile.yml`, `checks.json`, and `tests/supported-core-go.sh` | `/tmp/antigravity/008-b4c-b5/logs/05-test_supported_core_go.py.log` |
+| **Check Runner Receipts & Recovery Contracts** | `test_receipts.py`, `test_recovery.py`, `test_connected.py` | Local Python stdlib, synthetic Git workspaces | 0 | **PASS (23/23 tests total)**: `test_receipts.py` (18/18 pass), `test_recovery.py` (2/2 pass), `test_connected.py` (3/3 pass) | `/tmp/antigravity/008-b4c-b5/logs/03-*.log` |
+| **Receipt Schema Validation** | `python3 -B tests/harness/validate_contracts.py` | Python `jsonschema` 4.x | 0 | **PASS (12/12 schema cases)**: positive and negative cases for `receipt.schema.json` and gate schemas | `/tmp/antigravity/008-b4c-b5/logs/04-validate_contracts.log`; semantic model scenarios **not_run** |
+| **Trusted CI Policy & Invariant Checks** | `python3 -B -m unittest discover -s tests/harness -p test_trusted_ci.py` | Local Python stdlib | 0 | **PASS (14/14 tests)**: trusted-bootstrap policy, non-execution of candidate Taskfile, strict isolation | `/tmp/antigravity/008-b4c-b5/logs/05-test_trusted_ci.py.log` |
+| **Container Anti-Weakening & Dual Probes** | `python3 -B -m unittest discover -s tests/harness -p test_trusted_ci_container.py` | Container runtime, `/tmp/antigravity/sdd-ci-evidence` | 0 | **PASS (6/6 tests)**: includes base-owned probe injection (`zz_sdd_trusted_noop_test.go` and `zz_sdd_trusted_boundary_test.go`), verifying failure on deleted tests and experimental activation mutants | Verified in B4b suite run; anti-weakening holds |
+| **Designated Trusted Reference Gate (T07a)** | `tests/harness/trusted_ci.py run --trusted head-base --candidate repo` | Base `HEAD` (`181ed7db26983241ef3c1598d0e43429f48ff91f`) vs candidate | 2 | **BLOCKED (contract-comparison)**: exact error `"required contract removed/replaced; reviewed adoption required"` | `/tmp/antigravity/008-b4c-b5/t07a-vs-head/evidence/gate.json`; candidate replaced `go vet ./...` / `go test ./...` with explicit 7-package selector in `harness/checks.json` |
+| **Feature 005 Native ACP & Online Model Evals** | `tests/harness/test_s0_native.py`, `native-opencode.sh` | Native runtime / provider API | — | **EXCLUDED / NOT RUN**: excluded by Feature 008 validation scope fence; no provider API or online evaluation attempted | Documented in spec §2, plan §1; cannot certify core release |
+| **Feature 006 Native Independent Review & Pilot** | `native_independent_review*.py`, `test_independent_review*.py` | Native reviewer / subprocess VM | — | **EXCLUDED / NOT RUN**: retained valid access finding `IR-06-01` owned by Feature 006; excluded from core evidence | Documented in spec §2, plan §1; cannot certify core release |
+| **Feature 007 Historical Migration Exercises** | Historical Makefile transition scripts | Legacy build files | — | **EXCLUDED / NOT RUN**: transition exercises complete; excluded from active gate | Documented in spec §2, plan §1 |
+| **Experimental OpenCode Adapter Tests** | `go test ./internal/opencodeadapter`, `test_opencode.py` | Excluded from default 7-package core selection; CLI import severed via `!agentic_sdd_experimental` | — | **EXCLUDED / NOT RUN**: default builds compile without experimental tag; adapter is excluded from core release | Documented in T06a capability freeze |
+
+### 2. T07a Trusted-Reference Outcome and Honest Gate Status
+
+Task T07a executed the trusted-CI gate runner (`tests/harness/trusted_ci.py`) using the pre-B4b committed baseline (`HEAD` `181ed7db26983241ef3c1598d0e43429f48ff91f`) as the trusted reference against the current candidate checkout:
+- **Command:** `GOCACHE=/tmp/antigravity/gocache GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off python3 -B /tmp/antigravity/008-b4c-b5/head-base/tests/harness/trusted_ci.py run --trusted /tmp/antigravity/008-b4c-b5/head-base --candidate /home/nawo-ubuntu1/github/agentic-sdd --output /tmp/antigravity/008-b4c-b5/t07a-vs-head`
+- **Exit Code:** `2` (Execution: `blocked`, Phase: `contract-comparison`)
+- **Recorded Gate Reason:** `invalid/unavailable bootstrap, input, contract or fresh evidence; no fallback`
+- **Contract Difference Cause:** The candidate properly replaced the two broad required steps (`go vet ./...` and `go test ./...`) with the explicit 7-package supported-core selection in `harness/checks.json` (contract SHA-256 `f42851cc793fb384ce26ea3ecc428caf748a454396a2017892ab7e5029d49b17`), while the base required broad `go vet ./...` / `go test ./...`.
+- **Exact Comparison Diagnostic:** `required contract removed/replaced; reviewed adoption required` (recorded in `/tmp/antigravity/008-b4c-b5/logs/34-t07a-contract-reason.log` and gate receipt `/tmp/antigravity/008-b4c-b5/t07a-vs-head/evidence/gate.json`).
+- **Review-Required Paths Identified by Gate:** `Taskfile.yml`, `cmd/agentic-sdd/opencode_disabled_test.go`, `cmd/agentic-sdd/opencode_test.go`, `harness/checks.json`, `tests/harness/test_supported_core_go.py`, `tests/harness/test_taskfile.py`, `tests/harness/test_trusted_ci.py`, `tests/harness/test_trusted_ci_container.py`, `tests/harness/trusted-boundary-probe.go.txt`, `tests/harness/trusted_ci.py`, `tests/supported-core-go.sh`.
+
+**Interpretation:** Under the trusted-CI security policy, a candidate cannot unilaterally alter the required CI contract of the trusted base. Because the trusted base pre-dates the B4b contract update, the gate correctly and honestly halts at `contract-comparison` refusing to execute candidate code. Consequently, **Gate G-008-01 and Task T07a remain honestly BLOCKED**. They cannot pass until the repository owner commits the reviewed B4b changes and designates that commit as the new trusted reference base.
+
+---
+
+## Preliminary Candidate Smoke, Compatibility Inventory, Release Notes & Go/No-Go Package (B5: T09, T10, T11)
+
+This section records the preliminary candidate packaging status (T09), isolated first-run and disabled-boundary smoke verification (T10), compatibility inventory, draft release notes, acceptance criteria reconciliation, and final technical go/no-go recommendation (T11).
+
+### 1. T09 Candidate Payload & Packaging Status (BLOCKED)
+
+An honest release candidate requires a clean working tree matching an exact immutable Git revision, reproducible release packaging artifacts, and a functional packaging toolchain.
+
+- **Candidate Baseline & Git Status:**
+  - Base Commit: `181ed7db26983241ef3c1598d0e43429f48ff91f` (`main...origin/main`).
+  - Working Tree State: **DIRTY** (`vcs.modified=true`). The tree contains 17 modified tracked files (uncommitted Feature 008 B4a–B5 deliverables, plus inherited `AGENTS.md` spending-policy deletion) and 5 untracked files (`Taskfile.experimental.yml`, `cmd/agentic-sdd/opencode_disabled.go`, `cmd/agentic-sdd/opencode_disabled_test.go`, `docs/vnext-project-status.md`, `tests/harness/trusted-boundary-probe.go.txt`).
+  - Module Version Stamp: `agentic-sdd v0.4.1-0.20261106181427-181ed7db2698+dirty` (embedded via `go version -m`). The presence of `+dirty` precludes treating these binaries as an immutable release candidate payload.
+- **Packaging Tooling (`goreleaser`):**
+  - `which goreleaser`: Not installed on host PATH.
+  - Impact: `task release` (GoReleaser snapshot pipeline) could not be executed on this host. Packaging parity is blocked pending GoReleaser availability on a clean commit.
+- **Disposable Candidate Builds:**
+  To verify cross-compilation and dependency boundary integrity, disposable binaries were compiled in `/tmp/antigravity/008-b4c-b5/dist/` under sanitized offline settings (`GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go build -trimpath`):
+
+| Target Platform | Binary Path | Size (bytes) | SHA-256 Checksum | Binary Format / CGO |
+|---|---|---|---|---|
+| `linux/amd64` | `/tmp/antigravity/008-b4c-b5/dist/agentic-sdd` | 5,193,460 | `7ec0d26defc3f3793ba56140ade7af1b48ce5aab38cdda585d54d46774250b96` | ELF 64-bit LSB executable, x86-64, statically linked, not stripped (cgo: true) |
+| `darwin/amd64` | `/tmp/antigravity/008-b4c-b5/dist/agentic-sdd_darwin_amd64` | 5,184,640 | `5b0ca0d33d4da9798960b98fd35ec0dd64600839145c10dbc0b8ee15776b22fa` | Mach-O 64-bit x86_64 executable (cgo: false) |
+| `darwin/arm64` | `/tmp/antigravity/008-b4c-b5/dist/agentic-sdd_darwin_arm64` | 4,895,218 | `2b0b4b62bf0117c30dfe126bcc667f92b053dc3c2caa9fb0530a97927a3bde75` | Mach-O 64-bit arm64 executable (cgo: false) |
+
+- **Compiled Dependency & Boundary Inspection:**
+  - `go version -m` and `go list -deps ./cmd/agentic-sdd` confirm that `agentic-sdd/internal/opencodeadapter` is **COMPLETELY ABSENT** from the compiled dependencies of all three binaries.
+  - Binary string inspection confirms that the string `agentic_sdd_experimental` appears solely within the user-facing diagnostic text of the disabled stub (`"error: opencode: unavailable in this build (requires -tags agentic_sdd_experimental)"`). No experimental logic or native adapters are compiled.
+  - Unpublished tooling check: `sdd-check` remains an unpublished source-only development tool; it is not bundled into the release distribution.
+
+### 2. T10 First-Run, Disabled-Boundary Smoke & Platform Execution
+
+- **Isolated Linux Smoke Lifecycle:**
+  Smoke tests were driven against the Linux candidate binary using isolated test homes (`--home /tmp/antigravity/008-b4c-b5/smoke-home`) and an empty process environment `HOME` (`/tmp/antigravity/008-b4c-b5/env-home`):
+  1. `--version`: Exit code 0; outputs `agentic-sdd dev / commit: none / date: unknown / go version: unknown`. 0 files created.
+  2. `--help`: Exit code 0; usage message lists only supported-core commands (`preview`, `apply`, `backups`, `logs`, `restore`, `help`, `version`). The `opencode` subcommand is completely absent.
+  3. Disabled boundary check (`opencode --help` and `opencode session run`): Exit code 2; stderr reports `error: opencode: unavailable in this build (requires -tags agentic_sdd_experimental)`. 0 files or directories written to smoke home or process home.
+  4. `preview --home smoke-home`: Exit code 0; generates exactly 72 plan lines (18 skills across 4 client destinations: `.agents/skills`, `.codex/skills`, `.claude/skills`, `.gemini/antigravity-cli/skills`). 0 files written.
+  5. `apply --home smoke-home` (initial installation): Exit code 0; installs all 72 skills (18 per destination; 29 files in `.claude/skills`). Creates 1 initial backup marker directory and 1 log file.
+  6. Repeat `apply --home smoke-home` (no-op verification): Exit code 0; reports `"All skills are up to date."`. Creates 0 new backup directories (count remains 1).
+  7. Mutation & Backup Manifest Verification:
+     - Mutated `.claude/skills/agentic-sdd-plan/SKILL.md` (original SHA-256 `41f23857e659da0aa75c2587ebd7b9c96a0c30c9d1c5fb4c7cc4c773d5cfa320` modified to hash `d8a2ee779f16c2dbfeeb2e62c69d7e874e9be03bcb9b036b090436bddd47208b`).
+     - Executed `apply`: Exit code 0; output shows `replace + back up claude/agentic-sdd-plan`. Overwrites the mutated skill file with canonical content (`41f23857...`) and takes a backup immediately before replacement.
+     - Confirms creation of format-2 backup manifest (`backup_id: 20261107T065405.114742569Z`, manifest tree digest `b59fae189b2abf9fa0875a7239797f87e4b6f8a143a95924ab5660aac07a0764`), safely preserving the pre-replacement mutated file bytes. Installed file matches canonical hash `41f23857...`.
+  8. `backups --home smoke-home`: Exit code 0; lists the 2 historical backup records.
+  9. `restore apply 20261107T065405.114742569Z --home smoke-home`: Exit code 0; reports `"Restored 1 skills"`. Faithfully restores the backed-up pre-apply mutated file content (`sha_after_restore: d8a2ee779f16c2dbfeeb2e62c69d7e874e9be03bcb9b036b090436bddd47208b`). Automatically creates a restore-undo backup directory (backup directory count increases to 3).
+  10. `restore preview 20261107T065405.114742569Z --home smoke-home`: Exit code 0; confirms `"up to date claude/agentic-sdd-plan; Preview only."`.
+  11. `logs --home smoke-home`: Exit code 0; records chronological execution log entries culminating in `Command: restore 20261107T065405.114742569Z; Result: success`.
+  - Process isolation confirmation: Throughout the entire smoke run, `/tmp/antigravity/008-b4c-b5/env-home` remained strictly empty (0 entries), confirming that `--home` flag isolation was completely respected.
+- **Native macOS & Homebrew Distribution Execution:**
+  - Status: **UNOBSERVED (dropped as release requirement per 2026-11-07 owner amendment)**.
+  - Rationale: The host environment is Linux `x86_64`. Cross-compilation of Darwin Mach-O binaries on Linux does not constitute native execution evidence. Per the 2026-11-07 documentation amendment, the owner explicitly directed: *"drop Native macOS / Homebrew evidence — AC-14 / T10 as a requirment, linux ci runner is enough"*. Native macOS runtime execution and Homebrew formula testing remain unobserved (not pass). Darwin cross-compilation and package integrity (universal binary, embedded skills, ldflags, no experimental dependencies) remain verified. Historical reports remain dated history and are not retroactively green. Linux local QA is NOT hosted CI observation; hosted CI observation on GitHub Actions remains required before public release.
+
+### 3. T11 Compatibility Inventory & Migration Notes
+
+1. **Developer Runner Migration (Makefile -> Taskfile.yml):**
+   - **Change:** Build, test, and verification automation migrated from legacy `Makefile` to `Taskfile.yml` (Task 3.54.0).
+   - **Impact:** Breaking change for contributors and developer workflows. Commands such as `make test`, `make vet`, and `make verify` are superseded by `task test`, `task vet`, and `task verify`. CI workflows and Lefthook hooks now execute Task directly.
+2. **Default CLI Build Boundary and Disabled `opencode` Command:**
+   - **Change:** In default source builds and release binaries, the experimental `opencode` subcommand is compiled out via Go build tag `!agentic_sdd_experimental` on CLI entry points (`cmd/agentic-sdd/opencode_disabled.go`), severing the import edge to `internal/opencodeadapter` (`go list -deps ./cmd/agentic-sdd`). Attempting to invoke `agentic-sdd opencode ...` exits immediately with status 2: `"error: opencode: unavailable in this build (requires -tags agentic_sdd_experimental)"`.
+   - **Impact:** Any external script or workflow expecting the experimental CLI helper in default builds will receive exit code 2 without side effects.
+   - **Preserved Core Support:** Portable OpenCode skill discovery and installation (`~/.agents/skills`) remains fully active in the core installer. Experimental tasks are isolated in `Taskfile.experimental.yml`.
+3. **Supported-Core 7-Package Scope Alignment:**
+   - **Change:** Default `task test`, `task vet`, pre-commit hooks, and `harness/checks.json` select exactly the 7 supported-core Go packages (`.`, `./internal/version`, `./internal/skillsync`, `./internal/harnesscheck`, `./internal/harnessevidence`, `./cmd/agentic-sdd`, `./cmd/sdd-check`).
+   - **Impact:** Development commands no longer run broad `go test ./...` which previously pulled in experimental packages (`internal/opencodeadapter`).
+4. **File Permission & Umask Semantics:**
+   - **Change:** Documentation corrected (PQ-04/T05) to clarify that skill change detection compares byte contents and symlink status, not permission bits.
+   - **Impact:** Clarification only. Installed skill file permissions reflect target directory inheritance and the active process umask (`022` default produces `0755` directories and `0644` files). Format-2 backup manifests record tree digests and metadata faithfully.
+
+### 4. Version Recommendation
+
+- **Recommended Release Tag:** Next minor release `0.x` (e.g., **`v0.5.0`** or next minor designated by the repository owner, once all release blockers are resolved, following the repository's latest `v0.4.0` release tag and module stamp `v0.4.1-0.20261106181427-181ed7db2698+dirty`).
+- **Rationale:**
+  - Breaking developer workflow migration (Makefile to Taskfile).
+  - Explicit disabling of the experimental `opencode` CLI subcommand in default builds.
+  - Core installer user CLI flags, backup manifest format 2, and destination directories remain fully backward-compatible.
+  - Per spec §10.7 and engineering principles, jumping to `v1.0.0` is inappropriate: native macOS execution remains unobserved on Linux CI, and the experimental native ACP/review boundaries are fenced off rather than stabilized.
+  - Final tag selection and creation remain an exclusive human owner prerogative.
+
+### 5. Draft Release Notes
+
+```markdown
+# Release Notes — agentic-sdd 0.x (Candidate Draft)
+
+## Highlights
+
+- **18 Portable SDD Skills:** Ships the complete, canonical set of 18 Agentic SDD workflow skills, verified across 4 client targets: OpenCode/Agents (`~/.agents/skills`), Codex (`~/.codex/skills`), Claude Desktop (`~/.claude/skills`), and Antigravity CLI (`~/.gemini/antigravity-cli/skills`).
+- **Safe Installer Engine:** Preview-by-default execution (`preview`), automated additive backups (format-2 manifests with tree digests and timestamps) before skill replacement, atomic restore capabilities (`restore apply <id>`), and rollback undo tracking.
+- **Permission & Umask Semantics:** Explicit documentation and test coverage confirming content-based change detection, preserving user directory inheritance and process umask.
+- **Default-Inactive Experimental Boundary:** The experimental `opencode` CLI helper is compiled out of default release builds (returning status 2 diagnostic), preventing unintended configuration or provider side effects. Experimental tasks reside in `Taskfile.experimental.yml`.
+- **Modernized Core Tooling:** Developer workflows adopt `Taskfile.yml` (Task 3.54.0), Lefthook pre-commit hooks, and scoped 7-package core testing.
+
+## Breaking Changes & Compatibility
+
+- **Taskfile Migration:** Contributors must use `task <target>` instead of `make <target>`.
+- **CLI Subcommand Gating:** `agentic-sdd opencode` is disabled by default (requires `-tags agentic_sdd_experimental`). Standard skill installation to `~/.agents/skills` remains fully functional.
+
+## Known Limitations & Excluded Surfaces
+
+- **macOS / Homebrew Execution:** Darwin universal binaries are cross-compiled on Linux; native macOS runtime execution and Homebrew installation remain unobserved.
+- **Experimental Native Integrations:** Native ACP runtime experiments, online provider evaluation, and native independent review pilots (`IR-06-01`) remain excluded from this core release.
+```
+
+### 6. Verification Deviations Register (B4c / B5)
+
+The following deviations were observed during B4c and B5 execution (preserved from `evidence-summary.json`):
+
+| ID | Description | Expected | Observed | Resolution / Impact |
+|---|---|---|---|---|
+| **DEV-01** | T07a Gate Output Path | Expected `t07a-vs-head/summary.json` | Runner writes `t07a-vs-head/evidence/gate.json` | Evidence path confirmed; exact reason string recovered from adapter log (`34-t07a-contract-reason.log`). |
+| **DEV-02** | Smoke Client Destinations | Expected `.claude`, `.cursor`, `.agents`, `.github` | `internal/skillsync` defines `.agents`, `.codex`, `.claude`, `.gemini/antigravity-cli` | Tested actual canonical 4 targets; brief destination list was stale. |
+| **DEV-03** | Restore CLI Invocation Syntax | Expected `restore --latest --yes` | CLI syntax is `restore apply <id>` and `restore preview <id>` | Used canonical syntax; `--latest` is not a recognized flag. |
+| **DEV-04** | Initial Backup Marker Count | Expected zero backups on repeat apply | First apply on clean home creates 1 initial marker dir; repeat apply adds 0 new backups | No-op behavior confirmed; initial marker directory is standard installer behavior. |
+| **DEV-05** | Experimental Build Tag String | Expected build tag string completely absent | Tag string present in disabled stub message text | Absence of compiled experimental code and dependencies confirmed via `go version -m` and `go list -deps`. |
+
+### 7. Acceptance Criteria Reconciliation (AC-01 through AC-23)
+
+| Criterion | Description | Status | Evidence / Reconciliation |
+|---|---|---|---|
+| **AC-01** | Supported vs experimental matrix prominent and grounded | **VERIFIED (awaiting human review)** | Matrix frozen in T06a (§Freeze above) and verified across B4c matrix; fully grounded in source inspection and build dependencies. |
+| **AC-02** | Route authority and side-effect boundaries preserved | **VERIFIED (awaiting human review)** | Verified in T04 static inspection and `test_core_workflow.py` (11/11 tests pass). |
+| **AC-03** | Incomplete requests & static vs model behavior labeled | **VERIFIED (awaiting human review)** | `test_core_workflow.py` passes 11/11; static scenario tests labeled; online model evaluation honestly marked `not_run`. |
+| **AC-04** | Negative authority scenarios prevent unauthorized continuation | **VERIFIED (awaiting human review)** | Negative controls verified in `test_core_workflow.py` (bare `continue`, stale handoff, ready verdict, approval vs batch). |
+| **AC-05** | Implementation/debugging/review guidance standardized | **VERIFIED (awaiting human review)** | Completion-review ownership and concise risk-relevant outcomes unified across router and verification guidance in B2/B3. |
+| **AC-06** | Historical status contradictions resolved | **VERIFIED (awaiting human review)** | PQ-02 status contradictions resolved in B2/B3 documentation reconciliation; historical approvals and findings preserved intact. |
+| **AC-07** | IR-06-01 and experimental restrictions visible | **VERIFIED (awaiting human review)** | Documented in `README.md`, `release-readiness.md`, and candidate release notes; generic native review is explicitly not claimed safe. |
+| **AC-08** | Permission comparison, umask, no-op, backup/restore semantics aligned | **VERIFIED (awaiting human review)** | Documentation corrected in T05; verified in `internal/skillsync` unit tests and B5 T10 isolated smoke lifecycle. |
+| **AC-09** | Tracked/ignored/untracked structure inventory established | **VERIFIED (awaiting human review)** | Implementation committed at `9f6dbae` and clean worktree created at `/tmp/opencode/008-packaging-9f6dbae`; historical status draft (`9467264`) and inherited `AGENTS.md` edits (`a2e874c`) committed separately; documentation amendment staged as separate commit following implementation. |
+| **AC-10** | 18 skill IDs, local references, and embeds intact | **VERIFIED (awaiting human review)** | Verified in `internal/skillsync` (`package_test.go`), 18 canonical skill directories, 4 client targets, 0 unresolved links. |
+| **AC-11** | Full release verification matrix recorded | **VERIFIED (awaiting human review)** | Complete matrix recorded in B4c (§1 above), specifying exact commands, environments, checksums, and exit codes. |
+| **AC-12** | Trusted CI invariants and container anti-weakening hold | **VERIFIED (awaiting human review)** | Verified by `test_trusted_ci.py` (14/14 pass) and `test_trusted_ci_container.py` (6/6 pass) with dual anti-weakening probes. |
+| **AC-13** | First-use installation and worked examples repeatable | **VERIFIED (awaiting human review)** | T04 verified worked examples; T10 verified 4 client targets in isolated Linux smoke run. |
+| **AC-14** | Packaging, CLI metadata, Linux first run, and distribution verified on same candidate | **VERIFIED (awaiting human review)** | Verified on clean worktree from commit `9f6dbae` using checksum-verified GoReleaser v2.20.0 (archive SHA256 `d2483159...`): snapshot succeeds (`dist/agentic-sdd_0.4.0-SNAPSHOT-9f6dbae_darwin_all.tar.gz` SHA256 `23c7a77c...`) with universal Mach-O binary and generated Homebrew formula (deprecation warning on brews field retained). Clean Linux smoke verified at `/tmp/opencode/008-clean-smoke-9f6dbae/result.json`. Per 2026-11-07 amendment, native macOS / Homebrew execution dropped as release requirement (Linux CI runner / isolated Linux evidence sufficient) and remains unobserved (not pass). |
+| **AC-15** | Model scenario `not_run` status honestly maintained | **VERIFIED (awaiting human review)** | Online model evaluations and semantic tests explicitly labeled `not_run`; no synthetic or simulated passes claimed. |
+| **AC-16** | Release report records commit, blockers, notes, and go/no-go | **VERIFIED (awaiting human review)** | Recorded comprehensively in this section (B5: T09, T10, T11). |
+| **AC-17** | Compatibility changes classified; next `0.x` recommended | **VERIFIED (awaiting human review)** | Migration notes provided; next minor `0.x` recommended; automatic `v1.0.0` promise explicitly rejected. |
+| **AC-18** | Artifact acceptance does not trigger automatic release | **VERIFIED (awaiting human review)** | Verification stops at report generation; no Git tag, release publication, or Homebrew tap push performed. |
+| **AC-19** | Default commands select 7 supported-core Go packages | **VERIFIED (awaiting human review)** | Aligned in T06c; verified by `task verify` (6/6 pass), `test_taskfile.py` (10/10), and `test_supported_core_go.py` (8/8). |
+| **AC-20** | Verified default-inactive experimental CLI boundary | **VERIFIED (awaiting human review)** | Implemented in T06b; verified in T10 smoke (exit 2, 0 side effects, `internal/opencodeadapter` completely absent). |
+| **AC-21** | G-008-01 closed only by fresh evidence for adopted reference | **PARTIALLY OBSERVED / OPEN (GATE G-008-01)** | Hosted CI run 42355249123 on push to main verified candidate `9f6dbae` with 6/6 checks passed under existing main-push selection (`gate.json`: `trusted_revision=candidate_revision=9f6dbae`, canonical contract `f42851cc...`). Broader independent reference designation and divergent PR adoption remain open; G-008-01 is NOT closed automatically. |
+| **AC-22** | Experimental tasks and tests isolated outside default path | **VERIFIED (awaiting human review)** | `Taskfile.experimental.yml` separated; experimental build tag enforced; excluded suites categorized as `excluded` / `not_run`. |
+| **AC-23** | Capability and dependency mapping complete | **VERIFIED (awaiting human review)** | Frozen in T06a; verified in B5 binary dependency inspection (`internal/opencodeadapter` absent). |
+
+### 8. Technical Go/No-Go Decision: RELEASE CANDIDATE VERIFIED; PUBLICATION BLOCKED
+
+**Summary Verdict:**
+- **Core Engineering, Clean Packaging & Linux Verification:** **READY / PASS**
+  The supported-core Go implementation, 18 portable skills, safe preview/apply/backup/restore engine, Taskfile commands, default-inactive experimental boundary, and anti-weakening test suites pass all local and containerized verification checks under isolated environments.
+  Clean candidate tree at commit `9f6dbaea98ce4016fdfb0580f632f9ef0401227e` passed clean `task verify` (6/6 checks at `/tmp/opencode/008-packaging-required-9f6dbae/result.json`), fresh clean Linux smoke (`/tmp/opencode/008-clean-smoke-9f6dbae/result.json`), and non-publishing snapshot packaging with checksum-verified GoReleaser v2.20.0 (`dist/agentic-sdd_0.4.0-SNAPSHOT-9f6dbae_darwin_all.tar.gz` SHA256 `23c7a77cae2d6f04dfd0b30504bf9d0fa4ada865834e3c7db5dec3b849d9611c`, universal Mach-O binary and generated Homebrew formula; deprecation warning for `brews` field retained).
+- **Hosted CI Observation:** **OBSERVED / PASS (MAIN PUSH ONLY)**
+  GitHub Actions run `https://github.com/nawodyaishan/agentic-sdd/actions/runs/42355249123` completed successfully in 54s on push to `main` at `9f6dbae`. Downloaded artifact `/tmp/opencode/008-ci-42355249123/gate.json` confirms canonical contract `f42851cc793fb384ce26ea3ecc428caf748a454396a2017892ab7e5029d49b17`, 6/6 required statuses passed, and dual probe digests present under existing main-push selection (`trusted_revision=candidate_revision=9f6dbae`).
+- **Platform Evidence Amendment:**
+  Per the 2026-11-07 documentation amendment, the repository owner explicitly directed:
+  > *"i approve exact core contract / commmit changes / all changes approved to commit and push / [install GoReleaser and snapshot] do it / drop Native macOS / Homebrew evidence — AC-14 / T10 as a requirment, linux ci runner is enough"*
+
+  Native macOS and Homebrew runtime execution evidence was dropped as a blocking release qualification requirement in favor of Linux CI runner / isolated Linux evidence sufficiency. Darwin cross-compilation and packaging integrity remain verified. Native macOS execution remains UNOBSERVED (not pass). Historical reports remain dated history and are not retroactively green. Linux local QA is NOT hosted CI observation; hosted CI observation on GitHub Actions is now observed for the main-push workflow.
+- **Remaining Open Decisions & Prerogatives:**
+  1. **Broader G-008-01 Adoption:** Main-push CI selection passed at `9f6dbae`, but independent trusted-reference designation and divergent PR adoption remain open. G-008-01 is not marked closed automatically.
+  2. **Provisional Review Status:** Subagent implementation and verification reviews remain provisional pending Opus review verification per AGENTS.md policy.
+  3. **Payload vs Documentation Distinction:** Implementation commit `9f6dbae` forms the frozen release payload; documentation updates are committed separately.
+  4. **Release Tag and Publication:** Tagging (`v0.5.0` or other `0.x`), creating a GitHub Release, and publishing to the Homebrew tap remain separate human owner actions requiring explicit separate authorization. No release authority is granted or inferred.
+
+**Next Required Action:** Awaiting human owner review of the clean packaging snapshot and hosted CI results, Opus provisional review completion, and human decision on release tagging and publication.
