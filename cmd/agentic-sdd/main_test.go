@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"agentic-sdd/internal/version"
 )
 
 // runNonInteractive calls run with empty, non-interactive stdin, for every
@@ -627,5 +630,113 @@ func TestRunOpenCodeFlagsAndHelp(t *testing.T) {
 		if code != 0 || !strings.Contains(stdout.String(), "unavailable in this build") {
 			t.Fatalf("help opencode-harness exited %d, stdout %q", code, stdout.String())
 		}
+	})
+}
+
+// TestPlainOutputByteIdentity (Check C2) pins the exact non-interactive
+// output and exit codes of the commands and error paths listed in the plan.
+// Any change to plain output, including an accidental terminal presentation
+// leak, fails this test. The unknown-command case compares against a captured
+// printUsage transcript so the two additive "guide" lines planned for the
+// usage block are accounted for without rewording anything here.
+func TestPlainOutputByteIdentity(t *testing.T) {
+	newFixture := func(t *testing.T) (repo, home string) {
+		t.Helper()
+		root := t.TempDir()
+		repo, home = filepath.Join(root, "repo"), filepath.Join(root, "home")
+		source := filepath.Join(repo, "skills-files", "agentic-sdd-plan")
+		if err := os.MkdirAll(source, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(source, "SKILL.md"), []byte("new"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(home, 0755); err != nil {
+			t.Fatal(err)
+		}
+		return repo, home
+	}
+	invoke := func(t *testing.T, args ...string) (code int, stdout, stderr string) {
+		t.Helper()
+		var out, errOut bytes.Buffer
+		code = runNonInteractive(args, &out, &errOut)
+		return code, out.String(), errOut.String()
+	}
+	check := func(t *testing.T, name string, code, wantCode int, stdout, stderr, wantStdout, wantStderr string) {
+		t.Helper()
+		if code != wantCode {
+			t.Fatalf("%s: exit %d, want %d; stdout %q; stderr %q", name, code, wantCode, stdout, stderr)
+		}
+		if stdout != wantStdout {
+			t.Fatalf("%s: stdout = %q, want %q", name, stdout, wantStdout)
+		}
+		if stderr != wantStderr {
+			t.Fatalf("%s: stderr = %q, want %q", name, stderr, wantStderr)
+		}
+	}
+
+	t.Run("bare preview one-skill fixture", func(t *testing.T) {
+		repo, home := newFixture(t)
+		code, stdout, stderr := invoke(t, "--repo", repo, "--home", home)
+		want := "install agents/agentic-sdd-plan\n" +
+			"install codex/agentic-sdd-plan\n" +
+			"install claude/agentic-sdd-plan\n" +
+			"install agy/agentic-sdd-plan\n" +
+			"Preview only. Run with apply (or --apply) to install.\n"
+		check(t, "bare preview", code, 0, stdout, stderr, want, "")
+	})
+
+	t.Run("version", func(t *testing.T) {
+		code, stdout, stderr := invoke(t, "version")
+		want := fmt.Sprintf("agentic-sdd %s\n  commit:     %s\n  date:       %s\n  go version: %s\n",
+			version.Version, version.Commit, version.Date, version.GoVersion)
+		check(t, "version", code, 0, stdout, stderr, want, "")
+	})
+
+	t.Run("version extra", func(t *testing.T) {
+		code, stdout, stderr := invoke(t, "version", "extra")
+		check(t, "version extra", code, 2, stdout, stderr, "", "error: usage: agentic-sdd version\n")
+	})
+
+	t.Run("restore without id non-interactive", func(t *testing.T) {
+		repo, home := newFixture(t)
+		code, stdout, stderr := invoke(t, "restore", "--repo", repo, "--home", home)
+		check(t, "restore without id", code, 2, stdout, stderr, "",
+			"error: restore requires a backup id; run \"agentic-sdd backups\" to list them\n")
+	})
+
+	t.Run("restore invalid id", func(t *testing.T) {
+		repo, home := newFixture(t)
+		code, stdout, stderr := invoke(t, "restore", "notanid", "--repo", repo, "--home", home)
+		check(t, "restore invalid id", code, 2, stdout, stderr, "", "error: invalid backup id \"notanid\"\n")
+	})
+
+	t.Run("opencode-free-first requires with-opencode", func(t *testing.T) {
+		_, home := newFixture(t)
+		code, stdout, stderr := invoke(t, "preview", "--opencode-free-first", "--home", home)
+		check(t, "opencode-free-first alone", code, 2, stdout, stderr, "",
+			"error: --opencode-free-first requires --with-opencode\n")
+	})
+
+	t.Run("logs without a log directory", func(t *testing.T) {
+		_, home := newFixture(t)
+		code, stdout, stderr := invoke(t, "logs", "--home", home)
+		if code != 1 {
+			t.Fatalf("logs: exit %d, want 1; stdout %q; stderr %q", code, stdout, stderr)
+		}
+		if stdout != "" {
+			t.Fatalf("logs: stdout = %q, want empty", stdout)
+		}
+		if !strings.HasPrefix(stderr, "error: open ") || !strings.Contains(stderr, "/.agentic-sdd/logs: no such file or directory") {
+			t.Fatalf("logs: stderr = %q, want missing log directory error", stderr)
+		}
+	})
+
+	t.Run("unknown command", func(t *testing.T) {
+		var usageBuf bytes.Buffer
+		printUsage(&usageBuf)
+		code, stdout, stderr := invoke(t, "wat")
+		check(t, "unknown command", code, 2, stdout, stderr, "",
+			"error: unknown command \"wat\"\n"+usageBuf.String())
 	})
 }

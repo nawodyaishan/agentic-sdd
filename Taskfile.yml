@@ -42,6 +42,9 @@ tasks:
   docker-e2e:
     desc: Exercise installer in an isolated Docker container
     cmds: [sh tests/docker-e2e.sh]
+  docker-guide-e2e:
+    desc: Exercise guided CLI journeys and flow tracing in an isolated Docker container
+    cmds: [sh tests/guide-e2e.sh]
   hooks-install:
     desc: Install Lefthook Git hooks
     cmds: [lefthook install]
