@@ -13,10 +13,12 @@ The `agentic-sdd` CLI installs the portable skill toolkit. It does not run your 
 | `agentic-sdd backups` | List backups newest first, including their ID, operation, source, and contents. |
 | `agentic-sdd restore BACKUP_ID` | Preview what restoring the selected backup would change. |
 | `agentic-sdd restore apply BACKUP_ID` | Back up the affected current skills, then restore the selected backup. |
+| `agentic-sdd guide` | Interactive numbered-prompt wizard to preview, install, restore, or inspect skills on a terminal. Accepts only `--home` and `--repo`. |
+| `agentic-sdd help <topic>` | Show focused help for `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, or `version`, followed by the global usage block. |
 | `agentic-sdd help orchestrate` | Show usage for opt-in OpenCode orchestration options. |
 | `agentic-sdd --help` | Show commands, flags, and defaults. |
 
-`restore preview BACKUP_ID` is another preview form; `restore BACKUP_ID --apply` is another writing form. With no backup ID on a terminal, restore lists available backups and offers interactive selection. Writing through interactive selection asks for confirmation.
+`restore preview BACKUP_ID` is another preview form; `restore BACKUP_ID --apply` is another writing form. With no backup ID on a terminal, restore lists available backups and offers interactive selection. Writing through interactive selection asks for confirmation. `agentic-sdd guide` offers the same preview-first steps as numbered prompts; its journeys, screen/prompt identifiers, and trace schema are catalogued in [Guided CLI journeys](guide-flows.md).
 
 ## Flags
 
@@ -78,6 +80,28 @@ Apply and writing restore operations create private timestamped text logs under 
 - **1:** filesystem, logging, sync, or backup-validation failure, including a missing backup ID.
 
 Errors go to stderr; action output goes to stdout. A preview listing replacements exits successfully—it has not installed them.
+
+## Terminal presentation and environment
+
+When a stream is a terminal, `preview` and `apply` add a grouped per-client summary with counts and the exact next command, and selected errors add a `hint:` line on stderr. When a stream is not a terminal, its output stays byte-identical to earlier releases, so scripts and CI see no change. `guide` requires an interactive stdin and exits `2` without reading or writing anything when it does not have one.
+
+- **Color:** ANSI styling is used only when stdout is a terminal, `NO_COLOR` is unset or empty, and `TERM` is not `dumb`. Status is always a word (`ok`, `error`), never color alone.
+- **`TERM=dumb`** additionally selects ASCII-only glyphs.
+- **`COLUMNS`:** a positive integer sets the width; otherwise it is `80`. Guide-owned text lines are fixed at 72 columns or fewer.
+- **`/dev/null`:** terminal detection is stdlib-only and treats a character device as a terminal unless it is the null device. `restore` without an ID and a non-terminal stdin (including `/dev/null`) therefore exits `2` with `restore requires a backup id; run "agentic-sdd backups" to list them`, as documented above. Residual limitation: other character devices, for example `/dev/zero`, still pass as terminals because an exact check would need a terminal ioctl and a new dependency.
+- **Help:** help text is never styled. `agentic-sdd help <topic>` prints topic-specific text before the unchanged global usage block. The usage-error string for an unknown `help` topic is deliberately preserved byte-for-byte.
+
+Environment variables:
+
+| Variable | Meaning |
+|---|---|
+| `NO_COLOR` | Any non-empty value disables color. |
+| `TERM=dumb` | Disables color and selects ASCII-only glyphs. |
+| `COLUMNS` | Positive integer terminal width; otherwise `80`. |
+| `AGENTIC_SDD_TRACE=<path>` | Opt in to a privacy-safe JSON Lines flow trace of the run. Unset or empty disables it. See [flow tracing](guide-flows.md#flow-trace-agentic_sdd_trace). |
+| `AGENTIC_SDD_FORCE_INTERACTIVE=1` | Test seam: treat stdin, stdout, and stderr as terminals so terminal-only behavior can be exercised in a container. It never answers or skips a confirmation. See [the test seam](guide-flows.md#test-seam-agentic_sdd_force_interactive1). |
+
+The trace is appended with mode `0600`, records no flag values, free text, or filesystem paths, and never changes a command's result: if it cannot be opened or written, one warning goes to stderr and the run continues. It is not the apply log, a harness receipt, or approval.
 
 ## Contributor tooling
 

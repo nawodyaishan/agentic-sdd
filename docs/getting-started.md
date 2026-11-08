@@ -13,6 +13,11 @@ install skills or create an apply log. Review the destinations and proposed chan
 See the [support matrix](../README.md#support-and-release-scope) for platforms,
 published artifacts and exclusions; installation is not cross-client certification.
 
+On an interactive terminal, `agentic-sdd guide` walks through the same
+preview-first flow step by step with numbered prompts; see
+[guided CLI journeys](guide-flows.md) for its screens, journeys, and optional
+flow trace.
+
 For a source checkout, with **Go 1.23+ already available**, try a disposable home:
 
 ```sh
