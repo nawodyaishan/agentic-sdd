@@ -1,0 +1,310 @@
+# TUI Architecture and Toolchain Migration Blueprint
+
+**Feature:** [012 — CLI UI/UX Remediation & Hybrid TUI Experience](../specs/012-cli-tui-remediation/spec.md)
+**Delivered by:** batch B2 (T06–T08)
+**Status:** experimental architecture note. It records a spike that exists and a
+migration that does not. It is not an approval record, a batch authorization, a
+release commitment or evidence that the TUI is wired into the shipped binary.
+
+Line numbers and digests below were verified against the working tree on
+2026-11-10 and will drift; treat the file and symbol names as the stable part of
+each reference.
+
+---
+
+## 1. What exists today
+
+The spike lives in a nested module so the root module can stay dependency-free:
+
+```text
+experiments/tui/                 module agentic-sdd/experiments/tui (go 1.26)
+├── go.mod                       Charm v2 pins + replace agentic-sdd => ../..
+├── go.sum                       48 lines: 20 external modules (4 direct, 16 indirect)
+├── config.go                    TUIConfig, defaults, LaunchAllowed gating predicate
+├── theme.go                     Lip Gloss v2 styles; plain when color is off
+├── catalog.go                   read-only adapter over skillsync + status vocabulary
+├── catalog_test.go              gating, adapter, model, and headless-program tests
+├── screens/catalog.go           Bubble Tea v2 + Bubbles list catalog browser
+└── cmd/tui-spike/main.go        opt-in entry point enforcing the launch gate
+```
+
+Commands (opt-in, never part of `task test` or CI):
+
+```sh
+# Tests: skips with an explicit message when the local Go is older than 1.26.
+task -t Taskfile.experimental.yml tui:test
+
+# A human run on a real terminal, from experiments/tui:
+AGENTIC_SDD_TUI=1 go run ./cmd/tui-spike --home /tmp/tui-demo-home
+```
+
+Measured facts for this checkout (not guarantees):
+
+| Fact | Value |
+|---|---|
+| Catalog rows from the embedded assets | 19 skills (18 core + 1 pack) and 18 profiles with `--opencode-free-first` (14 profiles without the presets) |
+| External modules pinned in `experiments/tui/go.mod` | 20 (4 direct + 16 indirect) |
+| `go.sum` lines | 48 |
+| Built `tui-spike` binary (`-trimpath`) | 6.6 MB, including embedded skills |
+| Built root `agentic-sdd` binary (`-trimpath`) | 11.2 MB |
+| `go mod verify` in the nested module | does not apply: the `agentic-sdd` directory replacement has no module-cache zip hash |
+
+Deliberately absent from B2: Huh v2 forms, backup/restore screens, update
+checks, and any wiring into `cmd/agentic-sdd`. The spike browses; it never
+changes anything.
+
+---
+
+## 2. Module isolation and the module-path decision
+
+The plan sketched `module agentic-sdd-tui`. That path cannot work: Go refuses an
+`internal` import from outside the tree rooted at the parent of `internal`.
+
+```text
+package agentic-sdd-tui
+    a.go:3:8: use of internal package agentic-sdd/internal/skillsync not allowed
+```
+
+The nested module therefore uses a path **under** the parent module path:
+
+```go.mod
+module agentic-sdd/experiments/tui
+
+go 1.26
+
+require (
+    agentic-sdd v0.0.0
+    charm.land/bubbles/v2 v2.1.0
+    charm.land/bubbletea/v2 v2.0.2
+    charm.land/lipgloss/v2 v2.0.3
+    github.com/charmbracelet/x/ansi v0.11.7
+)
+
+replace agentic-sdd => ../..
+```
+
+This is the same shape `golang.org/x/tools/gopls` uses inside
+`golang.org/x/tools`: a nested module may extend its parent's import path, so
+`agentic-sdd/experiments/tui/...` is allowed to import
+`agentic-sdd/internal/skillsync`, while the root module never sees the Charm
+dependencies.
+
+Alternatives considered and rejected:
+
+| Alternative | Why rejected |
+|---|---|
+| `module agentic-sdd-tui` + copy of the domain types | Duplicates domain vocabulary and drifts from `skillsync`; defeats the point of a read-only adapter. |
+| Charm dependencies in the root module | Breaks the Go 1.23 floor, the `golang:1.25-alpine` gates and the zero-dependency guarantee that Feature 012 explicitly preserves. |
+| `go.work` linking both modules | Changes how every root command resolves modules, including gates that set `GOWORK=off`; the nested module must stay invisible to root builds. |
+| Build tags inside the root module | `go.mod` still has to declare the dependencies for the tagged files, so the root module still changes. |
+
+Guarantees the isolation must keep, all verifiable with `git status` and one
+build:
+
+```sh
+git diff --exit-code -- go.mod       # root module still go 1.23, zero requires
+test ! -e go.sum                     # no root go.sum
+GOWORK=off go build ./...            # root builds without the nested module
+(cd experiments/tui && GOWORK=off go build ./...)
+go mod tidy -C . && git diff --exit-code -- go.mod go.sum   # tidy ignores the nested module
+```
+
+`go mod tidy` at the root skips nested modules, and `internal/harnesscheck`
+snapshots only the top-level `go.mod`/`go.sum`, so `task tidy-check` and
+`task mod-verify` keep their current meaning.
+
+---
+
+## 3. Domain boundary: `internal/tui` ↔ `internal/skillsync`
+
+The eventual production package is `internal/tui`; the spike proves the same
+rules under `experiments/tui`. One rule decides everything else: **the TUI reads
+domain state and never performs a domain operation.**
+
+```text
+                  ┌───────────────────────────────┐
+  key presses ───► │ experiments/tui/screens       │  Bubble Tea model: view state,
+                  │ (future: internal/tui)        │  focus, filtering, selection only
+                  └──────────────┬────────────────┘
+                                 │ typed values (CatalogItem, ClientStatus)
+                  ┌──────────────▼────────────────┐
+                  │ experiments/tui (config,      │  presentation config + adapter;
+                  │ theme, catalog)               │  no paths resolved, no files written
+                  └──────────────┬────────────────┘
+                                 │ InspectSelection (read-only), SummarizePlan (pure)
+                  ┌──────────────▼────────────────┐
+                  │ internal/skillsync            │  authoritative installer/restore engine
+                  └──────────────┬────────────────┘
+                                 │ apply / restore / backup manifest
+                  ┌──────────────▼────────────────┐
+                  │ cmd/agentic-sdd (CLI)         │  the only mutation entry point
+                  └───────────────────────────────┘
+```
+
+| Allowed in a TUI package | Forbidden in a TUI package |
+|---|---|
+| `skillsync.InspectSelection(repo, home, opts)` | `skillsync.Sync`, `SyncWithOptions`, `Restore` |
+| `skillsync.SummarizePlan(transcript)` on a transcript produced elsewhere | Reading or writing the backup manifest, logs or lock files |
+| Mapping `InventoryStatus` to badges, groups and hints | `os.Create`, `os.Mkdir*`, `os.Remove`, `os.Rename`, `os.WriteFile`, `filepath.Walk` of a destination |
+| Path and version strings **displayed** verbatim from the inventory | Path resolution, `--repo` probing, or any filesystem discovery of its own |
+| Its own `TUIConfig` | The CLI's `*Env`, `*Tracer`, flag set or prompt helpers |
+
+Two consequences worth stating explicitly:
+
+- **Status is reported, not inferred.** `Template available (not installed)`,
+  `Installed (matches source)`, `Installed (modified)` and
+  `Unavailable / refused` come from `skillsync`'s inventory. The TUI must not
+  re-implement `sameSourceTarget`, and it must not claim runtime state such as
+  "enabled", "running" or "verified".
+- **The transcript is an input.** `SummarizePlan` is a pure classifier, so a
+  future preview pane may show counts, but the CLI remains the component that
+  produces the transcript. No TUI code may call the producer.
+
+`experiments/tui/config.go` defines `TUIConfig` (source, home, width, height,
+color, interactive, OpenCode options) instead of importing the CLI's `Env`.
+`Catalog` and `CatalogItem` are presentation-shaped values built from the
+inventory; they carry no write capability.
+
+### Launch precedence
+
+The TUI is opt-in and must lose to every scripted path, in this order:
+
+| Order | Condition | Result |
+|---|---|---|
+| 1 | `AGENTIC_SDD_TUI` is not exactly `1` | standard CLI |
+| 2 | `AGENTIC_SDD_FORCE_INTERACTIVE=1` | standard CLI |
+| 3 | stdout is not a real terminal | standard CLI |
+| 4 | otherwise | TUI allowed |
+
+Rule 2 must be checked **before** rule 3 because the CLI's `resolveEnv` treats
+`AGENTIC_SDD_FORCE_INTERACTIVE=1` as a fake terminal; checking
+`Env.StdoutTTY` first would let automated journeys enter an alternate screen
+and hang. `screens.Model.View` sets `AltScreen` only when
+`TUIConfig.Interactive` is true, so headless tests render frames without
+touching the terminal. With `TUIConfig.Color` false, the theme uses zero
+styles and the view strips the Bubbles components' own SGR sequences once at
+the view boundary (`ansi.Strip`). ANSI codes are zero-width, so the plain
+layout is identical and a headless frame is deterministic.
+
+Batch B2 implements the predicate (`tui.LaunchAllowed`) and the runnable
+`cmd/tui-spike` that enforces it. Wiring it into `agentic-sdd guide` is Phase 3
+work in §5 and is not part of this batch.
+
+---
+
+## 4. Toolchain migration blueprint
+
+### Why the change is atomic
+
+Every core Go recipe (`task test`, `task vet`, `task tidy-check`) and both
+container suites run with `GOTOOLCHAIN=local`, so the toolchain in the container
+or runner must satisfy the `go` directive in `go.mod` exactly. Raising the root
+module to Go 1.26 while any gate still uses `golang:1.25-alpine` fails with
+"go.mod requires go >= 1.26". The pins must move together, in one reviewed
+change, verified by the same gates that protect them.
+
+### The eight pinned locations
+
+| # | Location | Current value | What must change |
+|---|---|---|---|
+| 1 | `Taskfile.yml:75` (`docker-guide`) | `golang:1.25-alpine` | New image tag; keep `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOWORK=off` and `--pull=never`. |
+| 2 | `.github/workflows/ci.yml:37` | `docker pull golang@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59` | Re-pin to the digest of the new tag. This digest is the trusted gate's toolchain; it must equal #3 byte for byte. |
+| 3 | `tests/harness/trusted_ci.py:16` | `IMAGE = "golang@sha256:1ae0735f…84b59"` | Same digest as #2. Because this file belongs to the reviewed trusted base, changing it changes the trust anchor and needs its own review of that base revision. |
+| 4 | `internal/harnesscheck/runner.go:319-320` | capability `preloaded golang:1.25-alpine image` → `docker image inspect golang:1.25-alpine` | Rename the capability string and the inspected tag together. The capability name is a contract: an unknown phrase blocks the check, so every consumer in #6 must change in the same commit. |
+| 5 | `tests/guide-e2e.sh:11` and `tests/docker-e2e.sh:11` | `golang:1.25-alpine` | New tag in both `docker run --pull=never` invocations. A missing local image must keep blocking rather than pulling. |
+| 6 | `harness/checks.json:53` and `tests/harness/offline-b7-checks.json:5` | `"preloaded golang:1.25-alpine image"` | Rename to match #4 exactly. This is the only place a stale name is *not* a compile error, so it is the easiest one to miss. |
+| 7 | `.github/workflows/release.yml:23-26` | `actions/setup-go@v5` with `go-version-file: go.mod` and `cache-dependency-path: go.sum` | No edit needed for the floor: the workflow follows `go.mod`. Do re-check the release run, and note that `cache-dependency-path` names a root `go.sum` the root module does not currently have. |
+| 8 | `README.md:66`, `README.md:95`, `harness/README.md:128` | "Go 1.23 or newer"; `golang:1.25-alpine`; the capability name in prose | Update the documented floor, the Docker prerequisite and the capability list. |
+
+### Additional references found during the audit
+
+Not in the plan's eight, but they pin the same facts and will contradict the
+migration if left alone:
+
+| Location | Current value | Note |
+|---|---|---|
+| `go.mod:3` | `go 1.23` | Source of truth for the floor; raising it is the change that forces the rest. |
+| `CONTRIBUTING.md:22` | "Install Go 1.23 or newer" | Contributor setup floor. |
+| `harness/README.md:147` | "Go 1.23 path validation" | Prose about the runner's path rules; re-verify the claim against the new toolchain rather than editing blindly. |
+
+No Dockerfile, devcontainer or `.tool-versions` exists; `grep -rn "golang:"`
+over the tracked tree, excluding feature records and docs, returns exactly
+sites 1–6 and 8. The nested module's `go 1.26` directive is intentionally
+independent of all of them.
+
+### Target version and sequencing
+
+Choose the newest Go release whose `golang.org/x/sys`, `charm.land/*` and
+Homebrew source builds are all available; the spike is written against
+`go 1.26` and Charm v2 (`bubbletea v2.0.2`, `bubbles v2.1.0`,
+`lipgloss v2.0.3`).
+
+Measured floors of the pinned set, from each module's own `go.mod`:
+`bubbletea v2.0.2` declares `go 1.24.2`; `bubbles v2.1.0` and
+`lipgloss v2.0.3` declare `go 1.25.0`; `x/ansi v0.11.7` declares `go 1.24.2`.
+The spike declares `go 1.26` anyway, matching the migration target rather than
+the dependency floor. Treat the two separately: the floor is the minimum a
+production adoption could technically compile on, while the target is a
+platform-support decision that a separate review must record.
+
+1. **Decide and record the target.** A new `go` directive is a platform-support
+   decision for every user building from source, not a tidy-up.
+2. **Raise `go.mod` and every pin in one commit.** Sites 1–6 above; docs (7–8
+   and the extra references) in the same change or a linked one.
+3. **Re-pull and record the new image digest.** `docker pull golang:<tag>`,
+   then read the digest with `docker image inspect --format '{{index .RepoDigests 0}}'`
+   and put the identical value in `ci.yml` and `trusted_ci.py`.
+4. **Re-run the gate set** on the merged change:
+
+   ```sh
+   task tidy-check
+   task mod-verify
+   task vet
+   task test
+   task build-darwin
+   git diff --check
+   sh tests/docker-e2e.sh
+   sh tests/guide-e2e.sh
+   task verify-trusted SDD_TRUSTED=<reviewed-base>   # authorized environments only
+   ```
+
+5. **Only then** start Phase 3 (production TUI integration) or root-level
+   dependency adoption, each with its own authorization.
+
+Rollback is the same commit in reverse: restore `go.mod`, the image tags, the
+digest in both files, the capability name and the documented floor. Because the
+digest appears twice (#2, #3), a half-reverted state fails closed at the trusted
+gate rather than quietly testing a different toolchain.
+
+### Risk notes
+
+| Risk | Effect | Mitigation |
+|---|---|---|
+| Digest drift between `ci.yml` and `trusted_ci.py` | The trusted gate pulls one toolchain and believes it verified another | Update both from one `docker image inspect` output; the gate compares the reviewed base, so a mismatch fails loudly. |
+| Capability rename missed in a JSON contract | `prerequisite: unknown capability` blocks the check, or a stale name silently matches nothing | Change `runner.go` and both JSON contracts in one commit; `grep -rn "preloaded golang:"` finds all three. |
+| Docs updated before gates | Readers install a toolchain the repo cannot build with | Land docs in the same change as the pins. |
+| Homebrew users on older Go | `brew install` builds from source and fails below the new floor | Update the formula's documented requirement and README floor together; the release job follows `go.mod` automatically. |
+| Experimental code leaking into gates | Core CI starts requiring network or Charm modules | Keep `experiments/tui` nested, keep `tui:test` in `Taskfile.experimental.yml`, and never add its packages to the core package lists. |
+
+---
+
+## 5. Phased path after this batch
+
+| Phase | Content | Status |
+|---|---|---|
+| B1 (Feature 012) | Stdlib fixes: definition formatting, grouping, copy, navigation, terminal-only messages | separate batch, separate state |
+| B2 (this batch) | Nested module, read-only catalog spike, this blueprint, `tui:test` | experimental only |
+| Phase 2 | Toolchain migration per §4, then retain the spike as evidence | blocked on a separate decision |
+| Phase 3 | Promote `experiments/tui` to `internal/tui`, wire `agentic-sdd guide` behind the §3 gate, add Huh v2 forms and backup/log viewers | not approved |
+
+Phase 3 must preserve three behavior contracts this spike already exercises:
+non-TTY stdout stays byte-identical, numeric menu IDs stay stable for scripted
+journeys, and every mutation still goes through the CLI.
+
+## 6. Non-goals
+
+- This document does not authorize raising `go.mod`, changing container images,
+  pulling new digests, publishing a release or running any live operation.
+- It does not claim the TUI is reachable from the shipped `agentic-sdd` binary.
+- It does not promise the 20-module dependency footprint; it is a measurement of
+  one pin set, not a budget.
