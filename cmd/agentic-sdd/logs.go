@@ -81,6 +81,16 @@ func printApplySummary(out io.Writer, env *Env, sum skillsync.PlanSummary, backu
 		return
 	}
 	fmt.Fprintln(out)
+	printHeading(out, env, "Apply complete")
+	if brandWidth(env) < brandArtWidth {
+		fmt.Fprintf(out, "%s Installed %d items\n", env.Green(statusPrefix(env)), sum.TotalChanges())
+		fmt.Fprintf(out, "  %d new, %d replaced\n", sum.Install, sum.Replace)
+		if backupID != "" {
+			fmt.Fprintln(out, "Backup: "+backupID)
+		}
+		fmt.Fprintln(out, "  Undo: agentic-sdd restore")
+		return
+	}
 	line := fmt.Sprintf("%s Installed %d items (%d new, %d replaced)",
 		env.Green(statusPrefix(env)), sum.TotalChanges(), sum.Install, sum.Replace)
 	if backupID != "" {

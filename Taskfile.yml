@@ -15,6 +15,19 @@ tasks:
   help:
     desc: Show available commands
     cmds: [task --list]
+  run:
+    desc: Interact with the animated guide locally using a disposable temporary home
+    interactive: true
+    cmds:
+      - |
+        sh -c '
+        umask 077
+        demo_home=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-demo.XXXXXX") || exit 2
+        cleanup() { rm -rf -- "$demo_home"; }
+        trap cleanup EXIT
+        echo "Demo: this task uses a temporary home that is deleted when the task exits; recovery snapshots and logs are lost."
+        GOCACHE="$1" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= AGENTIC_SDD_TRACE= AGENTIC_SDD_FORCE_INTERACTIVE= AGENTIC_SDD_ANIMATE=1 go run ./cmd/agentic-sdd guide --home "$demo_home"
+        ' sh {{.GOCACHE | shellQuote}}
   preview:
     desc: Preview skill installation
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd preview']
@@ -45,6 +58,22 @@ tasks:
   docker-guide-e2e:
     desc: Exercise guided CLI journeys and flow tracing in an isolated Docker container
     cmds: [sh tests/guide-e2e.sh]
+  docker-guide:
+    desc: Interact with the animated guide in a disposable offline Docker container
+    interactive: true
+    cmds:
+      - >-
+        printf '%s\n' 'Demo: this container and its temporary /tmp/demo-home are deleted when the task exits; recovery snapshots and logs are lost.'
+      - >-
+        docker run --rm -it --pull=never --network none
+        --mount {{printf "type=bind,src=%s,dst=/src,readonly" .ROOT_DIR | shellQuote}}
+        --workdir /src
+        -e TERM -e NO_COLOR -e COLUMNS
+        -e AGENTIC_SDD_ANIMATE=1
+        -e GOTOOLCHAIN=local -e GOPROXY=off -e GOSUMDB=off
+        -e GOENV=off -e GOWORK=off -e GOFLAGS= -e GOCACHE=/tmp/go-cache
+        golang:1.25-alpine
+        go run ./cmd/agentic-sdd guide --home /tmp/demo-home
   hooks-install:
     desc: Install Lefthook Git hooks
     cmds: [lefthook install]

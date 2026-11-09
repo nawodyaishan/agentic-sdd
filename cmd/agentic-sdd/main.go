@@ -188,12 +188,19 @@ func printPreviewSummary(out io.Writer, env *Env, sum skillsync.PlanSummary, rep
 		return
 	}
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, env.Bold("Summary (preview — nothing was written)"))
-	for _, c := range sum.Clients {
-		fmt.Fprintf(out, "  %-16s %d to install, %d to replace, %d up to date\n", c.Client, c.Install, c.Replace, c.UpToDate)
+	printHeading(out, env, "Summary (preview — nothing was written)")
+	if brandWidth(env) < brandArtWidth {
+		for _, c := range sum.Clients {
+			printStackedCounts(out, c.Client, c.Install, c.Replace, c.UpToDate)
+		}
+		printStackedCounts(out, "Total", sum.Install, sum.Replace, sum.UpToDate)
+	} else {
+		for _, c := range sum.Clients {
+			fmt.Fprintf(out, "  %-16s %d to install, %d to replace, %d up to date\n", c.Client, c.Install, c.Replace, c.UpToDate)
+		}
+		fmt.Fprintf(out, "  Total: %d to install, %d to replace (backed up first), %d up to date — nothing was written.\n",
+			sum.Install, sum.Replace, sum.UpToDate)
 	}
-	fmt.Fprintf(out, "  Total: %d to install, %d to replace (backed up first), %d up to date — nothing was written.\n",
-		sum.Install, sum.Replace, sum.UpToDate)
 	if sum.TotalChanges() > 0 {
 		fmt.Fprintf(out, "  Next: %s\n", formatNextApplyCommand(repo, rawHome, opts))
 	}

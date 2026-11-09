@@ -163,11 +163,14 @@ func TestGuideInstallAndDeclineAndRepeat(t *testing.T) {
 			t.Fatalf("guide install exit %d: stdout %q stderr %q", code, stdout, stderr)
 		}
 		for _, want := range []string{
-			"Preview — nothing written yet",
-			"Installed 4 items",
-			"Backup: ",
+			"1. Choose options",
+			"2. Review changes",
+			"3. Installation result",
+			"Success: Installed 4 managed entries.",
+			"Snapshot: ",
+			"Location: ",
 			"Log: ",
-			"Undo any time: agentic-sdd restore",
+			"Preview restoring this snapshot:",
 			"agentic-sdd-router",
 		} {
 			if !strings.Contains(stdout, want) {
@@ -299,10 +302,13 @@ func TestGuideLogsRestoreSharedReaderAndEOF(t *testing.T) {
 		if !strings.Contains(stdout, "Agentic SDD installs reusable engineering skills") {
 			t.Fatalf("missing about text: %s", stdout)
 		}
+		if !strings.Contains(stdout, "choose 6") {
+			t.Fatalf("about does not point at the learning explorer:\n%s", stdout)
+		}
 		if !strings.Contains(stdout, "Cancelled.") {
 			t.Fatalf("quit did not print Cancelled.: %s", stdout)
 		}
-		if strings.Count(stdout, "What would you like to do?") != 2 {
+		if strings.Count(stdout, "Main menu") != 2 {
 			t.Fatalf("about did not return to the menu:\n%s", stdout)
 		}
 		assertNoWrites(t, home)

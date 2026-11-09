@@ -254,3 +254,42 @@ func TestRunEnvRestoreWithDevNullStdin(t *testing.T) {
 		t.Fatalf("stderr = %q, want missing-id message", errOut.String())
 	}
 }
+
+// TestResolveEnvAnimate pins the exact opt-in: only the literal value "1"
+// enables animation, and the resolver reads AGENTIC_SDD_ANIMATE once.
+func TestResolveEnvAnimate(t *testing.T) {
+	term := fakeCharDevice()
+	tests := []struct {
+		value string
+		want  bool
+	}{
+		{"1", true},
+		{"", false},
+		{"0", false},
+		{"true", false},
+		{" 1", false},
+		{"01", false},
+	}
+	for _, tc := range tests {
+		t.Run("value_"+tc.value, func(t *testing.T) {
+			env := resolveEnv(term, term, term, mapGetenv(map[string]string{"AGENTIC_SDD_ANIMATE": tc.value}))
+			if env.Animate != tc.want {
+				t.Fatalf("Animate = %v for %q, want %v", env.Animate, tc.value, tc.want)
+			}
+		})
+	}
+
+	calls := 0
+	env := resolveEnv(term, term, term, func(key string) string {
+		if key == "AGENTIC_SDD_ANIMATE" {
+			calls++
+		}
+		return ""
+	})
+	if calls != 1 {
+		t.Fatalf("AGENTIC_SDD_ANIMATE read %d times, want once", calls)
+	}
+	if env.Animate {
+		t.Fatal("Animate enabled without the literal opt-in")
+	}
+}

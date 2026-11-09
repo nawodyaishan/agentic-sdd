@@ -22,6 +22,7 @@ type Env struct {
 	StderrTTY   bool    // stderr is a terminal
 	Color       bool    // stdout styling is on
 	ASCII       bool    // TERM=dumb: ASCII-only glyphs
+	Animate     bool    // AGENTIC_SDD_ANIMATE=1 opt-in; further gates apply
 	Width       int     // terminal width, COLUMNS or 80
 	Trace       *Tracer // nil = tracing disabled
 }
@@ -88,6 +89,7 @@ func resolveEnv(stdin, stdout, stderr statter, getenv func(string) string) Env {
 	term := getenv("TERM")
 	ascii := term == "dumb"
 	color := outTTY && getenv("NO_COLOR") == "" && !ascii
+	animate := getenv("AGENTIC_SDD_ANIMATE") == "1"
 	width := 80
 	if cols, err := strconv.Atoi(strings.TrimSpace(getenv("COLUMNS"))); err == nil && cols > 0 {
 		width = cols
@@ -98,6 +100,7 @@ func resolveEnv(stdin, stdout, stderr statter, getenv func(string) string) Env {
 		StderrTTY:   errTTY,
 		Color:       color,
 		ASCII:       ascii,
+		Animate:     animate,
 		Width:       width,
 	}
 }

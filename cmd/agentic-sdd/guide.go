@@ -7,10 +7,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	"agentic-sdd/internal/skillsync"
+	"agentic-sdd/internal/version"
 )
 
 // guideExamplePrompts are the two copy-pasteable first prompts shown on the
@@ -92,10 +96,33 @@ func (p *prompter) confirm(id, question string) (yes bool, eof bool) {
 	return yes, false
 }
 
+// guideRuntime carries the effectful dependencies of one guide run so tests
+// can inject an installed version, a wait function and an update check without
+// mutable package-global hooks. Production defaults are built by runGuide.
+type guideRuntime struct {
+	installed string
+	wait      func(time.Duration)
+	check     func(string) updateResult
+}
+
 // runGuide implements "agentic-sdd guide": a numbered-prompt wizard over the
 // existing preview, apply, restore and logs operations. It accepts only
 // --repo and --home and never reads stdin without an interactive terminal.
+// The production wrapper injects build metadata and a network client factory;
+// the client and request are constructed only when menu choice 5 is accepted.
 func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) int {
+	return runGuideWithRuntime(args, stdout, stderr, stdin, env, guideRuntime{
+		installed: version.Version,
+		wait:      time.Sleep,
+		check: func(current string) updateResult {
+			return checkLatestRelease(newUpdateClient(), current)
+		},
+	})
+}
+
+// runGuideWithRuntime is the testable guide body. It keeps the original
+// runGuide signature at the production seam and never mutates shared state.
+func runGuideWithRuntime(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env, rt guideRuntime) int {
 	fs := flag.NewFlagSet("agentic-sdd guide", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var repo, home string
@@ -134,6 +161,24 @@ func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env
 		return 1
 	}
 
+	// Branding belongs to terminal stdout only and is written once, before the
+	// first menu. The non-terminal branch keeps the original transcript.
+	terminal := env.StdoutTTY
+	if terminal && repo != "" {
+		// Terminal suggestions and receipts always name the resolved source.
+		// The legacy non-terminal branch keeps the argument exactly as given.
+		repo, err = filepath.Abs(repo)
+		if err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			return 1
+		}
+	}
+	if terminal {
+		printBrandedGuideIntro(stdout, env, rt.installed, env.Animate, rt.wait)
+		printWrappedProse(stdout, "", "Skill and profile changes require confirmation.", proseWidth(env))
+		printWrappedProse(stdout, "", "Write confirmation defaults to No.", proseWidth(env))
+	}
+
 	// One shared default-sized reader for the whole run: runRestore's own
 	// bufio.NewReader returns this same reader, so scripted answers are not
 	// swallowed between steps.
@@ -143,7 +188,11 @@ func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env
 	invalidCount := 0
 	for {
 		env.Trace.Event("screen.shown", "screen", "menu")
-		printGuideMenu(stdout)
+		if terminal {
+			printGuideMenuTerminal(stdout, env)
+		} else {
+			printGuideMenu(stdout)
+		}
 		env.Trace.Event("prompt.shown", "prompt", "menu", "default", "1")
 		line, ok := readLine(reader)
 		if !ok {
@@ -156,7 +205,7 @@ func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env
 		case ans == "":
 			env.Trace.Event("prompt.answered", "prompt", "menu", "kind", "default", "choice", "1")
 			ans = "1"
-		case ans == "1" || ans == "2" || ans == "3" || ans == "4" || ans == "q" || ans == "quit":
+		case ans == "1" || ans == "2" || ans == "3" || ans == "4" || ans == "q" || ans == "quit" || (terminal && (ans == "5" || ans == "6")):
 			if ans == "quit" {
 				ans = "q"
 			}
@@ -168,7 +217,11 @@ func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env
 				fmt.Fprintf(stderr, "error: invalid menu selection %q\n", strings.TrimSpace(line))
 				return 2
 			}
-			fmt.Fprintln(stdout, "Please enter 1, 2, 3, 4, or q.")
+			if terminal {
+				fmt.Fprintln(stdout, "Please enter 1, 2, 3, 4, 5, 6, or q.")
+			} else {
+				fmt.Fprintln(stdout, "Please enter 1, 2, 3, 4, or q.")
+			}
 			continue
 		}
 		invalidCount = 0
@@ -177,12 +230,40 @@ func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env
 		case "q":
 			fmt.Fprintln(stdout, "Cancelled.")
 			return 0
+		case "5":
+			// Only an accepted terminal-stdout menu choice reaches here. The
+			// production closure builds the client and request exactly once;
+			// this loop merely returns to the menu without retrying.
+			fmt.Fprintln(stdout, "\nChecking GitHub for the latest CLI release (up to 5 seconds)...")
+			result := updateResult{state: updateFailed}
+			if rt.check != nil {
+				result = rt.check(rt.installed)
+			}
+			env.Trace.Event("screen.shown", "screen", "updates.result")
+			printUpdateResult(stdout, result)
+			continue
+		case "6":
+			// Optional, terminal-only learning explorer. It is read-only and
+			// reports whether the user quit the guide or returned to the menu.
+			quit, code := runGuideExplorer(repo, absHome, p, stderr)
+			if quit {
+				return code
+			}
+			continue
 		case "4":
 			env.Trace.Event("screen.shown", "screen", "about")
-			printGuideAbout(stdout)
+			if terminal {
+				printGuideAboutTerminal(stdout, env)
+			} else {
+				printGuideAbout(stdout)
+			}
 			continue
 		case "3":
 			if err := showLatestLog(absHome, stdout); err != nil {
+				if terminal && !guideLogsEmpty(err) {
+					fmt.Fprintln(stderr, "error:", err)
+					return 1
+				}
 				fmt.Fprintln(stdout, "No install or restore logs found yet.")
 			}
 			continue
@@ -193,10 +274,24 @@ func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env
 				return 1
 			}
 			if len(backups) == 0 {
-				fmt.Fprintln(stdout, "No backups found.")
+				if terminal {
+					fmt.Fprintln(stdout, "No backups found.")
+					printWrappedProse(stdout, "", "Backups are created automatically when an installation replaces existing files.", proseWidth(env))
+				} else {
+					fmt.Fprintln(stdout, "No backups found.")
+				}
 				continue
 			}
-			return runRestore(restoreArgs(repo, home), stdout, stderr, reader, env)
+			if terminal {
+				fmt.Fprintln(stdout)
+				printCautionProse(stdout, env, "", "Restoring can replace current files and remove freshly installed items.", proseWidth(env))
+				printWrappedProse(stdout, "", "Review the selected backup's preview before confirming.", proseWidth(env))
+			}
+			restoreHome := home
+			if terminal {
+				restoreHome = absHome
+			}
+			return runRestore(restoreArgs(repo, restoreHome), stdout, stderr, reader, env)
 		case "1":
 			return runGuideInstall(repo, home, absHome, p, stderr, env)
 		}
@@ -207,10 +302,17 @@ func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env
 // buffered so the terminal shows only the concise summary and closing screen,
 // while the apply log file keeps the full transcript.
 func runGuideInstall(repo, home, absHome string, p *prompter, stderr io.Writer, env *Env) int {
+	if env.StdoutTTY {
+		return runGuideInstallTerminal(repo, home, absHome, p, stderr, env)
+	}
 	stdout := p.out
 
 	env.Trace.Event("screen.shown", "screen", "install.explain")
-	printInstallExplanation(stdout, absHome)
+	if env.StdoutTTY {
+		printInstallExplanationTerminal(stdout, env, absHome)
+	} else {
+		printInstallExplanation(stdout, absHome)
+	}
 
 	withOpenCode, eof := p.confirm("install.with_opencode", "Add the OpenCode orchestration pack (extra agent profiles)? [y/N]: ")
 	if eof {
@@ -235,7 +337,11 @@ func runGuideInstall(repo, home, absHome string, p *prompter, stderr io.Writer, 
 	sum := skillsync.SummarizePlan(planBuf.String())
 	env.Trace.Event("screen.shown", "screen", "install.preview")
 	env.Trace.Event("plan.summary", "install", sum.Install, "replace", sum.Replace, "up_to_date", sum.UpToDate)
-	printGuidePreview(stdout, sum)
+	if env.StdoutTTY {
+		printGuidePreviewTerminal(stdout, env, sum)
+	} else {
+		printGuidePreview(stdout, sum)
+	}
 
 	if sum.TotalChanges() == 0 {
 		fmt.Fprintln(stdout, "All skills are up to date. Nothing to install.")
@@ -264,6 +370,22 @@ func runGuideInstall(repo, home, absHome string, p *prompter, stderr io.Writer, 
 	}
 
 	env.Trace.Event("screen.shown", "screen", "install.done")
+	if env.StdoutTTY {
+		fmt.Fprintf(stdout, "%s %s\n", env.Green(statusPrefix(env)), heading(env, fmt.Sprintf("Installed %d items", sum.TotalChanges())))
+		if res.backupID != "" {
+			fmt.Fprintln(stdout, "Backup: "+res.backupID)
+		}
+		if logPath := operationLogPath(applyBuf.String()); logPath != "" {
+			fmt.Fprintln(stdout, "Log: "+logPath)
+		}
+		fmt.Fprintln(stdout, "Undo any time: agentic-sdd restore")
+		fmt.Fprintln(stdout)
+		printHeading(stdout, env, "Next, in a project, tell your agent:")
+		for _, prompt := range guideExamplePrompts {
+			printWrappedProse(stdout, "  ", prompt, proseWidth(env))
+		}
+		return 0
+	}
 	fmt.Fprintf(stdout, "%s Installed %d items\n", env.Green(statusPrefix(env)), sum.TotalChanges())
 	if res.backupID != "" {
 		fmt.Fprintln(stdout, "Backup: "+res.backupID)
@@ -278,6 +400,13 @@ func runGuideInstall(repo, home, absHome string, p *prompter, stderr io.Writer, 
 		printWrapped(stdout, "  ", prompt, 72)
 	}
 	return 0
+}
+
+// guideLogsEmpty reports whether a log read failed only because there is no
+// log to show yet. Permission, refused-path and other safety errors stay
+// errors; the terminal guide must not present them as a friendly empty state.
+func guideLogsEmpty(err error) bool {
+	return err != nil && (os.IsNotExist(err) || strings.HasPrefix(err.Error(), "no operation logs in "))
 }
 
 // operationLogPath returns the "Log: <path>" line runOperation appends to the
@@ -318,6 +447,73 @@ func printGuideMenu(out io.Writer) {
 	fmt.Fprint(out, "Choose [1]: ")
 }
 
+// printGuideMenuTerminal is the styled menu for terminal stdout. The branded
+// entry already carries the title, tagline, credit, version and docs, so this
+// menu never repeats the legacy brand title or tagline. Choice 5 is disclosed
+// as a network action and exists only on this branch.
+func printGuideMenuTerminal(out io.Writer, env *Env) {
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, strings.Repeat("-", min(24, proseWidth(env))))
+	printHeading(out, env, "Main menu")
+	fmt.Fprintln(out, "  Get started:")
+	fmt.Fprintln(out, "    1) Preview and install skills   (default)")
+	fmt.Fprintln(out, "    4) About and getting started")
+	fmt.Fprintln(out, "    6) Explore skills and agent profiles")
+	fmt.Fprintln(out, "  Manage & logs:")
+	fmt.Fprintln(out, "    2) Restore from a backup")
+	fmt.Fprintln(out, "    3) View latest install or restore log")
+	fmt.Fprintln(out, "  Help:")
+	fmt.Fprintln(out, "    5) Check for CLI updates (contacts GitHub)")
+	fmt.Fprintln(out, "    q) Quit")
+	fmt.Fprintln(out)
+	printWrappedProse(out, "  ", "Enter selects 1. Type q to exit.", proseWidth(env))
+	printWrappedProse(out, "  ", "EOF exits; Ctrl+C interrupts the process.", proseWidth(env))
+	fmt.Fprintln(out)
+	fmt.Fprint(out, "Choose [1]: ")
+}
+
+// proseWidth is the guide's prose budget: 72 columns or the terminal width,
+// whichever is smaller. Commands and complete paths are never passed through
+// the wrapper.
+func proseWidth(env *Env) int {
+	width := brandWidth(env)
+	if width > brandProseMax {
+		width = brandProseMax
+	}
+	return width
+}
+
+// printHeading wraps plain heading text and applies bold per line, so narrow
+// terminals never receive overlong styled prose.
+func printHeading(out io.Writer, env *Env, text string) {
+	for _, line := range wrapProse(text, proseWidth(env)) {
+		fmt.Fprintln(out, heading(env, line))
+	}
+}
+
+// printWrappedProse prefixes and rune-wraps guide-owned prose. Indivisible
+// path/command tokens are preserved by wrapProse.
+func printWrappedProse(out io.Writer, prefix, text string, width int) {
+	available := width - utf8.RuneCountInString(prefix)
+	if available < 1 {
+		available = 1
+	}
+	for _, line := range wrapProse(text, available) {
+		fmt.Fprintln(out, prefix+line)
+	}
+}
+
+// printCautionProse is printWrappedProse with the meaningful-caution accent.
+func printCautionProse(out io.Writer, env *Env, prefix, text string, width int) {
+	available := width - utf8.RuneCountInString(prefix)
+	if available < 1 {
+		available = 1
+	}
+	for _, line := range wrapProse(text, available) {
+		fmt.Fprintln(out, caution(env, prefix+line))
+	}
+}
+
 func printGuideAbout(out io.Writer) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Agentic SDD installs reusable engineering skills for coding agents.")
@@ -328,9 +524,34 @@ func printGuideAbout(out io.Writer) {
 	fmt.Fprintln(out)
 }
 
+// printGuideAboutTerminal keeps the About content accurate for the guide-only
+// update action while repeating no branding beyond the already-shown entry.
+func printGuideAboutTerminal(out io.Writer, env *Env) {
+	fmt.Fprintln(out)
+	printHeading(out, env, "About and getting started")
+	printWrappedProse(out, "", "Agentic SDD installs reusable engineering skills for coding agents.", proseWidth(env))
+	printWrappedProse(out, "", "It writes into four client directories, backs up anything it replaces, and can undo an install with \"agentic-sdd restore\".", proseWidth(env))
+	printWrappedProse(out, "", "Installer actions are also plain commands: preview, apply, backups, restore, logs. The update check is guide-only and uses GitHub.", proseWidth(env))
+	printWrappedProse(out, "", "Restoring can replace current files and remove freshly installed items.", proseWidth(env))
+	printWrappedProse(out, "", "Upgrading the CLI does not update installed skills.", proseWidth(env))
+	printWrappedProse(out, "", "After a CLI upgrade, preview skill changes and review before applying.", proseWidth(env))
+	printWrappedProse(out, "", "After installing, open your coding agent in a project and ask it to use agentic-sdd-router to scope your work.", proseWidth(env))
+	printWrappedProse(out, "", "To learn what the installed skills and agent profiles do, choose 6 from the main menu.", proseWidth(env))
+}
+
 func printInstallExplanation(out io.Writer, absHome string) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "This installs skills into four places your agents read from:")
+	fmt.Fprintln(out, "  ~/.agents/skills")
+	fmt.Fprintln(out, "  ~/.codex/skills")
+	fmt.Fprintln(out, "  ~/.claude/skills")
+	fmt.Fprintln(out, "  ~/.gemini/antigravity-cli/skills")
+	fmt.Fprintln(out, "Home: "+absHome)
+}
+
+func printInstallExplanationTerminal(out io.Writer, env *Env, absHome string) {
+	fmt.Fprintln(out)
+	printHeading(out, env, "This installs skills into four places your agents read from:")
 	fmt.Fprintln(out, "  ~/.agents/skills")
 	fmt.Fprintln(out, "  ~/.codex/skills")
 	fmt.Fprintln(out, "  ~/.claude/skills")
@@ -347,6 +568,24 @@ func printGuidePreview(out io.Writer, sum skillsync.PlanSummary) {
 	fmt.Fprintf(out, "  Total: %d to install, %d to replace.\n", sum.Install, sum.Replace)
 	fmt.Fprintln(out, "  Existing skills are backed up before they are replaced.")
 	fmt.Fprintln(out, "  (Run agentic-sdd preview for the full per-skill list.)")
+}
+
+func printGuidePreviewTerminal(out io.Writer, env *Env, sum skillsync.PlanSummary) {
+	fmt.Fprintln(out)
+	printHeading(out, env, "Preview — nothing written yet")
+	if brandWidth(env) < brandArtWidth {
+		for _, c := range sum.Clients {
+			printStackedCounts(out, c.Client, c.Install, c.Replace, c.UpToDate)
+		}
+		printStackedCounts(out, "Total", sum.Install, sum.Replace, sum.UpToDate)
+	} else {
+		for _, c := range sum.Clients {
+			fmt.Fprintf(out, "  %-5s %d to install, %d to replace, %d up to date\n", c.Client, c.Install, c.Replace, c.UpToDate)
+		}
+		fmt.Fprintf(out, "  Total: %d to install, %d to replace.\n", sum.Install, sum.Replace)
+	}
+	printCautionProse(out, env, "  ", "Existing skills are backed up before they are replaced.", proseWidth(env))
+	printWrappedProse(out, "  ", "(Run agentic-sdd preview for the full per-skill list.)", proseWidth(env))
 }
 
 // printWrapped writes text word-wrapped to width columns, prefixing every
