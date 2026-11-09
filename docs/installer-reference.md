@@ -4,6 +4,16 @@ The `agentic-sdd` CLI installs the portable skill toolkit. It does not run your 
 
 ## Commands
 
+On terminal stdout, the guide starts with one skill/profile confirmation
+notice. Each return shows a clearly separated main menu, without clearing
+previous results. The first choice previews changes before offering to
+install; restore warns that it can replace current files and remove freshly
+installed items. EOF exits; Ctrl+C interrupts the process and does not promise
+to undo completed changes. Build metadata such as `dev` is explicitly labeled
+as a development/custom build. An explicit update check still contacts GitHub
+for such builds, but reports comparison as unavailable; valid metadata shows
+the latest published version rather than claiming an upgrade is available.
+
 | Command | Behavior |
 |---|---|
 | `agentic-sdd` or `agentic-sdd preview` | Show planned installs, replacements, and unchanged skills without writing. |
@@ -18,9 +28,26 @@ The `agentic-sdd` CLI installs the portable skill toolkit. It does not run your 
 | `agentic-sdd help orchestrate` | Show usage for opt-in OpenCode orchestration options. |
 | `agentic-sdd --help` | Show commands, flags, and defaults. |
 
-`restore preview BACKUP_ID` is another preview form; `restore BACKUP_ID --apply` is another writing form. With no backup ID on a terminal, restore lists available backups and offers interactive selection. Writing through interactive selection asks for confirmation. `agentic-sdd guide` offers the same preview-first steps as numbered prompts; its journeys, screen/prompt identifiers, and trace schema are catalogued in [Guided CLI journeys](guide-flows.md).
+`restore preview BACKUP_ID` is another preview form; `restore BACKUP_ID --apply` is another writing form. With no backup ID on a terminal, restore lists available backups and offers interactive selection. Writing through interactive selection asks for confirmation. `agentic-sdd guide` offers the same preview-first steps as numbered prompts; its journeys, screen/prompt identifiers, and trace schema are catalogued in [Guided CLI journeys](guide-flows.md). Installer operations (`preview`, `apply`, `backups`, `restore`, `logs`) retain their command-line equivalents; checking for updates is offered as a terminal-guide convenience with manual update instructions and no top-level update command or self-updater. Upgrading the CLI binary does not update installed skill files: run `agentic-sdd preview` afterwards, and apply only after separately reviewing the preview.
 
 ## Flags
+
+### Understanding a guided installation
+
+The terminal guide shows actual paths under the selected home, not `~/…`
+aliases for a different home. Its review distinguishes unique skills from
+copies installed for multiple clients, and profile files from skill directories.
+At the final terminal review, `b` changes options and recomputes the preview;
+it never approves a write. The recovery suggestion previews the actual snapshot
+using the same `--home` and supplied `--repo`; apply remains a separate decision.
+No-op guidance reports up-to-date files without inventing a new recovery ID.
+
+Menu option `6` is an optional skills/profile/concepts explorer. Available source
+templates and file status are separate: a matching file does not prove an agent
+is enabled, authenticated, running or secure. Template role descriptions are not
+an OS sandbox. Free-first changes routing defaults, not provider credentials,
+and does not guarantee free execution. No explorer action invokes a model.
+See [journeys and navigation](guide-flows.md#expanded-terminal-review-and-learning).
 
 Put flags after the command, for example:
 
@@ -85,9 +112,13 @@ Errors go to stderr; action output goes to stdout. A preview listing replacement
 
 When a stream is a terminal, `preview` and `apply` add a grouped per-client summary with counts and the exact next command, and selected errors add a `hint:` line on stderr. When a stream is not a terminal, its output stays byte-identical to earlier releases, so scripts and CI see no change. `guide` requires an interactive stdin and exits `2` without reading or writing anything when it does not have one.
 
+- **Guide entry and branding:** On terminal stdout, `guide` renders a compact cyan ASCII wordmark, the one-line vision (`Build software with AI. Stay the engineer.`), creator credit (`by nawodyaishan`), installed version (`Version: <version>` from build metadata; e.g. `dev`), and full documentation URL (`Docs: https://github.com/nawodyaishan/agentic-sdd#readme`). The URL is selectable and clickable in terminals supporting URL auto-linking; `agentic-sdd` never automatically launches a browser or emits OSC 8 sequences. The branded entry is shown once per guide session, not on menu returns. Non-terminal stdout (piped) preserves the plain unbranded transcript and original 4-choice menu.
+- **Narrow terminals (`COLUMNS < 60`):** Below 60 columns, the ASCII art is omitted in favor of a compact plain text title (`Agentic SDD`), and summary counts are presented as stacked labeled lines rather than aligned rows. Guide-owned prose wraps to `min(72, Env.Width)`. Indivisible paths, commands, and update instructions are never truncated.
 - **Color:** ANSI styling is used only when stdout is a terminal, `NO_COLOR` is unset or empty, and `TERM` is not `dumb`. Status is always a word (`ok`, `error`), never color alone.
-- **`TERM=dumb`** additionally selects ASCII-only glyphs.
-- **`COLUMNS`:** a positive integer sets the width; otherwise it is `80`. Guide-owned text lines are fixed at 72 columns or fewer.
+- **`TERM=dumb`:** Disables color and selects ASCII-only glyphs. Static ASCII branding remains readable without ANSI escapes.
+- **`COLUMNS`:** A positive integer sets the width; otherwise it is `80`. Guide-owned text lines are fixed at 72 columns or fewer on standard terminals.
+- **Optional animation (`AGENTIC_SDD_ANIMATE=1`):** Presentation is static by default with zero delay. Exact `1` opts in to a two-pass highlight sweep across the cyan ASCII name (twenty 75 ms frames, 1.5 seconds planned delay). Only that fixed-width line is redrawn using carriage returns, then it settles to static cyan before any prompt. It requires interactive stdin, terminal stdout, color enabled, non-dumb terminal, and width >= 60. Any other value, `NO_COLOR`, `TERM=dumb`, narrow terminal, or non-terminal stdout suppresses animation and redraws. Every frame resets styling before waiting; no cursor hiding/positioning escape, alternate screen, erasure, screen clear, looping or prompt redraw is used.
+- **CLI update check (menu choice 5):** On terminal stdout, choice `5` performs a single, bounded, read-only HTTPS request to `https://api.github.com/repos/nawodyaishan/agentic-sdd/releases/latest`. It enforces a 5-second timeout, 64 KiB response limit, and redirect rejection. No background polling, telemetry, token lookup, or binary downloads occur. Offline or upon error, it reports a generic message (`Could not check for updates.`) with the releases URL, returning to the menu without changing installer state. If a newer stable release is confirmed, it displays fixed copyable Homebrew commands (`brew update && brew upgrade nawodyaishan/tap/agentic-sdd` followed by `agentic-sdd version`) and directs manual installations to the releases URL. There is no automatic self-update, clipboard manipulation, or shell execution.
 - **`/dev/null`:** terminal detection is stdlib-only and treats a character device as a terminal unless it is the null device. `restore` without an ID and a non-terminal stdin (including `/dev/null`) therefore exits `2` with `restore requires a backup id; run "agentic-sdd backups" to list them`, as documented above. Residual limitation: other character devices, for example `/dev/zero`, still pass as terminals because an exact check would need a terminal ioctl and a new dependency.
 - **Help:** help text is never styled. `agentic-sdd help <topic>` prints topic-specific text before the unchanged global usage block. The usage-error string for an unknown `help` topic is deliberately preserved byte-for-byte.
 
@@ -98,6 +129,7 @@ Environment variables:
 | `NO_COLOR` | Any non-empty value disables color. |
 | `TERM=dumb` | Disables color and selects ASCII-only glyphs. |
 | `COLUMNS` | Positive integer terminal width; otherwise `80`. |
+| `AGENTIC_SDD_ANIMATE` | Set to exactly `1` to opt in to a 1.5-second two-pass ASCII name highlight in `guide` on capable terminals (interactive stdin, terminal stdout, color enabled, non-dumb terminal, width >= 60). Any other value is off. |
 | `AGENTIC_SDD_TRACE=<path>` | Opt in to a privacy-safe JSON Lines flow trace of the run. Unset or empty disables it. See [flow tracing](guide-flows.md#flow-trace-agentic_sdd_trace). |
 | `AGENTIC_SDD_FORCE_INTERACTIVE=1` | Test seam: treat stdin, stdout, and stderr as terminals so terminal-only behavior can be exercised in a container. It never answers or skips a confirmation. See [the test seam](guide-flows.md#test-seam-agentic_sdd_force_interactive1). |
 

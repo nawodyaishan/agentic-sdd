@@ -80,6 +80,28 @@ To try a read-only preview with a disposable home first, pass `--home /tmp/test-
 
 </details>
 
+### Try the interactive CLI locally
+
+From a repository checkout with Go and Task installed:
+
+```sh
+task run
+```
+
+This opens the animated guide in your terminal with a fresh temporary home, removed on exit. Installs affect that temporary home, not your real agent directories. Animation respects `TERM`, `NO_COLOR`, and `COLUMNS`; inherited flow tracing and forced-interactive settings are disabled for the demo. Enter `q` at the menu to quit. This is not an OS sandbox; explicitly choosing the update check can contact GitHub.
+
+### Try the interactive CLI in Docker
+
+From a repository checkout, with Docker, Task, and the `golang:1.25-alpine` image already available locally:
+
+```sh
+task docker-guide
+```
+
+Explore the numbered menu and optional animated intro; enter `q` at the menu to quit. The repository is mounted read-only, installs target only `/tmp/demo-home` inside the disposable container, and your real home is never mounted. Networking is disabled, so checking for updates shows the offline fallback. Animation respects your terminal's `TERM`, `NO_COLOR`, and `COLUMNS` settings. All container changes disappear on exit.
+
+For automated container checks instead, run `task docker-guide-e2e`.
+
 ---
 
 ## Complete usage guide
