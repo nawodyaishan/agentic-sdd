@@ -21,6 +21,8 @@ specifications, evidence and handovers continue to work.
   specialist subagents, MCP tools (`codegraph`, `context7`, `exa`), and backup/restore.
 - [Installer reference](installer-reference.md) — commands, flags, backups,
   restore, file permissions, and logs.
+- [TUI architecture and toolchain migration blueprint](tui-architecture.md) —
+  experimental Charm v2 hybrid spike and 8-point toolchain audit for Feature 012.
 - [Feature 009 spec](../specs/009-opencode-orchestration/spec.md),
   [plan](../specs/009-opencode-orchestration/plan.md), and
   [tasks](../specs/009-opencode-orchestration/tasks.md) — optional OpenCode
