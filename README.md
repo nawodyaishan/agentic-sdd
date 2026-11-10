@@ -10,9 +10,9 @@
 
 Agentic SDD is an open-source toolkit of **18 core engineering skills** plus an **opt-in OpenCode Orchestration Pack (`--with-opencode`)** for coding agents. It gives you a practical way to scope work, plan meaningful changes, delegate bounded tasks to specialized subagents, debug failures, and verify results—with you in charge of the decisions.
 
-Use it with **OpenCode, Codex, Claude Code, or Antigravity CLI**. Start with one agent, or opt into multi-model specialist orchestration (`sdd-orchestrator`, OpenAI `gpt-6.1-sol` / `gpt-6.1-terra`, Claude Opus/Sonnet, Gemini Flash, DeepSeek, and Console Free models) when you want it.
+Use it with **OpenCode, Codex, Claude Code, or Antigravity CLI**. Explore and install skills through the guided terminal wizard (`agentic-sdd guide`) or the packaged terminal UI (`agentic-sdd tui`), or keep using the explicit `preview`/`apply` commands for scripts and CI. Start with one agent, or opt into multi-model specialist orchestration (`sdd-orchestrator`, OpenAI `gpt-6.1-sol` / `gpt-6.1-terra`, Claude Opus/Sonnet, Gemini Flash, DeepSeek, and Console Free models) when you want it.
 
-[Quick start](#quick-start) · [Usage guide](#complete-usage-guide) · [OpenCode orchestration (`--with-opencode`)](#opencode-orchestration-pack---with-opencode) · [Full orchestration docs](docs/orchestration-guide.md) · [Installer reference](docs/installer-reference.md) · [Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)
+[Quick start](#quick-start) · [What's new](#whats-new-feature-010013) · [Usage guide](#complete-usage-guide) · [OpenCode orchestration (`--with-opencode`)](#opencode-orchestration-pack---with-opencode) · [Full orchestration docs](docs/orchestration-guide.md) · [Installer reference](docs/installer-reference.md) · [Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)
 
 ## Why Agentic SDD?
 
@@ -111,17 +111,39 @@ Explore the numbered menu and optional animated intro; enter `q` at the menu to 
 
 For automated container checks instead, run `task docker-guide-e2e`.
 
+### Guided CLI (`agentic-sdd guide`)
+
+`agentic-sdd guide` is the zero-dependency, numbered-prompt path through the same installer. It needs an interactive terminal; with piped or `/dev/null` stdin it exits `2` without reading input.
+
+On terminal stdout it shows:
+
+- a branded introduction with the tagline, creator, installed version and documentation URL;
+- a grouped main menu: **1** preview and install, **2** restore from a backup, **3** view the latest install or restore log, **4** About and getting started, **5** check for CLI updates (contacts GitHub), **6** explore skills and agent profiles, and **q** to quit;
+- a staged flow — choose options, review exact changes, then confirm — with complete paths, per-destination counts and a preview restoring command.
+
+Every confirmation defaults to **No**; EOF cancels without writing, and `q` exits the menu. Installing through the wizard performs the same `apply` operation as the CLI, including backups and the operation log. `task run` and `task docker-guide` are disposable demo wrappers for this flow.
+
+Scripted use is unaffected: with non-terminal stdout, the guide and every other command keep their historical plain output and exit codes.
+
 ### Terminal UI (`agentic-sdd tui`)
 
 In a real terminal, `agentic-sdd tui` opens the packaged terminal UI:
 
 ```sh
 agentic-sdd tui
-agentic-sdd tui --home ~ --with-opencode
-agentic-sdd tui --opencode-free-first
+agentic-sdd tui --home ~ --with-opencode=false   # core skills only
+agentic-sdd tui --opencode-free-first            # Free-first profile presets
 ```
 
-It needs a real input and output terminal, plus the paired `agentic-sdd-tui` binary next to `agentic-sdd`. The CLI checks the companion's build identity before starting it; a missing, non-executable or mismatched companion is a clear error with rebuild guidance, never a silent switch to another workflow. Pipes, scripts, `AGENTIC_SDD_FORCE_INTERACTIVE=1` and every explicit command or flag keep the standard CLI. `agentic-sdd preview` is always the write-free escape hatch.
+It provides four destinations: **Home** (setup status and next actions), **Install & Manage** (client selection, optional OpenCode pack and Free-first preset, preview, install, backups and restore), **Explore** (searchable catalog of core skills and agent profiles, with purpose, per-destination status and profile routing details) and **Activity & Help** (bounded logs, quick start, shortcuts, commands, troubleshooting, diagnostics and version).
+
+Presentation is responsive: sidebar/list/details at 110+ columns, a compact layout at 80–109, a single list with separate details at 60–79, and explicit resize guidance below that. A single high-contrast Agentic Dark palette (with TrueColor, ANSI-256 and ANSI-16 fallbacks) keeps text and controls readable, while `NO_COLOR`, `AGENTIC_SDD_ASCII=1` and `AGENTIC_SDD_REDUCED_MOTION=1` select plain, ASCII and static modes. Status is always labelled, never conveyed by color alone.
+
+The TUI never writes before an explicit confirmation (default **No**). During an apply or restore, `q`/Esc/navigation cannot abandon the transaction; Ctrl+C requests exit after the write finishes or rolls back. A missing, mismatched or non-executable companion is a clear error, never a silent fallback to another write workflow.
+
+The Home screen checks GitHub once per session for a newer CLI release without blocking local work; set `AGENTIC_SDD_NO_UPDATE_CHECK=1` to suppress it, or retry explicitly from the UI. The online guide and author links open a browser only when you choose the action.
+
+The TUI includes the OpenCode profile pack by default; pass `--with-opencode=false` for the core skills only. It needs a real input and output terminal, plus the paired `agentic-sdd-tui` binary next to `agentic-sdd`. The CLI checks the companion's build identity before starting it; a missing, non-executable or mismatched companion is a clear error with rebuild guidance, never a silent switch to another workflow. Pipes, scripts, `AGENTIC_SDD_FORCE_INTERACTIVE=1` and every explicit command or flag keep the standard CLI. `agentic-sdd preview` is always the write-free escape hatch.
 
 From a source checkout, build a matching local pair (same revision, commit and source-content digest, so the handshake passes without a release tag):
 
@@ -131,6 +153,19 @@ bin/tui-pair/agentic-sdd tui
 ```
 
 The task needs Go 1.26 or newer for the nested TUI module. It prints the injected revision and source digest for both binaries.
+
+## What's new (feature 010–013)
+
+These features added the interactive layers on top of the same preview-first installer. Explicit commands, flags, exit codes and non-terminal output remain compatible.
+
+| Feature | What it added |
+|---|---|
+| **010 — Guided CLI & flow tracing** | `agentic-sdd guide`, grouped previews, per-topic help, `hint:` remediation, a non-TTY `restore` fix, and the opt-in `AGENTIC_SDD_TRACE` JSON Lines flow trace. |
+| **011 — Branded CLI** | ASCII wordmark with tagline, creator, version and documentation URL; context-correct commands; review-with-`b` navigation; aligned change and recovery summaries; menu choice **6** to explore skills and profiles; and an explicit, bounded update check (choice **5**) with copyable Homebrew instructions. |
+| **012 — Readable catalog** | Definition-list wrapping that stays inside narrow widths, role-grouped profile lists with stable numbers, `b`/`B`/`Enter` back navigation, concise safety badges, status labels and next-action hints; plus an [isolated Charm v2 prototype](docs/tui-architecture.md) in `experiments/tui` that leaves the root module dependency-free. |
+| **013 — Unified TUI** | The paired `agentic-sdd-tui` application: Home, Install & Manage, Explore and Activity & Help; searchable catalog; client selection; preview-first install, backup browsing and restore; bounded logs, help, onboarding and diagnostics; a responsive high-contrast theme; once-per-session update check; Homebrew bare-command launch and paired cask packaging. |
+
+Specs: [010](specs/010-guided-cli-ux/spec.md), [011](specs/011-cli-brand-styling/spec.md), [012](specs/012-cli-tui-remediation/spec.md), [013](specs/013-unified-tui-experience/spec.md) — [tasks](specs/013-unified-tui-experience/tasks.md) records the remaining Feature 013 review state.
 
 ---
 
@@ -145,8 +180,8 @@ The task needs Go 1.26 or newer for the nested TUI module. It prints the injecte
 | `agentic-sdd preview --with-opencode` | Preview installing the 18 core skills, `agentic-sdd-orchestrate`, and 14 OpenCode v2 agent profiles in `~/.config/opencode/agents/`. |
 | `agentic-sdd apply --with-opencode` | Back up any replaced skills/profiles and install the core skills + OpenCode orchestration pack. |
 | `agentic-sdd apply --with-opencode --opencode-free-first` | Above + back up and preset the 4 routine implement/test profiles (`sdd-implement-1/-2`, `sdd-test-implement-1/-2`) to use the Free-first model ladder. |
-| `agentic-sdd guide` | Interactive numbered-prompt wizard to preview, install, restore, or inspect skills on a terminal. |
-| `agentic-sdd tui` | Open the packaged terminal UI in a real terminal (needs the paired `agentic-sdd-tui` binary). |
+| `agentic-sdd guide` | Interactive numbered-prompt wizard: install/update, restore, view logs, About, explicit update check, and the skills/profiles explorer. Requires a terminal; writes nothing before confirmation. |
+| `agentic-sdd tui` | Open the packaged terminal UI in a real terminal (needs the paired `agentic-sdd-tui` binary). Supports `--home`, `--repo`, `--with-opencode` (default on) and `--opencode-free-first`. |
 | `agentic-sdd backups` | List all saved backups newest first (both skill directories and `opencode-agents` profiles). |
 | `agentic-sdd restore [BACKUP_ID]` | Preview restoring a backup (or select one interactively on a terminal). |
 | `agentic-sdd restore apply [BACKUP_ID]` | Back up current state and restore skills and OpenCode agent profiles from `BACKUP_ID`. |
@@ -156,6 +191,22 @@ The task needs Go 1.26 or newer for the nested TUI module. It prints the injecte
 | `agentic-sdd help orchestrate` | Show usage and flags for the OpenCode orchestration pack. |
 
 All commands accept `--home PATH` (to target an isolated home directory) and `--repo PATH` (to read `skills-files/` and `opencode-pack/` from a local checkout instead of the embedded binary assets).
+
+### Environment and accessibility switches
+
+| Variable | Applies to | Effect |
+|---|---|---|
+| `NO_COLOR` (non-empty) | CLI and TUI | Disable ANSI styling. Text, structure and status words are unchanged. |
+| `TERM=dumb` | CLI | Disable color and use ASCII glyphs. |
+| `COLUMNS` | CLI | Set presentation width; otherwise 80. |
+| `AGENTIC_SDD_ANIMATE=1` | `guide` | Opt in to the 1.5-second two-pass brand highlight on a capable terminal. Static by default; `NO_COLOR`, dumb, narrow, or non-terminal output suppresses it. |
+| `AGENTIC_SDD_TRACE=<path>` | CLI | Append a privacy-safe JSON Lines flow trace (resolved environment, screens, prompts, plan counts, result and exit). Unset or empty disables it. |
+| `AGENTIC_SDD_FORCE_INTERACTIVE=1` | CLI tests | Treat stdin, stdout and stderr as terminals for container tests. It never answers or skips a confirmation. |
+| `AGENTIC_SDD_ASCII=1` | TUI | Use ASCII borders and symbols. |
+| `AGENTIC_SDD_REDUCED_MOTION=1` | TUI | Disable animation and show static rendering. |
+| `AGENTIC_SDD_NO_UPDATE_CHECK=1` | TUI | Suppress the automatic once-per-session release check; explicit retry remains available. |
+
+The trace schema and journey catalog live in [guide-flows.md](docs/guide-flows.md). A trace is diagnostic evidence, not the apply log, approval, or proof of model/client behavior.
 
 ### Everyday prompts in your project
 
@@ -237,9 +288,13 @@ Browse the [18 core skills](skills-files/) and the [opt-in OpenCode orchestratio
 | Antigravity CLI | `~/.gemini/antigravity-cli/skills` | Default & `--with-opencode` |
 | OpenCode v2 agent profiles | `~/.config/opencode/agents/*.md` | `--with-opencode` (`--opencode-free-first`) only |
 
+Backups and operation logs live under `~/.agentic-sdd/` (`backups/` and `logs/`). The TUI is distributed as a paired `agentic-sdd-tui` companion binary; the Homebrew cask installs both, and the CLI verifies their build identity at launch.
+
 ## Safety model
 
 The installer **previews by default**, backs up existing skills and `.md` agent profiles with SHA-256 digests before replacing them, stages updates atomically, and provides a preview-first `restore` command. Repeating an `apply` with unchanged content is a clean no-op. It rejects symlinks and special files in managed targets.
+
+The guide and TUI are alternate front ends over that same engine. Neither writes before an explicit confirmation (default **No**). During a TUI write, `q`/Esc/navigation cannot abandon the transaction; Ctrl+C requests exit after the operation finishes or rolls back. A missing, mismatched or non-executable TUI companion is an error, never a silent fallback to another write workflow.
 
 ```sh
 agentic-sdd backups                   # list saved installations
@@ -254,6 +309,8 @@ agentic-sdd restore apply BACKUP_ID   # restore skills and OpenCode agent profil
 - **[Full Usage & Orchestration Guide](docs/orchestration-guide.md)** — complete CLI, orchestration, OpenAI/Claude/Gemini/DeepSeek specialist, and MCP usage guide.
 - **[Getting started](docs/getting-started.md)** — first-use walkthrough and worked examples.
 - **[Installer reference](docs/installer-reference.md)** — commands, Format 2/3 backups, restore, and file behavior.
+- **[Guided CLI journeys and flow tracing](docs/guide-flows.md)** — screen and prompt catalog, trace schema, and `AGENTIC_SDD_TRACE` events.
+- **[TUI architecture](docs/tui-architecture.md)** — packaged companion design, experimental nested module, and toolchain migration blueprint.
 - **[OpenCode pack reference](opencode-pack/README.md)** & **[Model routing policy](opencode-pack/routing.md)** — specialist profiles, permissions, and fallback ladders.
 - **[Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)** — why the project exists and where it is headed.
 - **[Documentation index](docs/README.md)** & **[Contributing](CONTRIBUTING.md)**.
