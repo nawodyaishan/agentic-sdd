@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"agentic-sdd/internal/skillsync"
 )
+
+// summaryBackupIDRE finds the generated backup stamp in terminal summary
+// output without depending on the removed transcript helper.
+var summaryBackupIDRE = regexp.MustCompile(`[0-9]{8}T[0-9]{6}\.[0-9]{9}Z`)
 
 func summaryFixtureWithSpaces(t *testing.T) (repo, home string) {
 	t.Helper()
@@ -136,7 +141,7 @@ func TestBrandingSummaryApply(t *testing.T) {
 				t.Fatalf("wide apply summary missing %q:\n%s", want, got)
 			}
 		}
-		id := traceBackupID(got)
+		id := summaryBackupIDRE.FindString(got)
 		if err := skillsync.ValidateBackupID(id); err != nil {
 			t.Fatalf("summary backup id %q is not whole: %v", id, err)
 		}

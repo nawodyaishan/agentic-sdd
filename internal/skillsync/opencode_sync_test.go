@@ -467,7 +467,7 @@ func TestApplyWithOpenCodeSymlinkRejectionAndRollback(t *testing.T) {
 		{target: agentTarget, skill: failAgentName, src: "fail.md", source: sourceFS, isFile: true, old: false},
 	}
 	backupRoot := filepath.Join(home, ".agentic-sdd", "backups")
-	err = installChanges(backupRoot, home, "test-source", sourceFS, []string{"sdd-debug-diagnose.md"}, []target{agentTarget}, changes, operation{kind: "apply"}, &out)
+	_, err = installChanges(backupRoot, home, "test-source", sourceFS, []string{"sdd-debug-diagnose.md"}, changes, operation{kind: "apply"}, &out)
 	if err == nil {
 		t.Fatal("expected failure on renaming file over directory")
 	}

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"agentic-sdd/internal/appops"
 )
 
 // updateTransportFunc lets each test answer one request without networking.
@@ -543,5 +545,166 @@ func TestUpdatesPrintStates(t *testing.T) {
 				t.Errorf("output does not end with a newline: %q", text)
 			}
 		})
+	}
+}
+
+// TestUpdatesSharedCheckerEquivalence locks the CLI wrapper to the shared
+// appops checker. Both paths must classify the same response identically and
+// render identical bytes, including strict version rejection and every
+// failure class.
+func TestUpdatesSharedCheckerEquivalence(t *testing.T) {
+	hugeNines := strings.Repeat("9", 100)
+	hugeOneAndZeros := "1" + strings.Repeat("0", 99)
+
+	tests := []struct {
+		name    string
+		status  int
+		body    string
+		current string
+	}{
+		{"newer", http.StatusOK, `{"tag_name":"v0.10.0"}`, "0.9.0"},
+		{"equal with optional v", http.StatusOK, `{"tag_name":"1.2.3"}`, "v1.2.3"},
+		{"ahead", http.StatusOK, `{"tag_name":"v1.99.99"}`, "2.0.0"},
+		{"huge numeric", http.StatusOK, `{"tag_name":"v1.` + hugeNines + `.0"}`, "1." + hugeOneAndZeros + ".0"},
+		{"dev unavailable", http.StatusOK, `{"tag_name":"v2.0.0"}`, "dev"},
+		{"empty current", http.StatusOK, `{"tag_name":"v2.0.0"}`, ""},
+		{"leading zero tag", http.StatusOK, `{"tag_name":"v01.0.0"}`, "1.0.0"},
+		{"uppercase v tag", http.StatusOK, `{"tag_name":"V1.0.0"}`, "1.0.0"},
+		{"prerelease tag", http.StatusOK, `{"tag_name":"v1.0.0-rc.1"}`, "1.0.0"},
+		{"draft release", http.StatusOK, `{"tag_name":"v1.0.0","draft":true}`, "1.0.0"},
+		{"malformed json", http.StatusOK, `{"tag_name":`, "1.0.0"},
+		{"json array", http.StatusOK, `[]`, "1.0.0"},
+		{"rate limited", http.StatusTooManyRequests, `{"tag_name":"v9.9.9"}`, "1.0.0"},
+		{"not found", http.StatusNotFound, `{"tag_name":"v9.9.9"}`, "1.0.0"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cliTransport := updateTransportFunc(func(*http.Request) (*http.Response, error) {
+				return updateTestResponse(tc.status, tc.body), nil
+			})
+			sharedTransport := updateTransportFunc(func(*http.Request) (*http.Response, error) {
+				return updateTestResponse(tc.status, tc.body), nil
+			})
+
+			cliResult := checkLatestRelease(&http.Client{Transport: cliTransport, Timeout: 5 * time.Second}, tc.current)
+			shared := appops.CheckLatestRelease(context.Background(), &http.Client{Transport: sharedTransport, Timeout: 5 * time.Second}, tc.current)
+
+			if want := updateStateFor(shared.State); cliResult.state != want {
+				t.Fatalf("state = %d, want %d from shared %d", cliResult.state, want, shared.State)
+			}
+			if cliResult.current != shared.Current || cliResult.latest != shared.Latest {
+				t.Fatalf("versions = %q -> %q, want %q -> %q", cliResult.current, cliResult.latest, shared.Current, shared.Latest)
+			}
+
+			var cliOut, sharedOut bytes.Buffer
+			printUpdateResult(&cliOut, cliResult)
+			printUpdateResult(&sharedOut, updateResult{
+				state:   updateStateFor(shared.State),
+				current: shared.Current,
+				latest:  shared.Latest,
+			})
+			if cliOut.String() != sharedOut.String() {
+				t.Fatalf("rendered bytes differ:\nCLI:\n%s\nshared:\n%s", cliOut.String(), sharedOut.String())
+			}
+		})
+	}
+}
+
+// TestUpdatesStateMapping proves every shared classification has an explicit
+// CLI equivalent and that an unknown value can never claim an update.
+func TestUpdatesStateMapping(t *testing.T) {
+	tests := []struct {
+		name string
+		in   appops.UpdateState
+		want updateState
+	}{
+		{"failed", appops.UpdateFailed, updateFailed},
+		{"unavailable", appops.UpdateUnavailable, updateUnavailable},
+		{"equal", appops.UpdateEqual, updateEqual},
+		{"ahead", appops.UpdateAhead, updateAhead},
+		{"newer", appops.UpdateNewer, updateNewer},
+		{"unknown", appops.UpdateState(200), updateFailed},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := updateStateFor(tc.in); got != tc.want {
+				t.Fatalf("updateStateFor(%d) = %d, want %d", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestUpdatesSharedRequestParity checks the CLI still sends exactly the
+// shared fixed request: same method, URL, headers, empty body and a live
+// background context.
+func TestUpdatesSharedRequestParity(t *testing.T) {
+	capture := func(seen **http.Request, liveErr *error) *http.Client {
+		return &http.Client{Transport: updateTransportFunc(func(req *http.Request) (*http.Response, error) {
+			*seen = req
+			*liveErr = req.Context().Err()
+			return updateTestResponse(http.StatusOK, `{"tag_name":"v1.2.3"}`), nil
+		})}
+	}
+
+	var cliReq, sharedReq *http.Request
+	var cliErr, sharedErr error
+	cliResult := checkLatestRelease(capture(&cliReq, &cliErr), "1.2.3")
+	sharedResult := appops.CheckLatestRelease(context.Background(), capture(&sharedReq, &sharedErr), "1.2.3")
+
+	if cliReq == nil || sharedReq == nil {
+		t.Fatal("missing captured request")
+	}
+	if cliReq.Method != sharedReq.Method {
+		t.Errorf("method = %q, want %q", cliReq.Method, sharedReq.Method)
+	}
+	if cliReq.URL.String() != sharedReq.URL.String() {
+		t.Errorf("URL = %q, want %q", cliReq.URL.String(), sharedReq.URL.String())
+	}
+	if cliReq.URL.String() != updateReleaseAPIURL {
+		t.Errorf("URL = %q, want the fixed CLI constant", cliReq.URL.String())
+	}
+	for _, header := range []string{"User-Agent", "Accept"} {
+		if got, want := cliReq.Header.Get(header), sharedReq.Header.Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+	if cliReq.Body != nil || sharedReq.Body != nil {
+		t.Error("requests must not carry a body")
+	}
+	if cliErr != nil || sharedErr != nil {
+		t.Errorf("in-flight contexts = %v / %v, want live", cliErr, sharedErr)
+	}
+	if cliResult != (updateResult{state: updateEqual, current: "1.2.3", latest: "1.2.3"}) {
+		t.Errorf("CLI result = %+v", cliResult)
+	}
+	if sharedResult.State != appops.UpdateEqual {
+		t.Errorf("shared state = %d, want equal", sharedResult.State)
+	}
+}
+
+// TestUpdatesSharedPolicyConstants pins the request policy values the CLI
+// exposes. The constants are aliases of the shared ones, so this locks the
+// combined value: a careless edit to either place fails here.
+func TestUpdatesSharedPolicyConstants(t *testing.T) {
+	const (
+		wantEndpoint = "https://api.github.com/repos/nawodyaishan/agentic-sdd/releases/latest"
+		wantAgent    = "agentic-sdd-update-check"
+		wantAccept   = "application/vnd.github+json"
+		wantCap      = 64 << 10
+	)
+	if updateReleaseAPIURL != wantEndpoint {
+		t.Errorf("endpoint = %q, want %q", updateReleaseAPIURL, wantEndpoint)
+	}
+	if updateUserAgent != wantAgent {
+		t.Errorf("User-Agent = %q, want %q", updateUserAgent, wantAgent)
+	}
+	if updateRequestAccept != wantAccept {
+		t.Errorf("Accept = %q, want %q", updateRequestAccept, wantAccept)
+	}
+	if updateRequestTimeout != 5*time.Second {
+		t.Errorf("timeout = %s, want 5s", updateRequestTimeout)
+	}
+	if maxUpdateBodyBytes != wantCap {
+		t.Errorf("body cap = %d, want %d", maxUpdateBodyBytes, wantCap)
 	}
 }

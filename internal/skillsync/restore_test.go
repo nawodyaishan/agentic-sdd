@@ -397,7 +397,7 @@ func TestRestoreInstallRollsBackMixedReplaceAndRemove(t *testing.T) {
 
 	backupRoot := t.TempDir()
 	var out bytes.Buffer
-	err = installChanges(backupRoot, home, backupDir, source, nil, targets, changes, operation{kind: "restore", restoredFrom: id}, &out)
+	_, err = installChanges(backupRoot, home, backupDir, source, nil, changes, operation{kind: "restore", restoredFrom: id}, &out)
 	if err == nil {
 		t.Fatal("expected the forced ENOTEMPTY failure on the third change")
 	}

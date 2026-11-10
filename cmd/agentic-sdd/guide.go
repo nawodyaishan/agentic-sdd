@@ -362,8 +362,9 @@ func runGuideInstall(repo, home, absHome string, p *prompter, stderr io.Writer, 
 		}
 	}
 	var applyBuf bytes.Buffer
-	res := runOperation(repo, home, cmdName, &applyBuf, stderr, env, func(out io.Writer) error {
-		return skillsync.SyncWithOptions(repo, home, true, opts, out)
+	res := runLoggedOperation(repo, home, cmdName, &applyBuf, stderr, env, func(out io.Writer) (string, error) {
+		result, err := skillsync.SyncWithOptionsResult(repo, home, true, opts, out)
+		return result.BackupID, err
 	})
 	if res.exitCode != 0 {
 		return res.exitCode

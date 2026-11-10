@@ -100,6 +100,10 @@ func InspectSelection(repo, home string, opts Options) (SelectionInventory, erro
 	inv.Repo = repo
 	inv.BackupRoot, _ = backupRootFor(repo, home)
 
+	targets, err := clientTargetsFor(home, opts.ClientIDs)
+	if err != nil {
+		return inv, err
+	}
 	source, err := sourceFS(repo)
 	if err != nil {
 		return inv, fmt.Errorf("resolve skills source: %w", err)
@@ -110,7 +114,6 @@ func InspectSelection(repo, home string, opts Options) (SelectionInventory, erro
 	}
 	inv.SkillIDs = append([]string(nil), names...)
 
-	targets := clientTargets(home)
 	parentErrs := make(map[string]error, len(targets))
 	for _, tgt := range targets {
 		parentErrs[tgt.name] = checkParents(tgt.path, home)

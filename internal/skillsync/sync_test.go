@@ -271,7 +271,7 @@ func TestInstallChangesRollsBackRemoveOnLaterFailure(t *testing.T) {
 	}
 	backupRoot := filepath.Join(root, "backups")
 	var out bytes.Buffer
-	err := installChanges(backupRoot, home, "test-source", source, []string{failName}, []target{tgt}, changes, operation{kind: "restore", restoredFrom: "20260101T000000.000000000Z"}, &out)
+	_, err := installChanges(backupRoot, home, "test-source", source, []string{failName}, changes, operation{kind: "restore", restoredFrom: "20260101T000000.000000000Z"}, &out)
 	if err == nil {
 		t.Fatal("expected a failure from renaming over a non-empty directory")
 	}

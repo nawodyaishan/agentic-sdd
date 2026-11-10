@@ -163,8 +163,9 @@ func runGuideInstallTerminal(repo, home, absHome string, p *prompter, stderr io.
 			}
 		}
 		var applyBuf bytes.Buffer
-		result := runOperation(repo, home, cmdName, &applyBuf, stderr, env, func(out io.Writer) error {
-			return skillsync.SyncWithOptions(repo, home, true, opts, out)
+		result := runLoggedOperation(repo, home, cmdName, &applyBuf, stderr, env, func(out io.Writer) (string, error) {
+			applied, err := skillsync.SyncWithOptionsResult(repo, home, true, opts, out)
+			return applied.BackupID, err
 		})
 		logPath := operationLogPath(applyBuf.String())
 		if result.exitCode != 0 {

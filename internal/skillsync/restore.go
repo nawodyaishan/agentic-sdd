@@ -354,15 +354,28 @@ func sortRecords(records []restoreRecord) {
 // change into a new backup (recording operation "restore" and this id as
 // restored_from) before installing or removing anything, through the same
 // staged, rollback-guarded path Sync uses.
+//
+// It is a wrapper for RestoreResult that keeps the historical error and
+// transcript contract and discards the structured result.
 func Restore(repo, home, id string, apply bool, out io.Writer) error {
+	_, err := RestoreResult(repo, home, id, apply, out)
+	return err
+}
+
+// RestoreResult previews or applies the restoration of the backup identified
+// by id and returns the structured outcome together with the historical
+// error. The transcript written to out is byte-for-byte the same as Restore
+// would write.
+func RestoreResult(repo, home, id string, apply bool, out io.Writer) (OperationResult, error) {
+	result := OperationResult{Operation: OperationRestore, Outcome: OutcomeFailed}
 	home, err := filepath.Abs(home)
 	if err != nil {
-		return err
+		return result, err
 	}
 	root, _ := backupRootFor(repo, home)
 	m, records, err := loadBackup(root, id, home)
 	if err != nil {
-		return err
+		return result, err
 	}
 	backupDir := filepath.Join(root, id)
 	targets := clientTargets(home)
@@ -378,61 +391,68 @@ func Restore(repo, home, id string, apply bool, out io.Writer) error {
 
 	source := os.DirFS(backupDir)
 	var changes []change
+	var planned []ResultChange
 	checked := map[string]bool{}
 	for _, r := range records {
 		t, ok := targetByName[r.client]
 		if !ok {
-			return fmt.Errorf("backup %s references unknown client %s", id, r.client)
+			return result, fmt.Errorf("backup %s references unknown client %s", id, r.client)
 		}
 		if !checked[t.name] {
 			if err := checkParents(t.path, home); err != nil {
-				return err
+				return result, err
 			}
 			checked[t.name] = true
 		}
 		path := filepath.Join(t.path, r.skill)
 		info, statErr := os.Lstat(path)
 		if statErr != nil && !os.IsNotExist(statErr) {
-			return statErr
+			return result, statErr
 		}
 		exists := statErr == nil
 		if r.isFile {
 			if exists && !info.Mode().IsRegular() {
-				return fmt.Errorf("refusing special file or symlink %s", path)
+				return result, fmt.Errorf("refusing special file or symlink %s", path)
 			}
 			switch r.action {
 			case actionReplaced:
 				if exists {
 					same, err := sameSourceTargetFile(source, r.backupRel, path)
 					if err != nil {
-						return err
+						return result, err
 					}
 					if same {
 						fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
+						planned = append(planned, plannedChange(t, r.skill, true, ChangeUpToDate))
 						continue
 					}
 				}
 				verb := "restore"
+				action := ChangeRestore
 				if exists {
 					verb = "replace + back up"
+					action = ChangeReplace
 				}
 				fmt.Fprintf(out, "%s %s/%s\n", verb, r.client, r.skill)
-				changes = append(changes, change{target: t, skill: r.skill, src: r.backupRel, source: source, isFile: true, old: exists})
+				changes = append(changes, change{target: t, skill: r.skill, src: r.backupRel, source: source, isFile: true, old: exists, action: action})
+				planned = append(planned, plannedChange(t, r.skill, true, action))
 			case actionInstalled:
 				if !exists {
 					fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
+					planned = append(planned, plannedChange(t, r.skill, true, ChangeUpToDate))
 					continue
 				}
 				fmt.Fprintf(out, "remove + back up %s/%s\n", r.client, r.skill)
-				changes = append(changes, change{target: t, skill: r.skill, source: source, isFile: true, old: true, remove: true})
+				changes = append(changes, change{target: t, skill: r.skill, source: source, isFile: true, old: true, remove: true, action: ChangeRemove})
+				planned = append(planned, plannedChange(t, r.skill, true, ChangeRemove))
 			}
 		} else {
 			if exists && !info.IsDir() {
-				return fmt.Errorf("refusing non-directory target %s", path)
+				return result, fmt.Errorf("refusing non-directory target %s", path)
 			}
 			if exists {
 				if err := checkTree(path); err != nil {
-					return err
+					return result, err
 				}
 			}
 			switch r.action {
@@ -440,37 +460,52 @@ func Restore(repo, home, id string, apply bool, out io.Writer) error {
 				if exists {
 					same, err := sameSourceTarget(source, r.backupRel, path)
 					if err != nil {
-						return err
+						return result, err
 					}
 					if same {
 						fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
+						planned = append(planned, plannedChange(t, r.skill, false, ChangeUpToDate))
 						continue
 					}
 				}
 				verb := "restore"
+				action := ChangeRestore
 				if exists {
 					verb = "replace + back up"
+					action = ChangeReplace
 				}
 				fmt.Fprintf(out, "%s %s/%s\n", verb, r.client, r.skill)
-				changes = append(changes, change{target: t, skill: r.skill, src: r.backupRel, source: source, old: exists})
+				changes = append(changes, change{target: t, skill: r.skill, src: r.backupRel, source: source, old: exists, action: action})
+				planned = append(planned, plannedChange(t, r.skill, false, action))
 			case actionInstalled:
 				if !exists {
 					fmt.Fprintf(out, "up to date %s/%s\n", r.client, r.skill)
+					planned = append(planned, plannedChange(t, r.skill, false, ChangeUpToDate))
 					continue
 				}
 				fmt.Fprintf(out, "remove + back up %s/%s\n", r.client, r.skill)
-				changes = append(changes, change{target: t, skill: r.skill, source: source, old: true, remove: true})
+				changes = append(changes, change{target: t, skill: r.skill, source: source, old: true, remove: true, action: ChangeRemove})
+				planned = append(planned, plannedChange(t, r.skill, false, ChangeRemove))
 			}
 		}
 	}
+	result.Planned = planned
+
+	digest, err := restoreSourceDigest(backupDir, id, records)
+	if err != nil {
+		return result, err
+	}
+	result.SourceDigest = digest
 
 	if !apply {
 		fmt.Fprintln(out, "Preview only. Run with --apply (or restore apply) to restore.")
-		return nil
+		result.Outcome = OutcomePreview
+		return result, nil
 	}
 	if len(changes) == 0 {
 		fmt.Fprintln(out, "All skills are up to date.")
-		return nil
+		result.Outcome = OutcomeNoChange
+		return result, nil
 	}
 	skillSet := map[string]bool{}
 	for _, c := range changes {
@@ -483,5 +518,14 @@ func Restore(repo, home, id string, apply bool, out io.Writer) error {
 		names = append(names, s)
 	}
 	sort.Strings(names)
-	return installChanges(root, home, backupDir, source, names, targets, changes, operation{kind: "restore", restoredFrom: id}, out)
+	written, err := installChanges(root, home, backupDir, source, names, changes, operation{kind: "restore", restoredFrom: id}, out)
+	result.BackupID = written.backupID
+	result.BackupPath = written.backupPath
+	result.Rollback = written.rollback
+	if err != nil {
+		return result, err
+	}
+	result.Outcome = OutcomeApplied
+	result.Applied = written.applied
+	return result, nil
 }

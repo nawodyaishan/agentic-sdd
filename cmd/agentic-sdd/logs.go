@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"agentic-sdd/internal/appops"
 	"agentic-sdd/internal/skillsync"
 )
 
@@ -64,8 +65,23 @@ func runApplyWithLog(repo, home string, opts skillsync.Options, stdout, stderr i
 			cmdName += " --opencode-free-first"
 		}
 	}
-	result := runOperation(repo, home, cmdName, stdout, stderr, env, func(out io.Writer) error {
-		return skillsync.SyncWithOptions(repo, home, true, opts, out)
+	result := runLoggedOperation(repo, home, cmdName, stdout, stderr, env, func(out io.Writer) (string, error) {
+		request, err := appops.NewInstallRequest(repo, home, true, opts)
+		if err != nil {
+			return "", err
+		}
+		// The CLI apply is one explicit request, so it obtains its own fresh
+		// preview token and lets the seam revalidate it before writing. A
+		// failed preview replays its partial transcript, preserving the
+		// historical bytes an apply that fails while planning wrote.
+		preview, err := previewWithFailureTranscript(out, func(w io.Writer) (appops.PreviewResult, error) {
+			return appops.PreviewInstall(request, w)
+		})
+		if err != nil {
+			return "", err
+		}
+		applied, err := appops.ApplyInstall(request, preview.PreviewToken, out)
+		return applied.BackupID, err
 	})
 	if result.exitCode == 0 {
 		printApplySummary(stdout, env, skillsync.SummarizePlan(result.transcript), result.backupID)
@@ -110,9 +126,35 @@ func statusPrefix(env *Env) string {
 }
 
 func runRestoreWithLog(repo, home, id string, stdout, stderr io.Writer, env *Env) int {
-	return runOperationWithLog(repo, home, "restore "+id, stdout, stderr, env, func(out io.Writer) error {
-		return skillsync.Restore(repo, home, id, true, out)
+	result := runLoggedOperation(repo, home, "restore "+id, stdout, stderr, env, func(out io.Writer) (string, error) {
+		request, err := appops.NewRestoreRequest(repo, home, id, true)
+		if err != nil {
+			return "", err
+		}
+		preview, err := previewWithFailureTranscript(out, func(w io.Writer) (appops.PreviewResult, error) {
+			return appops.PreviewRestore(request, w)
+		})
+		if err != nil {
+			return "", err
+		}
+		applied, err := appops.ApplyRestore(request, preview.PreviewToken, out)
+		return applied.BackupID, err
 	})
+	return result.exitCode
+}
+
+// previewWithFailureTranscript runs the seam's read-only preview into a buffer.
+// A successful preview is discarded because the apply re-plans and prints once.
+// A failed preview replays exactly the partial plan it wrote before failing, so
+// an apply that fails while planning keeps its historical stdout and log bytes.
+func previewWithFailureTranscript(out io.Writer, preview func(io.Writer) (appops.PreviewResult, error)) (appops.PreviewResult, error) {
+	var transcript bytes.Buffer
+	result, err := preview(&transcript)
+	if err != nil {
+		_, _ = out.Write(transcript.Bytes())
+		return result, err
+	}
+	return result, nil
 }
 
 // operationResult reports the outcome of one logged write operation together
@@ -123,11 +165,10 @@ type operationResult struct {
 	backupID   string
 }
 
-func runOperationWithLog(repo, home, command string, stdout, stderr io.Writer, env *Env, execute func(io.Writer) error) int {
-	return runOperation(repo, home, command, stdout, stderr, env, execute).exitCode
-}
-
-func runOperation(repo, home, command string, stdout, stderr io.Writer, env *Env, execute func(io.Writer) error) operationResult {
+// runLoggedOperation wraps one write operation with the run log and trace. The
+// execute function returns the engine's structured backup identity, so the
+// trace and the terminal summary never parse operation prose.
+func runLoggedOperation(repo, home, command string, stdout, stderr io.Writer, env *Env, execute func(io.Writer) (string, error)) operationResult {
 	home, err := filepath.Abs(home)
 	if err != nil {
 		fmt.Fprintln(stderr, "error:", err)
@@ -144,7 +185,7 @@ func runOperation(repo, home, command string, stdout, stderr io.Writer, env *Env
 	}
 	fmt.Fprintf(logFile, "Started: %s\nCommand: %s\nSource: %s\nHome: %s\n", time.Now().UTC().Format(time.RFC3339Nano), command, source, home)
 	var buf bytes.Buffer
-	err = execute(io.MultiWriter(stdout, logFile, &buf))
+	backupID, err := execute(io.MultiWriter(stdout, logFile, &buf))
 	if err != nil {
 		fmt.Fprintln(stderr, "error:", err)
 		fmt.Fprintln(logFile, "error:", err)
@@ -163,14 +204,24 @@ func runOperation(repo, home, command string, stdout, stderr io.Writer, env *Env
 		}
 		exitCode = 1
 	}
+	backupID = traceableBackupID(backupID)
 	opVerb := operationVerb(command)
-	backupID := traceBackupID(buf.String())
 	if backupID != "" {
 		env.Trace.Event("op.result", "op", opVerb, "exit", exitCode, "backup_id", backupID)
 	} else {
 		env.Trace.Event("op.result", "op", opVerb, "exit", exitCode)
 	}
 	return operationResult{exitCode: exitCode, transcript: buf.String(), backupID: backupID}
+}
+
+// traceableBackupID keeps only a validated backup-directory basename in the
+// trace and summary fields. The engine supplies it structurally; an empty or
+// unexpected value is omitted rather than echoed.
+func traceableBackupID(id string) string {
+	if id == "" || skillsync.ValidateBackupID(id) != nil {
+		return ""
+	}
+	return id
 }
 
 // operationVerb reduces a log command string ("apply --with-opencode",
@@ -183,23 +234,6 @@ func operationVerb(command string) string {
 		return "restore"
 	}
 	return command
-}
-
-// traceBackupID extracts the validated backup basename from an operation
-// transcript. It returns "" when the transcript has no usable backup line,
-// so a path is never recorded.
-func traceBackupID(transcript string) string {
-	for _, line := range strings.Split(transcript, "\n") {
-		idx := strings.Index(line, "; backup: ")
-		if idx == -1 {
-			continue
-		}
-		base := filepath.Base(strings.TrimSpace(line[idx+len("; backup: "):]))
-		if skillsync.ValidateBackupID(base) == nil {
-			return base
-		}
-	}
-	return ""
 }
 
 func logsDir(home string) string {

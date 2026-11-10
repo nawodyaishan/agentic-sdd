@@ -1,10 +1,24 @@
 # TUI Architecture and Toolchain Migration Blueprint
 
-**Feature:** [012 — CLI UI/UX Remediation & Hybrid TUI Experience](../specs/012-cli-tui-remediation/spec.md)
-**Delivered by:** batch B2 (T06–T08)
+**Current support (Feature 013, batch under review — not verified fact):** Feature 012
+delivered the read-only nested shell/catalog spike as historical evidence below.
+Feature 013 B1/B2 delivered the read-only nested shell/catalog (accepted by owner).
+013 B3 — implemented and awaiting human review, not verified — adds a shared
+stdlib operation seam (`internal/appops`) with structured engine results and
+explicit client selection. The TUI cannot write through any shipped path yet;
+write workflows (B4), recovery/activity/onboarding (B5), and companion
+packaging (B6) remain future work. No release, tag, formula publication, or
+companion binary exists from this batch. The explicit CLI remains the supported
+entry point.
+
+**Historical record (Feature 012):** [012 — CLI UI/UX Remediation & Hybrid TUI Experience](../specs/012-cli-tui-remediation/spec.md)
+**Delivered by:** 012 batch B2 (T06–T08), preserved below as history
+**013 scope:** [013 — Unified TUI Experience and Animated Branding](../specs/013-unified-tui-experience/spec.md) —
+B3 authorized, B4–B6 not authorized; approval in [013 spec.md §Approval](../specs/013-unified-tui-experience/spec.md#approval)
 **Status:** experimental architecture note. It records a spike that exists and a
 migration that does not. It is not an approval record, a batch authorization, a
 release commitment or evidence that the TUI is wired into the shipped binary.
+New B3 descriptions in §§3/5 are batch-under-review, not verified fact.
 
 Line numbers and digests below were verified against the working tree on
 2026-11-10 and will drift; treat the file and symbol names as the stable part of
@@ -49,9 +63,11 @@ Measured facts for this checkout (not guarantees):
 | Built root `agentic-sdd` binary (`-trimpath`) | 11.2 MB |
 | `go mod verify` in the nested module | does not apply: the `agentic-sdd` directory replacement has no module-cache zip hash |
 
-Deliberately absent from B2: Huh v2 forms, backup/restore screens, update
-checks, and any wiring into `cmd/agentic-sdd`. The spike browses; it never
-changes anything.
+Deliberately absent from 012 B2 (historical fact, preserved): Huh v2 forms,
+backup/restore screens, update checks, and any wiring into `cmd/agentic-sdd`.
+The 012 spike browses; it never changes anything. 013 B1/B2 retain that
+read-only boundary; 013 B3's controlled operation seam below is batch-under-review
+and does not retroactively make the 012 spike write-capable.
 
 ---
 
@@ -115,11 +131,39 @@ snapshots only the top-level `go.mod`/`go.sum`, so `task tidy-check` and
 
 ---
 
-## 3. Domain boundary: `internal/tui` ↔ `internal/skillsync`
+## 3. Domain boundary: screens ↔ `internal/appops` ↔ `internal/skillsync` (013 controlled-adapter rule, batch under review)
 
-The eventual production package is `internal/tui`; the spike proves the same
-rules under `experiments/tui`. One rule decides everything else: **the TUI reads
-domain state and never performs a domain operation.**
+The eventual production host is the nested TUI host; the 012 spike proves the
+read-only subset of these rules under `experiments/tui`. 013 replaces the 012
+blanket rule ("the TUI reads domain state and never performs a domain
+operation") with this controlled-adapter rule: **screens never mutate
+files/manifests; mutations flow through typed requests/results and
+`internal/appops`; the explicit CLI remains the supported entry point; the
+standalone experimental launcher stays read-only until later approved batches.**
+
+```text
+                   ┌───────────────────────────────┐
+   key presses ───► │ experiments/tui/screens       │  Bubble Tea model: view state,
+                   │ (nested TUI host, stays nested)│  focus, filtering, selection only
+                   └──────────────┬────────────────┘
+                                  │ typed requests/results (no direct file mutation)
+                   ┌──────────────▼────────────────┐
+                   │ internal/appops (shared       │  preview/apply/log/backup/restore/
+                   │ stdlib operation seam)        │  update orchestration; client selection
+                   └──────────────┬────────────────┘
+                                  │ structured engine results (outcome, backup
+                                  │ identity/path, partial-failure/rollback info)
+                   ┌──────────────▼────────────────┐
+                   │ internal/skillsync            │  authoritative installer/restore engine
+                   └──────────────┬────────────────┘
+                                  │ apply / restore / backup manifest
+                   ┌──────────────▼────────────────┐
+                   │ cmd/agentic-sdd (CLI)         │  supported mutation entry point, unchanged
+                   └───────────────────────────────┘
+```
+
+The 012 read-only diagram below is preserved as history; the diagram above is
+the 013 B3 design under review.
 
 ```text
                   ┌───────────────────────────────┐
@@ -141,13 +185,20 @@ domain state and never performs a domain operation.**
                   └───────────────────────────────┘
 ```
 
-| Allowed in a TUI package | Forbidden in a TUI package |
+| 012 spike rule (historical) | 013 B3 controlled-adapter rule (batch under review) |
 |---|---|
-| `skillsync.InspectSelection(repo, home, opts)` | `skillsync.Sync`, `SyncWithOptions`, `Restore` |
-| `skillsync.SummarizePlan(transcript)` on a transcript produced elsewhere | Reading or writing the backup manifest, logs or lock files |
-| Mapping `InventoryStatus` to badges, groups and hints | `os.Create`, `os.Mkdir*`, `os.Remove`, `os.Rename`, `os.WriteFile`, `filepath.Walk` of a destination |
-| Path and version strings **displayed** verbatim from the inventory | Path resolution, `--repo` probing, or any filesystem discovery of its own |
-| Its own `TUIConfig` | The CLI's `*Env`, `*Tracer`, flag set or prompt helpers |
+| `skillsync.InspectSelection(repo, home, opts)` | Screens still call read-only inspect/summarize the same way; write paths go only through immutable typed requests/results carried by `internal/appops` |
+| `skillsync.SummarizePlan(transcript)` on a transcript produced elsewhere | `SummarizePlan` stays presentation-only; structured engine results (outcome, backup identity/path, partial-failure/rollback info) replace transcript-text parsing as the safety authority |
+| Mapping `InventoryStatus` to badges, groups and hints | Unchanged: status is reported from the inventory, not inferred |
+| Path and version strings **displayed** verbatim from the inventory | Unchanged: screens display paths; they never resolve them, probe `--repo`, or run filesystem discovery of their own |
+| Its own `TUIConfig` | Unchanged: no import of the CLI's `*Env`, `*Tracer`, flag set or prompt helpers |
+
+Forbidden in screens under both rules (013 restates, does not loosen): calling
+`skillsync.Sync`/`SyncWithOptions`/`Restore` directly; reading or writing the
+backup manifest, logs or lock files; `os.Create`, `os.Mkdir*`, `os.Remove`,
+`os.Rename`, `os.WriteFile`, or `filepath.Walk` of a destination; invoking a
+shell, importing `package main`, reusing `runEnv` recursively, or scraping CLI
+prose as the safety authority. Screens remain mutation-free.
 
 Two consequences worth stating explicitly:
 
@@ -186,13 +237,20 @@ styles and the view strips the Bubbles components' own SGR sequences once at
 the view boundary (`ansi.Strip`). ANSI codes are zero-width, so the plain
 layout is identical and a headless frame is deterministic.
 
-Batch B2 implements the predicate (`tui.LaunchAllowed`) and the runnable
-`cmd/tui-spike` that enforces it. Wiring it into `agentic-sdd guide` is Phase 3
-work in §5 and is not part of this batch.
+012 batch B2 implements the predicate (`tui.LaunchAllowed`) and the runnable
+`cmd/tui-spike` that enforces it. That launcher stays a standalone read-only
+entry point until later approved batches. 013 leaves `guide` on its historical
+CLI path (D01): there is no `guide`→TUI wiring in any approved batch.
 
 ---
 
-## 4. Toolchain migration blueprint
+## 4. Toolchain migration blueprint (012 history; no 013 root migration required)
+
+> 013 note (batch under review): Feature 013 explicitly excludes root module
+> external dependencies, root toolchain migration, and moving Charm into root
+> `internal/tui`. Nested-module isolation is retained; the nested module's
+> `go 1.26` directive stays independent of the root `go 1.23` floor. The
+> blueprint below is preserved as 012 evidence, not an active 013 task.
 
 ### Why the change is atomic
 
@@ -269,7 +327,9 @@ platform-support decision that a separate review must record.
    ```
 
 5. **Only then** start Phase 3 (production TUI integration) or root-level
-   dependency adoption, each with its own authorization.
+   dependency adoption, each with its own authorization. (Superseded for 013:
+   see §5 — 013 keeps the nested host, leaves `guide` unchanged, and requires
+   no root migration.)
 
 Rollback is the same commit in reverse: restore `go.mod`, the image tags, the
 digest in both files, the capability name and the documented floor. Because the
@@ -288,23 +348,42 @@ gate rather than quietly testing a different toolchain.
 
 ---
 
-## 5. Phased path after this batch
+## 5. Phased path (012 history + 013 controlled operation host, batch under review)
+
+012-era phases preserved as history; 013 rows are batch-under-review, not
+verified fact:
 
 | Phase | Content | Status |
 |---|---|---|
 | B1 (Feature 012) | Stdlib fixes: definition formatting, grouping, copy, navigation, terminal-only messages | separate batch, separate state |
-| B2 (this batch) | Nested module, read-only catalog spike, this blueprint, `tui:test` | experimental only |
-| Phase 2 | Toolchain migration per §4, then retain the spike as evidence | blocked on a separate decision |
-| Phase 3 | Promote `experiments/tui` to `internal/tui`, wire `agentic-sdd guide` behind the §3 gate, add Huh v2 forms and backup/log viewers | not approved |
+| B2 (Feature 012) | Nested module, read-only catalog spike, this blueprint, `tui:test` | experimental only |
+| 012 Phase 2 | Toolchain migration per §4, then retain the spike as evidence | superseded for 013: no root migration is required; nested isolation retained |
+| 012 Phase 3 | Promote `experiments/tui` to `internal/tui`, wire `agentic-sdd guide` behind the §3 gate, add Huh v2 forms and backup/log viewers | superseded: no promotion to root `internal/tui`, no `guide`→TUI wiring (`guide` unchanged per D01) |
+| B1 (Feature 013) | Persistent responsive shell, accessible animated branding; Explore stays usable | accepted by owner |
+| B2 (Feature 013) | Shared metadata/gate coverage, categorized rich catalog, local dashboard, agent routing details, high-contrast shell | completed — accepted by owner 2026-11-10 |
+| B3 (Feature 013) | Controlled operation host: `internal/appops` seam, typed requests/results, structured engine results, explicit client selection | implemented, awaiting human review — not verified |
+| B4 (Feature 013) | Preview-first install journey with safe async execution | future work, not authorized |
+| B5 (Feature 013) | Backup/restore, activity/help, automatic main-menu update check, browser guide, onboarding | future work, not authorized |
+| B6 (Feature 013) | Paired package/marker proof first, then Homebrew-default launcher and nested companion (`agentic-sdd-tui`) distribution, final acceptance | future work, not authorized |
 
-Phase 3 must preserve three behavior contracts this spike already exercises:
-non-TTY stdout stays byte-identical, numeric menu IDs stay stable for scripted
-journeys, and every mutation still goes through the CLI.
+013 contracts this path must preserve: non-TTY stdout stays byte-identical,
+numeric menu IDs stay stable for scripted journeys, the explicit CLI remains
+usable without the companion, and every mutation flows through the controlled
+adapter (`internal/appops` + engine results) with screens remaining
+mutation-free.
 
-## 6. Non-goals
+## 6. Non-goals and honest limitations
 
 - This document does not authorize raising `go.mod`, changing container images,
   pulling new digests, publishing a release or running any live operation.
 - It does not claim the TUI is reachable from the shipped `agentic-sdd` binary.
 - It does not promise the 20-module dependency footprint; it is a measurement of
   one pin set, not a budget.
+- 013 B3 descriptions above are batch-under-review, not verified fact. B4–B6
+  remain future work: no write workflow, recovery/activity/update-checker, or
+  companion packaging is delivered by this batch.
+- No platform certification is claimed (macOS PTY, SSH/tmux, reduced-color /
+  truecolor, screen readers remain `not_run`).
+- No release, tag, formula publication, or live-operation authorization is
+  granted by this reconciliation; developing the Homebrew-default design does
+  not authorize publishing it.

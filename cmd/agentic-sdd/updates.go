@@ -1,24 +1,27 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
-	"time"
+
+	"agentic-sdd/internal/appops"
 )
 
 // The update check is deliberately fixed and read-only. It has no endpoint
 // override, authentication, environment lookup, disk cache or shell action.
+// The request policy itself lives in appops so the TUI and the CLI share one
+// endpoint, header set, body cap, redirect refusal and version contract.
 const (
-	updateReleaseAPIURL  = "https://api.github.com/repos/nawodyaishan/agentic-sdd/releases/latest"
+	updateReleaseAPIURL  = appops.UpdateReleaseAPIURL
 	updateReleasesURL    = "https://github.com/nawodyaishan/agentic-sdd/releases/latest"
 	updateReadmeURL      = "https://github.com/nawodyaishan/agentic-sdd#readme"
-	updateUserAgent      = "agentic-sdd-update-check"
-	updateRequestAccept  = "application/vnd.github+json"
-	updateRequestTimeout = 5 * time.Second
-	maxUpdateBodyBytes   = 64 << 10 // 64 KiB; one extra byte detects overflow
+	updateUserAgent      = appops.UpdateUserAgent
+	updateRequestAccept  = appops.UpdateRequestAccept
+	updateRequestTimeout = appops.UpdateRequestTimeout
+	maxUpdateBodyBytes   = appops.MaxUpdateBodyBytes
 	updateBrewCommand    = "brew update && brew upgrade nawodyaishan/tap/agentic-sdd"
 	updateVerifyCommand  = "agentic-sdd version"
 	updatePreviewCommand = "agentic-sdd preview"
@@ -69,66 +72,35 @@ func newUpdateClient() *http.Client {
 	}
 }
 
-// checkLatestRelease performs one explicit read-only request. All transport,
-// status, body and release metadata problems become updateFailed. A valid
-// upstream release is validated before the installed version is considered,
-// so an invalid current version yields updateUnavailable rather than a
-// comparison or an upgrade claim.
+// checkLatestRelease performs one explicit read-only request through the
+// shared appops checker. The CLI keeps a background context and the fixed
+// client timeout, so its observable behavior is unchanged; the shared seam
+// exists because the TUI must cancel the same bounded request instead.
 func checkLatestRelease(client *http.Client, current string) updateResult {
-	if client == nil {
-		return updateResult{state: updateFailed}
+	result := appops.CheckLatestRelease(context.Background(), client, current)
+	return updateResult{
+		state:   updateStateFor(result.State),
+		current: result.Current,
+		latest:  result.Latest,
 	}
+}
 
-	req, err := http.NewRequest(http.MethodGet, updateReleaseAPIURL, nil)
-	if err != nil {
-		return updateResult{state: updateFailed}
+// updateStateFor maps a shared classification onto the CLI's historical state
+// set. Unknown values degrade to failure, so a mapping gap can never claim a
+// comparison or an available update.
+func updateStateFor(state appops.UpdateState) updateState {
+	switch state {
+	case appops.UpdateUnavailable:
+		return updateUnavailable
+	case appops.UpdateEqual:
+		return updateEqual
+	case appops.UpdateAhead:
+		return updateAhead
+	case appops.UpdateNewer:
+		return updateNewer
+	default:
+		return updateFailed
 	}
-	req.Header.Set("User-Agent", updateUserAgent)
-	req.Header.Set("Accept", updateRequestAccept)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return updateResult{state: updateFailed}
-	}
-	if resp == nil || resp.Body == nil {
-		return updateResult{state: updateFailed}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return updateResult{state: updateFailed}
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxUpdateBodyBytes+1))
-	if err != nil || len(body) > maxUpdateBodyBytes {
-		return updateResult{state: updateFailed}
-	}
-
-	var release struct {
-		TagName    string `json:"tag_name"`
-		Draft      bool   `json:"draft"`
-		Prerelease bool   `json:"prerelease"`
-	}
-	if err := json.Unmarshal(body, &release); err != nil {
-		return updateResult{state: updateFailed}
-	}
-	latest, ok := parseUpdateVersion(release.TagName)
-	if !ok || release.Draft || release.Prerelease {
-		return updateResult{state: updateFailed}
-	}
-
-	installed, ok := parseUpdateVersion(current)
-	if !ok {
-		return updateResult{state: updateUnavailable, latest: latest.String()}
-	}
-
-	state := updateEqual
-	switch compareUpdateVersions(installed, latest) {
-	case -1:
-		state = updateNewer
-	case 1:
-		state = updateAhead
-	}
-	return updateResult{state: state, current: installed.String(), latest: latest.String()}
 }
 
 // parseUpdateVersion accepts an optional lowercase "v" and exactly three
