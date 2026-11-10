@@ -343,7 +343,7 @@ gate rather than quietly testing a different toolchain.
 | Digest drift between `ci.yml` and `trusted_ci.py` | The trusted gate pulls one toolchain and believes it verified another | Update both from one `docker image inspect` output; the gate compares the reviewed base, so a mismatch fails loudly. |
 | Capability rename missed in a JSON contract | `prerequisite: unknown capability` blocks the check, or a stale name silently matches nothing | Change `runner.go` and both JSON contracts in one commit; `grep -rn "preloaded golang:"` finds all three. |
 | Docs updated before gates | Readers install a toolchain the repo cannot build with | Land docs in the same change as the pins. |
-| Homebrew users on older Go | `brew install` builds from source and fails below the new floor | Update the formula's documented requirement and README floor together; the release job follows `go.mod` automatically. |
+| Homebrew users on older Go | No effect: the cask installs prebuilt universal binaries and never builds from source | Keep the release job pinned to the reviewed Go patch; source-checkout users still follow the README's Go floor. |
 | Experimental code leaking into gates | Core CI starts requiring network or Charm modules | Keep `experiments/tui` nested, keep `tui:test` in `Taskfile.experimental.yml`, and never add its packages to the core package lists. |
 
 ---
