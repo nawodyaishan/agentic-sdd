@@ -8,7 +8,8 @@ before:
 
 # Three separate applications. Never merge them into one fat binary:
 #   cli-generic    - generic archive CLI, historical preview policy
-#   cli-homebrew   - Homebrew-marked CLI, interactive zero-argument TUI default
+#   cli-homebrew   - Homebrew-marked CLI, interactive zero-argument TUI default;
+#                    its artifact name is the installed command name
 #   tui-companion  - nested-module TUI binary, shared by both paired archives
 # Every build injects the same shared buildinfo identity. Only the CLI's
 # distribution marker differs; the companion stays generic and matches the CLI
@@ -41,7 +42,7 @@ builds:
 
   - id: cli-homebrew
     main: ./cmd/agentic-sdd
-    binary: agentic-sdd-homebrew
+    binary: agentic-sdd
     env:
       - CGO_ENABLED=0
     goos:
@@ -103,7 +104,7 @@ universal_binaries:
     ids:
       - cli-homebrew
     replace: true
-    name_template: agentic-sdd-homebrew
+    name_template: agentic-sdd
     mod_timestamp: "{{ .CommitTimestamp }}"
   - id: tui-companion-universal
     ids:
@@ -113,8 +114,8 @@ universal_binaries:
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 # Two filtered paired archives with deterministic names. The same companion
-# artifact is included in both; only the CLI build differs. The Homebrew
-# formula consumes cli-homebrew-pair exclusively.
+# artifact is included in both; only the CLI build differs. The Homebrew cask
+# consumes cli-homebrew-pair exclusively.
 archives:
   - id: cli-generic-pair
     ids:
@@ -143,25 +144,30 @@ changelog:
       - "^ci:"
       - "^chore:"
 
-# Prebuilt artifacts only: no formula compilation, no post-install launch.
-# The marked CLI is installed as agentic-sdd and the companion as
-# agentic-sdd-tui from the Homebrew-marked pair archive.
-brews:
+# Prebuilt artifacts only: no source compilation, no install-time launch.
+# The cask links the marked CLI as agentic-sdd and the companion as
+# agentic-sdd-tui. Casks are quarantined by macOS; the binary is unsigned, so
+# the post-install hook removes the quarantine bit from both executables.
+# Signing/notarization is the alternative, but requires Apple credentials.
+homebrew_casks:
   - name: agentic-sdd
     ids:
       - cli-homebrew-pair
+    binaries:
+      - agentic-sdd
+      - agentic-sdd-tui
     repository:
       owner: nawodyaishan
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+    directory: Casks
     homepage: "https://github.com/nawodyaishan/agentic-sdd"
     description: "Spec-driven development workflow skills, kept in sync across Codex, Claude Code, and Antigravity CLI"
     license: MIT
-    install: |
-      bin.install "agentic-sdd-homebrew" => "agentic-sdd"
-      bin.install "agentic-sdd-tui"
-    test: |
-      system "#{bin}/agentic-sdd", "--help"
-      system "#{bin}/agentic-sdd", "version"
-      system "#{bin}/agentic-sdd-tui", "--version"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/agentic-sdd"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/agentic-sdd-tui"]
+          end

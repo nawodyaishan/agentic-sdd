@@ -10,7 +10,7 @@ import (
 // The release config is static text here on purpose: GoReleaser and lipo are
 // not available in every development environment, so these assertions guard the
 // reviewed shape without pretending a snapshot ran. The real archive/universal/
-// formula proof remains the nonpublishing snapshot task.
+// cask proof remains the nonpublishing snapshot task.
 func TestGoReleaserPairContract(t *testing.T) {
 	source, err := os.ReadFile("../../.goreleaser.yml")
 	if err != nil {
@@ -134,30 +134,45 @@ func TestGoReleaserPairContract(t *testing.T) {
 	assertArchive(t, byArchiveID, "cli-generic-pair", []string{"cli-generic-universal", "tui-companion-universal"}, "_generic")
 	assertArchive(t, byArchiveID, "cli-homebrew-pair", []string{"cli-homebrew-universal", "tui-companion-universal"}, "_homebrew")
 
-	brews := topLevelBlocks(t, config, "brews")
-	if len(brews) != 1 {
-		t.Fatalf("brews has %d entries, want exactly one formula", len(brews))
+	casks := topLevelBlocks(t, config, "homebrew_casks")
+	if len(casks) != 1 {
+		t.Fatalf("homebrew_casks has %d entries, want exactly one cask", len(casks))
 	}
-	formula := brews[0]
-	if got := formula.list("ids"); !equalStrings(got, []string{"cli-homebrew-pair"}) {
-		t.Fatalf("formula archive ids = %v, want only the Homebrew pair", got)
+	cask := casks[0]
+	if got := cask.scalar("name"); got != "agentic-sdd" {
+		t.Fatalf("cask name = %q, want agentic-sdd", got)
 	}
-	install := formula.blockScalar("install")
-	for _, want := range []string{`bin.install "agentic-sdd-homebrew" => "agentic-sdd"`, `bin.install "agentic-sdd-tui"`} {
-		if !strings.Contains(install, want) {
-			t.Fatalf("formula install does not contain %q:\n%s", want, install)
+	if got := cask.list("ids"); !equalStrings(got, []string{"cli-homebrew-pair"}) {
+		t.Fatalf("cask archive ids = %v, want only the Homebrew pair", got)
+	}
+	if got := cask.list("binaries"); !equalStrings(got, []string{"agentic-sdd", "agentic-sdd-tui"}) {
+		t.Fatalf("cask binaries = %v, want the installed CLI and companion names", got)
+	}
+	if got := cask.scalar("directory"); got != "Casks" {
+		t.Fatalf("cask directory = %q, want Casks", got)
+	}
+	// The binaries are unsigned, so macOS quarantine would block execution.
+	// The reviewed post-install hook removes the quarantine bit from both
+	// staged executables and does nothing else.
+	caskText := cask.text()
+	for _, want := range []string{
+		`system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/agentic-sdd"]`,
+		`system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/agentic-sdd-tui"]`,
+	} {
+		if !strings.Contains(caskText, want) {
+			t.Fatalf("cask post-install hook does not strip quarantine with %q:\n%s", want, caskText)
 		}
 	}
-	for _, forbidden := range []string{"go build", "make", "npm", "system \""} {
-		if strings.Contains(install, forbidden) {
-			t.Fatalf("formula install must not compile or launch at install time; found %q:\n%s", forbidden, install)
+	for _, forbidden := range []string{"bin.install", "go build", "make", "npm", `system "#{bin}`} {
+		if strings.Contains(caskText, forbidden) {
+			t.Fatalf("cask must not compile or launch at install time; found %q:\n%s", forbidden, caskText)
 		}
 	}
-	if strings.Contains(config, "post_install:") {
-		t.Fatal("the formula must not define a post_install hook")
+	if strings.Contains(config, "\nbrews:") {
+		t.Fatal(".goreleaser.yml must not keep the deprecated brews formula section")
 	}
-	if testScript := formula.blockScalar("test"); !strings.Contains(testScript, `"#{bin}/agentic-sdd-tui", "--version"`) {
-		t.Fatalf("formula test must exercise the non-interactive companion version query:\n%s", testScript)
+	if strings.Contains(config, "directory: Formula") {
+		t.Fatal("the tap artifact must live in Casks, not Formula")
 	}
 }
 
@@ -186,7 +201,7 @@ func universalName(buildID string) string {
 	case "cli-generic":
 		return "agentic-sdd-generic"
 	case "cli-homebrew":
-		return "agentic-sdd-homebrew"
+		return "agentic-sdd"
 	default:
 		return "agentic-sdd-tui"
 	}
@@ -212,34 +227,6 @@ func (b yamlBlock) scalar(key string) string {
 		}
 	}
 	return ""
-}
-
-func (b yamlBlock) blockScalar(key string) string {
-	var values []string
-	inBlock := false
-	for _, line := range b.lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(line, "    "+key+":") {
-			rest := strings.TrimSpace(strings.TrimPrefix(line, "    "+key+":"))
-			if rest != "|" && rest != "|-" && rest != ">" && rest != ">-" {
-				values = append(values, rest)
-			}
-			inBlock = true
-			continue
-		}
-		if inBlock {
-			if trimmed == "" {
-				values = append(values, "")
-				continue
-			}
-			indent := len(line) - len(strings.TrimLeft(line, " "))
-			if indent <= 4 {
-				break
-			}
-			values = append(values, strings.TrimSpace(line))
-		}
-	}
-	return strings.Join(values, "\n")
 }
 
 func (b yamlBlock) list(key string) []string {

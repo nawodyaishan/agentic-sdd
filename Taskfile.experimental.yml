@@ -192,13 +192,13 @@ tasks:
         blocked() { printf "release:snapshot: BLOCKED - %s This is not a pass.\n" "$*" >&2; exit 2; }
 
         # Fail closed and report every missing prerequisite. Missing packaging
-        # tools block package/Mach-O/formula proof; they are never a pass.
+        # tools block package/Mach-O/cask proof; they are never a pass.
         missing=""
         command -v git >/dev/null 2>&1 || missing="$missing git"
         command -v goreleaser >/dev/null 2>&1 || missing="$missing goreleaser"
         command -v go >/dev/null 2>&1 || missing="$missing go"
         if [ -n "$missing" ]; then
-          blocked "missing prerequisites:$missing. GoReleaser creates macOS universal binaries internally; no external lipo is required. The local snapshot did not run; no archive, Mach-O slice or formula evidence exists."
+          blocked "missing prerequisites:$missing. GoReleaser creates macOS universal binaries internally; no external lipo is required. The local snapshot did not run; no archive, Mach-O slice or cask evidence exists."
         fi
         found_goreleaser=$(goreleaser --version 2>/dev/null | sed -n "s/^GitVersion:[[:space:]]*//p" | head -n 1) || found_goreleaser=""
         if [ "$found_goreleaser" != "$3" ]; then
@@ -261,5 +261,5 @@ tasks:
         GOFLAGS= \
         SDD_SOURCE_DIGEST="local-sha256:$digest" \
         goreleaser release --snapshot --clean
-        echo "release:snapshot: local nonpublishing snapshot complete for $revision; inspect dist/ for the generic and Homebrew pairs, their checksums and the generated formula."
+        echo "release:snapshot: local nonpublishing snapshot complete for $revision; inspect dist/ for the generic and Homebrew pairs, their checksums and the generated cask."
         ' sh {{.GOCACHE | shellQuote}} {{.SDD_RELEASE_GO_PATCH | shellQuote}} {{.SDD_RELEASE_GORELEASER_VERSION | shellQuote}}

@@ -35,7 +35,7 @@ Agentic SDD helps you bring that judgment into your work with AI:
 **macOS with Homebrew:**
 
 ```sh
-brew install nawodyaishan/tap/agentic-sdd
+brew install --cask nawodyaishan/tap/agentic-sdd
 agentic-sdd preview
 ```
 
@@ -45,7 +45,7 @@ Preview shows which skills would be installed or replaced. **It does not write c
 agentic-sdd apply
 ```
 
-In a real interactive terminal, a bare `agentic-sdd` from the Homebrew package opens the terminal UI instead. `agentic-sdd preview` always keeps the explicit, write-free CLI, so scripts, pipes and `AGENTIC_SDD_FORCE_INTERACTIVE=1` are unaffected.
+In a real interactive terminal, a bare `agentic-sdd` from the Homebrew cask opens the terminal UI instead. `agentic-sdd preview` always keeps the explicit, write-free CLI, so scripts, pipes and `AGENTIC_SDD_FORCE_INTERACTIVE=1` are unaffected.
 
 **Install with the OpenCode Orchestration Pack (`--with-opencode`):**
 
@@ -61,6 +61,13 @@ agentic-sdd apply --with-opencode --opencode-free-first
 ```
 
 Already installed? Run `brew upgrade nawodyaishan/tap/agentic-sdd`, then preview and apply to update your installed skills and profiles.
+
+<details>
+<summary><strong>Upgrading an earlier formula installation</strong></summary>
+
+Earlier releases used a Homebrew formula with the same name. The cask ships with the first cask-bearing release; use `brew install nawodyaishan/tap/agentic-sdd` for older formula releases. When the tap publishes the formula-to-cask migration, Homebrew 5.0.6 or newer migrates automatically on `brew update && brew upgrade nawodyaishan/tap/agentic-sdd`; finish with `brew uninstall --formula agentic-sdd` if Homebrew asks. On older Homebrew, run `brew uninstall --formula agentic-sdd` first, then the `brew install --cask` command above.
+
+</details>
 
 <details>
 <summary><strong>Linux or a source checkout</strong></summary>
