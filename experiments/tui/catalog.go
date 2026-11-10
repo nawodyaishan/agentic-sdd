@@ -6,6 +6,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
+	"agentic-sdd/internal/appops"
 	"agentic-sdd/internal/skillsync"
 )
 
@@ -18,6 +21,22 @@ const (
 	GroupOpenCodeProfiles = "OpenCode profiles"
 	GroupFreeFirstPresets = "Free-first presets"
 )
+
+// Category IDs for filtered browsing.
+const (
+	CategoryAll      = "all"
+	CategoryCore     = "core"
+	CategoryPack     = "pack"
+	CategoryProfiles = "profiles"
+	CategoryPresets  = "presets"
+)
+
+// CatalogCategory describes one category filter option with its visible item count.
+type CatalogCategory struct {
+	ID    string
+	Label string
+	Count int
+}
 
 // catalogKeySeparator joins kind and ID into one map key. NUL cannot appear in
 // a managed file name, so distinct pairs cannot collide.
@@ -38,29 +57,173 @@ type ClientStatus struct {
 	Path   string
 }
 
+// maxSummaryBadgeWidth bounds the provider badge appended to a profile list
+// row so the badge still fits the narrowest 32-cell list pane. Longer
+// documented names are truncated with a cell-aware ellipsis, never rewritten.
+const maxSummaryBadgeWidth = 24
+
+// routingUndocumented is the honest provider label for a profile that Agentic
+// SDD does not document. Nothing is inferred from its ID or model text.
+const routingUndocumented = "not documented by Agentic SDD"
+
+// routingUndocumentedNote keeps an unlisted profile truthful instead of
+// filling the gap with a guessed lane.
+const routingUndocumentedNote = "No curated routing metadata is documented for this profile in Agentic SDD. Its provider, model and fallbacks are not inferred from the profile ID, and no credential, quota, availability or runtime state is claimed."
+
 // CatalogItem is one read-only catalog row: a managed skill directory or a
 // managed profile file, with the per-client statuses InspectSelection reported.
+//
+// The Agent* and RoutingNote fields are additive, display-only configuration
+// facts about a profile template: the mode, provider lane, pinned model and
+// documented manual alternatives it declares. They never mean a credential
+// exists, a model is reachable, or an agent is running.
 type CatalogItem struct {
-	ID      string
-	Kind    string
-	Origin  string
-	Group   string
-	Clients []ClientStatus
+	ID       string
+	Kind     string
+	Origin   string
+	Group    string
+	Clients  []ClientStatus
+	Name     string
+	Purpose  string
+	When     string
+	Example  string
+	Caveat   string
+	Category string
+
+	AgentMode      string
+	AgentProvider  string
+	AgentModel     string
+	AgentFallbacks []string
+	RoutingNote    string
 }
 
-// FilterValue is the text the Bubbles list searches. It includes the ID, kind,
-// origin, group and client names so `/` can match any of them.
+// enrichItem fills additive metadata fields from appops.TeachingFor and
+// appops.AgentRoutingFor if not already set. Non-empty fields are preserved so
+// existing or caller-supplied values are never overwritten.
+func enrichItem(item *CatalogItem) {
+	if item.Name == "" || item.Purpose == "" || item.When == "" || item.Example == "" || item.Caveat == "" || item.Category == "" {
+		card := appops.TeachingFor(item.ID, item.Kind)
+		if item.Name == "" {
+			if card.DisplayName != "" {
+				item.Name = card.DisplayName
+			} else {
+				item.Name = item.ID
+			}
+		}
+		if item.Purpose == "" {
+			item.Purpose = card.Purpose
+		}
+		if item.When == "" {
+			item.When = card.When
+		}
+		if item.Example == "" {
+			item.Example = card.Example
+		}
+		if item.Caveat == "" {
+			item.Caveat = card.Caveat
+		}
+		if item.Category == "" {
+			item.Category = card.Group
+		}
+	}
+	enrichRouting(item)
+	item.Group = catalogGroup(item.Kind, item.Origin)
+}
+
+// enrichRouting fills the documented model policy of an agent profile. Skills
+// and concepts have no routing policy, so they stay empty. A profile Agentic
+// SDD does not document keeps whatever display values it already carries and
+// gains only the honest absence wording; no provider or model is guessed from
+// an arbitrary ID or string.
+func enrichRouting(item *CatalogItem) {
+	if item.Kind != skillsync.InventoryKindProfile {
+		return
+	}
+	if routing, ok := appops.AgentRoutingFor(item.ID); ok {
+		if item.AgentMode == "" {
+			item.AgentMode = routing.Mode
+		}
+		if item.AgentProvider == "" {
+			item.AgentProvider = routing.Provider
+		}
+		if item.AgentModel == "" {
+			item.AgentModel = routing.Model
+		}
+		if len(item.AgentFallbacks) == 0 {
+			item.AgentFallbacks = append([]string(nil), routing.Fallbacks...)
+		}
+		if item.RoutingNote == "" {
+			item.RoutingNote = routing.Note
+		}
+		return
+	}
+	if item.AgentMode == "" {
+		item.AgentMode = routingUndocumented
+	}
+	if item.AgentProvider == "" {
+		item.AgentProvider = routingUndocumented
+	}
+	if item.AgentModel == "" {
+		item.AgentModel = routingUndocumented
+	}
+	if item.RoutingNote == "" {
+		item.RoutingNote = routingUndocumentedNote
+	}
+}
+
+// FilterValue is the text the Bubbles list searches. It includes the ID, name,
+// purpose (for curated items), kind, origin, category, group and client names so `/` can match any of them.
+// A profile additionally contributes its documented mode, provider, primary
+// model, fallbacks and routing note so a search can reach a lane or model name.
 func (i CatalogItem) FilterValue() string {
-	parts := []string{i.ID, i.Kind, i.Origin, i.Group}
+	parts := []string{i.ID, i.Name, i.Kind, i.Origin, i.Category, i.Group}
+	if !strings.Contains(strings.ToLower(i.Purpose), "not documented") {
+		parts = append(parts, i.Purpose)
+	}
 	for _, c := range i.Clients {
 		parts = append(parts, c.Client)
 	}
-	return strings.ToLower(strings.Join(parts, " "))
+	if i.Kind == skillsync.InventoryKindProfile && i.documentedRouting() {
+		parts = append(parts, i.AgentMode, i.AgentProvider, i.AgentModel, i.RoutingNote)
+		parts = append(parts, i.AgentFallbacks...)
+	}
+	var nonNil []string
+	for _, p := range parts {
+		if p != "" {
+			nonNil = append(nonNil, p)
+		}
+	}
+	return strings.ToLower(strings.Join(nonNil, " "))
+}
+
+// documentedRouting reports whether the item carries curated routing metadata.
+// The honest absence placeholder is uniform boilerplate, so it is left out of
+// search text, exactly as an undocumented purpose already is: adding it would
+// only let unrelated fuzzy queries match every unlisted profile.
+func (i CatalogItem) documentedRouting() bool {
+	return i.AgentProvider != "" && i.AgentProvider != routingUndocumented
 }
 
 // Summary is the one-line list description: kind, origin and install coverage.
+// An agent profile uses a compact coverage count plus its documented provider
+// lane as the final badge, so the row stays readable in a narrow list pane
+// without claiming the model ran. Skills and concepts keep the original string.
 func (i CatalogItem) Summary() string {
+	if i.Kind == skillsync.InventoryKindProfile {
+		return fmt.Sprintf("%s · %d/%d", i.routingBadge(), i.InstalledClients(), len(i.Clients))
+	}
 	return fmt.Sprintf("%s · %s · %d/%d clients installed", i.Kind, i.Origin, i.InstalledClients(), len(i.Clients))
+}
+
+// routingBadge is the compact provider lane of a profile row. Empty routing is
+// labelled honestly rather than left blank, and an over-long name is truncated
+// cell-aware to maxSummaryBadgeWidth so the badge cannot widen a list row.
+func (i CatalogItem) routingBadge() string {
+	badge := strings.TrimSpace(i.AgentProvider)
+	if badge == "" {
+		badge = routingUndocumented
+	}
+	return ansi.Truncate(badge, maxSummaryBadgeWidth, "…")
 }
 
 // InstalledClients counts destinations that hold content (matching or
@@ -166,6 +329,7 @@ func LoadCatalog(cfg TUIConfig) (Catalog, error) {
 				Origin: entry.Origin,
 				Group:  catalogGroup(entry.Kind, entry.Origin),
 			}
+			enrichItem(item)
 			index[key] = item
 		}
 		item.Clients = append(item.Clients, ClientStatus{
@@ -238,4 +402,35 @@ func catalogGroupRank(group string) int {
 		}
 	}
 	return len(catalogGroupOrder)
+}
+
+// classifyItem returns the base category ID for an item derived authoritatively from its Kind and Origin.
+func classifyItem(item CatalogItem) string {
+	switch {
+	case item.Kind == skillsync.InventoryKindProfile && item.Origin == skillsync.InventoryOriginPreset:
+		return CategoryPresets
+	case item.Kind == skillsync.InventoryKindProfile:
+		return CategoryProfiles
+	case item.Origin == skillsync.InventoryOriginPack:
+		return CategoryPack
+	default:
+		return CategoryCore
+	}
+}
+
+// itemMatchesCategory reports whether an item belongs to the requested category ID.
+func itemMatchesCategory(item CatalogItem, categoryID string) bool {
+	catLower := strings.ToLower(categoryID)
+	switch catLower {
+	case CategoryAll, "":
+		return true
+	case CategoryCore, CategoryPack, CategoryProfiles, CategoryPresets:
+		return classifyItem(item) == catLower
+	default:
+		if strings.HasPrefix(catLower, "purpose:") {
+			group := categoryID[len("purpose:"):]
+			return strings.EqualFold(item.Category, group)
+		}
+		return false
+	}
 }

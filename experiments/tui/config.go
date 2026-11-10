@@ -54,6 +54,11 @@ type TUIConfig struct {
 	// OpenCodeFreeFirst includes the Free-first preset profiles. It requires
 	// WithOpenCode, mirroring the CLI flag.
 	OpenCodeFreeFirst bool
+	// Motion enables animated transitions and reveals. Defaults to true for
+	// interactive sessions unless reduced motion is requested.
+	Motion bool
+	// ASCII forces 7-bit ASCII borders and symbols.
+	ASCII bool
 }
 
 // Normalize returns a copy with default dimensions applied. Non-positive

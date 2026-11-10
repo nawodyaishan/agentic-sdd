@@ -5,3 +5,7 @@ lefthook-local.yml
 *.test
 bin/
 dist/
+
+# Python test bytecode
+__pycache__/
+*.pyc

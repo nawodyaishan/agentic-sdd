@@ -11,9 +11,9 @@ import (
 	"os"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/term"
 
 	"agentic-sdd/experiments/tui"
-	"agentic-sdd/experiments/tui/screens"
 )
 
 func main() {
@@ -21,9 +21,16 @@ func main() {
 	repo := flag.String("repo", "", "skills checkout to read (default: the embedded assets)")
 	flag.Parse()
 
-	decision := tui.LaunchAllowed(os.Getenv, isTerminal(os.Stdout))
+	stdinTTY := term.IsTerminal(os.Stdin.Fd())
+	stdoutTTY := term.IsTerminal(os.Stdout.Fd())
+
+	decision := tui.LaunchAllowed(os.Getenv, stdoutTTY)
 	if !decision.Enabled {
 		fmt.Fprintf(os.Stderr, "tui-spike: %s\n", decision.Reason)
+		os.Exit(2)
+	}
+	if !stdinTTY {
+		fmt.Fprintf(os.Stderr, "tui-spike: stdin is not a terminal; using the standard CLI\n")
 		os.Exit(2)
 	}
 
@@ -37,12 +44,18 @@ func main() {
 		resolvedHome = current
 	}
 
+	isTerm := stdinTTY && stdoutTTY
+	motion := isTerm && os.Getenv("AGENTIC_SDD_REDUCED_MOTION") != "1" && os.Getenv("NO_COLOR") == ""
+	ascii := os.Getenv("AGENTIC_SDD_ASCII") == "1"
+
 	cfg := tui.TUIConfig{
 		Repo:         *repo,
 		Home:         resolvedHome,
 		Color:        os.Getenv("NO_COLOR") == "",
-		Interactive:  true,
+		Interactive:  isTerm,
 		WithOpenCode: true,
+		Motion:       motion,
+		ASCII:        ascii,
 	}.Normalize()
 
 	catalog, err := tui.LoadCatalog(cfg)
@@ -51,24 +64,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	if _, err := tea.NewProgram(screens.NewCatalog(cfg, catalog)).Run(); err != nil {
+	app := tui.NewApp(cfg, catalog)
+	if _, err := tea.NewProgram(app).Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "tui-spike: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-// isTerminal mirrors the CLI's detection closely enough for the spike: a
-// character device that is not the null device.
-func isTerminal(file *os.File) bool {
-	info, err := file.Stat()
-	if err != nil {
-		return false
-	}
-	if info.Mode()&os.ModeCharDevice == 0 {
-		return false
-	}
-	if nullInfo, err := os.Stat(os.DevNull); err == nil && os.SameFile(info, nullInfo) {
-		return false
-	}
-	return true
 }
