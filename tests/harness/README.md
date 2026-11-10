@@ -2,19 +2,20 @@
 
 ## Supported-core Go selection
 
-`task test-core` / `task vet-core` call `tests/supported-core-go.sh` with an explicit
-allowlist: `internal/skillsync`, `internal/harnesscheck`, `internal/harnessevidence`
-and `cmd/sdd-check`, then the production installer CLI files plus `main_test.go`.
-The helper is compiled as a production dependency, not exercised as a native
-runtime. `internal/opencodeadapter`'s experimental tests and the CLI's
+`task test` / `task vet` and the `test-core` / `vet-core` aliases select the same
+eight supported-core packages: `.`, `./internal/version`, `./internal/skillsync`,
+`./internal/harnesscheck`, `./internal/harnessevidence`, `./internal/appops`,
+`./cmd/agentic-sdd`, and `./cmd/sdd-check`. The aliases use
+`tests/supported-core-go.sh`, whose required-directory checks fail closed.
+Feature 013 D03 explicitly authorizes adding the shared metadata package without
+removing earlier coverage. `internal/opencodeadapter`'s experimental tests and the CLI's
 `opencode_test.go` are not selected; no 006 native/profile/dispatch/pilot or 007
 historical migration/adoption suite is selected. Shipped-reference/package and
 current core check/evidence tests stay covered regardless of their feature origin.
 
-The explicit CLI file list reflects the currently reviewed source layout. Go's
-file-list mode ignores build constraints; missing/new CLI files stop for selection
-review rather than silently changing scope. This profile has Linux evidence only,
-not a native macOS guarantee. It clears inherited test filters/foreign workspaces
+The CLI is selected as a package with its normal build constraints, not an explicit
+file list. This profile has Linux evidence only, not a native macOS guarantee.
+It clears inherited test filters/foreign workspaces
 and disables toolchain/module retrieval; it is not an OS sandbox.
 
 Verify the selection with
@@ -23,10 +24,13 @@ It uses fake Go in disposable fixtures to check exact argv/environment and failu
 propagation, not deprecated-feature or native behavior. Python 3.9+ and Go Task must already be
 available for the entry-point checks; absence must not be counted as a pass.
 
-**Not an aggregate gate:** the required `go test ./...`, `go vet ./...`, CI/bootstrap
-and `harness/checks.json` remain unchanged. A temporary scope conflict leaves the
-aggregate not_run/blocked with a human decision outstanding. Do not use a scoped
-pass to certify the aggregate or silently waive release-critical core checks.
+**Not a historical/experimental aggregate gate:** `harness/checks.json` required
+test/vet commands now use the same explicit core package set. Updating this
+candidate contract does not adopt it into a trusted base: old reviewed definitions
+must continue rejecting unadopted changes. Live trusted-base adoption/push needs
+separate review and authorization. Report that gate not_run/blocked until its
+prerequisites are satisfied; never disable comparison or reinterpret local
+package tests as trusted-CI evidence.
 
 ## Core workflow text and onboarding checks
 

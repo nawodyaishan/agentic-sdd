@@ -18,6 +18,7 @@ CORE_PACKAGES = [
     "./internal/skillsync",
     "./internal/harnesscheck",
     "./internal/harnessevidence",
+    "./internal/appops",
     "./cmd/agentic-sdd",
     "./cmd/sdd-check",
 ]
@@ -38,6 +39,7 @@ class SupportedCoreSelectionTests(unittest.TestCase):
             "internal/skillsync",
             "internal/harnesscheck",
             "internal/harnessevidence",
+            "internal/appops",
             "cmd/agentic-sdd",
             "cmd/sdd-check",
         ]:
@@ -119,6 +121,7 @@ class SupportedCoreSelectionTests(unittest.TestCase):
             self.root / "internal/skillsync",
             self.root / "internal/harnesscheck",
             self.root / "internal/harnessevidence",
+            self.root / "internal/appops",
             self.root / "cmd/agentic-sdd",
         ]
         for target in cases:
