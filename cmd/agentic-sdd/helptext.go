@@ -75,6 +75,18 @@ Example: agentic-sdd version
 Related: agentic-sdd help
 
 `,
+	"tui": `tui — open the terminal UI in a real terminal
+
+Runs the packaged terminal UI (agentic-sdd-tui) from the same installation.
+It needs a real input and output terminal; a pipe, a script, or
+AGENTIC_SDD_FORCE_INTERACTIVE=1 keeps the standard CLI and never opens the
+alternate screen. A missing or mismatched companion is an error, never a
+silent fallback.
+Writes files: only after an explicit confirmation inside the UI
+Example: agentic-sdd tui --home ~
+Related: agentic-sdd help preview
+
+`,
 }
 
 // printTopicHelp writes the topic-specific block for topic and reports

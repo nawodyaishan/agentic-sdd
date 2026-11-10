@@ -39,7 +39,16 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 	if env == nil {
 		env = &Env{Width: 80}
 	}
-	env.Trace.Event("run.start", "command", commandName(args), "flags", flagNames(args), "version", version.Version)
+	// The Homebrew-marked artifact opens the TUI for a real interactive
+	// zero-argument launch. The decision is made before dispatch so every
+	// explicit command and flag keeps its own path, and it is traced under the
+	// command it actually runs.
+	homebrewTUILaunch := len(args) == 0 && env.tuiDefaultLaunch()
+	commandForTrace := commandName(args)
+	if homebrewTUILaunch {
+		commandForTrace = "tui"
+	}
+	env.Trace.Event("run.start", "command", commandForTrace, "flags", flagNames(args), "version", version.Version)
 	env.Trace.Event("env.resolved",
 		"interactive", env.Interactive,
 		"stdout_tty", env.StdoutTTY,
@@ -52,6 +61,9 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 		env.Trace.Event("run.end", "exit", exitCode)
 		_ = env.Trace.Close()
 	}()
+	if homebrewTUILaunch {
+		return tuiLaunch(tuiRequest{}, stdin, stdout, stderr, env)
+	}
 	command := "preview"
 	explicitCommand := false
 	if len(args) > 0 {
@@ -70,7 +82,7 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			return runOpenCode(args[1:], stdout, stderr)
 		case "help":
 			if len(args) > 2 || (len(args) == 2 && !isHelpTopic(args[1])) {
-				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|logs|restore]")
+				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|logs|restore|tui]")
 				return 2
 			}
 			if len(args) == 2 && (args[1] == "opencode" || args[1] == "opencode-harness") {
@@ -94,6 +106,8 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			return runRestore(args[1:], stdout, stderr, stdin, env)
 		case "guide":
 			return runGuide(args[1:], stdout, stderr, stdin, env)
+		case "tui":
+			return runTUICommand(args[1:], stdin, stdout, stderr, env)
 		default:
 			if !strings.HasPrefix(args[0], "-") {
 				fmt.Fprintf(stderr, "error: unknown command %q\n", args[0])
@@ -248,7 +262,7 @@ func shellQuoteIfNeeded(s string) string {
 
 func isHelpTopic(s string) bool {
 	switch s {
-	case "preview", "apply", "backups", "logs", "restore", "guide", "version", "opencode", "opencode-harness", "orchestrate":
+	case "preview", "apply", "backups", "logs", "restore", "guide", "version", "tui", "opencode", "opencode-harness", "orchestrate":
 		return true
 	}
 	return false
@@ -536,13 +550,14 @@ func readLine(r *bufio.Reader) (string, bool) {
 
 func printUsage(out io.Writer) {
 	fmt.Fprint(out, `Usage: agentic-sdd [preview|apply] [--repo PATH] [--home PATH]
+       agentic-sdd tui [--repo PATH] [--home PATH]
        agentic-sdd version
        agentic-sdd backups [--repo PATH] [--home PATH]
        agentic-sdd logs [--home PATH]
        agentic-sdd restore [ID] [--apply] [--repo PATH] [--home PATH]
        agentic-sdd restore list|preview|apply [ID] [--repo PATH] [--home PATH]
        agentic-sdd guide [--repo PATH] [--home PATH]
-       agentic-sdd help [preview|apply|backups|logs|restore]
+       agentic-sdd help [preview|apply|backups|logs|restore|tui]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -552,6 +567,12 @@ Commands:
   logs           Show the latest apply or restore log.
   restore        Preview or restore a backup, selected by id or number.
   guide          Interactive step-by-step wizard for terminal users.
+  tui            Open the terminal UI in a real terminal (packaged companion).
+
+With the Homebrew package, a bare "agentic-sdd" in a real interactive terminal
+opens the terminal UI. Any command or flag, a non-terminal stdin or stdout, and
+AGENTIC_SDD_FORCE_INTERACTIVE=1 keep the standard CLI; "agentic-sdd preview"
+always previews without writing.
 
 restore forms:
   restore                   Interactively list backups and pick one to preview.

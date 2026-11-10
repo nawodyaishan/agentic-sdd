@@ -87,7 +87,7 @@ func TestResolveEnv(t *testing.T) {
 
 	term := fakeCharDevice()
 	notTerm := fakeRegularFile()
-	allTerminal := Env{Interactive: true, StdoutTTY: true, StderrTTY: true, Color: true, Width: 80}
+	allTerminal := Env{Interactive: true, StdoutTTY: true, StderrTTY: true, Color: true, Width: 80, RealStdinTTY: true, RealStdoutTTY: true}
 
 	tests := []struct {
 		name   string
@@ -116,21 +116,21 @@ func TestResolveEnv(t *testing.T) {
 			stdin:  devNull,
 			stdout: term,
 			stderr: term,
-			want:   Env{StdoutTTY: true, StderrTTY: true, Color: true, Width: 80},
+			want:   Env{StdoutTTY: true, StderrTTY: true, Color: true, Width: 80, RealStdoutTTY: true},
 		},
 		{
 			name:   "stdout not a terminal disables color",
 			stdin:  term,
 			stdout: notTerm,
 			stderr: term,
-			want:   Env{Interactive: true, StderrTTY: true, Width: 80},
+			want:   Env{Interactive: true, StderrTTY: true, Width: 80, RealStdinTTY: true},
 		},
 		{
 			name:   "stderr not a terminal keeps stdout color",
 			stdin:  term,
 			stdout: term,
 			stderr: notTerm,
-			want:   Env{Interactive: true, StdoutTTY: true, Color: true, Width: 80},
+			want:   Env{Interactive: true, StdoutTTY: true, Color: true, Width: 80, RealStdinTTY: true, RealStdoutTTY: true},
 		},
 		{
 			name:   "NO_COLOR disables color",
@@ -138,7 +138,7 @@ func TestResolveEnv(t *testing.T) {
 			stdout: term,
 			stderr: term,
 			env:    map[string]string{"NO_COLOR": "1"},
-			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, Width: 80},
+			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, Width: 80, RealStdinTTY: true, RealStdoutTTY: true},
 		},
 		{
 			name:   "TERM=dumb sets ASCII and disables color",
@@ -146,7 +146,7 @@ func TestResolveEnv(t *testing.T) {
 			stdout: term,
 			stderr: term,
 			env:    map[string]string{"TERM": "dumb"},
-			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, ASCII: true, Width: 80},
+			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, ASCII: true, Width: 80, RealStdinTTY: true, RealStdoutTTY: true},
 		},
 		{
 			name:   "COLUMNS sets width",
@@ -194,7 +194,7 @@ func TestResolveEnv(t *testing.T) {
 			stdout: notTerm,
 			stderr: notTerm,
 			env:    map[string]string{"AGENTIC_SDD_FORCE_INTERACTIVE": "1"},
-			want:   allTerminal,
+			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, Color: true, Width: 80, ForceInteractive: true},
 		},
 		{
 			name:   "force interactive still honors NO_COLOR",
@@ -202,7 +202,7 @@ func TestResolveEnv(t *testing.T) {
 			stdout: notTerm,
 			stderr: notTerm,
 			env:    map[string]string{"AGENTIC_SDD_FORCE_INTERACTIVE": "1", "NO_COLOR": "1"},
-			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, Width: 80},
+			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, Width: 80, ForceInteractive: true},
 		},
 		{
 			name:   "force interactive still honors TERM=dumb",
@@ -210,7 +210,7 @@ func TestResolveEnv(t *testing.T) {
 			stdout: notTerm,
 			stderr: notTerm,
 			env:    map[string]string{"AGENTIC_SDD_FORCE_INTERACTIVE": "1", "TERM": "dumb"},
-			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, ASCII: true, Width: 80},
+			want:   Env{Interactive: true, StdoutTTY: true, StderrTTY: true, ASCII: true, Width: 80, ForceInteractive: true},
 		},
 		{
 			name:   "force interactive requires exactly 1",

@@ -6,10 +6,17 @@ before:
   hooks:
     - go mod tidy
 
+# Three separate applications. Never merge them into one fat binary:
+#   cli-generic    - generic archive CLI, historical preview policy
+#   cli-homebrew   - Homebrew-marked CLI, interactive zero-argument TUI default
+#   tui-companion  - nested-module TUI binary, shared by both paired archives
+# Every build injects the same shared buildinfo identity. Only the CLI's
+# distribution marker differs; the companion stays generic and matches the CLI
+# on revision, commit and source digest.
 builds:
-  - id: agentic-sdd
+  - id: cli-generic
     main: ./cmd/agentic-sdd
-    binary: agentic-sdd
+    binary: agentic-sdd-generic
     env:
       - CGO_ENABLED=0
     goos:
@@ -27,18 +34,102 @@ builds:
         -X agentic-sdd/internal/version.Commit={{ .ShortCommit }}
         -X agentic-sdd/internal/version.Date={{ .Date }}
         -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
+        -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
+        -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if .Env.SDD_SOURCE_DIGEST }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.DistributionMarker=generic
 
-# Merges darwin/amd64 + darwin/arm64 into a single lipo universal binary and
-# drops the single-arch archives (replace: true), so the Homebrew formula
-# below only ever needs one download URL instead of branching on arch.
+  - id: cli-homebrew
+    main: ./cmd/agentic-sdd
+    binary: agentic-sdd-homebrew
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - >-
+        -s -w
+        -X agentic-sdd/internal/version.Version={{ .Version }}
+        -X agentic-sdd/internal/version.Commit={{ .ShortCommit }}
+        -X agentic-sdd/internal/version.Date={{ .Date }}
+        -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
+        -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
+        -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if .Env.SDD_SOURCE_DIGEST }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.DistributionMarker=homebrew
+
+  - id: tui-companion
+    dir: experiments/tui
+    main: ./cmd/tui-companion
+    binary: agentic-sdd-tui
+    env:
+      - CGO_ENABLED=0
+      # The nested module requires Go 1.26 or newer. Use the reviewed host
+      # toolchain; never download one implicitly during a release build.
+      - GOTOOLCHAIN=local
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - >-
+        -s -w
+        -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
+        -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if .Env.SDD_SOURCE_DIGEST }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.DistributionMarker=generic
+
+# One universal entry per application: explicit input build IDs, replace the
+# single-arch artifacts, and distinct output names so no application can be
+# merged into another.
 universal_binaries:
-  - replace: true
+  - id: cli-generic-universal
+    ids:
+      - cli-generic
+    replace: true
+    name_template: agentic-sdd-generic
+    mod_timestamp: "{{ .CommitTimestamp }}"
+  - id: cli-homebrew-universal
+    ids:
+      - cli-homebrew
+    replace: true
+    name_template: agentic-sdd-homebrew
+    mod_timestamp: "{{ .CommitTimestamp }}"
+  - id: tui-companion-universal
+    ids:
+      - tui-companion
+    replace: true
+    name_template: agentic-sdd-tui
+    mod_timestamp: "{{ .CommitTimestamp }}"
 
+# Two filtered paired archives with deterministic names. The same companion
+# artifact is included in both; only the CLI build differs. The Homebrew
+# formula consumes cli-homebrew-pair exclusively.
 archives:
-  - id: default
+  - id: cli-generic-pair
+    ids:
+      - cli-generic-universal
+      - tui-companion-universal
     formats:
       - tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}_generic"
+  - id: cli-homebrew-pair
+    ids:
+      - cli-homebrew-universal
+      - tui-companion-universal
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}_homebrew"
 
 checksum:
   name_template: checksums.txt
@@ -52,8 +143,14 @@ changelog:
       - "^ci:"
       - "^chore:"
 
+# Prebuilt artifacts only: no formula compilation, no post-install launch.
+# The marked CLI is installed as agentic-sdd and the companion as
+# agentic-sdd-tui from the Homebrew-marked pair archive.
 brews:
-  - repository:
+  - name: agentic-sdd
+    ids:
+      - cli-homebrew-pair
+    repository:
       owner: nawodyaishan
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
@@ -61,8 +158,10 @@ brews:
     homepage: "https://github.com/nawodyaishan/agentic-sdd"
     description: "Spec-driven development workflow skills, kept in sync across Codex, Claude Code, and Antigravity CLI"
     license: MIT
+    install: |
+      bin.install "agentic-sdd-homebrew" => "agentic-sdd"
+      bin.install "agentic-sdd-tui"
     test: |
       system "#{bin}/agentic-sdd", "--help"
       system "#{bin}/agentic-sdd", "version"
-    install: |
-      bin.install "agentic-sdd"
+      system "#{bin}/agentic-sdd-tui", "--version"

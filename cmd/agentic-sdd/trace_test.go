@@ -129,6 +129,7 @@ func TestTraceCommandAndFlagNames(t *testing.T) {
 		{"equals value", []string{"--home=/secret/path", "apply"}, "apply", []string{"home"}},
 		{"separate value", []string{"--home", "/secret", "apply"}, "apply", []string{"home"}},
 		{"restore id", []string{"restore", "apply", "20260101T000000.000000000Z", "--repo", "/secret"}, "restore", []string{"repo"}},
+		{"tui command", []string{"tui", "--home", "/secret"}, "tui", []string{"home"}},
 		{"unknown", []string{"wat"}, "unknown", nil},
 		{"repo equals", []string{"--repo=/secret", "preview"}, "preview", []string{"repo"}},
 	}

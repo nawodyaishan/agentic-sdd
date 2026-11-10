@@ -139,7 +139,7 @@ func commandName(args []string) string {
 			continue
 		}
 		switch arg {
-		case "preview", "apply", "version", "backups", "logs", "restore", "help", "guide", "opencode", "opencode-harness":
+		case "preview", "apply", "version", "backups", "logs", "restore", "help", "guide", "tui", "opencode", "opencode-harness":
 			return arg
 		}
 		return "unknown"

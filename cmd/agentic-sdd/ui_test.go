@@ -143,10 +143,10 @@ func TestTerminalSummaryAndColor(t *testing.T) {
 	})
 }
 
-// TestHelpTopics is Check C4 (AC-05): seven distinct topic outputs exit 0 and
+// TestHelpTopics is Check C4 (AC-05): eight distinct topic outputs exit 0 and
 // an unknown topic keeps the exact pre-feature usage error.
 func TestHelpTopics(t *testing.T) {
-	topics := []string{"preview", "apply", "backups", "logs", "restore", "guide", "version"}
+	topics := []string{"preview", "apply", "backups", "logs", "restore", "guide", "version", "tui"}
 	headers := make(map[string]string, len(topics))
 	for _, topic := range topics {
 		var out, errOut bytes.Buffer
@@ -185,7 +185,7 @@ func TestHelpTopics(t *testing.T) {
 	if code := runNonInteractive([]string{"help", "unknown"}, &out, &errOut); code != 2 {
 		t.Fatalf("help unknown exited %d, want 2; stdout %q", code, out.String())
 	}
-	wantErr := "error: usage: agentic-sdd help [preview|apply|backups|logs|restore]\n"
+	wantErr := "error: usage: agentic-sdd help [preview|apply|backups|logs|restore|tui]\n"
 	if errOut.String() != wantErr {
 		t.Fatalf("help unknown stderr = %q, want %q", errOut.String(), wantErr)
 	}

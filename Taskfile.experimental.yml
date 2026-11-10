@@ -2,8 +2,94 @@ version: '3'
 
 vars:
   GOCACHE: '{{.GOCACHE | default (printf "%s/.cache/go-build" .ROOT_DIR)}}'
+  # Concrete reviewed Go patch for the nested companion release build. It must
+  # satisfy experiments/tui's `go 1.26` directive; GOTOOLCHAIN=local prevents an
+  # implicit toolchain download. Updating this value is a reviewed decision.
+  SDD_RELEASE_GO_PATCH: '{{.SDD_RELEASE_GO_PATCH | default "go1.27.1"}}'
+  # Reviewed GoReleaser version proven with the current v2 config and Go patch.
+  # GoReleaser creates macOS universal binaries internally, so no external lipo
+  # executable is required.
+  SDD_RELEASE_GORELEASER_VERSION: '{{.SDD_RELEASE_GORELEASER_VERSION | default "v2.14.0"}}'
+  # Local paired build for `agentic-sdd tui`. Both binaries get the same
+  # injected revision/commit/source digest, so the parent/companion handshake
+  # passes without a release tag. The Homebrew marker makes the zero-argument
+  # interactive default testable locally.
+  SDD_TUI_PAIR_DIR: '{{.SDD_TUI_PAIR_DIR | default (printf "%s/bin/tui-pair" .ROOT_DIR)}}'
+  SDD_TUI_PAIR_DISTRIBUTION: '{{.SDD_TUI_PAIR_DISTRIBUTION | default "homebrew"}}'
 
 tasks:
+  tui:pair:
+    desc: Build a local identity-matched agentic-sdd + agentic-sdd-tui pair for development (no release tag needed)
+    dir: '{{.ROOT_DIR}}'
+    silent: true
+    cmds:
+      - |
+        sh -c '
+        set -eu
+        blocked() { printf "tui:pair: BLOCKED - %s This is not a pass.\n" "$*" >&2; exit 2; }
+
+        command -v git >/dev/null 2>&1 || blocked "git is required to derive the local pair identity."
+        command -v go >/dev/null 2>&1 || blocked "the Go toolchain is required to build the pair."
+        if command -v sha256sum >/dev/null 2>&1; then
+          hasher="sha256sum"
+        elif command -v shasum >/dev/null 2>&1; then
+          hasher="shasum -a 256"
+        else
+          blocked "sha256sum or shasum is required for the source-content digest."
+        fi
+
+        version=$(GOTOOLCHAIN=local go env GOVERSION) || blocked "cannot read the Go version."
+        major=$(printf "%s" "$version" | sed -n "s/^go\([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1/p")
+        minor=$(printf "%s" "$version" | sed -n "s/^go\([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\2/p")
+        if [ -z "$major" ] || [ -z "$minor" ]; then
+          blocked "cannot parse Go version \"$version\"."
+        fi
+        if [ "$major" -lt 1 ] || { [ "$major" -eq 1 ] && [ "$minor" -lt 26 ]; }; then
+          blocked "the nested companion needs Go 1.26 or newer; found $version."
+        fi
+
+        # Same local identity as release:snapshot: a revision plus a
+        # source-content digest that covers unstaged changes and untracked
+        # files, so a dirty tree cannot masquerade as tagged source.
+        revision=$(git describe --tags --exact-match 2>/dev/null || printf "dev+%s" "$(git rev-parse --short=12 HEAD)")
+        if [ -n "$(git status --porcelain)" ]; then
+          revision="$revision-dirty"
+        fi
+        commit=$(git rev-parse HEAD)
+        digest=$(
+          {
+            git ls-files -s
+            git diff --binary HEAD
+            git ls-files --others --exclude-standard | while IFS= read -r file; do
+              [ -n "$file" ] || continue
+              printf "%s\n" "$file"
+              cat -- "$file" 2>/dev/null || true
+            done
+          } | $hasher | cut -d " " -f 1
+        ) || blocked "could not compute the source-content digest."
+        if [ -z "$digest" ]; then
+          blocked "the source-content digest is empty."
+        fi
+
+        out="$2"
+        mkdir -p "$out"
+        out=$(cd "$out" && pwd -P)
+        ldflags=$(printf "%s " \
+          "-X agentic-sdd/internal/buildinfo.Revision=$revision" \
+          "-X agentic-sdd/internal/buildinfo.Commit=$commit" \
+          "-X agentic-sdd/internal/buildinfo.SourceDigest=local-sha256:$digest")
+
+        GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= \
+          go build -trimpath -ldflags "$ldflags -X agentic-sdd/internal/buildinfo.DistributionMarker=$3" \
+          -o "$out/agentic-sdd" ./cmd/agentic-sdd
+        (
+          cd experiments/tui
+          GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= \
+            go build -trimpath -ldflags "$ldflags -X agentic-sdd/internal/buildinfo.DistributionMarker=generic" \
+            -o "$out/agentic-sdd-tui" ./cmd/tui-companion
+        )
+        echo "tui:pair: built $out/agentic-sdd ($3) and $out/agentic-sdd-tui with $revision (local-sha256:$digest)"
+        ' sh {{.GOCACHE | shellQuote}} {{.SDD_TUI_PAIR_DIR | shellQuote}} {{.SDD_TUI_PAIR_DISTRIBUTION | shellQuote}}
   opencode-help:
     desc: Show inactive OpenCode helper usage
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off go run -tags agentic_sdd_experimental ./cmd/agentic-sdd opencode --help']
@@ -28,7 +114,8 @@ tasks:
         GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= go test -count=1 ./...
         ' sh {{.GOCACHE | shellQuote}}
   tui:pty-test:
-    desc: Run the opt-in Python stdlib PTY lifecycle checks against a freshly built nested TUI binary
+    desc: Run the opt-in Python stdlib PTY lifecycle and launcher checks against freshly built TUI binaries
+    deps: [tui:pair]
     dir: '{{.ROOT_DIR}}'
     cmds:
       - |
@@ -67,7 +154,8 @@ tasks:
         )
         cd "$root"
         TMPDIR="$work" AGENTIC_SDD_TUI_TEST_BINARY="$binary" python3 -B -m unittest discover -s tests/tui -p test_terminal_lifecycle.py
-        ' sh {{.GOCACHE | shellQuote}}
+        AGENTIC_SDD_TUI_PAIR_DIR="$2" TMPDIR="$work" python3 -B -m unittest discover -s tests/tui -p test_launcher_lifecycle.py
+        ' sh {{.GOCACHE | shellQuote}} {{.SDD_TUI_PAIR_DIR | shellQuote}}
   tui:run:
     desc: Interact with the experimental read-only TUI application shell in a disposable temporary home
     interactive: true
@@ -93,3 +181,85 @@ tasks:
         echo "Experimental TUI: running in a disposable home ($demo_home)..."
         AGENTIC_SDD_TUI=1 GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off go run ./cmd/tui-spike --home "$demo_home"
         ' sh {{.GOCACHE | shellQuote}}
+  release:snapshot:
+    desc: Build the local nonpublishing GoReleaser snapshot and inspect the paired archives (never tags, pushes or publishes)
+    dir: '{{.ROOT_DIR}}'
+    silent: true
+    cmds:
+      - |
+        sh -c '
+        set -eu
+        blocked() { printf "release:snapshot: BLOCKED - %s This is not a pass.\n" "$*" >&2; exit 2; }
+
+        # Fail closed and report every missing prerequisite. Missing packaging
+        # tools block package/Mach-O/formula proof; they are never a pass.
+        missing=""
+        command -v git >/dev/null 2>&1 || missing="$missing git"
+        command -v goreleaser >/dev/null 2>&1 || missing="$missing goreleaser"
+        command -v go >/dev/null 2>&1 || missing="$missing go"
+        if [ -n "$missing" ]; then
+          blocked "missing prerequisites:$missing. GoReleaser creates macOS universal binaries internally; no external lipo is required. The local snapshot did not run; no archive, Mach-O slice or formula evidence exists."
+        fi
+        found_goreleaser=$(goreleaser --version 2>/dev/null | sed -n "s/^GitVersion:[[:space:]]*//p" | head -n 1) || found_goreleaser=""
+        if [ "$found_goreleaser" != "$3" ]; then
+          blocked "reviewed GoReleaser version is $3; found ${found_goreleaser:-unknown}. Update SDD_RELEASE_GORELEASER_VERSION deliberately after review."
+        fi
+        goreleaser check >/dev/null || blocked "goreleaser check rejected the current .goreleaser.yml."
+
+        if command -v sha256sum >/dev/null 2>&1; then
+          hasher="sha256sum"
+        elif command -v shasum >/dev/null 2>&1; then
+          hasher="shasum -a 256"
+        else
+          blocked "missing prerequisites: sha256sum or shasum. The local snapshot did not run."
+        fi
+
+        # Explicit reviewed toolchain: local only, never downloaded.
+        version=$(GOTOOLCHAIN=local go env GOVERSION) || blocked "GOTOOLCHAIN=local go env GOVERSION failed; an explicit reviewed toolchain is required."
+        if [ "$version" != "$2" ]; then
+          blocked "reviewed release-build Go patch is $2; found ${version:-unknown}. Update SDD_RELEASE_GO_PATCH deliberately after review; do not download a toolchain."
+        fi
+        # The snapshot must stay offline, so the nested module dependencies have
+        # to be present in the local module cache already.
+        if ! (cd experiments/tui && GOTOOLCHAIN=local GOPROXY=off GOWORK=off GOFLAGS= go list -deps ./cmd/tui-companion >/dev/null 2>&1); then
+          blocked "the nested companion dependencies are not available offline. Populate the module cache (for example by running the opt-in tui:test task) before retrying; this task never downloads."
+        fi
+
+        # Identity for a local pair: revision plus a source-content digest that
+        # includes unstaged changes and untracked files, so a dirty tree cannot
+        # masquerade as the tagged source.
+        revision=$(git describe --tags --exact-match 2>/dev/null || printf "dev+%s" "$(git rev-parse --short=12 HEAD)")
+        if [ -n "$(git status --porcelain)" ]; then
+          revision="$revision-dirty"
+        fi
+        digest=$(
+          {
+            git ls-files -s
+            git diff --binary HEAD
+            git ls-files --others --exclude-standard | while IFS= read -r file; do
+              [ -n "$file" ] || continue
+              printf "%s\n" "$file"
+              cat -- "$file" 2>/dev/null || true
+            done
+          } | $hasher | cut -d " " -f 1
+        ) || blocked "could not compute the source-content digest."
+        if [ -z "$digest" ]; then
+          blocked "the source-content digest is empty."
+        fi
+
+        # A local snapshot must never read release credentials, tag, push or
+        # publish. Unset them rather than checking whether they exist.
+        unset HOMEBREW_TAP_TOKEN GITHUB_TOKEN GH_TOKEN GITLAB_TOKEN GITEA_TOKEN
+        umask 077
+        GOCACHE="$1" \
+        GOVERSION="$version" \
+        GOTOOLCHAIN=local \
+        GOPROXY=off \
+        GOSUMDB=off \
+        GOENV=off \
+        GOWORK=off \
+        GOFLAGS= \
+        SDD_SOURCE_DIGEST="local-sha256:$digest" \
+        goreleaser release --snapshot --clean
+        echo "release:snapshot: local nonpublishing snapshot complete for $revision; inspect dist/ for the generic and Homebrew pairs, their checksums and the generated formula."
+        ' sh {{.GOCACHE | shellQuote}} {{.SDD_RELEASE_GO_PATCH | shellQuote}} {{.SDD_RELEASE_GORELEASER_VERSION | shellQuote}}

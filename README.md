@@ -45,6 +45,8 @@ Preview shows which skills would be installed or replaced. **It does not write c
 agentic-sdd apply
 ```
 
+In a real interactive terminal, a bare `agentic-sdd` from the Homebrew package opens the terminal UI instead. `agentic-sdd preview` always keeps the explicit, write-free CLI, so scripts, pipes and `AGENTIC_SDD_FORCE_INTERACTIVE=1` are unaffected.
+
 **Install with the OpenCode Orchestration Pack (`--with-opencode`):**
 
 ```sh
@@ -102,6 +104,27 @@ Explore the numbered menu and optional animated intro; enter `q` at the menu to 
 
 For automated container checks instead, run `task docker-guide-e2e`.
 
+### Terminal UI (`agentic-sdd tui`)
+
+In a real terminal, `agentic-sdd tui` opens the packaged terminal UI:
+
+```sh
+agentic-sdd tui
+agentic-sdd tui --home ~ --with-opencode
+agentic-sdd tui --opencode-free-first
+```
+
+It needs a real input and output terminal, plus the paired `agentic-sdd-tui` binary next to `agentic-sdd`. The CLI checks the companion's build identity before starting it; a missing, non-executable or mismatched companion is a clear error with rebuild guidance, never a silent switch to another workflow. Pipes, scripts, `AGENTIC_SDD_FORCE_INTERACTIVE=1` and every explicit command or flag keep the standard CLI. `agentic-sdd preview` is always the write-free escape hatch.
+
+From a source checkout, build a matching local pair (same revision, commit and source-content digest, so the handshake passes without a release tag):
+
+```sh
+task -t Taskfile.experimental.yml tui:pair
+bin/tui-pair/agentic-sdd tui
+```
+
+The task needs Go 1.26 or newer for the nested TUI module. It prints the injected revision and source digest for both binaries.
+
 ---
 
 ## Complete usage guide
@@ -110,18 +133,19 @@ For automated container checks instead, run `task docker-guide-e2e`.
 
 | Command | What it does |
 |---|---|
-| `agentic-sdd` or `agentic-sdd preview` | Preview installing/updating the 18 core skills across all 4 client directories (no files written). |
+| `agentic-sdd` or `agentic-sdd preview` | Preview installing/updating the 18 core skills across all 4 client directories (no files written). A bare `agentic-sdd` opens the TUI only for the Homebrew package in a real interactive terminal; `preview` always stays on the CLI. |
 | `agentic-sdd apply` | Back up changed existing skills, then install the 18 core skills. |
 | `agentic-sdd preview --with-opencode` | Preview installing the 18 core skills, `agentic-sdd-orchestrate`, and 14 OpenCode v2 agent profiles in `~/.config/opencode/agents/`. |
 | `agentic-sdd apply --with-opencode` | Back up any replaced skills/profiles and install the core skills + OpenCode orchestration pack. |
 | `agentic-sdd apply --with-opencode --opencode-free-first` | Above + back up and preset the 4 routine implement/test profiles (`sdd-implement-1/-2`, `sdd-test-implement-1/-2`) to use the Free-first model ladder. |
 | `agentic-sdd guide` | Interactive numbered-prompt wizard to preview, install, restore, or inspect skills on a terminal. |
+| `agentic-sdd tui` | Open the packaged terminal UI in a real terminal (needs the paired `agentic-sdd-tui` binary). |
 | `agentic-sdd backups` | List all saved backups newest first (both skill directories and `opencode-agents` profiles). |
 | `agentic-sdd restore [BACKUP_ID]` | Preview restoring a backup (or select one interactively on a terminal). |
 | `agentic-sdd restore apply [BACKUP_ID]` | Back up current state and restore skills and OpenCode agent profiles from `BACKUP_ID`. |
 | `agentic-sdd logs` | Show the latest `apply` or `restore` log under `~/.agentic-sdd/logs/`. |
 | `agentic-sdd version` | Print version, commit, build date, and Go version. |
-| `agentic-sdd help <topic>` | Show focused help for `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`, or `orchestrate`. |
+| `agentic-sdd help <topic>` | Show focused help for `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`, `tui`, or `orchestrate`. |
 | `agentic-sdd help orchestrate` | Show usage and flags for the OpenCode orchestration pack. |
 
 All commands accept `--home PATH` (to target an isolated home directory) and `--repo PATH` (to read `skills-files/` and `opencode-pack/` from a local checkout instead of the embedded binary assets).

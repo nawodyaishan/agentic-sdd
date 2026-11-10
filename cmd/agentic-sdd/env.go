@@ -25,6 +25,15 @@ type Env struct {
 	Animate     bool    // AGENTIC_SDD_ANIMATE=1 opt-in; further gates apply
 	Width       int     // terminal width, COLUMNS or 80
 	Trace       *Tracer // nil = tracing disabled
+
+	// RealStdinTTY and RealStdoutTTY are the unforced terminal facts. Unlike
+	// Interactive/StdoutTTY they never honor AGENTIC_SDD_FORCE_INTERACTIVE, so
+	// a scripted run cannot satisfy the terminal-UI launch gates.
+	RealStdinTTY  bool
+	RealStdoutTTY bool
+	// ForceInteractive records the explicit scripted-terminal override so the
+	// terminal-UI dispatch can refuse to open an alternate screen.
+	ForceInteractive bool
 }
 
 // Hint writes an additive "hint: <msg>" line to stderr, but only when stderr
@@ -83,7 +92,9 @@ func resolveEnv(stdin, stdout, stderr statter, getenv func(string) string) Env {
 	inTTY := isTerminal(stdin)
 	outTTY := isTerminal(stdout)
 	errTTY := isTerminal(stderr)
-	if getenv("AGENTIC_SDD_FORCE_INTERACTIVE") == "1" {
+	realInTTY, realOutTTY := inTTY, outTTY
+	forceInteractive := getenv("AGENTIC_SDD_FORCE_INTERACTIVE") == "1"
+	if forceInteractive {
 		inTTY, outTTY, errTTY = true, true, true
 	}
 	term := getenv("TERM")
@@ -95,12 +106,15 @@ func resolveEnv(stdin, stdout, stderr statter, getenv func(string) string) Env {
 		width = cols
 	}
 	return Env{
-		Interactive: inTTY,
-		StdoutTTY:   outTTY,
-		StderrTTY:   errTTY,
-		Color:       color,
-		ASCII:       ascii,
-		Animate:     animate,
-		Width:       width,
+		Interactive:      inTTY,
+		StdoutTTY:        outTTY,
+		StderrTTY:        errTTY,
+		Color:            color,
+		ASCII:            ascii,
+		Animate:          animate,
+		Width:            width,
+		RealStdinTTY:     realInTTY,
+		RealStdoutTTY:    realOutTTY,
+		ForceInteractive: forceInteractive,
 	}
 }
