@@ -314,22 +314,25 @@ func TestAppSessionControls(t *testing.T) {
 	}
 }
 
-func TestAppTruthfulB1Placeholders(t *testing.T) {
+func TestAppInstallHubAndActivityContent(t *testing.T) {
 	cfg := tui.TUIConfig{Width: 100, Height: 30}
 	app := tui.NewApp(cfg, testCatalog())
 
-	// Install & Manage
+	// Install & Manage is the hub with both B4/B5 destinations and the
+	// supported read-only CLI preview hints.
 	next, _ := app.Update(runes("2"))
 	app = next.(tui.App)
 	viewInstall := app.View().Content
-	if !strings.Contains(viewInstall, "Install & Manage") {
-		t.Fatalf("Install view missing title:\n%s", viewInstall)
+	for _, want := range []string{"Install & Manage", "Install or update", "Backups & restore", "agentic-sdd preview"} {
+		if !strings.Contains(viewInstall, want) {
+			t.Fatalf("Install hub view missing %q:\n%s", want, viewInstall)
+		}
 	}
-	if !strings.Contains(viewInstall, "preview") && !strings.Contains(viewInstall, "read-only") && !strings.Contains(viewInstall, "B4") {
-		t.Fatalf("Install view missing truthful B1 explanation:\n%s", viewInstall)
+	if strings.Contains(viewInstall, "arrive in B4 and B5") {
+		t.Fatalf("Install hub still advertises the removed placeholder:\n%s", viewInstall)
 	}
 
-	// Activity & Help
+	// Activity & Help renders the shared model with the online guide.
 	next, _ = app.Update(runes("4"))
 	app = next.(tui.App)
 	viewHelp := app.View().Content

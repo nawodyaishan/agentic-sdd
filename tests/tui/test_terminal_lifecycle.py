@@ -1,16 +1,22 @@
 """Black-box terminal-lifecycle checks for the opt-in nested TUI.
 
-Feature 013 / T01 baseline. This harness starts the already-built
-``experiments/tui`` binary under a real PTY, drives it through its opt-in
-environment, and observes what the terminal and child process actually do:
+Feature 013 / T01 baseline, extended by T10 for host-owned OS signals. This
+harness starts the already-built ``experiments/tui`` binary under a real PTY,
+drives it through its opt-in environment, and observes what the terminal and
+child process actually do:
 
 * a ``q`` quit exits successfully and leaves the alternate screen;
 * the line discipline is restored (canonical input, echo and signals);
 * an early error exits non-zero without entering the alternate screen or
-  changing the terminal attributes.
+  changing the terminal attributes;
+* an idle SIGINT, SIGTERM or SIGHUP exits cleanly and restores the terminal;
+* the same signals during an in-flight write defer exit until the write and
+  its log flush complete; repeated signals do not force-kill it.
 
 The harness is deliberately navigation-independent: it never asserts a screen
-title or catalog contents, so shell/layout changes cannot make it brittle.
+title or catalog contents, so shell/layout changes cannot make it brittle. The
+in-flight cases use the binary's documented test-only ``InitialWrite`` seam,
+which performs no filesystem work.
 
 Prerequisites are explicit and never satisfied by skipping:
 
@@ -31,6 +37,7 @@ directory and supplies the variable; see ``Taskfile.experimental.yml``.
 
 import os
 import select
+import signal
 import struct
 import subprocess
 import tempfile
@@ -47,11 +54,19 @@ except ImportError:  # pragma: no cover - exercised only on non-POSIX hosts
     termios = None
 
 ENV_TEST_BINARY = "AGENTIC_SDD_TUI_TEST_BINARY"
+ENV_TEST_HOLD_WRITE = "AGENTIC_SDD_TUI_TEST_HOLD_WRITE"
 ENV_TUI = "AGENTIC_SDD_TUI"
 ENV_FORCE_INTERACTIVE = "AGENTIC_SDD_FORCE_INTERACTIVE"
+ENV_NO_UPDATE_CHECK = "AGENTIC_SDD_NO_UPDATE_CHECK"
 
 ALT_SCREEN_ENTER = b"\x1b[?1049h"
 ALT_SCREEN_LEAVE = b"\x1b[?1049l"
+
+# The busy footer's stable ASCII marker. It is the root model's own status text,
+# not a test-only screen, so the harness can wait for a genuine in-flight write.
+WRITE_BUSY_MARKER = b"WRITE-IN-PROGRESS"
+WRITE_HOLD = "3s"
+WRITE_HOLD_CHECK = 0.25
 
 # A fixed, non-default viewport proves the size reaches the child without
 # depending on any particular layout decision.
@@ -204,6 +219,17 @@ class _PtySession:
             )
         os.write(self.master, data)
 
+    def send_signal(self, sig):
+        """Deliver a real OS signal to the child, not a terminal byte."""
+
+        if self.process.poll() is not None:
+            raise AssertionError(
+                "cannot send %r: the child already exited with %r; output so "
+                "far: %r"
+                % (sig, self.process.poll(), bytes(self.output[-2000:]))
+            )
+        os.kill(self.process.pid, sig)
+
     def finish(self, timeout=SHUTDOWN_TIMEOUT):
         """Wait for EOF and child exit, then record the restored attributes."""
 
@@ -257,6 +283,10 @@ def _session_env(home):
         "TMPDIR": tempfile.gettempdir(),
         # Reduced color keeps captured bytes focused on terminal lifecycle.
         "NO_COLOR": "1",
+        # The first Home entry starts the once-per-session update check. This
+        # harness measures terminal lifecycle, so it opts out explicitly and
+        # never contacts GitHub.
+        ENV_NO_UPDATE_CHECK: "1",
         ENV_TUI: "1",
     }
 
@@ -370,6 +400,110 @@ class TerminalLifecycleTest(unittest.TestCase):
         self.assertNotIn(ALT_SCREEN_ENTER, session.output)
         self.assertIn(ENV_FORCE_INTERACTIVE.encode(), session.output)
         self._assert_terminal_restored(session)
+
+    # --- Host-owned OS signal policy (T10) ---------------------------------
+
+    def _assert_alt_screen_cycle(self, session):
+        output = bytes(session.output)
+        self.assertEqual(
+            session.exit_code,
+            0,
+            "a handled signal should exit cleanly; got exit %r, output tail: %r"
+            % (session.exit_code, output[-2000:]),
+        )
+        self.assertIn(
+            ALT_SCREEN_ENTER,
+            output,
+            "the interactive TUI never entered the alternate screen; "
+            "output tail: %r" % output[-2000:],
+        )
+        self.assertIn(
+            ALT_SCREEN_LEAVE,
+            output,
+            "signal shutdown did not leave the alternate screen; tail: %r"
+            % output[-2000:],
+        )
+        self.assertLess(
+            output.index(ALT_SCREEN_ENTER),
+            output.rindex(ALT_SCREEN_LEAVE),
+            "alternate-screen enter/leave sequences are out of order",
+        )
+        self._assert_terminal_restored(session)
+
+    def _run_idle_signal_case(self, sig):
+        with tempfile.TemporaryDirectory(prefix="agentic-sdd-tui-pty-") as home:
+            env = _session_env(home)
+            with _PtySession(["--home", home], env) as session:
+                entered = session.pump_until(
+                    lambda out: ALT_SCREEN_ENTER in out, STARTUP_TIMEOUT
+                )
+                self.assertTrue(
+                    entered,
+                    "the interactive TUI never entered the alternate screen; "
+                    "output so far: %r" % bytes(session.output[-2000:]),
+                )
+                session.send_signal(sig)
+                session.finish(SHUTDOWN_TIMEOUT)
+        self._assert_alt_screen_cycle(session)
+
+    def _run_inflight_signal_case(self, sig, repeats=1):
+        with tempfile.TemporaryDirectory(prefix="agentic-sdd-tui-pty-") as home:
+            env = _session_env(home)
+            env[ENV_TEST_HOLD_WRITE] = WRITE_HOLD
+            with _PtySession(["--home", home], env) as session:
+                entered = session.pump_until(
+                    lambda out: ALT_SCREEN_ENTER in out, STARTUP_TIMEOUT
+                )
+                self.assertTrue(
+                    entered,
+                    "the interactive TUI never entered the alternate screen; "
+                    "output so far: %r" % bytes(session.output[-2000:]),
+                )
+                busy = session.pump_until(
+                    lambda out: WRITE_BUSY_MARKER in out, STARTUP_TIMEOUT
+                )
+                self.assertTrue(
+                    busy,
+                    "the lifecycle write never showed its in-progress marker; "
+                    "output so far: %r" % bytes(session.output[-2000:]),
+                )
+                for _ in range(repeats):
+                    session.send_signal(sig)
+                    time.sleep(0.1)
+                time.sleep(WRITE_HOLD_CHECK)
+                self.assertIsNone(
+                    session.process.poll(),
+                    "%r killed or aborted an in-flight write; the host must "
+                    "defer exit until the write and log flush complete. "
+                    "Output tail: %r"
+                    % (sig, bytes(session.output[-2000:])),
+                )
+                self.assertNotIn(
+                    ALT_SCREEN_LEAVE,
+                    bytes(session.output),
+                    "terminal teardown started before the write completed; "
+                    "output tail: %r" % bytes(session.output[-2000:]),
+                )
+                session.finish(SHUTDOWN_TIMEOUT)
+        self._assert_alt_screen_cycle(session)
+
+    def test_idle_sigint_restores_terminal_and_leaves_alt_screen(self):
+        self._run_idle_signal_case(signal.SIGINT)
+
+    def test_idle_sigterm_restores_terminal_and_leaves_alt_screen(self):
+        self._run_idle_signal_case(signal.SIGTERM)
+
+    def test_idle_sighup_restores_terminal_and_leaves_alt_screen(self):
+        self._run_idle_signal_case(signal.SIGHUP)
+
+    def test_inflight_sigint_defers_exit_until_write_completes(self):
+        self._run_inflight_signal_case(signal.SIGINT)
+
+    def test_inflight_repeated_sigterm_defers_exit_until_write_completes(self):
+        self._run_inflight_signal_case(signal.SIGTERM, repeats=3)
+
+    def test_inflight_sighup_defers_exit_until_write_completes(self):
+        self._run_inflight_signal_case(signal.SIGHUP)
 
 
 if __name__ == "__main__":

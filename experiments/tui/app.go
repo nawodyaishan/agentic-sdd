@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"agentic-sdd/internal/version"
+	"agentic-sdd/internal/appops"
 )
 
 // Route is an application destination in the root shell.
@@ -49,7 +49,8 @@ type appStartMsg struct{}
 // App is the root Bubble Tea model for the Feature 013 unified TUI shell.
 // It manages navigation across the four primary destinations, responsive
 // cell-aware layout breakpoints, session-level motion and symbol settings,
-// and delegates to screen components.
+// the single-write operation host and the exit-after-completion policy, and
+// delegates to screen components.
 type App struct {
 	cfg              TUIConfig
 	theme            Theme
@@ -70,13 +71,97 @@ type App struct {
 	width            int
 	height           int
 	routes           []RouteInfo
+
+	// Operation host and exit policy. ops is shared by pointer so every App
+	// copy (Update returns values) sees the same single write slot.
+	ops         *OpsHost
+	cancelReads func()
+	write       *writeState
+	lastWrite   WriteResultMsg
+	hasResult   bool
+	exitPending bool
+	exitReason  ShutdownReason
+	exitSignal  string
+	quitting    bool
+	notice      string
+	initCmds    []tea.Cmd
+
+	// B4/B5 integrated child screens. installSection selects the hub or one
+	// of its children; the child models own their own stage machines.
+	installSection  installSection
+	installHubIndex int
+	install         InstallModel
+	restore         RestoreModel
+
+	// Activity & Help plus the once-per-session update check state machine.
+	activity  ActivityModel
+	updateMgr *UpdateCheckManager
+
+	// onboarding is the skippable tour while it is open; opener is the
+	// injected explicit-only platform opener.
+	onboarding *OnboardingModel
+	opener     *Opener
 }
 
-// NewApp constructs the root application shell.
+// writeState mirrors the accepted write for rendering. The host remains the
+// authority for the slot; this copy only reflects messages already processed.
+type writeState struct {
+	id      appops.OperationID
+	kind    WriteKind
+	label   string
+	started time.Time
+	step    WriteStep
+	detail  string
+}
+
+// NewApp constructs the root application shell with the production operation
+// host and no pre-queued write.
 // By default, motion is static unless explicitly requested via cfg.Motion.
 // No environment variables are inspected here; presentation flags are resolved
 // by the launcher or callers.
 func NewApp(cfg TUIConfig, catalog Catalog) App {
+	return NewAppWithOptions(cfg, catalog, AppOptions{})
+}
+
+// AppScreenOptions injects the B4/B5 screen seams. The zero value uses the
+// production read-only operations, the environment-aware update manager and the
+// real platform opener. Tests and the PTY harness supply fakes so no run reads
+// a real home, opens a browser or contacts GitHub.
+type AppScreenOptions struct {
+	// UpdateManager replaces the session update state machine.
+	UpdateManager *UpdateCheckManager
+	// InstallPreview replaces the read-only install preview operation.
+	InstallPreview PreviewOp
+	// RestoreOps replaces the recovery screen's read-only operations.
+	RestoreOps RestoreOps
+	// Opener replaces the explicit-only platform opener.
+	Opener *Opener
+}
+
+// NewAppWithScreens constructs the root shell with both the host seams and the
+// integrated screen seams. Production callers use NewApp; tests use this to
+// keep every screen deterministic.
+func NewAppWithScreens(cfg TUIConfig, catalog Catalog, opts AppOptions, screens AppScreenOptions) App {
+	app := NewAppWithOptions(cfg, catalog, opts)
+	if screens.UpdateManager != nil {
+		app.updateMgr = screens.UpdateManager
+		app.activity.updateManager = screens.UpdateManager
+	}
+	if screens.InstallPreview != nil {
+		app.install.SetPreviewOp(screens.InstallPreview)
+	}
+	if screens.RestoreOps.List != nil || screens.RestoreOps.Preview != nil {
+		app.restore = NewRestoreModel(app.cfg, screens.RestoreOps)
+		app.restore.SetSize(app.childContentWidth(), app.childBodyHeight())
+	}
+	if screens.Opener != nil {
+		app.opener = screens.Opener
+	}
+	return app
+}
+
+// newApp constructs the shell without operation-host seams.
+func newApp(cfg TUIConfig, catalog Catalog) App {
 	cfg = cfg.Normalize()
 	theme := NewTheme(cfg.Color)
 
@@ -122,7 +207,13 @@ func NewApp(cfg TUIConfig, catalog Catalog) App {
 		},
 	}
 
-	return App{
+	updateMgr := NewUpdateCheckManager()
+	logHome := cfg.Home
+	if logHome == "" {
+		logHome = catalog.Home
+	}
+
+	app := App{
 		cfg:          cfg,
 		theme:        theme,
 		catalog:      catalog,
@@ -136,7 +227,25 @@ func NewApp(cfg TUIConfig, catalog Catalog) App {
 		width:        cfg.Width,
 		height:       cfg.Height,
 		routes:       routes,
+		install:      NewInstallModel(cfg),
+		restore:      NewRestoreModel(cfg, RestoreOps{}),
+		activity: NewActivityModel(ActivityConfig{
+			Theme:         theme,
+			Width:         cfg.Width,
+			Height:        cfg.Height,
+			LogDir:        homeLogDir(logHome),
+			UpdateManager: updateMgr,
+		}),
+		updateMgr: updateMgr,
+		opener:    NewOpener(),
 	}
+
+	// Child screens and the local Activity view share the same body budget as
+	// the root viewport, so wrapping and paging agree on every row.
+	app.install.SetSize(app.childContentWidth(), app.childBodyHeight())
+	app.restore.SetSize(app.childContentWidth(), app.childBodyHeight())
+	app.activity.SetSize(app.childContentWidth(), app.childBodyHeight())
+	return app
 }
 
 // ActiveRoute returns the currently displayed destination.
@@ -163,6 +272,42 @@ func (a App) HelpOpen() bool { return a.helpOpen }
 // BrandDone reports whether the branding animation has completed or is static.
 func (a App) BrandDone() bool { return a.brandState.Done() }
 
+// Ops returns the shared single-write operation host.
+func (a App) Ops() *OpsHost { return a.ops }
+
+// Busy reports whether a write transaction is in flight. While Busy is true,
+// q, Esc and navigation are ignored and only a shutdown request is accepted.
+func (a App) Busy() bool { return a.write != nil }
+
+// WriteStatus returns a display snapshot of the active write, if any.
+func (a App) WriteStatus() (WriteStatusView, bool) {
+	if a.write == nil {
+		return WriteStatusView{}, false
+	}
+	return WriteStatusView{
+		ID:        a.write.id,
+		Kind:      a.write.kind,
+		Label:     a.write.label,
+		StartedAt: a.write.started,
+		Step:      a.write.step,
+		Detail:    a.write.detail,
+	}, true
+}
+
+// ExitPending reports whether an exit has been requested and is waiting for
+// the active write and its log flush to finish.
+func (a App) ExitPending() bool { return a.exitPending }
+
+// ExitRequest returns the reason and optional signal name of the pending exit.
+func (a App) ExitRequest() (ShutdownReason, string) { return a.exitReason, a.exitSignal }
+
+// LastWriteResult returns the last result accepted for the current generation.
+func (a App) LastWriteResult() (WriteResultMsg, bool) { return a.lastWrite, a.hasResult }
+
+// Notice returns the latest execution notice, such as a refused duplicate
+// write. Screens may display it; it never authorizes a write.
+func (a App) Notice() string { return a.notice }
+
 // CatalogSelected returns the item currently selected in Explore.
 func (a App) CatalogSelected() (CatalogItem, bool) { return a.catalogModel.Selected() }
 
@@ -172,9 +317,17 @@ func (a App) VisibleCatalogItems() []CatalogItem { return a.catalogModel.Visible
 // IsFiltering reports whether Explore is currently in filter text-input mode.
 func (a App) IsFiltering() bool { return a.catalogModel.IsFiltering() }
 
-// Init requests the terminal window size and emits an initial startup message.
+// Init requests the terminal window size, emits an initial startup message,
+// starts the once-per-session Home update check and runs any write already
+// queued before the program started. Local content renders before the check
+// result arrives.
 func (a App) Init() tea.Cmd {
-	return tea.Batch(tea.RequestWindowSize, func() tea.Msg { return appStartMsg{} })
+	cmds := []tea.Cmd{tea.RequestWindowSize, func() tea.Msg { return appStartMsg{} }}
+	if cmd := a.automaticUpdateCheckCmd(); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
+	cmds = append(cmds, a.initCmds...)
+	return tea.Batch(cmds...)
 }
 
 func tickBrand() tea.Cmd {
@@ -190,6 +343,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.width = msg.Width
 		a.height = msg.Height
 		a.catalogModel.SetSize(a.contentWidth(), a.contentHeight())
+		a.install.SetSize(a.childContentWidth(), a.childBodyHeight())
+		a.restore.SetSize(a.childContentWidth(), a.childBodyHeight())
+		a.activity.SetSize(a.childContentWidth(), a.childBodyHeight())
+		if a.onboarding != nil {
+			a.onboarding.SetSize(a.childContentWidth(), a.childBodyHeight())
+		}
 		return a, nil
 
 	case appStartMsg:
@@ -210,6 +369,122 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
+	case ShutdownRequestMsg:
+		return a, a.requestShutdown(msg)
+
+	case StartWriteMsg:
+		if a.write != nil {
+			return a, refusedWriteCmd(msg.Request.Kind, fmt.Errorf("%w: %s is still running", ErrWriteInProgress, a.write.kind))
+		}
+		if a.ops == nil {
+			return a, refusedWriteCmd(msg.Request.Kind, fmt.Errorf("%w: the operation host is unavailable", ErrWriteInvalid))
+		}
+		started, cmd, err := a.ops.BeginWrite(msg.Request)
+		if err != nil {
+			return a, refusedWriteCmd(msg.Request.Kind, err)
+		}
+		a.acceptStarted(started)
+		return a, tea.Batch(func() tea.Msg { return started }, cmd)
+
+	case WriteStartedMsg:
+		// A late start for an already-completed transaction must not resurrect
+		// a busy state, and a start for a newer identity cannot claim this slot.
+		if a.write == nil || a.write.id != msg.ID {
+			return a, nil
+		}
+		a.write.kind = msg.Kind
+		a.write.label = msg.Label
+		a.write.started = msg.StartedAt
+		return a, a.routeWriteMsg(msg.Kind, msg)
+
+	case WriteProgressMsg:
+		if a.write == nil || a.write.id != msg.ID {
+			return a, nil
+		}
+		a.write.step = msg.Step
+		a.write.detail = msg.Detail
+		return a, a.routeWriteMsg(msg.Kind, msg)
+
+	case WriteResultMsg:
+		if a.write == nil || a.write.id != msg.ID {
+			// Stale results never clear a newer transaction and never authorize
+			// another write.
+			return a, nil
+		}
+		kind := a.write.kind
+		a.lastWrite = msg
+		a.hasResult = true
+		a.write = nil
+		if a.ops != nil {
+			a.ops.Complete(msg.ID)
+		}
+		summary := SummarizeWriteResult(msg)
+		a.notice = summary.Headline + ": " + summary.Detail
+		cmd := a.routeWriteMsg(kind, msg)
+		if a.exitPending {
+			// The result is emitted only after the operation log is flushed and
+			// closed, so the deferred exit can run now without losing it.
+			return a, tea.Batch(cmd, a.beginQuit())
+		}
+		return a, cmd
+
+	case WriteRefusedMsg:
+		a.notice = msg.Reason
+		if a.write != nil {
+			// A refusal for a different screen must not reset the screen that
+			// owns the running transaction.
+			return a, nil
+		}
+		cmd := a.routeWriteMsg(msg.Kind, msg)
+		if a.exitPending && !a.childWritePending() {
+			// A deferred Ctrl+C found only a refused request: nothing is left to
+			// wait for, so the idle exit can run now.
+			return a, tea.Batch(cmd, a.beginQuit())
+		}
+		return a, cmd
+
+	case UpdateCheckResultMsg:
+		// One shared manager owns the generation check, so Home and Activity
+		// always agree and stale results are discarded there.
+		if a.updateMgr != nil {
+			a.updateMgr.HandleMsg(msg)
+		}
+		return a, nil
+
+	case OpenLinkMsg:
+		// Opening is explicit only: the message arrives from a key press, never
+		// from rendering or startup.
+		return a, a.openLinkCmd(msg.Link)
+
+	case OpenLinkResultMsg:
+		a.notice = msg.Result.Explanation()
+		return a, nil
+
+	case ActivityReloadedMsg:
+		a.activity = msg.Model
+		a.activity.SetSize(a.childContentWidth(), a.childBodyHeight())
+		return a, nil
+
+	case InstallPreviewMsg, InstallInspectMsg:
+		previous := a.install.Step()
+		updated, cmd := a.install.Update(msg)
+		if model, ok := updated.(InstallModel); ok {
+			a.install = model
+		}
+		if a.install.Step() != previous {
+			a.contentScroll = 0
+		}
+		return a, cmd
+
+	case RestoreBackupsMsg, RestorePreviewMsg, RestoreRevalidatedMsg:
+		previous := a.restore.Stage()
+		model, cmd := a.restore.Update(msg)
+		a.restore = model
+		if a.restore.Stage() != previous {
+			a.contentScroll = 0
+		}
+		return a, cmd
+
 	case tea.KeyPressMsg:
 		a.clampScrollOffsets()
 		return a.handleKey(msg)
@@ -226,6 +501,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// A write transaction owns the shell until its result arrives. q, Esc,
+	// navigation, help, settings and any confirmation key cannot abandon or
+	// repeat it; Ctrl+C (and an OS signal elsewhere) only records that the
+	// process should exit after the write and its log are complete.
+	if a.write != nil || a.childWritePending() {
+		if msg.String() == "ctrl+c" {
+			return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonInterruptKey})
+		}
+		a.notice = "write in progress: q, Esc and navigation are ignored; Ctrl+C exits after completion"
+		return *a, nil
+	}
+
 	// Filter text input precedence: Explore's search input must consume all
 	// printable characters (including q, j, k, m, u, 1-4).
 	if a.activeRoute == RouteExplore && a.catalogModel.IsFiltering() {
@@ -251,8 +538,10 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			a.helpOpen = false
 			a.helpScroll = 0
 			return *a, nil
-		case "q", "ctrl+c":
-			return *a, tea.Quit
+		case "q":
+			return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonQuitKey})
+		case "ctrl+c":
+			return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonInterruptKey})
 		case "pgdown", "pagedown", "ctrl+d", "down", "j":
 			a.helpScroll += 4
 			return *a, nil
@@ -266,11 +555,17 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return *a, nil
 	}
 
+	// The skippable onboarding overlay owns navigation keys; only help and the
+	// global quit keys stay above it.
+	if a.onboarding != nil {
+		return a.handleOnboardingKey(msg)
+	}
+
 	switch key {
 	case "ctrl+c":
-		return *a, tea.Quit
+		return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonInterruptKey})
 	case "q":
-		return *a, tea.Quit
+		return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonQuitKey})
 	case "?":
 		a.helpOpen = true
 		a.helpScroll = 0
@@ -339,6 +634,55 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return *a, nil
+	}
+
+	// Home's discovery controls work from either focus pane, so they are not
+	// hidden behind Tab. They never collide with navigation or route jumps.
+	if a.activeRoute == RouteHome {
+		switch key {
+		case "o":
+			return *a, a.openOnboardingCmd()
+		case "g":
+			return *a, a.openLinkCmd(LinkReadme)
+		case "a":
+			return *a, a.openLinkCmd(LinkAuthor)
+		case "r":
+			return *a, a.retryUpdateCheckCmd()
+		case "d":
+			a.toggleUpdateChecks()
+			return *a, nil
+		}
+	}
+
+	// Activity's read-only controls are available from either focus pane, so
+	// the update/log/link actions are not hidden behind Tab.
+	if a.activeRoute == RouteActivity {
+		switch key {
+		case "r":
+			cmds := make([]tea.Cmd, 0, 2)
+			if cmd := a.retryUpdateCheckCmd(); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			cmds = append(cmds, a.reloadActivityCmd())
+			return *a, tea.Batch(cmds...)
+		case "d":
+			a.toggleUpdateChecks()
+			return *a, nil
+		case "g":
+			return *a, a.openLinkCmd(LinkReadme)
+		case "a":
+			return *a, a.openLinkCmd(LinkAuthor)
+		}
+	}
+
+	// The hub's two explicit shortcuts work from navigation focus too.
+	if a.activeRoute == RouteInstall && a.installSection == installSectionHub {
+		switch key {
+		case "i":
+			return *a, a.openInstallScreen()
+		case "b":
+			return *a, a.openBackupsScreen()
+		}
 	}
 
 	if a.focus == FocusCategories {
@@ -412,7 +756,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case RouteHome:
 		switch key {
 		case "enter":
-			// Primary action on Home: open Install & Manage
+			// Primary action on Home: open the Install & Manage hub.
 			return a.switchRoute(1)
 		case "j", "down":
 			a.contentScroll++
@@ -427,23 +771,103 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return *a, nil
 		}
 
-	case RouteInstall, RouteActivity:
-		switch key {
-		case "j", "down":
-			a.contentScroll++
-			return *a, nil
-		case "k", "up":
-			if a.contentScroll > 0 {
-				a.contentScroll--
-			}
-			return *a, nil
-		case "esc":
-			a.focus = FocusNav
-			return *a, nil
-		}
+	case RouteInstall:
+		return a.handleInstallRouteKey(msg)
+
+	case RouteActivity:
+		return a.handleActivityRouteKey(msg)
 	}
 
 	return *a, nil
+}
+
+// routeWriteMsg delivers one typed write message to the screen that owns the
+// transaction. The screen identity comes from the host-assigned WriteKind, so
+// a result can only reach its originating journey.
+func (a *App) routeWriteMsg(kind WriteKind, msg tea.Msg) tea.Cmd {
+	switch kind {
+	case WriteInstall:
+		previous := a.install.Step()
+		updated, cmd := a.install.Update(msg)
+		if model, ok := updated.(InstallModel); ok {
+			a.install = model
+		}
+		if a.install.Step() != previous {
+			a.contentScroll = 0
+		}
+		return cmd
+	case WriteRestore:
+		previous := a.restore.Stage()
+		model, cmd := a.restore.Update(msg)
+		a.restore = model
+		if a.restore.Stage() != previous {
+			a.contentScroll = 0
+		}
+		return cmd
+	default:
+		return nil
+	}
+}
+
+// acceptStarted records the typed start message in the display mirror. The
+// host already owns the slot, so this cannot fail and cannot create a second
+// transaction.
+func (a *App) acceptStarted(msg WriteStartedMsg) {
+	a.write = &writeState{
+		id:      msg.ID,
+		kind:    msg.Kind,
+		label:   msg.Label,
+		started: msg.StartedAt,
+		step:    WriteStepStarting,
+	}
+}
+
+// refusedWriteCmd delivers a refusal as a typed message instead of starting
+// work. Update stays free of blocking I/O.
+func refusedWriteCmd(kind WriteKind, err error) tea.Cmd {
+	return func() tea.Msg {
+		reason := "write refused"
+		if err != nil {
+			reason = err.Error()
+		}
+		return WriteRefusedMsg{Kind: kind, Err: err, Reason: reason}
+	}
+}
+
+// requestShutdown routes one key or OS signal through the single policy. While
+// a write is active the request is recorded and the process keeps running;
+// while idle, cooperative read work is cancelled and the program quits.
+func (a *App) requestShutdown(msg ShutdownRequestMsg) tea.Cmd {
+	if a.quitting {
+		return nil
+	}
+	a.exitReason = msg.Reason
+	if msg.Signal != "" {
+		a.exitSignal = msg.Signal
+	}
+	if a.write != nil || a.childWritePending() {
+		// Repeated signals and Ctrl+C are idempotent: they never hard-kill the
+		// uncancellable engine transaction, and a confirmed child that has not
+		// yet reached the host still gets to start and finish.
+		a.exitPending = true
+		return nil
+	}
+	return a.beginQuit()
+}
+
+// beginQuit performs the idle shutdown once: cancel cooperative read work and
+// ask Bubble Tea to restore the terminal through its normal Run cleanup.
+func (a *App) beginQuit() tea.Cmd {
+	if a.quitting {
+		return nil
+	}
+	a.quitting = true
+	a.exitPending = true
+	if a.cancelReads != nil {
+		a.cancelReads()
+		a.cancelReads = nil
+	}
+	return tea.Quit
 }
 
 func (a *App) cycleCategory(direction int) tea.Cmd {
@@ -472,13 +896,32 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 	a.activeRoute = a.routes[index].Route
 	a.focus = FocusContent
 	a.contentScroll = a.routeScroll[a.activeRoute]
+	a.notice = ""
 
-	var cmd tea.Cmd
-	if a.activeRoute == RouteHome && a.motion && !a.brandState.Done() && !a.brandTickPending && a.height >= 14 && !a.helpOpen {
-		a.brandTickPending = true
-		cmd = tickBrand()
+	var cmds []tea.Cmd
+	if a.activeRoute == RouteHome {
+		if a.motion && !a.brandState.Done() && !a.brandTickPending && a.height >= 14 && !a.helpOpen {
+			a.brandTickPending = true
+			cmds = append(cmds, tickBrand())
+		}
+		// Re-entering Home never repeats the request: the manager's
+		// attempted flag makes this a no-op after the first session entry.
+		if cmd := a.automaticUpdateCheckCmd(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 	}
-	return *a, cmd
+	if a.activeRoute == RouteActivity {
+		a.activity.SetSize(a.childContentWidth(), a.childBodyHeight())
+		cmds = append(cmds, a.reloadActivityCmd())
+	}
+	if a.activeRoute == RouteInstall {
+		a.install.SetSize(a.childContentWidth(), a.childBodyHeight())
+		a.restore.SetSize(a.childContentWidth(), a.childBodyHeight())
+	}
+	if len(cmds) == 0 {
+		return *a, nil
+	}
+	return *a, tea.Batch(cmds...)
 }
 
 func (a App) sidebarWidth() int {
@@ -520,6 +963,40 @@ func (a App) contentHeight() int {
 	return h
 }
 
+// busyStatusLine is the single truthful footer while a write runs. It names
+// the policy instead of offering q as a quit path.
+func (a App) busyStatusLine() string {
+	step := a.write.step
+	if step == "" {
+		step = WriteStepStarting
+	}
+	line := fmt.Sprintf("%s | %s %s | q/Esc disabled | Ctrl+C exits after completion", WriteBusyMarker, a.write.kind, step)
+	if a.exitPending {
+		line += " (exit requested"
+		if a.exitSignal != "" {
+			line += " by " + a.exitSignal
+		}
+		line += ")"
+	}
+	if a.cfg.Color {
+		return a.theme.Warn.Render(line)
+	}
+	return line
+}
+
+// replaceLastLine swaps the footer row without changing the view's line count.
+func replaceLastLine(content, line string, width int) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 {
+		return content
+	}
+	if width > 0 {
+		line = ansi.Truncate(line, width, "")
+	}
+	lines[len(lines)-1] = line
+	return strings.Join(lines, "\n")
+}
+
 // View renders the application view, enforcing exact terminal width and height bounds
 // without silently dropping headers or footers.
 func (a App) View() tea.View {
@@ -527,6 +1004,18 @@ func (a App) View() tea.View {
 
 	if !a.cfg.Color {
 		content = ansi.Strip(content)
+	}
+	if a.write != nil && content != "" {
+		// The busy policy owns the footer while a transaction runs, so a
+		// rendered quit hint can never invite abandoning the write.
+		content = replaceLastLine(content, a.busyStatusLine(), a.width)
+	} else if content != "" {
+		if line := a.footerOverride(); line != "" {
+			if a.cfg.Color {
+				line = a.theme.Hint.Render(line)
+			}
+			content = replaceLastLine(content, line, a.width)
+		}
 	}
 
 	view := tea.NewView(content)
@@ -543,123 +1032,85 @@ func (a App) View() tea.View {
 }
 
 func (a App) getContentLines(width int) []string {
+	var lines []string
+	if a.onboarding != nil {
+		lines = a.onboarding.Lines(width)
+	} else {
+		switch a.activeRoute {
+		case RouteHome:
+			lines = a.homeLines(width)
+		case RouteInstall:
+			lines = a.installRouteLines(width)
+		case RouteActivity:
+			lines = a.activityRouteLines(width)
+		}
+	}
+
+	// A notice belongs at the top of the next frame: it is how an explicit
+	// opener, a refusal or a skip explains itself without the user scrolling.
+	if a.notice != "" {
+		notice := Section(a.theme.Section.Render("Notice"), []string{a.notice}, width)
+		lines = append(append(notice, ""), lines...)
+	}
+	return lines
+}
+
+// homeLines renders the local dashboard. Every fact comes from the loaded
+// read-only snapshot; the update-check section is the only part that reflects
+// an asynchronous result, and it never blocks local content.
+func (a App) homeLines(width int) []string {
 	var b strings.Builder
 
-	switch a.activeRoute {
-	case RouteHome:
-		// Header
-		if a.height >= 14 && width >= 40 {
-			brandHeader := a.brandState.Header(width, a.ascii)
-			if brandHeader != "" {
-				b.WriteString(a.theme.Accent.Render(brandHeader))
-				b.WriteString("\n\n")
-			}
-		} else {
-			b.WriteString(a.theme.Title.Render(BrandName))
-			if width >= 50 {
-				b.WriteString(" · ")
-				b.WriteString(a.theme.Subtitle.Render("Build with AI."))
-			}
-			b.WriteString(" · ")
-			b.WriteString(a.theme.Hint.Render("by " + BrandAuthor))
+	// Header
+	if a.height >= 14 && width >= 40 {
+		brandHeader := a.brandState.Header(width, a.ascii)
+		if brandHeader != "" {
+			b.WriteString(a.theme.Accent.Render(brandHeader))
 			b.WriteString("\n\n")
 		}
-
-		b.WriteString(strings.Join(HomeOverview(a.catalog, width), "\n"))
+	} else {
+		b.WriteString(a.theme.Title.Render(BrandName))
+		if width >= 50 {
+			b.WriteString(" · ")
+			b.WriteString(a.theme.Subtitle.Render("Build with AI."))
+		}
+		b.WriteString(" · ")
+		b.WriteString(a.theme.Hint.Render("by " + BrandAuthor))
 		b.WriteString("\n\n")
+	}
 
-		b.WriteString(a.theme.Section.Render("Resources"))
-		b.WriteString("\n")
-		guideURL := "https://github.com/nawodyaishan/agentic-sdd#readme"
-		for _, line := range wrapPath("  Online guide / README: "+guideURL, width) {
-			b.WriteString(line + "\n")
-		}
-		b.WriteString(fmt.Sprintf("  Author: by %s (https://github.com/nawodyaishan)\n", BrandAuthor))
+	b.WriteString(strings.Join(HomeOverview(a.catalog, width), "\n"))
+	b.WriteString("\n\n")
 
-	case RouteInstall:
-		b.WriteString(a.theme.Title.Render("Install & Manage"))
-		b.WriteString("\n")
-		b.WriteString(a.theme.Subtitle.Render("Client target selection, preview, and backup recovery"))
-		b.WriteString("\n\n")
+	b.WriteString(strings.Join(a.homeUpdateLines(width), "\n"))
+	b.WriteString("\n\n")
 
-		b.WriteString(a.theme.Section.Render("Read-only management preview"))
-		b.WriteString("\n")
-		b.WriteString(a.theme.Hint.Render("  Interactive installation, client selection, and restore workflows\n  arrive in B4 and B5. This interface remains read-only."))
-		b.WriteString("\n\n")
-
-		repoFlag := ""
-		if a.cfg.Repo != "" {
-			repoFlag = " --repo " + quoteHintPath(a.cfg.Repo)
-		}
-		homeFlag := ""
-		if a.cfg.Home != "" {
-			homeFlag = " --home " + quoteHintPath(a.cfg.Home)
-		}
-
-		b.WriteString(a.theme.Section.Render("Preview Actions"))
-		b.WriteString("\n")
-		for _, line := range wrapPath("  Preview core skills: agentic-sdd preview"+repoFlag+homeFlag, width) {
-			b.WriteString(a.theme.Accent.Render(line) + "\n")
-		}
-		for _, line := range wrapPath("  Preview with OpenCode pack: agentic-sdd preview --with-opencode"+repoFlag+homeFlag, width) {
-			b.WriteString(a.theme.Accent.Render(line) + "\n")
-		}
-		b.WriteString("\n")
-
-		b.WriteString(a.theme.Section.Render("Recovery & Backups"))
-		b.WriteString("\n")
-		backupRoot := a.catalog.BackupRoot
-		if backupRoot == "" {
-			backupRoot = "not configured"
-		}
-		for _, line := range wrapPath("  Backups directory: "+backupRoot, width) {
-			b.WriteString(a.theme.Accent.Render(line) + "\n")
-		}
-		b.WriteString("  Restore preview:\n")
-		b.WriteString("    Restore requires a selected backup timestamp (interactive browser in B5).\n")
-		for _, line := range wrapPath("    Example (replace BACKUP_ID): agentic-sdd restore preview BACKUP_ID"+repoFlag+homeFlag, width) {
-			b.WriteString(a.theme.Accent.Render(line) + "\n")
-		}
-
-	case RouteActivity:
-		b.WriteString(a.theme.Title.Render("Activity & Help"))
-		b.WriteString("\n")
-		b.WriteString(a.theme.Subtitle.Render("Version metadata, documentation, and navigation reference"))
-		b.WriteString("\n\n")
-
-		b.WriteString(a.theme.Section.Render("Version & Build"))
-		b.WriteString("\n")
-		b.WriteString(fmt.Sprintf("  Version: %s\n", version.Version))
-		b.WriteString(fmt.Sprintf("  Commit:  %s\n", version.Commit))
-		b.WriteString(fmt.Sprintf("  Date:    %s\n", version.Date))
-		b.WriteString("\n")
-
-		b.WriteString(a.theme.Section.Render("Online Documentation"))
-		b.WriteString("\n")
-		for _, line := range wrapPath("  Online guide / README: https://github.com/nawodyaishan/agentic-sdd#readme", width) {
-			b.WriteString(a.theme.Accent.Render(line) + "\n")
-		}
-		b.WriteString(fmt.Sprintf("  Author: by %s (https://github.com/nawodyaishan)\n", BrandAuthor))
-		b.WriteString("\n")
-
-		b.WriteString(a.theme.Section.Render("Navigation Reference"))
-		b.WriteString("\n")
-		b.WriteString("  Tab          Cycle navigation, categories (Explore), and content\n")
-		b.WriteString("  ↑/↓/j/k      Move cursor across routes or items\n")
-		b.WriteString("  1 - 4        Direct jump to destination\n")
-		b.WriteString("  Enter        Open item / activate selection\n")
-		b.WriteString("  b / Esc      Back to list / navigation\n")
-		b.WriteString("  /            Filter catalog items\n")
-		b.WriteString("  c / [ / ]    Focus categories / previous / next category\n")
-		b.WriteString("  pgup / pgdn  Scroll content up / down\n")
-		b.WriteString("  m            Toggle motion reveal (on/off)\n")
-		b.WriteString("  u            Toggle symbols (unicode/ascii)\n")
-		b.WriteString("  q            Quit application\n")
-		b.WriteString("\n")
-
-		b.WriteString(a.theme.Section.Render("Activity Logs & Update Checks"))
-		b.WriteString("\n")
-		b.WriteString(a.theme.Hint.Render("  Log browsing and asynchronous update checks are scheduled for B5."))
+	b.WriteString(a.theme.Section.Render("Resources"))
+	b.WriteString("\n")
+	guideURL := previewGuideURL
+	guideLabel := "Online guide / README"
+	if a.cfg.Color && !a.ascii {
+		guideLabel = Hyperlink(guideLabel, LinkReadme, true)
+	}
+	for _, line := range wrapPath("  "+guideLabel+": "+guideURL, width) {
+		b.WriteString(line + "\n")
+	}
+	authorURL := AuthorURL
+	authorLabel := "Author: by " + BrandAuthor
+	if a.cfg.Color && !a.ascii {
+		authorLabel = "Author: by " + Hyperlink(BrandAuthor, LinkAuthor, true)
+	}
+	for _, line := range wrapPath("  "+authorLabel+" ("+authorURL+")", width) {
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n")
+	b.WriteString(a.theme.Section.Render("Controls"))
+	b.WriteString("\n")
+	for _, line := range wrapPath("  Enter: Install & Manage hub · o: onboarding tour · g / a: open guide or author (explicit)", width) {
+		b.WriteString(line + "\n")
+	}
+	for _, line := range wrapPath("  r: retry update check · d: disable or enable automatic checks · j/k PgUp/PgDn: scroll", width) {
+		b.WriteString(line + "\n")
 	}
 
 	return strings.Split(b.String(), "\n")
@@ -691,12 +1142,19 @@ func (a App) getHelpLines(width int) []string {
 	b.WriteString("  Esc          Clear filter or exit filter mode\n")
 	b.WriteString("\n")
 
+	b.WriteString(a.theme.Section.Render("Write Execution Safety"))
+	b.WriteString("\n")
+	for _, line := range wrapPath("  "+WritePolicyText, width) {
+		b.WriteString(a.theme.Warn.Render(line) + "\n")
+	}
+	b.WriteString("\n")
+
 	b.WriteString(a.theme.Section.Render("Session Settings"))
 	b.WriteString("\n")
 	b.WriteString("  m            Toggle logo reveal motion animation (on/off)\n")
 	b.WriteString("  u            Toggle symbol set (Unicode icons vs 7-bit ASCII)\n")
 	b.WriteString("  ?            Toggle this help screen\n")
-	b.WriteString("  q / Ctrl+C   Quit application\n")
+	b.WriteString("  q / Ctrl+C   Quit when idle; Ctrl+C during a write exits after it\n")
 	b.WriteString("\n")
 	b.WriteString(a.theme.Hint.Render("Press ? or Esc to return to the previous screen."))
 
