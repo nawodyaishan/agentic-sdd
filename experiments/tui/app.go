@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -86,6 +87,14 @@ type App struct {
 	notice      string
 	initCmds    []tea.Cmd
 
+	// Write feedback (T20). The spinner is root-owned and belongs to exactly
+	// one accepted write generation; its identity makes a late tick from an
+	// older write harmless. spinnerActive is false in motion-off, plain, ASCII
+	// and non-interactive sessions, which render WriteStaticMarker instead.
+	spinner        spinner.Model
+	spinnerActive  bool
+	spinnerPending bool
+
 	// B4/B5 integrated child screens. installSection selects the hub or one
 	// of its children; the child models own their own stage machines.
 	installSection  installSection
@@ -153,6 +162,7 @@ func NewAppWithScreens(cfg TUIConfig, catalog Catalog, opts AppOptions, screens 
 	if screens.RestoreOps.List != nil || screens.RestoreOps.Preview != nil {
 		app.restore = NewRestoreModel(app.cfg, screens.RestoreOps)
 		app.restore.SetSize(app.childContentWidth(), app.childBodyHeight())
+		app.restore.SetTheme(app.theme)
 	}
 	if screens.Opener != nil {
 		app.opener = screens.Opener
@@ -177,32 +187,32 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 			Route:       RouteHome,
 			Key:         "1",
 			Title:       "Home",
-			Icon:        "🏠",
-			ASCII:       "*",
+			Icon:        "1",
+			ASCII:       "1",
 			Description: "Dashboard & welcome",
 		},
 		{
 			Route:       RouteInstall,
 			Key:         "2",
 			Title:       "Install & Manage",
-			Icon:        "📦",
-			ASCII:       "+",
+			Icon:        "2",
+			ASCII:       "2",
 			Description: "Configure & preview",
 		},
 		{
 			Route:       RouteExplore,
 			Key:         "3",
 			Title:       "Explore",
-			Icon:        "🔍",
-			ASCII:       "#",
+			Icon:        "3",
+			ASCII:       "3",
 			Description: "Browse skills & profiles",
 		},
 		{
 			Route:       RouteActivity,
 			Key:         "4",
 			Title:       "Activity & Help",
-			Icon:        "💡",
-			ASCII:       "?",
+			Icon:        "4",
+			ASCII:       "4",
 			Description: "Guides, logs & reference",
 		},
 	}
@@ -245,7 +255,21 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 	app.install.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.restore.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.activity.SetSize(app.childContentWidth(), app.childBodyHeight())
+	app.applyTheme(theme)
 	return app
+}
+
+// applyTheme updates the root theme and propagates it to all child screens
+// without reconstructing models or resetting state.
+func (a *App) applyTheme(theme Theme) {
+	a.theme = theme
+	a.install.SetTheme(theme)
+	a.restore.SetTheme(theme)
+	a.activity.SetTheme(theme)
+	a.catalogModel.SetTheme(theme)
+	if a.onboarding != nil {
+		a.onboarding.SetTheme(theme)
+	}
 }
 
 // ActiveRoute returns the currently displayed destination.
@@ -318,11 +342,15 @@ func (a App) VisibleCatalogItems() []CatalogItem { return a.catalogModel.Visible
 func (a App) IsFiltering() bool { return a.catalogModel.IsFiltering() }
 
 // Init requests the terminal window size, emits an initial startup message,
+// requests terminal background color in interactive colored sessions,
 // starts the once-per-session Home update check and runs any write already
 // queued before the program started. Local content renders before the check
 // result arrives.
 func (a App) Init() tea.Cmd {
 	cmds := []tea.Cmd{tea.RequestWindowSize, func() tea.Msg { return appStartMsg{} }}
+	if a.cfg.Interactive && a.cfg.Color {
+		cmds = append(cmds, tea.RequestBackgroundColor)
+	}
 	if cmd := a.automaticUpdateCheckCmd(); cmd != nil {
 		cmds = append(cmds, cmd)
 	}
@@ -339,6 +367,13 @@ func tickBrand() tea.Cmd {
 // Update handles incoming messages: keys, window size, and brand animation ticks.
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.BackgroundColorMsg:
+		if !a.cfg.Color {
+			return a, nil
+		}
+		a.applyTheme(NewAdaptiveTheme(true, msg.IsDark()))
+		return a, nil
+
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
@@ -395,7 +430,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.write.kind = msg.Kind
 		a.write.label = msg.Label
 		a.write.started = msg.StartedAt
-		return a, a.routeWriteMsg(msg.Kind, msg)
+		// The phase spinner starts with the accepted write, not with a key or a
+		// render, and its first tick is returned beside the screen's command.
+		return a, tea.Batch(a.routeWriteMsg(msg.Kind, msg), a.startWriteFeedback())
+
+	case spinner.TickMsg:
+		return a, a.handleWriteTick(msg)
 
 	case WriteProgressMsg:
 		if a.write == nil || a.write.id != msg.ID {
@@ -415,6 +455,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.lastWrite = msg
 		a.hasResult = true
 		a.write = nil
+		a.stopWriteFeedback()
 		if a.ops != nil {
 			a.ops.Complete(msg.ID)
 		}
@@ -435,6 +476,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// owns the running transaction.
 			return a, nil
 		}
+		// No write was accepted, so nothing may animate.
+		a.stopWriteFeedback()
 		cmd := a.routeWriteMsg(msg.Kind, msg)
 		if a.exitPending && !a.childWritePending() {
 			// A deferred Ctrl+C found only a refused request: nothing is left to
@@ -490,7 +533,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleKey(msg)
 
 	default:
-		// Forward background commands (e.g. list filter match, spinner ticks) to catalogModel
+		// Forward background commands (e.g. a list filter match) to catalogModel.
+		// Spinner ticks have their own case above, so a tick can never fall
+		// through to a screen model.
 		var cmd tea.Cmd
 		updated, cmd := a.catalogModel.Update(msg)
 		if cat, ok := updated.(CatalogModel); ok {
@@ -641,7 +686,11 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if a.activeRoute == RouteHome {
 		switch key {
 		case "o":
-			return *a, a.openOnboardingCmd()
+			cmd := a.openOnboardingCmd()
+			if a.onboarding != nil {
+				a.onboarding.SetTheme(a.theme)
+			}
+			return *a, cmd
 		case "g":
 			return *a, a.openLinkCmd(LinkReadme)
 		case "a":
@@ -863,6 +912,7 @@ func (a *App) beginQuit() tea.Cmd {
 	}
 	a.quitting = true
 	a.exitPending = true
+	a.stopWriteFeedback()
 	if a.cancelReads != nil {
 		a.cancelReads()
 		a.cancelReads = nil
@@ -964,15 +1014,14 @@ func (a App) contentHeight() int {
 }
 
 // busyStatusLine is the single truthful footer while a write runs. It names
-// the policy instead of offering q as a quit path.
+// the policy instead of offering q as a quit path, and it carries the phase
+// marker plus the phase text the host actually reported. No percentage,
+// throughput or completion claim is ever added here.
 func (a App) busyStatusLine() string {
-	step := a.write.step
-	if step == "" {
-		step = WriteStepStarting
-	}
-	line := fmt.Sprintf("%s | %s %s | q/Esc disabled | Ctrl+C exits after completion", WriteBusyMarker, a.write.kind, step)
+	line := fmt.Sprintf("%s | %s %s %s | q/Esc disabled | Ctrl+C exits after completion",
+		WriteBusyMarker, a.writePhaseMarker(), a.write.kind, a.writePhaseText())
 	if a.exitPending {
-		line += " (exit requested"
+		line += " (exit pending"
 		if a.exitSignal != "" {
 			line += " by " + a.exitSignal
 		}
@@ -1011,6 +1060,9 @@ func (a App) View() tea.View {
 		content = replaceLastLine(content, a.busyStatusLine(), a.width)
 	} else if content != "" {
 		if line := a.footerOverride(); line != "" {
+			if a.ascii {
+				line = toASCII(line)
+			}
 			if a.cfg.Color {
 				line = a.theme.Hint.Render(line)
 			}
@@ -1046,9 +1098,12 @@ func (a App) getContentLines(width int) []string {
 		}
 	}
 
-	// A notice belongs at the top of the next frame: it is how an explicit
-	// opener, a refusal or a skip explains itself without the user scrolling.
-	if a.notice != "" {
+	// A notice normally owns the reserved footer status block, so scrolling or
+	// resizing cannot hide it. Only when that block cannot be reserved (a tiny
+	// terminal, or an active write whose busy footer carries the policy) does
+	// the notice keep its historical scrollable body placement; the text is
+	// never truncated or dropped.
+	if a.notice != "" && len(a.statusNoticeRows(a.width)) == 0 {
 		notice := Section(a.theme.Section.Render("Notice"), []string{a.notice}, width)
 		lines = append(append(notice, ""), lines...)
 	}
@@ -1112,51 +1167,6 @@ func (a App) homeLines(width int) []string {
 	for _, line := range wrapPath("  r: retry update check · d: disable or enable automatic checks · j/k PgUp/PgDn: scroll", width) {
 		b.WriteString(line + "\n")
 	}
-
-	return strings.Split(b.String(), "\n")
-}
-
-func (a App) getHelpLines(width int) []string {
-	var b strings.Builder
-	b.WriteString(a.theme.Title.Render("Keyboard & Navigation Reference"))
-	b.WriteString("\n")
-	b.WriteString(a.theme.Subtitle.Render("Contextual help · press ? or Esc to close"))
-	b.WriteString("\n\n")
-
-	b.WriteString(a.theme.Section.Render("Navigation"))
-	b.WriteString("\n")
-	b.WriteString("  Tab          Cycle navigation, categories (Explore), and content\n")
-	b.WriteString("  ↑/↓/j/k      Move selection in navigation or catalog list\n")
-	b.WriteString("  1 - 4        Direct jump to destination (1:Home, 2:Install, 3:Explore, 4:Help)\n")
-	b.WriteString("  Enter        Open item or activate highlighted route\n")
-	b.WriteString("  b / Esc      Back to list or return focus to navigation\n")
-	b.WriteString("  Home / End   Jump to top or bottom of navigation / catalog\n")
-	b.WriteString("  pgup / pgdn  Scroll content up / down\n")
-	b.WriteString("\n")
-
-	b.WriteString(a.theme.Section.Render("Catalog & Search"))
-	b.WriteString("\n")
-	b.WriteString("  /            Filter catalog items by ID, kind, origin, or client\n")
-	b.WriteString("  c            Focus the category control\n")
-	b.WriteString("  [ / ]        Previous / next kind or purpose category\n")
-	b.WriteString("  Esc          Clear filter or exit filter mode\n")
-	b.WriteString("\n")
-
-	b.WriteString(a.theme.Section.Render("Write Execution Safety"))
-	b.WriteString("\n")
-	for _, line := range wrapPath("  "+WritePolicyText, width) {
-		b.WriteString(a.theme.Warn.Render(line) + "\n")
-	}
-	b.WriteString("\n")
-
-	b.WriteString(a.theme.Section.Render("Session Settings"))
-	b.WriteString("\n")
-	b.WriteString("  m            Toggle logo reveal motion animation (on/off)\n")
-	b.WriteString("  u            Toggle symbol set (Unicode icons vs 7-bit ASCII)\n")
-	b.WriteString("  ?            Toggle this help screen\n")
-	b.WriteString("  q / Ctrl+C   Quit when idle; Ctrl+C during a write exits after it\n")
-	b.WriteString("\n")
-	b.WriteString(a.theme.Hint.Render("Press ? or Esc to return to the previous screen."))
 
 	return strings.Split(b.String(), "\n")
 }
@@ -1239,13 +1249,13 @@ func toASCII(s string) string {
 			b.WriteRune('*')
 		case '·':
 			b.WriteRune('-')
-		case '►':
+		case '►', '▸', '›':
 			b.WriteRune('>')
-		case '◄':
+		case '◄', '◂', '‹':
 			b.WriteRune('<')
-		case '▲':
+		case '▲', '▴':
 			b.WriteRune('^')
-		case '▼':
+		case '▼', '▾':
 			b.WriteRune('v')
 		case '─':
 			b.WriteRune('-')

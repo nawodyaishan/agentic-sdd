@@ -244,6 +244,11 @@ func (m *InstallModel) SetSize(width, height int) {
 	m.height = height
 }
 
+// SetTheme updates the active styling theme without resetting state.
+func (m *InstallModel) SetTheme(theme Theme) {
+	m.theme = theme
+}
+
 // SetHome sets the home directory and invalidates any existing preview/confirmation.
 func (m *InstallModel) SetHome(home string) {
 	if m.home != home {
@@ -845,18 +850,22 @@ func (m InstallModel) clientsLines(width int) []string {
 		lines = append(lines, "")
 	}
 
+	glyphs := GlyphSet(m.cfg.ASCII)
 	var clientRows []string
 	for i, id := range m.supportedClients {
-		cursor := "  "
+		cursor := glyphs.Gutter + " "
 		if i == m.clientCursor {
-			cursor = "> "
+			cursor = glyphs.Cursor + " "
 		}
-		check := "[ ]"
+		check := glyphs.CheckEmpty
 		if m.selectedClients[id] {
-			check = "[x]"
+			check = glyphs.CheckMark
 		}
 		targetPath := ClientTargetDir(m.home, id)
-		row := fmt.Sprintf("%s%s %-6s · %s (%s)", cursor, check, id, targetPath, ClientDisplayName(id))
+		row := fmt.Sprintf("%s%s %-6s %s %s (%s)", cursor, check, id, glyphs.Bullet, targetPath, ClientDisplayName(id))
+		if i == m.clientCursor && m.theme.Color {
+			row = m.theme.Selected.Bold(true).Render(row)
+		}
 		clientRows = append(clientRows, row)
 	}
 
@@ -886,30 +895,41 @@ func (m InstallModel) optionsLines(width int) []string {
 		lines = append(lines, "")
 	}
 
-	c0 := "  "
+	glyphs := GlyphSet(m.cfg.ASCII)
+	c0 := glyphs.Gutter + " "
 	if m.optionsCursor == 0 {
-		c0 = "> "
+		c0 = glyphs.Cursor + " "
 	}
-	chk0 := "[ ]"
+	chk0 := glyphs.CheckEmpty
 	if m.withOpenCode {
-		chk0 = "[x]"
+		chk0 = glyphs.CheckMark
 	}
 
-	c1 := "  "
+	c1 := glyphs.Gutter + " "
 	if m.optionsCursor == 1 {
-		c1 = "> "
+		c1 = glyphs.Cursor + " "
 	}
-	chk1 := "[ ]"
+	chk1 := glyphs.CheckEmpty
 	if m.freeFirst {
-		chk1 = "[x]"
+		chk1 = glyphs.CheckMark
+	}
+
+	row0 := fmt.Sprintf("%s%s Install OpenCode pack (profiles & skills)", c0, chk0)
+	if m.optionsCursor == 0 && m.theme.Color {
+		row0 = m.theme.Selected.Bold(true).Render(row0)
+	}
+
+	row1 := fmt.Sprintf("%s%s Free-first model preset", c1, chk1)
+	if m.optionsCursor == 1 && m.theme.Color {
+		row1 = m.theme.Selected.Bold(true).Render(row1)
 	}
 
 	optionsRows := []string{
-		fmt.Sprintf("%s%s Install OpenCode pack (profiles & skills)", c0, chk0),
+		row0,
 		fmt.Sprintf("    Profile destination: %s", OpenCodeAgentsDir(m.home)),
 		"    (OpenCode profile destination is stated separately from core client selection)",
 		"",
-		fmt.Sprintf("%s%s Free-first model preset", c1, chk1),
+		row1,
 		"    Configures agent profile templates to prioritize zero-cost free model tiers first.",
 		"    (Requires OpenCode pack; template preset only, does not guarantee model availability or quota)",
 	}
@@ -1078,13 +1098,21 @@ func (m InstallModel) previewLines(width int) []string {
 	return lines
 }
 
-func (m InstallModel) confirmLines(width int) []string {
-	var lines []string
+// modalSection renders one confirmation section with a themed heading. The
+// root modal compositor frames and pages it; the standalone Render path uses
+// the same parts so wording cannot diverge.
+func modalSection(theme Theme, title string, rows []string, width int) []string {
+	lines := Section(title, rows, width)
+	if len(lines) > 0 && theme.Color {
+		lines[0] = theme.Section.Render(lines[0])
+	}
+	return lines
+}
 
-	lines = append(lines, m.theme.Title.Render("Install & Manage · Confirm Installation"))
-	lines = append(lines, m.theme.Subtitle.Render("Review pre-execution policy and confirm application"))
-	lines = append(lines, "")
-
+// modalParts splits the confirmation into the pinned warning and decision
+// policy plus the scrollable target/impact body that the root compositor owns.
+// No handler, token or consent state is involved.
+func (m InstallModel) modalParts(width int) modalParts {
 	warnBody := []string{
 		"Ready to apply installation with previewed changes.",
 		fmt.Sprintf("Target home: %s", m.home),
@@ -1096,16 +1124,11 @@ func (m InstallModel) confirmLines(width int) []string {
 	if m.freeFirst {
 		warnBody = append(warnBody, "Preset: Free-first template preset enabled")
 	}
-	lines = append(lines, Section("Target Configuration", warnBody, width)...)
-	lines = append(lines, "")
 
 	policyBody := []string{
 		"Writes cannot be interrupted midway once started. If you press Ctrl+C or exit during installation, the process will wait for the active write and backup to finish safely before exiting.",
 		"Abrupt process termination (e.g. SIGKILL) bypasses rollback and may leave destinations in an incomplete state.",
 	}
-	lines = append(lines, Section("Pre-Execution Policy", policyBody, width)...)
-	lines = append(lines, "")
-
 	choiceBody := []string{
 		"Proceed with installation?",
 		"",
@@ -1113,13 +1136,38 @@ func (m InstallModel) confirmLines(width int) []string {
 		"",
 		"(Default is No. Only typing 'y' confirms. Enter does not confirm.)",
 	}
-	lines = append(lines, Section("Confirmation", choiceBody, width)...)
+
+	body := modalSection(m.theme, "Target Configuration", warnBody, width)
+	policy := modalSection(m.theme, "Confirmation", choiceBody, width)
 	if m.notice != "" {
-		lines = append(lines, "")
-		lines = append(lines, Paragraph(m.theme.Warn.Render(m.notice), width, 0)...)
+		policy = append(policy, "")
+		policy = append(policy, Paragraph(m.theme.Warn.Render(m.notice), width, 0)...)
 	}
+
+	return modalParts{
+		Title:    "Install & Manage · Confirm Installation",
+		Subtitle: "Review pre-execution policy and confirm application",
+		Warning:  modalSection(m.theme, "Pre-Execution Policy", policyBody, width),
+		Policy:   policy,
+		Body:     body,
+		Footer:   "y: confirm and apply · n / Esc / b: cancel / go back · Enter: safe No (no action)",
+	}
+}
+
+func (m InstallModel) confirmLines(width int) []string {
+	parts := m.modalParts(width)
+
+	var lines []string
+	lines = append(lines, m.theme.Title.Render(parts.Title))
+	lines = append(lines, m.theme.Subtitle.Render(parts.Subtitle))
 	lines = append(lines, "")
-	lines = append(lines, m.theme.Hint.Render("y: confirm and apply · n / Esc / b: cancel / go back · Enter: safe No (no action)"))
+	lines = append(lines, parts.Warning...)
+	lines = append(lines, "")
+	lines = append(lines, parts.Body...)
+	lines = append(lines, "")
+	lines = append(lines, parts.Policy...)
+	lines = append(lines, "")
+	lines = append(lines, m.theme.Hint.Render(parts.Footer))
 	return lines
 }
 

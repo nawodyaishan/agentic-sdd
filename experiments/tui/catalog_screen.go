@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"agentic-sdd/internal/skillsync"
@@ -41,6 +42,7 @@ type CatalogModel struct {
 	theme               Theme
 	catalog             Catalog
 	list                list.Model
+	delegate            list.DefaultDelegate
 	detail              bool
 	width               int
 	height              int
@@ -93,15 +95,18 @@ func NewCatalogModel(cfg TUIConfig, catalog Catalog) CatalogModel {
 	browser.SetStatusBarItemName("entry", "entries")
 	browser.DisableQuitKeybindings()
 
-	return CatalogModel{
+	model := CatalogModel{
 		cfg:            cfg,
 		theme:          theme,
 		catalog:        catalog,
 		list:           browser,
+		delegate:       delegate,
 		width:          cfg.Width,
 		height:         cfg.Height,
 		activeCategory: CategoryAll,
 	}
+	model.applyThemeToList()
+	return model
 }
 
 // Init asks for the real terminal size. The alternate screen stays off until a
@@ -531,6 +536,65 @@ func (m *CatalogModel) SetSize(width, height int) {
 	m.width = width
 	m.height = height
 	m.list.SetSize(width, listHeight(height))
+}
+
+// SetTheme updates the active styling theme and synchronizes list delegate and filter styles.
+func (m *CatalogModel) SetTheme(theme Theme) {
+	m.theme = theme
+	m.cfg.Color = theme.Color
+	m.applyThemeToList()
+}
+
+func (m *CatalogModel) applyThemeToList() {
+	if !m.theme.Color {
+		m.delegate.Styles = list.DefaultItemStyles{
+			NormalTitle:   lipgloss.NewStyle().Padding(0, 0, 0, 2),
+			NormalDesc:    lipgloss.NewStyle().Padding(0, 0, 0, 2),
+			SelectedTitle: lipgloss.NewStyle().Bold(true).Padding(0, 0, 0, 1).Border(lipgloss.Border{Left: ">"}, false, false, false, true),
+			SelectedDesc:  lipgloss.NewStyle().Padding(0, 0, 0, 1).Border(lipgloss.Border{Left: ">"}, false, false, false, true),
+			DimmedTitle:   lipgloss.NewStyle().Padding(0, 0, 0, 2),
+			DimmedDesc:    lipgloss.NewStyle().Padding(0, 0, 0, 2),
+			FilterMatch:   lipgloss.NewStyle().Underline(true),
+		}
+		m.list.Styles = list.Styles{}
+		m.list.SetDelegate(m.delegate)
+		return
+	}
+
+	ds := list.NewDefaultItemStyles(m.theme.IsDark)
+	ds.NormalTitle = m.theme.Text.Padding(0, 0, 0, 2)
+	ds.NormalDesc = m.theme.Muted.Padding(0, 0, 0, 2)
+	ds.SelectedTitle = m.theme.Selected.Bold(true).Padding(0, 0, 0, 1).
+		Border(lipgloss.NormalBorder(), false, false, false, true).
+		BorderForeground(m.theme.Tokens.BorderFocus)
+	ds.SelectedDesc = m.theme.Selected.Foreground(m.theme.Tokens.Muted).Padding(0, 0, 0, 1).
+		Border(lipgloss.NormalBorder(), false, false, false, true).
+		BorderForeground(m.theme.Tokens.BorderFocus)
+	ds.DimmedTitle = m.theme.Dim.Padding(0, 0, 0, 2)
+	ds.DimmedDesc = m.theme.Dim.Padding(0, 0, 0, 2)
+	ds.FilterMatch = m.theme.Accent.Underline(true)
+	m.delegate.Styles = ds
+	m.list.SetDelegate(m.delegate)
+
+	ls := list.DefaultStyles(m.theme.IsDark)
+	ls.Title = m.theme.Title
+	ls.Spinner = m.theme.Accent
+	if m.theme.Tokens.Accent != nil {
+		ls.Filter.Cursor.Color = m.theme.Tokens.Accent
+	}
+	ls.Filter.Focused.Prompt = m.theme.Accent
+	ls.Filter.Blurred.Prompt = m.theme.Muted
+	ls.Filter.Focused.Text = m.theme.Text
+	ls.Filter.Blurred.Text = m.theme.Muted
+	ls.Filter.Focused.Placeholder = m.theme.Dim
+	ls.Filter.Blurred.Placeholder = m.theme.Dim
+	ls.DefaultFilterCharacterMatch = m.theme.Accent.Underline(true)
+	ls.StatusBar = m.theme.Muted.Padding(0, 0, 1, 2)
+	ls.StatusBarFilterCount = m.theme.Dim
+	ls.StatusBarActiveFilter = m.theme.Text
+	ls.StatusEmpty = m.theme.Muted
+	ls.NoItems = m.theme.Muted
+	m.list.Styles = ls
 }
 
 // ListView renders the list component alone.

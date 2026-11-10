@@ -299,6 +299,11 @@ func (m *OnboardingModel) SetSize(width, height int) {
 	m.height = height
 }
 
+// SetTheme updates the active styling theme without resetting state.
+func (m *OnboardingModel) SetTheme(theme Theme) {
+	m.theme = theme
+}
+
 // Lines renders the whole tour at width terminal cells, without applying the
 // viewport height. Every produced line fits width (or width is non-positive and
 // no content is rendered), so a host viewport never has to truncate prose. A

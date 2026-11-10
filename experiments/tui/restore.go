@@ -268,6 +268,11 @@ func (m *RestoreModel) SetSize(width, height int) {
 	m.scroll = m.clampScroll(m.scroll)
 }
 
+// SetTheme updates the active styling theme without resetting state.
+func (m *RestoreModel) SetTheme(theme Theme) {
+	m.theme = theme
+}
+
 // Stage reports the current step for the parent shell's footer and tests.
 func (m RestoreModel) Stage() RestoreStage { return m.stage }
 
@@ -275,6 +280,11 @@ func (m RestoreModel) Stage() RestoreStage { return m.stage }
 // defer quit while this is true: q/Esc/Ctrl+C cannot abandon these stages.
 func (m RestoreModel) Busy() bool {
 	return m.stage == RestoreStageRevalidating || m.stage == RestoreStageRunning
+}
+
+// IsLoading reports whether backup discovery or restore preview is running.
+func (m RestoreModel) IsLoading() bool {
+	return m.loading || m.previewLoading
 }
 
 // Backups returns a copy of the discovered backup list.
@@ -918,15 +928,16 @@ func (m RestoreModel) listHeaderLines(width int) []string {
 }
 
 func (m RestoreModel) listEntryGroups(width int) [][]string {
+	glyphs := GlyphSet(m.cfg.ASCII)
 	groups := make([][]string, 0, len(m.backups))
 	for i, b := range m.backups {
-		marker := " "
+		marker := glyphs.Gutter
 		if i == m.listIndex {
-			marker = ">"
+			marker = glyphs.Cursor
 		}
 		head := fmt.Sprintf("%s %s  %s", marker, m.data(b.ID), m.data(restoreIdentity(b)))
-		if i == m.listIndex {
-			head = m.theme.Accent.Render(head)
+		if i == m.listIndex && m.theme.Color {
+			head = m.theme.Selected.Bold(true).Render(head)
 		}
 		group := Paragraph(head, width, 0)
 		if b.Unusable != "" {
@@ -1049,19 +1060,38 @@ func (m RestoreModel) previewLines(width int) []string {
 	return lines
 }
 
-func (m RestoreModel) confirmLines(width int) []string {
-	lines := []string{m.theme.Title.Render("Confirm restore")}
-	lines = append(lines, Paragraph(m.theme.Warn.Render("Default: No. Only pressing y confirms. Enter does not confirm."), width, 0)...)
-	lines = append(lines, "")
-	lines = append(lines, Paragraph(m.data(fmt.Sprintf("Restore backup %s and change the destinations listed below? Their current content is saved to a new pre-restore backup first.", m.previewID)), width, 0)...)
-	lines = append(lines, "")
-	lines = append(lines, m.previewImpactLines(m.preview, width, m.theme.Section.Render)...)
-	lines = append(lines, "")
-	lines = append(lines, Paragraph("No changes have been written yet. y restore | n/Esc cancel. Enter does not confirm.", width, 0)...)
+// modalParts splits the restore confirmation into the pinned warning and
+// decision policy plus the scrollable impact body. The root compositor frames
+// it; the standalone Render path reuses the same wording.
+func (m RestoreModel) modalParts(width int) modalParts {
+	impact := m.previewImpactLines(m.preview, width, m.theme.Section.Render)
+	body := []string{}
+	body = append(body, Paragraph(m.data(fmt.Sprintf("Restore backup %s and change the destinations listed below? Their current content is saved to a new pre-restore backup first.", m.previewID)), width, 0)...)
+	body = append(body, "")
+	body = append(body, impact...)
+	policy := Paragraph(m.data("No changes have been written yet. y restore | n/Esc cancel. Enter does not confirm."), width, 0)
 	if m.notice != "" {
-		lines = append(lines, "")
-		lines = append(lines, Paragraph(m.theme.Warn.Render(m.data(m.notice)), width, 0)...)
+		policy = append(policy, "")
+		policy = append(policy, Paragraph(m.theme.Warn.Render(m.data(m.notice)), width, 0)...)
 	}
+	return modalParts{
+		Title:    "Confirm restore",
+		Subtitle: "Review the exact impact before restoring.",
+		Warning:  Paragraph(m.theme.Warn.Render(m.data("Default: No. Only pressing y confirms. Enter does not confirm.")), width, 0),
+		Policy:   policy,
+		Body:     body,
+		Footer:   "y restore · n / Esc cancel · Enter: safe No · ? help · q quit",
+	}
+}
+
+func (m RestoreModel) confirmLines(width int) []string {
+	parts := m.modalParts(width)
+	lines := []string{m.theme.Title.Render(parts.Title)}
+	lines = append(lines, parts.Warning...)
+	lines = append(lines, "")
+	lines = append(lines, parts.Body...)
+	lines = append(lines, "")
+	lines = append(lines, parts.Policy...)
 	return lines
 }
 

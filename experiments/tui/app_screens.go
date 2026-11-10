@@ -257,14 +257,17 @@ func (a App) installHubLines(width int) []string {
 		},
 	}
 	rows := make([]string, 0, len(entries))
+	glyphs := GlyphSet(a.ascii)
 	for i, entry := range entries {
-		marker := " "
+		marker := glyphs.Gutter
 		if i == a.installHubIndex {
-			marker = ">"
+			marker = glyphs.Cursor
 		}
 		row := fmt.Sprintf("%s [%s] %s", marker, entry.key, entry.title)
 		if i == a.installHubIndex {
-			row = a.theme.Accent.Render(row)
+			if a.theme.Color {
+				row = a.theme.Selected.Bold(true).Render(row)
+			}
 		}
 		rows = append(rows, row)
 		rows = append(rows, "     "+entry.desc)
@@ -433,6 +436,9 @@ func (a *App) scrollChildContent(key string, width, height int) {
 
 // clampContentScroll keeps a scroll offset inside the rendered content.
 func (a *App) clampContentScroll(width, height int) {
+	if a.clampModalScroll() {
+		return
+	}
 	maxOffset := len(a.getContentLines(width)) - height
 	if maxOffset < 0 {
 		maxOffset = 0
@@ -506,11 +512,7 @@ func (a App) childContentWidth() int {
 
 // childBodyHeight matches the root viewport's body row budget.
 func (a App) childBodyHeight() int {
-	rows := a.height - a.headerRowCount() - 2
-	if rows < 1 {
-		return 1
-	}
-	return rows
+	return a.bodyBudget()
 }
 
 // childWritePending reports a child screen that has committed to a write but
@@ -698,40 +700,140 @@ func (a App) footerOverride() string {
 	}
 	if a.onboarding != nil {
 		if a.width < 60 {
-			return "Enter next s skip Esc cancel q quit"
+			return "Enter next · s skip · Esc cancel · q quit"
 		}
 		if a.width < 90 {
-			return "Enter next s skip Esc cancel o/a links q quit"
+			return "Enter next · s skip · Esc cancel · o/a links · q quit"
 		}
-		return "Enter next s skip Esc cancel o guide a author j/k scroll ? help q quit"
+		return "Enter next · s skip · Esc cancel · o guide · a author · j/k scroll · ? help · q quit"
 	}
 	switch a.activeRoute {
 	case RouteInstall:
 		switch a.installSection {
 		case installSectionHub:
 			if a.width < 60 {
-				return "i install b backups q quit"
+				return "i install · b backups · q quit"
 			}
 			if a.width < 80 {
-				return "j/k select i install b backups Esc nav q quit"
+				return "j/k select · i install · b backups · Esc nav · q quit"
 			}
-			return "j/k select i install b backups Enter open Esc nav q quit"
+			return "j/k select · i install · b backups · Enter open · Esc nav · q quit"
 		case installSectionInstall:
-			if a.width < 60 {
-				return "Esc back y confirm q quit"
+			switch a.install.Step() {
+			case InstallStepClients:
+				if a.width < 60 {
+					return "Space toggle · Enter next · q quit"
+				}
+				if a.width < 80 {
+					return "Space select · Enter next · Esc cancel · q quit"
+				}
+				return "Space select · j/k move · Enter next · Esc cancel · ? help · q quit"
+			case InstallStepOptions:
+				if a.width < 60 {
+					return "Space toggle · Enter next · q quit"
+				}
+				if a.width < 80 {
+					return "Space select · Enter next · Esc back · q quit"
+				}
+				return "Space select · j/k move · Enter next · Esc back · ? help · q quit"
+			case InstallStepReview:
+				if a.width < 60 {
+					return "Enter preview · Esc back · q quit"
+				}
+				if a.width < 80 {
+					return "Enter preview · Esc back · q quit"
+				}
+				return "Enter preview · j/k scroll · Esc back · ? help · q quit"
+			case InstallStepPreview:
+				if a.install.IsLoading() {
+					return "preview running..."
+				}
+				if a.width < 60 {
+					return "Enter confirm · Esc back · q quit"
+				}
+				if a.width < 80 {
+					return "Enter confirm · Esc back · q quit"
+				}
+				return "Enter confirm · j/k scroll · Esc back · ? help · q quit"
+			case InstallStepConfirm:
+				// Only here is "y confirm" active!
+				if a.width < 80 {
+					return "y confirm · Esc cancel · q quit"
+				}
+				return "y confirm · Esc cancel · j/k scroll · ? help · q quit"
+			case InstallStepRunning:
+				return "" // busyStatusLine owns the footer
+			case InstallStepResult:
+				if a.width < 60 {
+					return "Enter done · q quit"
+				}
+				if a.width < 80 {
+					return "Enter done · Esc back · q quit"
+				}
+				return "Enter done · Esc back · j/k scroll · ? help · q quit"
+			default:
+				if a.width < 60 {
+					return "Esc back · q quit"
+				}
+				return "Esc back · ? help · q quit"
 			}
-			return "Esc back y confirm PgUp/Dn scroll ? help q quit"
-		default:
-			if a.width < 60 {
-				return "Esc back y confirm q quit"
+		default: // installSectionBackups (Restore)
+			switch a.restore.Stage() {
+			case RestoreStageList:
+				if a.width < 60 {
+					return "Enter open · r refresh · q quit"
+				}
+				if a.width < 80 {
+					return "Enter open · r refresh · Esc back · q quit"
+				}
+				return "j/k select · Enter open · r refresh · Esc back · ? help · q quit"
+			case RestoreStageDetails:
+				if a.width < 80 {
+					return "Enter preview · Esc back · q quit"
+				}
+				return "Enter preview · Esc back · j/k scroll · ? help · q quit"
+			case RestoreStagePreview:
+				if a.restore.IsLoading() {
+					return "preview running..."
+				}
+				if a.width < 60 {
+					return "Enter confirm · Esc back · q quit"
+				}
+				if a.width < 80 {
+					return "Enter confirm · Esc back · p re-preview · q quit"
+				}
+				return "Enter confirm · Esc back · p re-preview · j/k scroll · ? help · q quit"
+			case RestoreStageConfirm:
+				// Only here is "y confirm" active!
+				if a.width < 80 {
+					return "y confirm · n/Esc cancel · q quit"
+				}
+				return "y confirm · n/Esc cancel · j/k scroll · ? help · q quit"
+			case RestoreStageRevalidating, RestoreStageRunning:
+				return "" // busyStatusLine owns the footer
+			case RestoreStageResult:
+				if a.width < 60 {
+					return "Enter done · q quit"
+				}
+				if a.width < 80 {
+					return "Enter done · Esc back · q quit"
+				}
+				return "Enter done · Esc back · j/k scroll · ? help · q quit"
+			default:
+				if a.width < 60 {
+					return "Esc back · q quit"
+				}
+				return "Esc back · ? help · q quit"
 			}
-			return "Esc back Enter open y confirm r refresh ? help q quit"
 		}
 	case RouteActivity:
 		if a.width < 60 {
-			return "r retry d check g guide [ ] logs q quit"
+			return "r retry · g guide · [ ] logs · q quit"
 		}
-		return "r retry d check g guide a author [ ] logs j/k scroll q quit"
+		if a.width < 80 {
+			return "r retry · d check · g guide · [ ] logs · q quit"
+		}
+		return "r retry · d check · g guide · a author · [ ] logs · j/k scroll · q quit"
 	default:
 		return ""
 	}

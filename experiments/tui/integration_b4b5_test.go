@@ -624,7 +624,10 @@ func TestNeedsPreviewReturnsToPreview(t *testing.T) {
 			t.Fatal("needs-preview kept the restore busy")
 		}
 		view := app.View().Content
-		if !strings.Contains(view, "changed after confirmation") && !strings.Contains(view, "fresh read-only preview") {
+		// The explanation is wrapped at the viewport width, so match it with
+		// whitespace normalized instead of pinning one line break.
+		flat := strings.Join(strings.Fields(view), " ")
+		if !strings.Contains(flat, "changed after confirmation") && !strings.Contains(flat, "fresh read-only preview") {
 			t.Fatalf("needs-preview did not explain the refresh:\n%s", view)
 		}
 	})

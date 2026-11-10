@@ -493,12 +493,15 @@ func TestASCIIAll7Bit(t *testing.T) {
 		}
 	}
 
-	// Verify Unicode mode contains emoji nav icons
+	// Verify Unicode mode uses safe Unicode glyphs rather than decorative emoji
 	cfgUni := tui.TUIConfig{Width: 100, Height: 26, ASCII: false, Color: false}
 	appUni := tui.NewApp(cfgUni, cat)
 	viewUni := appUni.View().Content
-	if !strings.Contains(viewUni, "🏠") {
-		t.Fatalf("Unicode view missing 🏠 emoji nav icon:\n%s", viewUni)
+	if strings.Contains(viewUni, "🏠") {
+		t.Fatalf("Unicode view contains unexpected decorative emoji 🏠:\n%s", viewUni)
+	}
+	if !strings.Contains(viewUni, "1 Home") {
+		t.Fatalf("Unicode view missing 1 Home destination label:\n%s", viewUni)
 	}
 }
 

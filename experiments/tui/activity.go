@@ -488,19 +488,24 @@ func (m ActivityModel) Lines(width int) []string {
 			"Run agentic-sdd preview first to inspect what apply would do.",
 		)
 	} else {
+		glyphs := GlyphSet(!m.theme.Color)
 		logBody = append(logBody, fmt.Sprintf("Recent operation logs (%d found):", len(m.logs)))
 		for i, log := range m.logs {
-			marker := " "
+			marker := glyphs.Gutter
 			if i == m.selectedLog {
-				marker = "*"
+				marker = glyphs.Cursor
 			}
 			latest := ""
 			if i == 0 {
-				latest = " · latest"
+				latest = " " + glyphs.Bullet + " latest"
 			}
 			row := fmt.Sprintf("  %s [%d/%d] %s (%s)%s", marker, i+1, len(m.logs), log.Name, formatBytes(log.Size), latest)
 			if i == m.selectedLog {
-				logBody = append(logBody, m.theme.Accent.Render(row))
+				if m.theme.Color {
+					logBody = append(logBody, m.theme.Selected.Bold(true).Render(row))
+				} else {
+					logBody = append(logBody, row)
+				}
 			} else {
 				logBody = append(logBody, row)
 			}

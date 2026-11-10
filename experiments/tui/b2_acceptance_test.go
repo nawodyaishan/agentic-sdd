@@ -1333,8 +1333,14 @@ func b2ShowsCount(rendered, noun string, count int) bool {
 func b2ReachableText(view string) string {
 	var b strings.Builder
 	for _, line := range strings.Split(view, "\n") {
-		if index := strings.LastIndex(line, "|"); index >= 0 {
-			line = line[index+1:]
+		idx := strings.LastIndex(line, "|")
+		delimLen := 1
+		if idx < 0 {
+			idx = strings.LastIndex(line, "│")
+			delimLen = len("│")
+		}
+		if idx >= 0 {
+			line = line[idx+delimLen:]
 		}
 		b.WriteString(strings.TrimSpace(line))
 	}
