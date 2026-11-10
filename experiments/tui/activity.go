@@ -242,10 +242,26 @@ type ActivityModel struct {
 	selectedLog   int
 	cachedContent string
 	logErr        error
+	activeSection HelpSection
+	logScroll     int
+	// readGeneration binds one asynchronous log read to the live model, so a
+	// late result can never overwrite a newer selection, log directory or
+	// refresh. StartLogRead increments it; ApplyLogRead accepts only a match.
+	readGeneration uint64
+
+	// motion and ascii mirror the root session's presentation settings so the
+	// Preferences section reports the actual state instead of a hardcoded
+	// guess. The root calls SetSessionPreferences before rendering; standalone
+	// tests can set them directly.
+	motion bool
+	ascii  bool
 }
 
-// NewActivityModel constructs an ActivityModel and performs an initial bounded log scan.
-// Tests can inject custom LogReader and ContentReader functions to avoid touching real files.
+// NewActivityModel constructs an ActivityModel and performs one initial bounded
+// log scan. That construction-time scan is the only synchronous I/O in the
+// model; interactive refreshes go through StartLogRead and ApplyLogRead.
+// Tests can inject custom LogReader and ContentReader functions to avoid
+// touching real files.
 func NewActivityModel(cfg ActivityConfig) ActivityModel {
 	m := ActivityModel{
 		theme:         cfg.Theme,
@@ -271,68 +287,149 @@ func NewActivityModel(cfg ActivityConfig) ActivityModel {
 		m.updateManager = NewUpdateCheckManager()
 	}
 
-	m.ReloadLogs()
+	m.reloadLogs()
 	return m
 }
 
-// ReloadLogs re-scans the log directory and reloads the selected log's bounded content.
-func (m *ActivityModel) ReloadLogs() {
+// reloadLogs performs one synchronous bounded scan and content read. It is used
+// by construction (and by same-package tests); App.Update never calls it, so a
+// key press or message handling cannot block on the filesystem.
+func (m *ActivityModel) reloadLogs() {
 	if m.logReader == nil {
 		return
 	}
-
-	logs, err := m.logReader(m.logDir)
-	m.logs = logs
-	m.logErr = err
-
-	if len(m.logs) == 0 {
-		m.selectedLog = 0
-		m.cachedContent = ""
-		return
+	logs, err := m.scanLogs()
+	content := ""
+	selected := m.selectedLog
+	if len(logs) > 0 {
+		if selected >= len(logs) || selected < 0 {
+			selected = 0
+		}
+		content = m.readLogContent(logs[selected])
 	}
-
-	if m.selectedLog >= len(m.logs) || m.selectedLog < 0 {
-		m.selectedLog = 0
-	}
-
-	m.loadSelectedContent()
+	m.applyLogRead(logs, err, selected, content)
 }
 
-func (m *ActivityModel) loadSelectedContent() {
-	if len(m.logs) == 0 || m.selectedLog < 0 || m.selectedLog >= len(m.logs) {
-		m.cachedContent = ""
-		return
+// scanLogs performs one bounded log-directory read without mutating the model.
+// It is safe to call from a tea.Cmd.
+func (m ActivityModel) scanLogs() ([]LogSummary, error) {
+	if m.logReader == nil {
+		return nil, nil
 	}
+	return m.logReader(m.logDir)
+}
 
+// readLogContent reads one log's bounded content without mutating the model.
+func (m ActivityModel) readLogContent(log LogSummary) string {
 	if m.contentReader == nil {
+		return ""
+	}
+	content, err := m.contentReader(log.Path, DefaultMaxLogBytes, DefaultMaxLogLines)
+	if err != nil {
+		return fmt.Sprintf("Error reading log content: %v", err)
+	}
+	return content
+}
+
+// applyLogRead applies one accepted bounded read. It touches only the log list,
+// the read error, the selected index and its content; the active help section,
+// log scroll, theme, size and every other presentation choice of the live model
+// are preserved.
+func (m *ActivityModel) applyLogRead(logs []LogSummary, err error, selected int, content string) {
+	m.logs = logs
+	m.logErr = err
+	if len(logs) == 0 {
+		m.selectedLog = 0
 		m.cachedContent = ""
 		return
 	}
-
-	content, err := m.contentReader(m.logs[m.selectedLog].Path, DefaultMaxLogBytes, DefaultMaxLogLines)
-	if err != nil {
-		m.cachedContent = fmt.Sprintf("Error reading log content: %v", err)
-		return
+	if selected < 0 || selected >= len(logs) {
+		selected = 0
 	}
+	m.selectedLog = selected
 	m.cachedContent = content
 }
 
-// SelectNextLog advances to the next older log file, if available.
-func (m *ActivityModel) SelectNextLog() {
-	if len(m.logs) <= 1 {
-		return
+// StartLogRead begins one bounded log read as a tea.Cmd. It increments the
+// read generation and captures the log directory, so the command performs only
+// reads and ApplyLogRead can reject a result that belongs to an older
+// selection, directory or refresh. Update itself never touches the filesystem.
+func (m *ActivityModel) StartLogRead(selected int) tea.Cmd {
+	m.readGeneration++
+	generation := m.readGeneration
+	model := *m
+	logDir := model.logDir
+	return func() tea.Msg {
+		logs, err := model.scanLogs()
+		content := ""
+		if len(logs) > 0 {
+			if selected < 0 || selected >= len(logs) {
+				selected = 0
+			}
+			content = model.readLogContent(logs[selected])
+		}
+		return ActivityLogReadMsg{
+			Generation: generation,
+			LogDir:     logDir,
+			Selected:   selected,
+			Logs:       logs,
+			Err:        err,
+			Content:    content,
+		}
 	}
-	m.selectedLog = (m.selectedLog + 1) % len(m.logs)
-	m.loadSelectedContent()
 }
 
-// SelectPrevLog moves to the previous log file, if available.
-func (m *ActivityModel) SelectPrevLog() {
+// ApplyLogRead applies a read only when it still belongs to the live model's
+// generation and log directory. It reports whether the result was accepted.
+func (m *ActivityModel) ApplyLogRead(msg ActivityLogReadMsg) bool {
+	if msg.Generation != m.readGeneration || msg.LogDir != m.logDir {
+		return false
+	}
+	m.applyLogRead(msg.Logs, msg.Err, msg.Selected, msg.Content)
+	return true
+}
+
+// MoveLogSelection advances the bounded log selection without reading any
+// file. The caller schedules the matching content read with StartLogRead. The
+// previous content is cleared so it is never displayed under the newly
+// selected log's name while the read is in flight.
+func (m *ActivityModel) MoveLogSelection(delta int) {
 	if len(m.logs) <= 1 {
 		return
 	}
-	m.selectedLog = (m.selectedLog - 1 + len(m.logs)) % len(m.logs)
-	m.loadSelectedContent()
+	m.selectedLog = (m.selectedLog + delta + len(m.logs)) % len(m.logs)
+	m.logScroll = 0
+	m.cachedContent = ""
+}
+
+// SelectSection sets the active help/activity topic.
+func (m *ActivityModel) SelectSection(s HelpSection) {
+	m.activeSection = s
+}
+
+// ActiveSection reports the currently chosen help/activity topic.
+func (m ActivityModel) ActiveSection() HelpSection {
+	return m.activeSection
+}
+
+// SelectNextSection cycles forward through help sections.
+func (m *ActivityModel) SelectNextSection() {
+	total := HelpSection(len(AllHelpSections()))
+	m.activeSection = (m.activeSection + 1) % total
+}
+
+// SelectPrevSection cycles backward through help sections.
+func (m *ActivityModel) SelectPrevSection() {
+	total := HelpSection(len(AllHelpSections()))
+	m.activeSection = (m.activeSection - 1 + total) % total
+}
+
+// ScrollLog adjusts the vertical scroll offset within the raw log viewport.
+func (m *ActivityModel) ScrollLog(delta int) {
+	m.logScroll += delta
+	if m.logScroll < 0 {
+		m.logScroll = 0
+	}
 }
 
 // SelectedLog returns the currently highlighted log summary, if any.
@@ -371,10 +468,18 @@ func (m *ActivityModel) SetTheme(theme Theme) {
 	m.theme = theme
 }
 
-// SetLogDir changes the log directory and triggers a reload.
+// SetSessionPreferences records the root-owned motion and symbol settings so
+// the Preferences section renders actual state. It is presentation-only and
+// never changes an operation, consent or update-check state.
+func (m *ActivityModel) SetSessionPreferences(motion, ascii bool) {
+	m.motion = motion
+	m.ascii = ascii
+}
+
+// SetLogDir changes the log directory. It performs no I/O; the caller schedules
+// the next read with StartLogRead.
 func (m *ActivityModel) SetLogDir(dir string) {
 	m.logDir = dir
-	m.ReloadLogs()
 }
 
 // Init implements tea.Model.
@@ -382,7 +487,8 @@ func (m ActivityModel) Init() tea.Cmd {
 	return nil
 }
 
-// Update implements tea.Model.
+// Update implements tea.Model. It schedules bounded reads as commands and
+// never touches the filesystem itself; ApplyLogRead applies their results.
 func (m ActivityModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -396,20 +502,37 @@ func (m ActivityModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case ActivityLogReadMsg:
+		m.ApplyLogRead(msg)
+		return m, nil
+
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "r":
-			m.ReloadLogs()
+			cmds := []tea.Cmd{m.StartLogRead(m.selectedLog)}
 			if m.updateManager != nil {
-				cmd, _ := m.updateManager.RetryCheck(m.metadata.Version)
-				return m, cmd
+				if cmd, _ := m.updateManager.RetryCheck(m.metadata.Version); cmd != nil {
+					cmds = append(cmds, cmd)
+				}
 			}
-			return m, nil
+			return m, tea.Batch(cmds...)
 		case "]", "n":
-			m.SelectNextLog()
-			return m, nil
+			m.MoveLogSelection(1)
+			return m, m.StartLogRead(m.selectedLog)
 		case "[", "p":
-			m.SelectPrevLog()
+			m.MoveLogSelection(-1)
+			return m, m.StartLogRead(m.selectedLog)
+		case "t":
+			m.SelectNextSection()
+			return m, nil
+		case "T":
+			m.SelectPrevSection()
+			return m, nil
+		case "J":
+			m.ScrollLog(4)
+			return m, nil
+		case "K":
+			m.ScrollLog(-4)
 			return m, nil
 		}
 	}
@@ -423,6 +546,18 @@ func (m ActivityModel) View() tea.View {
 	view := tea.NewView(strings.Join(lines, "\n"))
 	view.AltScreen = false
 	return view
+}
+
+// dataText renders a dynamic value for the session's symbol set. In ASCII mode
+// the value is reversibly escaped (for example an em dash becomes \u2014) before
+// the whole line goes through the decorative glyph mapping, so a log path or
+// log line keeps its exact identity instead of being rewritten into different
+// bytes. Authoritative model fields are never mutated.
+func (m ActivityModel) dataText(text string) string {
+	if m.ascii {
+		return escapeData(text)
+	}
+	return text
 }
 
 // Lines renders the complete Activity, About, Help, and Update screen as a slice
@@ -442,110 +577,218 @@ func (m ActivityModel) Lines(width int) []string {
 	for _, l := range Paragraph("Version metadata, activity logs, command guide & reference", width, 0) {
 		header = append(header, m.theme.Subtitle.Render(l))
 	}
+
+	// Section Navigation Pills
+	var navPills []string
+	for _, s := range AllHelpSections() {
+		label := s.Title
+		if s.Section == m.activeSection {
+			label = "[" + label + "]"
+			if m.theme.Color {
+				label = m.theme.Selected.Bold(true).Render(label)
+			}
+		} else {
+			label = " " + label + " "
+			if m.theme.Color {
+				label = m.theme.Muted.Render(label)
+			}
+		}
+		navPills = append(navPills, label)
+	}
+	for _, l := range Paragraph(strings.Join(navPills, " "), width, 0) {
+		header = append(header, l)
+	}
+	for _, l := range Paragraph("Press 't' to cycle sections, 'r' to refresh, 'g' for README, 'a' for author.", width, 0) {
+		header = append(header, m.theme.Hint.Render(l))
+	}
 	sections = append(sections, header)
 
-	// Version & Build
-	vBody := []string{
-		fmt.Sprintf("Version: %s", m.metadata.Version),
-		fmt.Sprintf("Commit:  %s", m.metadata.Commit),
-		fmt.Sprintf("Date:    %s", m.metadata.Date),
-	}
-	sections = append(sections, Section(m.theme.Section.Render("Version & Build"), vBody, width))
-
-	// Update Status
-	if m.updateManager != nil {
-		uStatus := m.updateManager.RenderStatus(m.theme)
-		var uHint string
-		if m.updateManager.IsDisabled() {
-			uHint = "Automatic check disabled (AGENTIC_SDD_NO_UPDATE_CHECK=1 or offline mode)."
-		} else {
-			uHint = "Checks automatically once per session on first Home entry. Press r to retry."
+	// Version & Build / About
+	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionAbout {
+		versionLabel := m.metadata.Version
+		if IsDevBuild(m.metadata.Version) {
+			versionLabel = "Development build (see Diagnostics for commit and build details)"
 		}
-		uBody := []string{
-			"Status: " + uStatus,
-			m.theme.Hint.Render(uHint),
+		vBody := []string{
+			fmt.Sprintf("Version: %s", versionLabel),
+			fmt.Sprintf("Commit:  %s", m.metadata.Commit),
+			fmt.Sprintf("Date:    %s", m.metadata.Date),
+			"Product: " + BrandName,
+			"Tagline: " + BrandTagline,
+			fmt.Sprintf("Author:  by %s (https://github.com/%s)", m.metadata.Author, m.metadata.Author),
+			"Online guide / README: " + m.metadata.URL,
+			m.theme.Hint.Render("Open links explicitly: 'g' for online README, 'a' for author profile."),
 		}
-		sections = append(sections, Section(m.theme.Section.Render("Update Status"), uBody, width))
+		sections = append(sections, Section(m.theme.Section.Render("Version & Build"), vBody, width))
 	}
-
-	// Online Documentation & Attribution
-	dBody := []string{
-		"Online guide / README: " + m.metadata.URL,
-		fmt.Sprintf("Author: by %s (https://github.com/%s)", m.metadata.Author, m.metadata.Author),
-		fmt.Sprintf("Vision: %s", BrandTagline),
-		m.theme.Hint.Render("Open links with your platform opener or copy the URL above."),
-	}
-	sections = append(sections, Section(m.theme.Section.Render("Online Documentation & Attribution"), dBody, width))
 
 	// Recent Activity & Logs
-	var logBody []string
-	if m.logErr != nil {
-		logBody = append(logBody, m.theme.Bad.Render(fmt.Sprintf("Error reading logs: %v", m.logErr)))
-	} else if len(m.logs) == 0 {
-		logBody = append(logBody,
-			m.theme.Hint.Render("No install or restore logs found yet."),
-			"Logs are created automatically when you run apply or restore.",
-			"Run agentic-sdd preview first to inspect what apply would do.",
-		)
-	} else {
-		glyphs := GlyphSet(!m.theme.Color)
-		logBody = append(logBody, fmt.Sprintf("Recent operation logs (%d found):", len(m.logs)))
-		for i, log := range m.logs {
-			marker := glyphs.Gutter
-			if i == m.selectedLog {
-				marker = glyphs.Cursor
-			}
-			latest := ""
-			if i == 0 {
-				latest = " " + glyphs.Bullet + " latest"
-			}
-			row := fmt.Sprintf("  %s [%d/%d] %s (%s)%s", marker, i+1, len(m.logs), log.Name, formatBytes(log.Size), latest)
-			if i == m.selectedLog {
-				if m.theme.Color {
-					logBody = append(logBody, m.theme.Selected.Bold(true).Render(row))
+	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionActivity {
+		var logBody []string
+		if m.logErr != nil {
+			logBody = append(logBody, m.theme.Bad.Render(m.dataText(fmt.Sprintf("Error reading logs: %v", m.logErr))))
+		} else if len(m.logs) == 0 {
+			logBody = append(logBody,
+				m.theme.Hint.Render("No install or restore logs found yet."),
+				"Logs are created automatically when you run apply or restore.",
+				"Run agentic-sdd preview first to inspect what apply would do.",
+			)
+		} else {
+			glyphs := GlyphSet(!m.theme.Color)
+			logBody = append(logBody, fmt.Sprintf("Recent operation logs (%d found):", len(m.logs)))
+			for i, log := range m.logs {
+				marker := glyphs.Gutter
+				if i == m.selectedLog {
+					marker = glyphs.Cursor
+				}
+				latest := ""
+				if i == 0 {
+					latest = " " + glyphs.Bullet + " latest"
+				}
+				row := fmt.Sprintf("  %s [%d/%d] %s (%s)%s", marker, i+1, len(m.logs), m.dataText(log.Name), formatBytes(log.Size), latest)
+				if i == m.selectedLog {
+					if m.theme.Color {
+						logBody = append(logBody, m.theme.Selected.Bold(true).Render(row))
+					} else {
+						logBody = append(logBody, row)
+					}
 				} else {
 					logBody = append(logBody, row)
 				}
-			} else {
-				logBody = append(logBody, row)
 			}
-		}
-		if len(m.logs) > 1 {
-			logBody = append(logBody, m.theme.Hint.Render("Press [ / ] or p / n to view earlier logs."))
-		}
+			if len(m.logs) > 1 {
+				logBody = append(logBody, m.theme.Hint.Render("Press [ / ] or p / n to view earlier logs."))
+			}
 
-		if m.cachedContent != "" {
-			selectedLogName := m.logs[m.selectedLog].Name
+			// Structured operation facts for selected log
+			selected := m.logs[m.selectedLog]
+			facts := ParseLogOperationFacts(selected)
 			logBody = append(logBody, "")
-			logBody = append(logBody, fmt.Sprintf("Log Content (%s):", selectedLogName))
-			for _, cLine := range strings.Split(m.cachedContent, "\n") {
-				logBody = append(logBody, "  "+cLine)
+			logBody = append(logBody, fmt.Sprintf("Operation Summary (%s):", m.dataText(selected.Name)))
+			logBody = append(logBody,
+				"  Operation: "+m.dataText(facts.Operation),
+				"  Timestamp: "+m.dataText(facts.Timestamp)+" ("+m.dataText(facts.RawTimestamp)+")",
+				"  File size: "+formatBytes(facts.Size),
+				"  Log path:  "+m.dataText(facts.Path),
+				"  Structured outcome: "+m.dataText(facts.Outcome),
+				"  Changed count:      "+facts.ChangedCount,
+				"  Skipped count:      "+facts.SkippedCount,
+				"  Failed count:       "+facts.FailedCount,
+			)
+
+			if m.cachedContent != "" {
+				logBody = append(logBody, "")
+				logBody = append(logBody, fmt.Sprintf("Log Content (%s):", m.dataText(selected.Name)))
+				rawLines := strings.Split(m.cachedContent, "\n")
+				startLine := m.logScroll
+				if startLine > len(rawLines) {
+					startLine = len(rawLines)
+				}
+				for _, cLine := range rawLines[startLine:] {
+					logBody = append(logBody, "  "+m.dataText(cLine))
+				}
 			}
 		}
+		sections = append(sections, Section(m.theme.Section.Render("Recent Activity & Logs"), logBody, width))
 	}
-	sections = append(sections, Section(m.theme.Section.Render("Recent Activity & Logs"), logBody, width))
 
-	// Command Reference
-	var cmdBody []string
-	for _, cmd := range SupportedCommands() {
-		cmdBody = append(cmdBody, fmt.Sprintf("%-22s %s", cmd.Command, cmd.Description))
+	// Quick start
+	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionQuickStart {
+		workflowBody := []string{
+			"1. Explore skills in the Library (Explore) to inspect purpose, triggers and caveats",
+			"2. Review client configuration in Install & Manage (safe, read-only impact preview)",
+			"3. Confirm changes with explicit default-No (automatic safety backup created first)",
+			"4. Start your first agentic workflow: agentic-sdd-router",
+			"",
+			"New here? Start with SDD Router in the Library (press 's' in Explore for details).",
+			"Command hint: agentic-sdd preview",
+		}
+		sections = append(sections, Section(m.theme.Section.Render("Quick Start Guide"), workflowBody, width))
 	}
-	sections = append(sections, Section(m.theme.Section.Render("Commands & CLI Reference"), cmdBody, width))
 
-	// Getting Started Workflow
-	workflowBody := []string{
-		"1. Set up / preview skills for your client (Home / Install & Manage)",
-		"2. Apply changes when ready (creates an automatic backup and log)",
-		"3. Start your first agentic workflow: agentic-sdd-router",
+	// Shortcuts
+	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionShortcuts {
+		var navBody []string
+		for _, sc := range NavigationShortcuts() {
+			navBody = append(navBody, fmt.Sprintf("%-16s %s", sc.Key, sc.Description))
+		}
+		sections = append(sections, Section(m.theme.Section.Render("Shortcuts & Keyboard Reference"), navBody, width))
 	}
-	sections = append(sections, Section(m.theme.Section.Render("Getting Started Workflow"), workflowBody, width))
 
-	// Navigation Reference
-	var navBody []string
-	for _, sc := range NavigationShortcuts() {
-		navBody = append(navBody, fmt.Sprintf("%-16s %s", sc.Key, sc.Description))
+	// Commands
+	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionCommands {
+		var cmdBody []string
+		cmdBody = append(cmdBody, "Supported CLI commands:")
+		for _, cmd := range SupportedCommands() {
+			cmdBody = append(cmdBody, fmt.Sprintf("  %-22s %s", cmd.Command, cmd.Description))
+		}
+		cmdBody = append(cmdBody, "")
+		cmdBody = append(cmdBody, "Excluded experimental operations (explanatory only · non-executable):")
+		for _, cmd := range ExcludedCommands() {
+			cmdBody = append(cmdBody, fmt.Sprintf("  %-22s %s", cmd.Command, cmd.Description))
+		}
+		sections = append(sections, Section(m.theme.Section.Render("Commands & CLI Reference"), cmdBody, width))
 	}
-	sections = append(sections, Section(m.theme.Section.Render("Navigation Reference"), navBody, width))
+
+	// Troubleshooting
+	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionTroubleshooting {
+		var tbBody []string
+		for i, topic := range TroubleshootingTopics() {
+			if i > 0 {
+				tbBody = append(tbBody, "")
+			}
+			tbBody = append(tbBody, m.theme.Accent.Render(topic.Title)+":")
+			for _, line := range Paragraph(topic.Advice, width, 2) {
+				tbBody = append(tbBody, line)
+			}
+			for _, line := range Paragraph("Recovery: "+topic.Recovery, width, 2) {
+				tbBody = append(tbBody, m.theme.Hint.Render(line))
+			}
+		}
+		sections = append(sections, Section(m.theme.Section.Render("Troubleshooting"), tbBody, width))
+	}
+
+	// Diagnostics
+	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionDiagnostics {
+		diag := CollectDiagnostics(m.metadata, m.logDir, m.updateManager, m.theme)
+		diagBody := []string{
+			fmt.Sprintf("Version:       %s", diag.Version),
+			fmt.Sprintf("Commit:        %s", diag.Commit),
+			fmt.Sprintf("Build Date:    %s", diag.Date),
+			fmt.Sprintf("Author:        %s", diag.Author),
+			fmt.Sprintf("Go Runtime:    %s", diag.GoVersion),
+			fmt.Sprintf("Platform:      %s", diag.Platform),
+			fmt.Sprintf("Log Directory: %s", m.dataText(diag.LogDir)),
+			fmt.Sprintf("Update Status: %s", diag.UpdateStatus),
+			fmt.Sprintf("Offline Mode:  %t (AGENTIC_SDD_NO_UPDATE_CHECK=1)", diag.OfflineMode),
+		}
+		sections = append(sections, Section(m.theme.Section.Render("Diagnostics & Environment"), diagBody, width))
+	}
+
+	// Session Preferences
+	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionPreferences {
+		motionStatus := "off"
+		if m.motion {
+			motionStatus = "on"
+		}
+		symbolStatus := "Unicode"
+		if m.ascii {
+			symbolStatus = "ASCII"
+		}
+		checksStatus := "checks enabled"
+		if m.updateManager != nil && m.updateManager.IsDisabled() {
+			checksStatus = "checks disabled"
+		}
+		prefBody := []string{
+			fmt.Sprintf("  m            Toggle motion animation reveal (current: motion %s)", motionStatus),
+			fmt.Sprintf("  u            Toggle symbol set (current: %s)", symbolStatus),
+			fmt.Sprintf("  d            Toggle update checks for this session (current: %s)", checksStatus),
+			"  r            Retry update check and reload recent logs",
+			"  Theme:       agentic-dark · " + m.theme.ContrastClaim(),
+			m.theme.Hint.Render("Session preferences take effect immediately and persist for this session. No connectivity is claimed."),
+		}
+		sections = append(sections, Section(m.theme.Section.Render("Session Preferences"), prefBody, width))
+	}
 
 	// Flatten all sections with blank separators
 	var lines []string

@@ -130,7 +130,7 @@ func TestT18BreadcrumbDerivation(t *testing.T) {
 	}
 }
 
-// 2. Factual Status Cluster
+// 2. Factual Status Cluster and Session Preferences
 func TestT18StatusClusterFactual(t *testing.T) {
 	cat := makeTestCatalog()
 
@@ -142,27 +142,29 @@ func TestT18StatusClusterFactual(t *testing.T) {
 	if strings.Contains(strings.ToLower(cluster), "online") {
 		t.Fatalf("StatusCluster must NEVER claim 'online': %q", cluster)
 	}
-	if !strings.Contains(cluster, "motion:off") {
-		t.Fatalf("StatusCluster missing motion:off: %q", cluster)
+
+	prefs := app.SessionPreferences()
+	if !strings.Contains(prefs, "motion:off") {
+		t.Fatalf("SessionPreferences missing motion:off: %q", prefs)
 	}
-	if !strings.Contains(cluster, "ascii:off") {
-		t.Fatalf("StatusCluster missing ascii:off: %q", cluster)
+	if !strings.Contains(prefs, "ascii:off") {
+		t.Fatalf("SessionPreferences missing ascii:off: %q", prefs)
 	}
 
 	// Toggle motion
 	next, _ := app.Update(tuiRune("m"))
 	app = next.(tui.App)
-	cluster = app.StatusCluster()
-	if !strings.Contains(cluster, "motion:on") {
-		t.Fatalf("StatusCluster missing motion:on after toggle: %q", cluster)
+	prefs = app.SessionPreferences()
+	if !strings.Contains(prefs, "motion:on") {
+		t.Fatalf("SessionPreferences missing motion:on after toggle: %q", prefs)
 	}
 
 	// Toggle ascii
 	next, _ = app.Update(tuiRune("u"))
 	app = next.(tui.App)
-	cluster = app.StatusCluster()
-	if !strings.Contains(cluster, "ascii:on") {
-		t.Fatalf("StatusCluster missing ascii:on after toggle: %q", cluster)
+	prefs = app.SessionPreferences()
+	if !strings.Contains(prefs, "ascii:on") {
+		t.Fatalf("SessionPreferences missing ascii:on after toggle: %q", prefs)
 	}
 
 	// Disable update checks
@@ -170,12 +172,12 @@ func TestT18StatusClusterFactual(t *testing.T) {
 	app = next.(tui.App)
 	next, _ = app.Update(tuiRune("d")) // Toggle disabled
 	app = next.(tui.App)
-	cluster = app.StatusCluster()
-	if !strings.Contains(cluster, "upd:disabled") {
-		t.Fatalf("StatusCluster missing upd:disabled after toggle: %q", cluster)
+	prefs = app.SessionPreferences()
+	if !strings.Contains(prefs, "upd:disabled") {
+		t.Fatalf("SessionPreferences missing upd:disabled after toggle: %q", prefs)
 	}
-	if strings.Contains(strings.ToLower(cluster), "online") || strings.Contains(strings.ToLower(cluster), "connected") {
-		t.Fatalf("StatusCluster falsely inferred connectivity: %q", cluster)
+	if strings.Contains(strings.ToLower(prefs), "online") || strings.Contains(strings.ToLower(prefs), "connected") {
+		t.Fatalf("SessionPreferences falsely inferred connectivity: %q", prefs)
 	}
 }
 

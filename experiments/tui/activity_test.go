@@ -201,35 +201,41 @@ func TestActivity_SelectedLogNavigation(t *testing.T) {
 		t.Fatalf("Initial LogContent() = %q", model.LogContent())
 	}
 
-	// Navigate to next log (index 1)
-	model.SelectNextLog()
+	// Navigate to next log (index 1). Selection and content read are separate:
+	// MoveLogSelection never touches the filesystem, and StartLogRead's command
+	// supplies the new content that ApplyLogRead accepts.
+	model.MoveLogSelection(1)
 	sel, _ = model.SelectedLog()
 	if sel.Name != "log-2-older.log" {
-		t.Fatalf("After SelectNextLog(), SelectedLog() = %s, want log-2-older.log", sel.Name)
+		t.Fatalf("After MoveLogSelection(1), SelectedLog() = %s, want log-2-older.log", sel.Name)
 	}
+	if model.LogContent() != "" {
+		t.Fatalf("MoveLogSelection kept stale content %q", model.LogContent())
+	}
+	applyActivityRead(t, &model, model.StartLogRead(model.selectedLog))
 	if model.LogContent() != "Log 2 content: restore completed" {
-		t.Fatalf("After SelectNextLog(), LogContent() = %q", model.LogContent())
+		t.Fatalf("After the scheduled read, LogContent() = %q", model.LogContent())
 	}
 
 	// Navigate to next log (index 2)
-	model.SelectNextLog()
+	model.MoveLogSelection(1)
 	sel, _ = model.SelectedLog()
 	if sel.Name != "log-3-oldest.log" {
-		t.Fatalf("After SelectNextLog(), SelectedLog() = %s, want log-3-oldest.log", sel.Name)
+		t.Fatalf("After MoveLogSelection(1), SelectedLog() = %s, want log-3-oldest.log", sel.Name)
 	}
 
 	// Wraparound
-	model.SelectNextLog()
+	model.MoveLogSelection(1)
 	sel, _ = model.SelectedLog()
 	if sel.Name != "log-1-newest.log" {
 		t.Fatalf("After wraparound, SelectedLog() = %s, want log-1-newest.log", sel.Name)
 	}
 
 	// Previous log
-	model.SelectPrevLog()
+	model.MoveLogSelection(-1)
 	sel, _ = model.SelectedLog()
 	if sel.Name != "log-3-oldest.log" {
-		t.Fatalf("After SelectPrevLog(), SelectedLog() = %s, want log-3-oldest.log", sel.Name)
+		t.Fatalf("After MoveLogSelection(-1), SelectedLog() = %s, want log-3-oldest.log", sel.Name)
 	}
 }
 
@@ -452,5 +458,171 @@ func TestActivity_BubbleTeaLifecycle(t *testing.T) {
 	}
 	if view.Content == "" {
 		t.Errorf("View.Content should not be empty")
+	}
+}
+
+// applyActivityRead runs one StartLogRead command and applies it the way a host
+// would, so a test exercises the same safe path App.Update uses.
+func applyActivityRead(t *testing.T, model *ActivityModel, cmd tea.Cmd) {
+	t.Helper()
+	if cmd == nil {
+		t.Fatal("StartLogRead returned no command")
+	}
+	applied := false
+	for _, msg := range runB9Cmd(cmd) {
+		read, ok := msg.(ActivityLogReadMsg)
+		if !ok {
+			continue
+		}
+		if !model.ApplyLogRead(read) {
+			t.Fatal("ApplyLogRead rejected a current read")
+		}
+		applied = true
+	}
+	if !applied {
+		t.Fatal("read command emitted no ActivityLogReadMsg")
+	}
+}
+
+// TestActivityASCIIDataEscapingIsReversible covers the Activity/Diagnostics
+// finding: dynamic log paths, log names, raw log lines and the diagnostics log
+// directory are escaped before decorative 7-bit mapping, so an em dash is not
+// rewritten into a hyphen. The authoritative values keep their original bytes.
+func TestActivityASCIIDataEscapingIsReversible(t *testing.T) {
+	logDir := "/tmp/logs" + escapeEmDash + "dir"
+	fileName := "20260101T000000.000000000Z-apply" + escapeEmDash + "one.log"
+	logPath := logDir + "/" + fileName
+	rawLine := "wrote /tmp/skill" + escapeEmDash + "id/SKILL.md"
+
+	cfg := TUIConfig{Width: 120, Height: 40, Home: t.TempDir()}
+	app := NewApp(cfg, Catalog{Home: cfg.Home})
+	app.activity.logReader = func(string) ([]LogSummary, error) {
+		return []LogSummary{{Name: fileName, Path: logPath, ModTime: time.Now(), Size: 42}}, nil
+	}
+	app.activity.contentReader = func(string, int64, int) (string, error) {
+		return rawLine, nil
+	}
+	app.activity.logDir = logDir
+	app.activity.reloadLogs()
+
+	// ASCII is enabled at runtime so the render seam, not a constructor flag,
+	// decides the symbol set.
+	next, cmd := b8Update(t, app, reviewKey('u'))
+	app = b8Drain(t, next, cmd)
+	if !app.ascii {
+		t.Fatal("u did not enable ASCII")
+	}
+	next, cmd = b8Update(t, app, reviewKey('4'))
+	app = b8Drain(t, next, cmd)
+
+	text := ansi.Strip(app.View().Content)
+	assertSevenBit(t, "ASCII activity", text)
+	assertEscapedOnce(t, "activity log path", text, logPath)
+	assertEscapedOnce(t, "activity log name", text, fileName)
+	assertEscapedOnce(t, "activity raw log line", text, rawLine)
+	assertEscapedOnce(t, "diagnostics log directory", text, logDir)
+
+	if app.activity.logDir != logDir {
+		t.Fatalf("rendering mutated the authoritative log directory to %q", app.activity.logDir)
+	}
+	logs := app.activity.Logs()
+	if len(logs) != 1 || logs[0].Path != logPath || logs[0].Name != fileName {
+		t.Fatalf("rendering mutated the authoritative log summary: %+v", logs)
+	}
+	if app.activity.LogContent() != rawLine {
+		t.Fatalf("rendering mutated the authoritative log content: %q", app.activity.LogContent())
+	}
+}
+
+// TestActivityAppReadsOnlyThroughCommands proves the integrated path never
+// regresses to synchronous I/O: Update schedules a bounded read command and
+// only ApplyLogRead (through the command's message) touches the readers.
+func TestActivityAppReadsOnlyThroughCommands(t *testing.T) {
+	cfg := TUIConfig{Width: 120, Height: 40, Home: t.TempDir()}
+	app := NewApp(cfg, Catalog{Home: cfg.Home})
+	reads, contentReads := 0, 0
+	app.activity.logReader = func(string) ([]LogSummary, error) {
+		reads++
+		return []LogSummary{{Name: "20260101T000000.000000000Z-apply.log", Path: "/fake/a.log", Size: 5}}, nil
+	}
+	app.activity.contentReader = func(string, int64, int) (string, error) {
+		contentReads++
+		return "content", nil
+	}
+	// Keep the refresh path offline: this test asserts read scheduling, not a
+	// live update check.
+	app.updateMgr.Disable()
+
+	// Entering Activity must only schedule the read.
+	next, cmd := b8Update(t, app, reviewKey('4'))
+	app = next
+	if reads != 0 || contentReads != 0 {
+		t.Fatalf("entering Activity read synchronously: logs=%d content=%d", reads, contentReads)
+	}
+	if cmd == nil {
+		t.Fatal("entering Activity scheduled no bounded read")
+	}
+	app = b8Drain(t, app, cmd)
+	if reads != 1 || contentReads != 1 {
+		t.Fatalf("the scheduled read ran %d/%d times, want 1/1", reads, contentReads)
+	}
+
+	// The 'r' refresh is the same contract.
+	next, refreshCmd := b8Update(t, app, reviewKey('r'))
+	app = next
+	if reads != 1 {
+		t.Fatal("r read synchronously instead of scheduling a command")
+	}
+	if refreshCmd == nil {
+		t.Fatal("r scheduled no bounded read")
+	}
+	for _, msg := range runB9Cmd(refreshCmd) {
+		next, _ = b8Update(t, app, msg)
+		app = next
+	}
+	if reads != 2 {
+		t.Fatalf("the refresh read ran %d times, want 2", reads)
+	}
+
+	// Log selection never reads on its own.
+	next, _ = b8Update(t, app, reviewKey(']'))
+	app = next
+	if reads != 2 || contentReads != 2 {
+		t.Fatalf("selection read synchronously: logs=%d content=%d", reads, contentReads)
+	}
+}
+
+// TestActivityModelUpdateSchedulesReads proves the standalone tea.Model path
+// obeys the same rule as App: Update schedules a command and performs no I/O.
+func TestActivityModelUpdateSchedulesReads(t *testing.T) {
+	reads := 0
+	model := NewActivityModel(ActivityConfig{
+		Theme: NewTheme(false),
+		Width: 100,
+		LogReader: func(string) ([]LogSummary, error) {
+			reads++
+			return []LogSummary{{Name: "a.log", Path: "/fake/a.log", Size: 1}}, nil
+		},
+		ContentReader: func(string, int64, int) (string, error) { return "content", nil },
+	})
+	if reads != 1 {
+		t.Fatalf("construction scanned %d times, want 1", reads)
+	}
+	model.updateManager.Disable()
+
+	updated, cmd := model.Update(tea.KeyPressMsg{Code: 'r'})
+	model = updated.(ActivityModel)
+	if reads != 1 {
+		t.Fatal("Update performed a synchronous log scan")
+	}
+	if cmd == nil {
+		t.Fatal("Update scheduled no read command")
+	}
+	applyActivityRead(t, &model, cmd)
+	if reads != 2 {
+		t.Fatalf("the scheduled read ran %d times, want 2", reads)
+	}
+	if model.LogContent() != "content" {
+		t.Fatalf("applied read content = %q", model.LogContent())
 	}
 }

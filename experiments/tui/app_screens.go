@@ -143,6 +143,111 @@ func (m RestoreModel) Notice() string { return m.notice }
 // Home: automatic update check status and controls
 // ---------------------------------------------------------------------------
 
+// catalogScope is the exact home, source and optional-content selection a
+// catalog snapshot was read with. Refresh results are bound to it so a read for
+// another home or option set cannot overwrite newer state.
+type catalogScope struct {
+	Home              string
+	Repo              string
+	WithOpenCode      bool
+	OpenCodeFreeFirst bool
+}
+
+// CatalogRefreshMsg carries one generation-bound read-only inventory refresh.
+// It is emitted only by the command started after a completed write.
+type CatalogRefreshMsg struct {
+	generation uint64
+	scope      catalogScope
+	catalog    Catalog
+	err        error
+}
+
+// startInventoryRead queues one bounded, read-only catalog read for scope. It
+// performs no I/O itself; the returned command is the only reader. The
+// generation and scope bind the result to this request.
+func (a *App) startInventoryRead(scope catalogScope) tea.Cmd {
+	if a.catalogLoader == nil || strings.TrimSpace(scope.Home) == "" {
+		return nil
+	}
+	a.inventoryGeneration++
+	a.inventoryScope = scope
+	a.inventoryPending = true
+	generation := a.inventoryGeneration
+	loader := a.catalogLoader
+	return func() tea.Msg {
+		catalog, err := loader(TUIConfig{
+			Home:              scope.Home,
+			Repo:              scope.Repo,
+			WithOpenCode:      scope.WithOpenCode,
+			OpenCodeFreeFirst: scope.OpenCodeFreeFirst,
+		})
+		return CatalogRefreshMsg{generation: generation, scope: scope, catalog: catalog, err: err}
+	}
+}
+
+// startNoOpPreviewRefresh queues the same read-only inventory read after a
+// successful zero-change install preview. A no-op never reaches the write host,
+// so it has no WriteResultMsg to refresh from; the inventory it inspected is
+// still authoritative and a stale read error must clear. The preview's home,
+// source and optional-content options are the exact scope that was read.
+func (a *App) startNoOpPreviewRefresh() tea.Cmd {
+	scope := catalogScope{
+		Home:              a.install.home,
+		Repo:              a.install.repo,
+		WithOpenCode:      a.install.withOpenCode,
+		OpenCodeFreeFirst: a.install.freeFirst,
+	}
+	if strings.TrimSpace(scope.Home) == "" {
+		scope.Home = a.inventoryScope.Home
+	}
+	return a.startInventoryRead(scope)
+}
+
+// startInventoryRefresh queues one bounded local read after a completed write.
+// The install request fixes the same home, source and optional-content options
+// the write used. A restore request does not carry optional-content options, so
+// it keeps the scope of the catalog currently on screen; that limitation is
+// documented rather than guessed. No refresh starts without a resolved home.
+func (a *App) startInventoryRefresh() tea.Cmd {
+	if !a.hasActiveRequest || a.catalogLoader == nil {
+		return nil
+	}
+	scope := a.inventoryScope
+	switch a.activeRequest.Kind {
+	case WriteInstall:
+		opts := a.activeRequest.Install.Options()
+		scope = catalogScope{
+			Home:              a.activeRequest.Install.Home(),
+			Repo:              a.activeRequest.Install.Repo(),
+			WithOpenCode:      opts.WithOpenCode,
+			OpenCodeFreeFirst: opts.OpenCodeFreeFirst,
+		}
+	case WriteRestore:
+		scope.Home = a.activeRequest.Restore.Home()
+		scope.Repo = a.activeRequest.Restore.Repo()
+	default:
+		return nil
+	}
+	return a.startInventoryRead(scope)
+}
+
+// handleCatalogRefresh accepts only the latest generation for the current
+// scope. A stale or differently scoped read is discarded and cannot change the
+// catalog, the read error or any operation result.
+func (a *App) handleCatalogRefresh(msg CatalogRefreshMsg) tea.Cmd {
+	if msg.generation != a.inventoryGeneration || msg.scope != a.inventoryScope {
+		return nil
+	}
+	a.inventoryPending = false
+	if msg.err != nil {
+		a.inventoryErr = msg.err.Error()
+		return nil
+	}
+	a.inventoryErr = ""
+	a.catalog = msg.catalog
+	return a.catalogModel.ReplaceCatalog(msg.catalog)
+}
+
 // automaticUpdateCheckCmd starts the once-per-session automatic check. The
 // manager deduplicates re-entry, resizing and re-rendering; a disabled or
 // already-attempted session returns nil.
@@ -210,6 +315,99 @@ func (a App) homeUpdateLines(width int) []string {
 	}
 	lines = append(lines, wrapPath("  Press g to open the guide in your browser (explicit action), or a for the author profile.", width)...)
 	return lines
+}
+
+// ---------------------------------------------------------------------------
+// Home
+// ---------------------------------------------------------------------------
+
+// homeLines is the authoritative Home renderer. It leads with the two-line
+// purpose, an evidence-based setup state and exactly one primary setup/manage
+// action; the inventory, paths and update check stay secondary. Every fact
+// comes from the loaded read-only snapshot, the latest refresh error or the
+// update-check result, and rendering performs no read, probe or write.
+func (a App) homeLines(width int) []string {
+	var b strings.Builder
+
+	// Header
+	if a.height >= 14 && width >= 40 {
+		brandHeader := a.brandState.Header(width, a.ascii)
+		if brandHeader != "" {
+			b.WriteString(a.theme.Accent.Render(brandHeader))
+			b.WriteString("\n\n")
+		}
+	} else {
+		b.WriteString(a.theme.Title.Render(BrandName))
+		if width >= 50 {
+			b.WriteString(" · ")
+			b.WriteString(a.theme.Subtitle.Render("Build with AI."))
+		}
+		b.WriteString(" · ")
+		b.WriteString(a.theme.Hint.Render("by " + BrandAuthor))
+		b.WriteString("\n\n")
+	}
+
+	// Goal-first composition: purpose → evidence-based setup state → one
+	// primary action → discovery/recovery. The inventory overview follows.
+	for _, line := range HomePurposeLines() {
+		for _, wrapped := range Paragraph(line, width, 0) {
+			b.WriteString(a.theme.Subtitle.Render(wrapped) + "\n")
+		}
+	}
+	b.WriteString("\n")
+
+	state := DeriveSetupState(a.catalog, a.inventoryErr)
+	home := a.catalog.Home
+	if home == "" {
+		home = a.cfg.Home
+	}
+	b.WriteString(strings.Join(HomeSetupLines(state, home, width), "\n"))
+	b.WriteString("\n")
+	if a.inventoryPending {
+		for _, line := range wrapPath("  A local inventory refresh is in progress; the state above is from the last successful read.", width) {
+			b.WriteString(a.theme.Hint.Render(line) + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString(strings.Join(HomeActionLines(state, width), "\n"))
+	b.WriteString("\n\n")
+
+	b.WriteString(strings.Join(HomeOverview(a.catalog, width), "\n"))
+	b.WriteString("\n\n")
+
+	b.WriteString(strings.Join(a.homeUpdateLines(width), "\n"))
+	b.WriteString("\n\n")
+
+	b.WriteString(a.theme.Section.Render("Resources"))
+	b.WriteString("\n")
+	guideURL := previewGuideURL
+	guideLabel := "Online guide / README"
+	if a.cfg.Color && !a.ascii {
+		guideLabel = Hyperlink(guideLabel, LinkReadme, true)
+	}
+	for _, line := range wrapPath("  "+guideLabel+": "+guideURL, width) {
+		b.WriteString(line + "\n")
+	}
+	authorURL := AuthorURL
+	authorLabel := "Author: by " + BrandAuthor
+	if a.cfg.Color && !a.ascii {
+		authorLabel = "Author: by " + Hyperlink(BrandAuthor, LinkAuthor, true)
+	}
+	for _, line := range wrapPath("  "+authorLabel+" ("+authorURL+")", width) {
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n")
+	b.WriteString(a.theme.Section.Render("Controls"))
+	b.WriteString("\n")
+	for _, line := range wrapPath("  Enter: primary setup/manage action · s: setup/manage · 3: browse · b: recovery · o: onboarding tour · g / a: open guide or author (explicit)", width) {
+		b.WriteString(line + "\n")
+	}
+	for _, line := range wrapPath("  r: retry update check · d: disable or enable automatic checks · j/k PgUp/PgDn: scroll", width) {
+		b.WriteString(line + "\n")
+	}
+
+	return strings.Split(b.String(), "\n")
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +551,17 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	width, height := a.childContentWidth(), a.childBodyHeight()
 
 	if a.installSection == installSectionInstall {
+		// The read-only no-op panel routes Home/Library through the existing
+		// destinations; leaving invalidates the read-only preview so a return
+		// always requires a fresh preview.
+		if a.install.Step() == InstallStepPreview && a.install.PreviewNoOp() {
+			switch key {
+			case "h":
+				return a.switchRoute(0)
+			case "l":
+				return a.switchRoute(2)
+			}
+		}
 		// The result screen has no internal back action: Enter or Esc closes
 		// this journey and returns to the hub.
 		if a.install.Step() == InstallStepResult && (key == "esc" || key == "enter") {
@@ -515,6 +724,14 @@ func (a App) childBodyHeight() int {
 	return a.bodyBudget()
 }
 
+// backupDetailsActive reports whether the recovery screen is showing one
+// backup's details, where 'm' toggles the bounded raw manifest view instead of
+// the global motion setting.
+func (a App) backupDetailsActive() bool {
+	return a.activeRoute == RouteInstall && a.installSection == installSectionBackups &&
+		a.restore.Stage() == RestoreStageDetails
+}
+
 // childWritePending reports a child screen that has committed to a write but
 // whose StartWriteMsg may not have reached the root model yet. Navigation and
 // quit keys are ignored in that window, exactly like an accepted write.
@@ -522,18 +739,52 @@ func (a App) childWritePending() bool {
 	return a.install.Step() == InstallStepRunning || a.restore.Busy()
 }
 
+// pinnedContentLines is the concise install-preview summary the viewport keeps
+// visible while the destination details page. It is nil for every other
+// screen, for an unusable preview and on short terminals where the summary
+// would crowd out the plan.
+func (a App) pinnedContentLines(width int) []string {
+	if a.activeRoute != RouteInstall || a.installSection != installSectionInstall {
+		return nil
+	}
+	if a.install.Step() != InstallStepPreview || a.height < 16 || width <= 0 {
+		return nil
+	}
+	return a.install.previewPinnedLines(width)
+}
+
+// pinnedDetailLines is the paged part of the install preview that follows the
+// pinned summary. It is only used when pinnedContentLines is non-empty.
+func (a App) pinnedDetailLines(width int) []string {
+	if a.activeRoute != RouteInstall || a.installSection != installSectionInstall {
+		return nil
+	}
+	if a.install.Step() != InstallStepPreview {
+		return nil
+	}
+	return a.install.previewDetailLines(width)
+}
+
 // ---------------------------------------------------------------------------
 // Activity & Help
 // ---------------------------------------------------------------------------
 
-// ActivityReloadedMsg carries a refreshed ActivityModel built outside Update.
-type ActivityReloadedMsg struct {
-	Model ActivityModel
+// ActivityLogReadMsg carries one bounded log-directory scan computed outside
+// Update. Generation and LogDir bind it to the live model, so a late read can
+// never overwrite a newer section, selection, scroll offset or log list.
+type ActivityLogReadMsg struct {
+	Generation uint64
+	LogDir     string
+	Selected   int
+	Logs       []LogSummary
+	Err        error
+	Content    string
 }
 
 // activityRouteLines renders the ActivityModel and the TUI-only controls that
 // are not part of the model's CLI reference.
 func (a App) activityRouteLines(width int) []string {
+	a.activity.SetSessionPreferences(a.motion, a.ascii)
 	lines := a.activity.Lines(width)
 	lines = append(lines, "")
 	guideURL := ReadmeURL
@@ -554,28 +805,20 @@ func (a App) activityRouteLines(width int) []string {
 	return lines
 }
 
-// reloadActivityCmd rescans the log directory and the selected log content
-// outside Update. The activity model is copied; a stale scan cannot mutate the
-// live model directly.
-func (a App) reloadActivityCmd() tea.Cmd {
-	model := a.activity
-	return func() tea.Msg {
-		model.ReloadLogs()
-		return ActivityReloadedMsg{Model: model}
-	}
+// startActivityRead schedules one bounded log-list and selected-content read.
+// The returned command carries only read data; App.Update applies it to the
+// current model, so a Help section, selection, scroll offset or presentation
+// change made while the read runs is preserved. The model's generation and log
+// directory bind the result, so a stale read is discarded rather than applied.
+func (a *App) startActivityRead(selected int) tea.Cmd {
+	return a.activity.StartLogRead(selected)
 }
 
-// selectActivityLogCmd moves the bounded log selection outside Update.
-func (a App) selectActivityLogCmd(delta int) tea.Cmd {
-	model := a.activity
-	return func() tea.Msg {
-		if delta > 0 {
-			model.SelectNextLog()
-		} else {
-			model.SelectPrevLog()
-		}
-		return ActivityReloadedMsg{Model: model}
-	}
+// handleActivityRead applies only the read that still belongs to the current
+// generation and log directory. It performs no I/O.
+func (a *App) handleActivityRead(msg ActivityLogReadMsg) tea.Cmd {
+	a.activity.ApplyLogRead(msg)
+	return nil
 }
 
 // handleActivityRouteKey routes Activity keys. Key handling that would read
@@ -593,7 +836,7 @@ func (a *App) handleActivityRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if cmd := a.retryUpdateCheckCmd(); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
-		cmds = append(cmds, a.reloadActivityCmd())
+		cmds = append(cmds, a.startActivityRead(a.activity.selectedLog))
 		return *a, tea.Batch(cmds...)
 	case "d":
 		a.toggleUpdateChecks()
@@ -603,9 +846,25 @@ func (a *App) handleActivityRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "a":
 		return *a, a.openLinkCmd(LinkAuthor)
 	case "]", "n":
-		return *a, a.selectActivityLogCmd(1)
+		a.activity.MoveLogSelection(1)
+		return *a, a.startActivityRead(a.activity.selectedLog)
 	case "[", "p":
-		return *a, a.selectActivityLogCmd(-1)
+		a.activity.MoveLogSelection(-1)
+		return *a, a.startActivityRead(a.activity.selectedLog)
+	case "t":
+		a.activity.SelectNextSection()
+		a.contentScroll = 0
+		return *a, nil
+	case "T":
+		a.activity.SelectPrevSection()
+		a.contentScroll = 0
+		return *a, nil
+	case "J":
+		a.activity.ScrollLog(4)
+		return *a, nil
+	case "K":
+		a.activity.ScrollLog(-4)
+		return *a, nil
 	}
 	if isScrollKey(key) {
 		a.scrollChildContent(key, width, height)
@@ -634,10 +893,11 @@ func (a App) openLinkCmd(link Link) tea.Cmd {
 	}
 }
 
-// openOnboardingCmd builds the skippable tour from the read-only catalog
-// summary. It performs no I/O and never opens a link.
+// openOnboardingCmd builds the skippable Quick start from the read-only catalog
+// summary plus the current in-session setup choices. It performs no I/O, does
+// not reuse a preview and never opens a link.
 func (a *App) openOnboardingCmd() tea.Cmd {
-	model := NewOnboardingModel(a.cfg, NewOnboardingSummary(a.catalog))
+	model := NewOnboardingModel(a.cfg, NewOnboardingSummaryFromSetup(a.catalog, a.install))
 	model.SetSize(a.childContentWidth(), a.childBodyHeight())
 	a.onboarding = &model
 	a.contentScroll = 0
@@ -671,7 +931,7 @@ func (a *App) handleOnboardingKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// keeping the completed outcome and the visible, copyable prompt.
 	if a.onboarding.Finished() && key == "esc" {
 		a.onboarding = nil
-		a.notice = "Onboarding closed. The first router prompt stays available in Activity & Help; nothing was copied and no agent ran."
+		a.notice = QuickStartName + " closed. The first router prompt is shown on its last step and after a successful setup; nothing was copied and no agent ran."
 		return *a, nil
 	}
 
@@ -682,7 +942,7 @@ func (a *App) handleOnboardingKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if a.onboarding != nil && a.onboarding.Done() {
 		outcome := a.onboarding.Outcome()
 		a.onboarding = nil
-		a.notice = "Onboarding " + outcome.String() + ". No files were written, nothing was copied, no browser opened and no agent ran."
+		a.notice = QuickStartName + " " + outcome.String() + ". No files were written, nothing was copied, no browser opened and no agent ran."
 	}
 	return *a, cmd
 }
@@ -709,131 +969,15 @@ func (a App) footerOverride() string {
 	}
 	switch a.activeRoute {
 	case RouteInstall:
-		switch a.installSection {
-		case installSectionHub:
-			if a.width < 60 {
-				return "i install · b backups · q quit"
-			}
-			if a.width < 80 {
-				return "j/k select · i install · b backups · Esc nav · q quit"
-			}
-			return "j/k select · i install · b backups · Enter open · Esc nav · q quit"
-		case installSectionInstall:
-			switch a.install.Step() {
-			case InstallStepClients:
-				if a.width < 60 {
-					return "Space toggle · Enter next · q quit"
-				}
-				if a.width < 80 {
-					return "Space select · Enter next · Esc cancel · q quit"
-				}
-				return "Space select · j/k move · Enter next · Esc cancel · ? help · q quit"
-			case InstallStepOptions:
-				if a.width < 60 {
-					return "Space toggle · Enter next · q quit"
-				}
-				if a.width < 80 {
-					return "Space select · Enter next · Esc back · q quit"
-				}
-				return "Space select · j/k move · Enter next · Esc back · ? help · q quit"
-			case InstallStepReview:
-				if a.width < 60 {
-					return "Enter preview · Esc back · q quit"
-				}
-				if a.width < 80 {
-					return "Enter preview · Esc back · q quit"
-				}
-				return "Enter preview · j/k scroll · Esc back · ? help · q quit"
-			case InstallStepPreview:
-				if a.install.IsLoading() {
-					return "preview running..."
-				}
-				if a.width < 60 {
-					return "Enter confirm · Esc back · q quit"
-				}
-				if a.width < 80 {
-					return "Enter confirm · Esc back · q quit"
-				}
-				return "Enter confirm · j/k scroll · Esc back · ? help · q quit"
-			case InstallStepConfirm:
-				// Only here is "y confirm" active!
-				if a.width < 80 {
-					return "y confirm · Esc cancel · q quit"
-				}
-				return "y confirm · Esc cancel · j/k scroll · ? help · q quit"
-			case InstallStepRunning:
-				return "" // busyStatusLine owns the footer
-			case InstallStepResult:
-				if a.width < 60 {
-					return "Enter done · q quit"
-				}
-				if a.width < 80 {
-					return "Enter done · Esc back · q quit"
-				}
-				return "Enter done · Esc back · j/k scroll · ? help · q quit"
-			default:
-				if a.width < 60 {
-					return "Esc back · q quit"
-				}
-				return "Esc back · ? help · q quit"
-			}
-		default: // installSectionBackups (Restore)
-			switch a.restore.Stage() {
-			case RestoreStageList:
-				if a.width < 60 {
-					return "Enter open · r refresh · q quit"
-				}
-				if a.width < 80 {
-					return "Enter open · r refresh · Esc back · q quit"
-				}
-				return "j/k select · Enter open · r refresh · Esc back · ? help · q quit"
-			case RestoreStageDetails:
-				if a.width < 80 {
-					return "Enter preview · Esc back · q quit"
-				}
-				return "Enter preview · Esc back · j/k scroll · ? help · q quit"
-			case RestoreStagePreview:
-				if a.restore.IsLoading() {
-					return "preview running..."
-				}
-				if a.width < 60 {
-					return "Enter confirm · Esc back · q quit"
-				}
-				if a.width < 80 {
-					return "Enter confirm · Esc back · p re-preview · q quit"
-				}
-				return "Enter confirm · Esc back · p re-preview · j/k scroll · ? help · q quit"
-			case RestoreStageConfirm:
-				// Only here is "y confirm" active!
-				if a.width < 80 {
-					return "y confirm · n/Esc cancel · q quit"
-				}
-				return "y confirm · n/Esc cancel · j/k scroll · ? help · q quit"
-			case RestoreStageRevalidating, RestoreStageRunning:
-				return "" // busyStatusLine owns the footer
-			case RestoreStageResult:
-				if a.width < 60 {
-					return "Enter done · q quit"
-				}
-				if a.width < 80 {
-					return "Enter done · Esc back · q quit"
-				}
-				return "Enter done · Esc back · j/k scroll · ? help · q quit"
-			default:
-				if a.width < 60 {
-					return "Esc back · q quit"
-				}
-				return "Esc back · ? help · q quit"
-			}
+		if a.installSection == installSectionInstall && a.install.Step() == InstallStepPreview && a.install.IsLoading() {
+			return "preview running..."
 		}
+		if a.installSection == installSectionBackups && a.restore.Stage() == RestoreStagePreview && a.restore.IsLoading() {
+			return "preview running..."
+		}
+		return a.actionsFooter(a.width)
 	case RouteActivity:
-		if a.width < 60 {
-			return "r retry · g guide · [ ] logs · q quit"
-		}
-		if a.width < 80 {
-			return "r retry · d check · g guide · [ ] logs · q quit"
-		}
-		return "r retry · d check · g guide · a author · [ ] logs · j/k scroll · q quit"
+		return a.actionsFooter(a.width)
 	default:
 		return ""
 	}

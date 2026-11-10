@@ -108,8 +108,8 @@ func TestOnboardingStepOrderAndExplicitFinish(t *testing.T) {
 	if model.Done() {
 		t.Fatal("Done() = true on the finish step; the host must show the prompt before closing")
 	}
-	if !strings.Contains(model.Render(80), "Onboarding complete") {
-		t.Error("finish view does not state that onboarding is complete")
+	if !strings.Contains(model.Render(80), "Quick start complete") {
+		t.Error("finish view does not state that the Quick start is complete")
 	}
 }
 

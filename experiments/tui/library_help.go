@@ -1,0 +1,256 @@
+package tui
+
+import (
+	"fmt"
+	"runtime"
+	"strings"
+	"time"
+
+	"agentic-sdd/internal/skillsync"
+)
+
+// RouterRecommendationText is the navigation prompt suggested to newcomers.
+// It is navigational guidance only; it never executes any example or agent.
+const (
+	RouterRecommendationText = "New here? Start with SDD Router"
+	RouterRecommendationHint = "press s to inspect details"
+	RouterSkillID            = "agentic-sdd-router"
+)
+
+// FormatCatalogRowTitle returns the readable display name paired with the exact ID.
+// Known curated items show "Name (exact-id)" so users get both human and programmatic identity.
+// Unknown or uncurated items fall back neutrally to the exact ID.
+func FormatCatalogRowTitle(item CatalogItem) string {
+	name := strings.TrimSpace(item.Name)
+	id := strings.TrimSpace(item.ID)
+	if name != "" && name != id {
+		return fmt.Sprintf("%s (%s)", name, id)
+	}
+	return id
+}
+
+// FormatCatalogRowDescription returns the purpose-first summary line for a catalog row.
+// The purpose leads the description so newcomers see what the item does first, followed
+// by install/status counts.
+func FormatCatalogRowDescription(item CatalogItem) string {
+	purpose := strings.TrimSpace(item.Purpose)
+	summary := item.Summary()
+	if purpose == "" || strings.EqualFold(purpose, "not documented") {
+		return summary
+	}
+	return fmt.Sprintf("%s · %s", purpose, summary)
+}
+
+// EnrichCatalogItemFilterValue augments the search text with task and trigger phrases
+// from the item's When and Example fields, enabling task-oriented search (e.g. "debug",
+// "diagnose", "interview", "review").
+func EnrichCatalogItemFilterValue(item CatalogItem) string {
+	parts := []string{item.ID, item.Name, item.Kind, item.Origin, item.Category, item.Group}
+	if !strings.Contains(strings.ToLower(item.Purpose), "not documented") {
+		parts = append(parts, item.Purpose)
+	}
+	if !strings.Contains(strings.ToLower(item.When), "not documented") {
+		parts = append(parts, item.When)
+	}
+	if !strings.Contains(strings.ToLower(item.Example), "not documented") {
+		parts = append(parts, item.Example)
+	}
+	for _, c := range item.Clients {
+		parts = append(parts, c.Client)
+	}
+	if item.Kind == skillsync.InventoryKindProfile && item.documentedRouting() {
+		parts = append(parts, item.AgentMode, item.AgentProvider, item.AgentModel, item.RoutingNote)
+		parts = append(parts, item.AgentFallbacks...)
+	}
+	var nonNil []string
+	for _, p := range parts {
+		if p != "" {
+			nonNil = append(nonNil, p)
+		}
+	}
+	return strings.ToLower(strings.Join(nonNil, " "))
+}
+
+// HelpSection represents one selectable topic within Activity & Help.
+type HelpSection int
+
+const (
+	HelpSectionAll HelpSection = iota
+	HelpSectionActivity
+	HelpSectionQuickStart
+	HelpSectionShortcuts
+	HelpSectionCommands
+	HelpSectionTroubleshooting
+	HelpSectionDiagnostics
+	HelpSectionAbout
+	HelpSectionPreferences
+)
+
+// HelpSectionInfo holds display metadata for one help section tab.
+type HelpSectionInfo struct {
+	Section HelpSection
+	Key     string
+	Title   string
+}
+
+// AllHelpSections lists every selectable topic in Activity & Help.
+func AllHelpSections() []HelpSectionInfo {
+	return []HelpSectionInfo{
+		{Section: HelpSectionAll, Key: "0", Title: "All"},
+		{Section: HelpSectionActivity, Key: "1", Title: "Recent Activity"},
+		{Section: HelpSectionQuickStart, Key: "2", Title: "Quick start"},
+		{Section: HelpSectionShortcuts, Key: "3", Title: "Shortcuts"},
+		{Section: HelpSectionCommands, Key: "4", Title: "Commands"},
+		{Section: HelpSectionTroubleshooting, Key: "5", Title: "Troubleshooting"},
+		{Section: HelpSectionDiagnostics, Key: "6", Title: "Diagnostics"},
+		{Section: HelpSectionAbout, Key: "7", Title: "About"},
+		{Section: HelpSectionPreferences, Key: "8", Title: "Preferences"},
+	}
+}
+
+// LogOperationFacts holds truthful, uninvented structured facts about an operation log.
+// If a field cannot be authoritatively established, it stays "unknown" rather than
+// being guessed from unstructured log prose.
+type LogOperationFacts struct {
+	Name         string
+	Path         string
+	Operation    string
+	Timestamp    string
+	RawTimestamp string
+	Size         int64
+	ModTime      time.Time
+	Outcome      string
+	ChangedCount string
+	SkippedCount string
+	FailedCount  string
+}
+
+// ParseLogOperationFacts derives structured facts from log metadata and standard filename conventions.
+// Unknown facts stay strictly "unknown".
+func ParseLogOperationFacts(log LogSummary) LogOperationFacts {
+	facts := LogOperationFacts{
+		Name:         log.Name,
+		Path:         log.Path,
+		Size:         log.Size,
+		ModTime:      log.ModTime,
+		Operation:    "unknown",
+		Timestamp:    "unknown",
+		RawTimestamp: "unknown",
+		Outcome:      "unknown (not recorded in structured log index)",
+		ChangedCount: "unknown",
+		SkippedCount: "unknown",
+		FailedCount:  "unknown",
+	}
+
+	base := strings.TrimSuffix(log.Name, ".log")
+	parts := strings.Split(base, "-")
+	if len(parts) >= 1 && strings.Contains(parts[0], "T") && strings.HasSuffix(parts[0], "Z") {
+		facts.RawTimestamp = parts[0]
+		if t, err := time.Parse("20060102T150405.000000000Z", parts[0]); err == nil {
+			facts.Timestamp = t.UTC().Format("Jan 02, 2006 15:04:05 UTC")
+		} else if t, err := time.Parse(time.RFC3339Nano, parts[0]); err == nil {
+			facts.Timestamp = t.UTC().Format("Jan 02, 2006 15:04:05 UTC")
+		} else {
+			facts.Timestamp = parts[0]
+		}
+	}
+	if len(parts) >= 2 {
+		op := strings.ToLower(parts[1])
+		switch op {
+		case "apply", "restore", "preview":
+			facts.Operation = op
+		default:
+			facts.Operation = op
+		}
+	}
+
+	return facts
+}
+
+// ExcludedCommands lists experimental operations that are explicitly non-executable
+// in this release and displayed for explanatory purpose only.
+func ExcludedCommands() []CommandHelp {
+	return []CommandHelp{
+		{
+			Command:     "agentic-sdd opencode ...",
+			Description: "OpenCode runtime pack activation (experimental · non-executable under release boundaries)",
+		},
+		{
+			Command:     "agentic-sdd native ...",
+			Description: "Experimental native engine execution (non-executable · historical research only)",
+		},
+	}
+}
+
+// TroubleshootingTopic describes one common operational issue and safe recovery advice.
+type TroubleshootingTopic struct {
+	Title    string
+	Advice   string
+	Recovery string
+}
+
+// TroubleshootingTopics lists canonical recovery tips for common TUI scenarios.
+func TroubleshootingTopics() []TroubleshootingTopic {
+	return []TroubleshootingTopic{
+		{
+			Title:    "Update check offline, timed out or rate-limited",
+			Advice:   "Automatic update checks run once per session asynchronously on first Home entry. Offline or rate-limited states are non-fatal and never block navigation, installation or restore.",
+			Recovery: "Press 'r' in Activity & Help to retry the check, or press 'd' to toggle offline mode (AGENTIC_SDD_NO_UPDATE_CHECK=1).",
+		},
+		{
+			Title:    "Backup unreadable, foreign home or corrupt",
+			Advice:   "A backup made for another home directory, or one with invalid JSON manifests, is refused by the restore engine for safety to prevent corrupting local configuration.",
+			Recovery: "Inspect existing backups with 'agentic-sdd backups' via explicit CLI. A fresh install or update creates a new valid backup.",
+		},
+		{
+			Title:    "Refused destination (symlink or special file)",
+			Advice:   "If a destination directory contains a symlink or unexpected non-regular file, the installer refuses to write to prevent following unverified links.",
+			Recovery: "Remove or restore the affected path manually, then run 'agentic-sdd preview' to verify clean destination state.",
+		},
+		{
+			Title:    "No operation logs found",
+			Advice:   "Operation logs are created automatically when an install or restore write executes. An empty log list is normal for a fresh installation before any changes are written.",
+			Recovery: "Run 'agentic-sdd preview' then confirm an apply to create your first operation log.",
+		},
+	}
+}
+
+// DiagnosticsMetadata aggregates environment, build, runtime, and update state for debugging.
+type DiagnosticsMetadata struct {
+	Version      string
+	Commit       string
+	Date         string
+	Author       string
+	GoVersion    string
+	Platform     string
+	LogDir       string
+	UpdateStatus string
+	OfflineMode  bool
+}
+
+// CollectDiagnostics extracts current system and session diagnostics.
+func CollectDiagnostics(meta AboutMetadata, logDir string, mgr *UpdateCheckManager, theme Theme) DiagnosticsMetadata {
+	updateStatus := "Update check disabled or not initialized"
+	offline := false
+	if mgr != nil {
+		updateStatus = mgr.RenderStatus(theme)
+		offline = mgr.IsDisabled()
+	}
+	return DiagnosticsMetadata{
+		Version:      meta.Version,
+		Commit:       meta.Commit,
+		Date:         meta.Date,
+		Author:       meta.Author,
+		GoVersion:    runtime.Version(),
+		Platform:     fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		LogDir:       logDir,
+		UpdateStatus: updateStatus,
+		OfflineMode:  offline,
+	}
+}
+
+// IsDevBuild reports whether a version identifier signifies a non-release development build.
+func IsDevBuild(v string) bool {
+	clean := strings.ToLower(strings.TrimSpace(v))
+	return clean == "" || clean == "dev" || strings.HasPrefix(clean, "dev-") || strings.Contains(clean, "dev")
+}

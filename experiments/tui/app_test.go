@@ -701,13 +701,32 @@ func TestScrollableLongContentAndEndMarkers(t *testing.T) {
 		t.Fatalf("initial short view should have tail marker below fold:\n%s", viewInitial)
 	}
 
-	// Press PageDown to scroll detail pane down
-	next, _ = app.Update(key(tea.KeyPgDown))
-	app = next.(tui.App)
-
-	viewScrolled := app.View().Content
-	if !strings.Contains(viewScrolled, "MARKER-XYZ") {
-		t.Fatalf("after PageDown detail pane must reveal end marker:\n%s", viewScrolled)
+	// Scroll the detail pane. The complete destination path is under Advanced
+	// files, so reachability needs more than one screen at this short height;
+	// collect every rendered page and require the path section and the card's
+	// end marker to appear.
+	var seen strings.Builder
+	seen.WriteString(ansi.Strip(viewInitial))
+	viewScrolled := viewInitial
+	for i := 0; i < 24; i++ {
+		next, _ = app.Update(key(tea.KeyPgDown))
+		app = next.(tui.App)
+		viewScrolled = app.View().Content
+		seen.WriteString("\n")
+		seen.WriteString(ansi.Strip(viewScrolled))
+		if strings.Contains(seen.String(), "Next action:") && strings.Contains(seen.String(), "Advanced files:") {
+			break
+		}
+	}
+	reached := seen.String()
+	if !strings.Contains(reached, "Advanced files: (Destination paths)") {
+		t.Fatalf("scrolling never reached the destination path section:\n%s", reached)
+	}
+	if !strings.Contains(reached, "/tmp/very/long") {
+		t.Fatalf("scrolling never rendered the long destination path:\n%s", reached)
+	}
+	if !strings.Contains(reached, "Next action:") {
+		t.Fatalf("scrolling never reached the end of the detail card:\n%s", reached)
 	}
 
 	// Verify exact bounds: every line <= width, total lines <= height
@@ -750,7 +769,7 @@ func TestFooterAlwaysVisibleAtShortHeights(t *testing.T) {
 			viewHelp := appHelp.View().Content
 			helpLines := strings.Split(viewHelp, "\n")
 			lastHelpLine := helpLines[len(helpLines)-1]
-			if !strings.Contains(lastHelpLine, "quit") && !strings.Contains(lastHelpLine, "q") {
+			if !strings.Contains(lastHelpLine, "Esc") && !strings.Contains(lastHelpLine, "close") {
 				t.Fatalf("h=%d r=%s (help) footer not visible on bottom row:\n%s", h, r, viewHelp)
 			}
 		}
@@ -783,6 +802,14 @@ func TestUnicodePathASCIIReversibleEscaping(t *testing.T) {
 	app = next.(tui.App)
 
 	view := app.View().Content
+
+	// Paths now live under Advanced files, so page until that section is
+	// reachable instead of assuming the first frame contains it.
+	for i := 0; i < 12 && !strings.Contains(view, "END-OF-PATH"); i++ {
+		next, _ := app.Update(key(tea.KeyPgDown))
+		app = next.(tui.App)
+		view = app.View().Content
+	}
 
 	// Every character in view must be 7-bit ASCII
 	for i, rChar := range view {

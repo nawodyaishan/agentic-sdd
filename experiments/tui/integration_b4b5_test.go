@@ -652,7 +652,7 @@ func TestUpdateCheckOncePerSessionAndControls(t *testing.T) {
 		app, _ = pressApp(t, app, key(tea.KeyPgDown))
 	}
 	view := app.View().Content
-	if !strings.Contains(view, "Recommended next step") {
+	if !strings.Contains(view, "Client status (core skills)") {
 		t.Fatalf("Home local content did not render while checking:\n%s", view)
 	}
 	if !strings.Contains(view, "Checking for updates (GitHub)") {

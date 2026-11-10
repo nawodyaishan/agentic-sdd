@@ -676,6 +676,8 @@ func NewAppWithOptions(cfg TUIConfig, catalog Catalog, opts AppOptions) App {
 			app.notice = err.Error()
 			return app
 		}
+		app.activeRequest = *opts.InitialWrite
+		app.hasActiveRequest = true
 		app.acceptStarted(started)
 		app.initCmds = append(app.initCmds,
 			func() tea.Msg { return started },

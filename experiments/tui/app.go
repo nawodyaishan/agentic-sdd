@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
 
 	"agentic-sdd/internal/appops"
@@ -103,6 +104,9 @@ type App struct {
 	restore         RestoreModel
 
 	// Activity & Help plus the once-per-session update check state machine.
+	// The model's read generation binds one bounded log read to the live
+	// model, so a completion cannot replace newer section, selection or scroll
+	// state.
 	activity  ActivityModel
 	updateMgr *UpdateCheckManager
 
@@ -110,6 +114,17 @@ type App struct {
 	// injected explicit-only platform opener.
 	onboarding *OnboardingModel
 	opener     *Opener
+
+	// Local inventory refresh after a completed write. The generation and
+	// scope bind one result to the home/source/options that requested it, so a
+	// late read cannot overwrite newer state or a different selection.
+	inventoryGeneration uint64
+	inventoryScope      catalogScope
+	inventoryErr        string
+	inventoryPending    bool
+	catalogLoader       func(TUIConfig) (Catalog, error)
+	activeRequest       WriteRequest
+	hasActiveRequest    bool
 }
 
 // writeState mirrors the accepted write for rendering. The host remains the
@@ -145,6 +160,9 @@ type AppScreenOptions struct {
 	RestoreOps RestoreOps
 	// Opener replaces the explicit-only platform opener.
 	Opener *Opener
+	// CatalogRefresh replaces the generation-bound read-only inventory refresh
+	// started after a completed write. Nil uses LoadCatalog.
+	CatalogRefresh func(TUIConfig) (Catalog, error)
 }
 
 // NewAppWithScreens constructs the root shell with both the host seams and the
@@ -167,14 +185,16 @@ func NewAppWithScreens(cfg TUIConfig, catalog Catalog, opts AppOptions, screens 
 	if screens.Opener != nil {
 		app.opener = screens.Opener
 	}
+	if screens.CatalogRefresh != nil {
+		app.catalogLoader = screens.CatalogRefresh
+	}
 	return app
 }
 
 // newApp constructs the shell without operation-host seams.
 func newApp(cfg TUIConfig, catalog Catalog) App {
 	cfg = cfg.Normalize()
-	theme := NewTheme(cfg.Color)
-
+	theme := newThemeForConfig(cfg)
 	motion := cfg.Motion && cfg.Interactive
 	ascii := cfg.ASCII
 
@@ -246,8 +266,18 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 			LogDir:        homeLogDir(logHome),
 			UpdateManager: updateMgr,
 		}),
-		updateMgr: updateMgr,
-		opener:    NewOpener(),
+		updateMgr:     updateMgr,
+		opener:        NewOpener(),
+		catalogLoader: LoadCatalog,
+	}
+	app.inventoryScope = catalogScope{
+		Home:              catalog.Home,
+		Repo:              catalog.Repo,
+		WithOpenCode:      cfg.WithOpenCode,
+		OpenCodeFreeFirst: cfg.OpenCodeFreeFirst,
+	}
+	if app.inventoryScope.Home == "" {
+		app.inventoryScope.Home = cfg.Home
 	}
 
 	// Child screens and the local Activity view share the same body budget as
@@ -368,10 +398,32 @@ func tickBrand() tea.Cmd {
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.BackgroundColorMsg:
+		// Feature 013 B10 (T29): single agentic-dark identity; background-color
+		// messages must not switch the scheme, change consent/route, or reset selection/filter/scroll.
+		return a, nil
+
+	case tea.ColorProfileMsg:
+		// Bubble Tea reports the detected terminal profile at startup. Resolve
+		// the explicit reference mapping for the reported profile instead of
+		// leaving every session on the TrueColor token values. A non-color or
+		// unknown profile keeps the existing theme, and no route, consent,
+		// selection, filter or scroll state is touched.
 		if !a.cfg.Color {
 			return a, nil
 		}
-		a.applyTheme(NewAdaptiveTheme(true, msg.IsDark()))
+		switch msg.Profile {
+		case colorprofile.ANSI, colorprofile.ANSI256, colorprofile.TrueColor:
+		default:
+			// Unknown, no-TTY or ASCII report does not override the explicit
+			// identity; color-off is controlled by cfg.Color.
+			return a, nil
+		}
+		profile := referenceProfile(msg.Profile)
+		if profile == a.theme.Profile {
+			return a, nil
+		}
+		a.cfg.Profile = profile
+		a.applyTheme(NewThemeWithProfile(true, true, profile))
 		return a, nil
 
 	case tea.WindowSizeMsg:
@@ -418,6 +470,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return a, refusedWriteCmd(msg.Request.Kind, err)
 		}
+		a.activeRequest = msg.Request
+		a.hasActiveRequest = true
 		a.acceptStarted(started)
 		return a, tea.Batch(func() tea.Msg { return started }, cmd)
 
@@ -464,8 +518,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := a.routeWriteMsg(kind, msg)
 		if a.exitPending {
 			// The result is emitted only after the operation log is flushed and
-			// closed, so the deferred exit can run now without losing it.
+			// closed, so the deferred exit can run now without losing it. No
+			// inventory read is queued for a session that is already exiting.
 			return a, tea.Batch(cmd, a.beginQuit())
+		}
+		if refresh := a.startInventoryRefresh(); refresh != nil {
+			cmd = tea.Batch(cmd, refresh)
 		}
 		return a, cmd
 
@@ -486,6 +544,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, cmd
 
+	case CatalogRefreshMsg:
+		return a, a.handleCatalogRefresh(msg)
+
 	case UpdateCheckResultMsg:
 		// One shared manager owns the generation check, so Home and Activity
 		// always agree and stale results are discarded there.
@@ -503,12 +564,29 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.notice = msg.Result.Explanation()
 		return a, nil
 
-	case ActivityReloadedMsg:
-		a.activity = msg.Model
-		a.activity.SetSize(a.childContentWidth(), a.childBodyHeight())
-		return a, nil
+	case ActivityLogReadMsg:
+		return a, a.handleActivityRead(msg)
 
-	case InstallPreviewMsg, InstallInspectMsg:
+	case InstallPreviewMsg:
+		previous := a.install.Step()
+		updated, cmd := a.install.Update(msg)
+		if model, ok := updated.(InstallModel); ok {
+			a.install = model
+		}
+		if a.install.Step() != previous {
+			a.contentScroll = 0
+		}
+		// A successful zero-change preview never reaches the write host, so it
+		// must clear a stale inventory read error the same way a completed
+		// write does: one read-only, scope-bound refresh with no write.
+		if msg.Err == nil && !msg.OpID.StaleFor(a.install.opID) && a.install.PreviewNoOp() {
+			if refresh := a.startNoOpPreviewRefresh(); refresh != nil {
+				cmd = tea.Batch(cmd, refresh)
+			}
+		}
+		return a, cmd
+
+	case InstallInspectMsg:
 		previous := a.install.Step()
 		updated, cmd := a.install.Update(msg)
 		if model, ok := updated.(InstallModel); ok {
@@ -519,7 +597,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, cmd
 
-	case RestoreBackupsMsg, RestorePreviewMsg, RestoreRevalidatedMsg:
+	case RestoreBackupsMsg, RestorePreviewMsg, RestoreRevalidatedMsg, RestoreManifestMsg:
 		previous := a.restore.Stage()
 		model, cmd := a.restore.Update(msg)
 		a.restore = model
@@ -583,10 +661,21 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			a.helpOpen = false
 			a.helpScroll = 0
 			return *a, nil
-		case "q":
-			return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonQuitKey})
 		case "ctrl+c":
 			return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonInterruptKey})
+		case "m":
+			a.motion = !a.motion
+			if !a.motion {
+				a.brandState = NewBrandState(false)
+				a.brandTickPending = false
+			}
+			return *a, nil
+		case "u":
+			a.ascii = !a.ascii
+			return *a, nil
+		case "d":
+			a.toggleUpdateChecks()
+			return *a, nil
 		case "pgdown", "pagedown", "ctrl+d", "down", "j":
 			a.helpScroll += 4
 			return *a, nil
@@ -597,13 +686,34 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			return *a, nil
 		}
+		// q never quits through a modal; Esc, ? or Enter close help.
 		return *a, nil
+	}
+
+	// An active install/restore confirmation is the only authoritative surface
+	// for its decision. Route navigation, settings and Tab cannot reach the
+	// inactive backdrop; only the shared confirmation vocabulary is forwarded.
+	if kind, ok := a.activeModalKind(); ok && kind != modalKindHelp {
+		return a.handleConfirmationModalKey(msg)
 	}
 
 	// The skippable onboarding overlay owns navigation keys; only help and the
 	// global quit keys stay above it.
 	if a.onboarding != nil {
 		return a.handleOnboardingKey(msg)
+	}
+
+	// A backup-details action owns 'm' in its own context, so the raw manifest
+	// view is reachable exactly where it is advertised. Every other screen
+	// keeps the global motion toggle below.
+	if (key == "m" || key == "M") && a.backupDetailsActive() {
+		previous := a.restore.Stage()
+		model, cmd := a.restore.Update(msg)
+		a.restore = model
+		if a.restore.Stage() != previous {
+			a.contentScroll = 0
+		}
+		return *a, cmd
 	}
 
 	switch key {
@@ -615,14 +725,8 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		a.helpOpen = true
 		a.helpScroll = 0
 		return *a, nil
-	case "tab":
-		if a.activeRoute == RouteExplore && a.focus == FocusNav {
-			a.focus = FocusCategories
-		} else if a.focus == FocusNav || a.focus == FocusCategories {
-			a.focus = FocusContent
-		} else {
-			a.focus = FocusNav
-		}
+	case "tab", "shift+tab":
+		a.cycleFocus(key == "shift+tab")
 		return *a, nil
 	case "m":
 		a.motion = !a.motion
@@ -685,12 +789,23 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// hidden behind Tab. They never collide with navigation or route jumps.
 	if a.activeRoute == RouteHome {
 		switch key {
+		case "enter":
+			// The default Home selection is Home itself; Enter is the primary
+			// setup/manage action there instead of a no-op re-entry. With
+			// another navigation row selected, Enter still opens that route.
+			if a.focus == FocusNav && a.navIndex == 0 {
+				return a.switchRoute(1)
+			}
+		case "s":
+			return a.switchRoute(1)
 		case "o":
 			cmd := a.openOnboardingCmd()
 			if a.onboarding != nil {
 				a.onboarding.SetTheme(a.theme)
 			}
 			return *a, cmd
+		case "b", "R":
+			return *a, a.OpenRecovery()
 		case "g":
 			return *a, a.openLinkCmd(LinkReadme)
 		case "a":
@@ -712,7 +827,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if cmd := a.retryUpdateCheckCmd(); cmd != nil {
 				cmds = append(cmds, cmd)
 			}
-			cmds = append(cmds, a.reloadActivityCmd())
+			cmds = append(cmds, a.startActivityRead(a.activity.selectedLog))
 			return *a, tea.Batch(cmds...)
 		case "d":
 			a.toggleUpdateChecks()
@@ -807,6 +922,9 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			// Primary action on Home: open the Install & Manage hub.
 			return a.switchRoute(1)
+		case "r", "R":
+			// Direct recovery navigation from Home
+			return *a, a.OpenRecovery()
 		case "j", "down":
 			a.contentScroll++
 			return *a, nil
@@ -828,6 +946,91 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return *a, nil
+}
+
+// handleConfirmationModalKey dispatches one key while an install or restore
+// confirmation owns focus. Only the shared confirmation vocabulary is
+// forwarded; everything else is ignored and can never reach the backdrop.
+//
+// Below the usable geometry the viewport renders only resize guidance, so the
+// confirmation accepts safe cancellation and shutdown and nothing else: an
+// affirmative key can never submit a write the user cannot see or review.
+func (a *App) handleConfirmationModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	action := classifyConfirmKey(key)
+	if action == confirmKeyShutdown {
+		return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonInterruptKey})
+	}
+	if !a.usableGeometry() && action != confirmKeyCancel {
+		return *a, nil
+	}
+	switch action {
+	case confirmKeyHelp:
+		a.helpOpen = true
+		a.helpScroll = 0
+		return *a, nil
+	case confirmKeyScroll:
+		a.scrollChildContent(key, a.childContentWidth(), a.childBodyHeight())
+		return *a, nil
+	case confirmKeyIgnore:
+		return *a, nil
+	}
+
+	var cmd tea.Cmd
+	switch {
+	case a.installSection == installSectionInstall && a.install.Step() == InstallStepConfirm:
+		previous := a.install.Step()
+		updated, c := a.install.Update(msg)
+		if model, ok := updated.(InstallModel); ok {
+			a.install = model
+		}
+		if a.install.Step() != previous {
+			a.contentScroll = 0
+		}
+		cmd = c
+	case a.installSection == installSectionBackups && a.restore.Stage() == RestoreStageConfirm:
+		previous := a.restore.Stage()
+		model, c := a.restore.Update(msg)
+		a.restore = model
+		if a.restore.Stage() != previous {
+			a.contentScroll = 0
+		}
+		cmd = c
+	}
+	return *a, cmd
+}
+
+// cycleFocus moves through the visible interactive regions. Explore has the
+// navigation, category control and content regions; every other route has
+// navigation and content. shift+tab reverses the same order.
+func (a *App) cycleFocus(reverse bool) {
+	if a.activeRoute == RouteExplore {
+		if reverse {
+			switch a.focus {
+			case FocusNav:
+				a.focus = FocusContent
+			case FocusContent:
+				a.focus = FocusCategories
+			default:
+				a.focus = FocusNav
+			}
+			return
+		}
+		switch a.focus {
+		case FocusNav:
+			a.focus = FocusCategories
+		case FocusCategories:
+			a.focus = FocusContent
+		default:
+			a.focus = FocusNav
+		}
+		return
+	}
+	if a.focus == FocusNav {
+		a.focus = FocusContent
+		return
+	}
+	a.focus = FocusNav
 }
 
 // routeWriteMsg delivers one typed write message to the screen that owns the
@@ -941,6 +1144,12 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 	if index < 0 || index >= len(a.routes) {
 		return *a, nil
 	}
+	// A zero-change preview is read-only and never grants consent. Leaving the
+	// install preview discards it, so returning later needs a fresh preview.
+	if a.activeRoute == RouteInstall && a.routes[index].Route != RouteInstall &&
+		a.installSection == installSectionInstall && a.install.PreviewNoOp() {
+		a.install.invalidateConfirmation()
+	}
 	a.navIndex = index
 	a.routeScroll[a.activeRoute] = a.contentScroll
 	a.activeRoute = a.routes[index].Route
@@ -962,7 +1171,7 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 	}
 	if a.activeRoute == RouteActivity {
 		a.activity.SetSize(a.childContentWidth(), a.childBodyHeight())
-		cmds = append(cmds, a.reloadActivityCmd())
+		cmds = append(cmds, a.startActivityRead(a.activity.selectedLog))
 	}
 	if a.activeRoute == RouteInstall {
 		a.install.SetSize(a.childContentWidth(), a.childBodyHeight())
@@ -972,6 +1181,16 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 		return *a, nil
 	}
 	return *a, tea.Batch(cmds...)
+}
+
+// OpenRecovery navigates directly to the recovery (backups) screen without creating a fifth route.
+func (a *App) OpenRecovery() tea.Cmd {
+	a.navIndex = 1
+	a.routeScroll[a.activeRoute] = a.contentScroll
+	a.activeRoute = RouteInstall
+	a.focus = FocusContent
+	a.notice = ""
+	return a.openBackupsScreen()
 }
 
 func (a App) sidebarWidth() int {
@@ -1108,67 +1327,6 @@ func (a App) getContentLines(width int) []string {
 		lines = append(append(notice, ""), lines...)
 	}
 	return lines
-}
-
-// homeLines renders the local dashboard. Every fact comes from the loaded
-// read-only snapshot; the update-check section is the only part that reflects
-// an asynchronous result, and it never blocks local content.
-func (a App) homeLines(width int) []string {
-	var b strings.Builder
-
-	// Header
-	if a.height >= 14 && width >= 40 {
-		brandHeader := a.brandState.Header(width, a.ascii)
-		if brandHeader != "" {
-			b.WriteString(a.theme.Accent.Render(brandHeader))
-			b.WriteString("\n\n")
-		}
-	} else {
-		b.WriteString(a.theme.Title.Render(BrandName))
-		if width >= 50 {
-			b.WriteString(" · ")
-			b.WriteString(a.theme.Subtitle.Render("Build with AI."))
-		}
-		b.WriteString(" · ")
-		b.WriteString(a.theme.Hint.Render("by " + BrandAuthor))
-		b.WriteString("\n\n")
-	}
-
-	b.WriteString(strings.Join(HomeOverview(a.catalog, width), "\n"))
-	b.WriteString("\n\n")
-
-	b.WriteString(strings.Join(a.homeUpdateLines(width), "\n"))
-	b.WriteString("\n\n")
-
-	b.WriteString(a.theme.Section.Render("Resources"))
-	b.WriteString("\n")
-	guideURL := previewGuideURL
-	guideLabel := "Online guide / README"
-	if a.cfg.Color && !a.ascii {
-		guideLabel = Hyperlink(guideLabel, LinkReadme, true)
-	}
-	for _, line := range wrapPath("  "+guideLabel+": "+guideURL, width) {
-		b.WriteString(line + "\n")
-	}
-	authorURL := AuthorURL
-	authorLabel := "Author: by " + BrandAuthor
-	if a.cfg.Color && !a.ascii {
-		authorLabel = "Author: by " + Hyperlink(BrandAuthor, LinkAuthor, true)
-	}
-	for _, line := range wrapPath("  "+authorLabel+" ("+authorURL+")", width) {
-		b.WriteString(line + "\n")
-	}
-	b.WriteString("\n")
-	b.WriteString(a.theme.Section.Render("Controls"))
-	b.WriteString("\n")
-	for _, line := range wrapPath("  Enter: Install & Manage hub · o: onboarding tour · g / a: open guide or author (explicit)", width) {
-		b.WriteString(line + "\n")
-	}
-	for _, line := range wrapPath("  r: retry update check · d: disable or enable automatic checks · j/k PgUp/PgDn: scroll", width) {
-		b.WriteString(line + "\n")
-	}
-
-	return strings.Split(b.String(), "\n")
 }
 
 // assembleView constructs the final viewport string with guaranteed exact height lines

@@ -27,17 +27,16 @@ type catalogRow struct {
 }
 
 func (r catalogRow) FilterValue() string { return r.item.FilterValue() }
-func (r catalogRow) Title() string {
-	if r.item.Name != "" {
-		return r.item.Name
-	}
-	return r.item.ID
-}
-func (r catalogRow) Description() string { return r.item.Summary() }
+func (r catalogRow) Title() string       { return FormatCatalogRowTitle(r.item) }
+func (r catalogRow) Description() string { return FormatCatalogRowDescription(r.item) }
 
 // CatalogModel is the catalog browser screen.
 type CatalogModel struct {
-	displayItem         *CatalogItem
+	displayItem *CatalogItem
+	// detailOverride is the curated recommendation shown in the detail card
+	// independently of the list selection. Escape and opening another entry
+	// clear it, so it can never replace a later item's details.
+	detailOverride      *CatalogItem
 	cfg                 TUIConfig
 	theme               Theme
 	catalog             Catalog
@@ -65,25 +64,11 @@ type FilterEnvelope struct {
 // so callers may leave Width and Height zero.
 func NewCatalogModel(cfg TUIConfig, catalog Catalog) CatalogModel {
 	cfg = cfg.Normalize()
-	theme := NewTheme(cfg.Color)
+	theme := newThemeForConfig(cfg)
 
-	// Clone catalog.Items and each item's Clients slice so caller snapshot is never mutated.
-	clonedItems := make([]CatalogItem, len(catalog.Items))
-	for i, it := range catalog.Items {
-		itemCopy := it
-		if it.Clients != nil {
-			itemCopy.Clients = make([]ClientStatus, len(it.Clients))
-			copy(itemCopy.Clients, it.Clients)
-		}
-		enrichItem(&itemCopy)
-		clonedItems[i] = itemCopy
-	}
-	catalog.Items = clonedItems
+	catalog = cloneCatalog(catalog)
 
-	rows := make([]list.Item, 0, len(catalog.Items))
-	for _, item := range catalog.Items {
-		rows = append(rows, catalogRow{item: item})
-	}
+	rows := catalogRows(catalog.Items, CategoryAll)
 	delegate := list.NewDefaultDelegate()
 
 	browser := list.New(rows, delegate, cfg.Width, listHeight(cfg.Height))
@@ -109,6 +94,80 @@ func NewCatalogModel(cfg TUIConfig, catalog Catalog) CatalogModel {
 	return model
 }
 
+// cloneCatalog copies the item and client slices so a caller's snapshot is
+// never mutated by enrichment or rendering.
+func cloneCatalog(catalog Catalog) Catalog {
+	clonedItems := make([]CatalogItem, len(catalog.Items))
+	for i, it := range catalog.Items {
+		itemCopy := it
+		if it.Clients != nil {
+			itemCopy.Clients = make([]ClientStatus, len(it.Clients))
+			copy(itemCopy.Clients, it.Clients)
+		}
+		enrichItem(&itemCopy)
+		clonedItems[i] = itemCopy
+	}
+	catalog.Items = clonedItems
+	return catalog
+}
+
+// catalogRows builds the list rows for one category in catalog order.
+func catalogRows(items []CatalogItem, category string) []list.Item {
+	rows := make([]list.Item, 0, len(items))
+	for _, item := range items {
+		if itemMatchesCategory(item, category) {
+			rows = append(rows, catalogRow{item: item})
+		}
+	}
+	return rows
+}
+
+// ReplaceCatalog swaps in a refreshed snapshot without losing the active
+// category, filter query or the selected item identity. A selected item that
+// no longer exists falls back to the first visible row; no stale row is kept.
+func (m *CatalogModel) ReplaceCatalog(catalog Catalog) tea.Cmd {
+	prevID, prevKind := "", ""
+	if item, ok := m.Selected(); ok {
+		prevID, prevKind = item.ID, item.Kind
+	}
+	category := m.activeCategory
+	if category == "" {
+		category = CategoryAll
+	}
+	query := m.list.FilterValue()
+
+	m.catalog = cloneCatalog(catalog)
+	m.filterGeneration++
+	gen := m.filterGeneration
+	rows := catalogRows(m.catalog.Items, category)
+	cmd := m.list.SetItems(rows)
+
+	m.pendingSelectedID = prevID
+	m.pendingSelectedKind = prevKind
+	if query != "" {
+		m.list.SetFilterText(query)
+	}
+	selectIdx := -1
+	for i, row := range rows {
+		item, ok := row.(catalogRow)
+		if !ok {
+			continue
+		}
+		if prevID != "" && item.item.ID == prevID && item.item.Kind == prevKind {
+			selectIdx = i
+			break
+		}
+	}
+	if selectIdx >= 0 {
+		m.list.Select(selectIdx)
+	} else if len(rows) > 0 {
+		m.list.Select(0)
+	} else {
+		m.list.ResetSelected()
+	}
+	return m.tagCmd(cmd, gen)
+}
+
 // Init asks for the real terminal size. The alternate screen stays off until a
 // View says otherwise, so a resize is safe on any terminal.
 func (m CatalogModel) Init() tea.Cmd { return tea.RequestWindowSize }
@@ -126,13 +185,20 @@ func (m CatalogModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 	case FilterEnvelope:
-		if msg.Generation != m.filterGeneration || !strings.EqualFold(msg.Category, m.activeCategory) {
-			// Out-of-order or stale envelope from another category/generation: discard.
+		if msg.Generation != m.filterGeneration ||
+			!strings.EqualFold(msg.Category, m.activeCategory) ||
+			msg.Query != m.list.FilterValue() {
+			// Out-of-order or stale envelope from another category, generation
+			// or query: discard. The query check keeps a programmatic filter
+			// change from accepting a result computed for different text.
 			return m, nil
 		}
 		return m.handleFilterResult(msg.Msg)
 	case list.FilterMatchesMsg:
-		return m.handleFilterResult(msg)
+		// Only a result that passed through tagCmd's generation and category
+		// check may change the visible rows. An untagged result belongs to an
+		// older query and is discarded rather than applied over newer state.
+		return m, nil
 	}
 
 	filterBefore := m.list.FilterValue()
@@ -160,6 +226,7 @@ func (m CatalogModel) handleFilterResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				cmd = m.list.SetItems(matching)
+				cmd = m.tagCmd(cmd, m.filterGeneration)
 				break
 			}
 		}
@@ -188,30 +255,41 @@ func (m *CatalogModel) tagCmd(cmd tea.Cmd, gen int) tea.Cmd {
 	}
 	category := m.activeCategory
 	query := m.list.FilterValue()
-	return func() tea.Msg {
-		msg := cmd()
-		if msg == nil {
+
+	var tag func(tea.Cmd) tea.Cmd
+	tag = func(nested tea.Cmd) tea.Cmd {
+		if nested == nil {
 			return nil
 		}
-		if batch, ok := msg.(tea.BatchMsg); ok {
-			var taggedBatch tea.BatchMsg
-			for _, c := range batch {
-				taggedBatch = append(taggedBatch, m.tagCmd(c, gen))
+		return func() tea.Msg {
+			msg := nested()
+			if msg == nil {
+				return nil
 			}
-			return taggedBatch
-		}
-		return tea.BatchMsg{
-			func() tea.Msg { return msg },
-			func() tea.Msg {
-				return FilterEnvelope{
-					Generation: gen,
-					Category:   category,
-					Query:      query,
-					Msg:        msg,
+			if batch, ok := msg.(tea.BatchMsg); ok {
+				taggedBatch := make(tea.BatchMsg, 0, len(batch))
+				for _, sub := range batch {
+					if tagged := tag(sub); tagged != nil {
+						taggedBatch = append(taggedBatch, tagged)
+					}
 				}
-			},
+				return taggedBatch
+			}
+			// Only a list filter result needs the generation/category check.
+			// Other messages pass through untouched so no unrelated command
+			// (for example a quit) can be swallowed by the envelope.
+			if _, ok := msg.(list.FilterMatchesMsg); !ok {
+				return msg
+			}
+			return FilterEnvelope{
+				Generation: gen,
+				Category:   category,
+				Query:      query,
+				Msg:        msg,
+			}
 		}
 	}
+	return tag(cmd)
 }
 
 // handleKey reports whether the browser consumed the key. Unhandled keys fall
@@ -224,6 +302,8 @@ func (m *CatalogModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		switch key {
 		case "b", "B", "esc", "backspace":
 			m.detail = false
+			m.displayItem = nil
+			m.detailOverride = nil
 		case "q", "ctrl+c":
 			return tea.Quit, true
 		}
@@ -244,6 +324,10 @@ func (m *CatalogModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch key {
 	case "q", "ctrl+c":
 		return tea.Quit, true
+	case "s", "S":
+		if m.OpenRouterDetails() {
+			return nil, true
+		}
 	case "home":
 		m.list.Select(0)
 		return nil, true
@@ -254,11 +338,29 @@ func (m *CatalogModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, true
 	case "enter":
 		if _, ok := m.Selected(); ok {
+			m.detailOverride = nil
 			m.detail = true
 		}
 		return nil, true
 	}
 	return nil, false
+}
+
+// OpenRouterDetails displays the curated SDD Router item in the detail card
+// without executing any example or mutating the underlying list cursor. The
+// override is presentation-only and is cleared by Esc or by opening another
+// entry.
+func (m *CatalogModel) OpenRouterDetails() bool {
+	for i, it := range m.catalog.Items {
+		if it.ID == RouterSkillID {
+			itemCopy := m.catalog.Items[i]
+			enrichItem(&itemCopy)
+			m.detailOverride = &itemCopy
+			m.detail = true
+			return true
+		}
+	}
+	return false
 }
 
 // View renders the current screen. AltScreen is opt-in per run so headless and
@@ -271,6 +373,8 @@ func (m CatalogModel) View() tea.View {
 		"%d skills · %d profiles · read-only",
 		m.catalog.SkillCount(), m.catalog.ProfileCount(),
 	)))
+	b.WriteString("\n")
+	b.WriteString(m.theme.Accent.Render(fmt.Sprintf("Tip: %s (%s)", RouterRecommendationText, RouterRecommendationHint)))
 	b.WriteString("\n")
 	for _, notice := range m.catalog.Notices {
 		b.WriteString(m.theme.Warn.Render("note: " + notice))
@@ -306,6 +410,9 @@ func (m CatalogModel) detailView() string {
 
 func (m CatalogModel) renderDetailCard(width int, includeFooter bool) string {
 	item, ok := m.Selected()
+	if m.detailOverride != nil {
+		item, ok = *m.detailOverride, true
+	}
 	if m.displayItem != nil {
 		item, ok = *m.displayItem, true
 		enrichItem(&item)
@@ -341,11 +448,13 @@ func (m CatalogModel) renderDetailCard(width int, includeFooter bool) string {
 		b.WriteString(m.routingSection(item, maxW))
 	}
 
-	b.WriteString(m.theme.Section.Render("Destination status:"))
+	b.WriteString(m.theme.Section.Render("Destination status: (Installed state)"))
 	b.WriteString("\n")
 	if len(item.Clients) == 0 {
-		b.WriteString(m.theme.Hint.Render("  No destination entries reported."))
-		b.WriteString("\n")
+		for _, line := range Paragraph("No destination entries reported (no supported clients).", maxW, 2) {
+			b.WriteString(m.theme.Hint.Render(line))
+			b.WriteString("\n")
+		}
 	}
 	for _, client := range item.Clients {
 		statusText := StatusBadge(client.Status)
@@ -370,58 +479,76 @@ func (m CatalogModel) renderDetailCard(width int, includeFooter bool) string {
 			b.WriteString(m.badge(client.Status))
 			b.WriteString("\n")
 		}
+	}
+	b.WriteString("\n")
+
+	b.WriteString(m.theme.Section.Render("Purpose: (Why use it)"))
+	b.WriteString("\n")
+	purposeText := item.Purpose
+	if purposeText == "" {
+		purposeText = "Purpose not documented by Agentic SDD."
+	}
+	for _, line := range Paragraph(purposeText, maxW, 2) {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	b.WriteString(m.theme.Section.Render("When: (When to use)"))
+	b.WriteString("\n")
+	whenText := item.When
+	if whenText == "" {
+		whenText = "When to use not documented."
+	}
+	for _, line := range Paragraph(whenText, maxW, 2) {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	b.WriteString(m.theme.Section.Render("Example: (Invocation)"))
+	b.WriteString("\n")
+	exampleText := item.Example
+	if exampleText == "" {
+		exampleText = "Example prompt not documented."
+	}
+	for _, line := range Paragraph(exampleText, maxW, 2) {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	b.WriteString(m.theme.Section.Render("Caveat: (What it does not do)"))
+	b.WriteString("\n")
+	caveatText := item.Caveat
+	if caveatText == "" {
+		caveatText = "No specific caveats documented."
+	}
+	for _, line := range Paragraph(caveatText, maxW, 2) {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	b.WriteString(m.theme.Section.Render("Advanced files: (Destination paths)"))
+	b.WriteString("\n")
+	hasPaths := false
+	for _, client := range item.Clients {
 		if client.Path != "" {
-			pathW := maxW - 4
-			if pathW < 16 {
-				pathW = 16
-			}
-			for _, line := range wrapPath(client.Path, pathW) {
-				b.WriteString(m.theme.Hint.Render("    " + line))
+			hasPaths = true
+			for _, line := range wrapPath("  "+client.Client+": "+client.Path, maxW) {
+				b.WriteString(m.theme.Hint.Render(line))
 				b.WriteString("\n")
 			}
 		}
 	}
+	if !hasPaths {
+		for _, line := range Paragraph("No destination file paths recorded.", maxW, 2) {
+			b.WriteString(m.theme.Hint.Render(line))
+			b.WriteString("\n")
+		}
+	}
 	b.WriteString("\n")
-
-	if item.Purpose != "" {
-		b.WriteString(m.theme.Section.Render("Purpose:"))
-		b.WriteString("\n")
-		for _, line := range Paragraph(item.Purpose, maxW, 2) {
-			b.WriteString(line)
-			b.WriteString("\n")
-		}
-		b.WriteString("\n")
-	}
-
-	if item.When != "" {
-		b.WriteString(m.theme.Section.Render("When:"))
-		b.WriteString("\n")
-		for _, line := range Paragraph(item.When, maxW, 2) {
-			b.WriteString(line)
-			b.WriteString("\n")
-		}
-		b.WriteString("\n")
-	}
-
-	if item.Example != "" {
-		b.WriteString(m.theme.Section.Render("Example:"))
-		b.WriteString("\n")
-		for _, line := range Paragraph(item.Example, maxW, 2) {
-			b.WriteString(line)
-			b.WriteString("\n")
-		}
-		b.WriteString("\n")
-	}
-
-	if item.Caveat != "" {
-		b.WriteString(m.theme.Section.Render("Caveat:"))
-		b.WriteString("\n")
-		for _, line := range Paragraph(item.Caveat, maxW, 2) {
-			b.WriteString(line)
-			b.WriteString("\n")
-		}
-		b.WriteString("\n")
-	}
 
 	b.WriteString(m.theme.Section.Render("Next action:"))
 	b.WriteString("\n")
@@ -522,8 +649,15 @@ func (m CatalogModel) VisibleItems() []CatalogItem {
 // InDetail reports whether the detail card is showing.
 func (m CatalogModel) InDetail() bool { return m.detail }
 
-// SetDetail sets whether the detail card is showing.
-func (m *CatalogModel) SetDetail(d bool) { m.detail = d }
+// SetDetail sets whether the detail card is showing. Closing the card also
+// drops any recommendation override, so a later entry shows its own details.
+func (m *CatalogModel) SetDetail(d bool) {
+	m.detail = d
+	if !d {
+		m.displayItem = nil
+		m.detailOverride = nil
+	}
+}
 
 // SetShowHelp controls whether the child list help bar is visible.
 func (m *CatalogModel) SetShowHelp(show bool) { m.list.SetShowHelp(show) }
@@ -611,8 +745,12 @@ func (m CatalogModel) DetailCardLines(width int) []string {
 
 // SetFilter applies a filter as if it had been typed after `/`. A host can use
 // it to preseed a search from an argument; tests use it to assert filtering
-// without simulating every keystroke.
-func (m *CatalogModel) SetFilter(text string) { m.list.SetFilterText(text) }
+// without simulating every keystroke. It bumps the filter generation, so a
+// result computed for an earlier query can never be applied over it.
+func (m *CatalogModel) SetFilter(text string) {
+	m.list.SetFilterText(text)
+	m.filterGeneration++
+}
 
 // Size reports the viewport the screen last used.
 func (m CatalogModel) Size() (width, height int) { return m.width, m.height }

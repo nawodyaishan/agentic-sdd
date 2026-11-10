@@ -10,20 +10,23 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// Midnight Lagoon palette roles. These constants are the single source the
+// Agentic Dark (Mocha) palette roles. These constants are the single source the
 // theme and these tests share; a role that drifts off the researched palette
 // must fail here before a visual review has to catch it.
 const (
-	wantPaletteBackground = "#0B1C22"
-	wantPaletteSurface    = "#123039"
-	wantPaletteForeground = "#FAF5E9"
-	wantPaletteMuted      = "#B6CACB"
-	wantPalettePrimary    = "#F39FEC"
-	wantPaletteSecondary  = "#35DADA"
-	wantPaletteSuccess    = "#84D987"
-	wantPaletteWarning    = "#EAB946"
-	wantPaletteError      = "#FBA7A0"
-	wantPaletteBorder     = "#8FA9AD"
+	wantPaletteBackground  = "#1E1E2E"
+	wantPaletteSurface     = "#181825"
+	wantPaletteForeground  = "#CDD6F4"
+	wantPaletteMuted       = "#BAC2DE"
+	wantPaletteDim         = "#A6ADC8"
+	wantPalettePrimary     = "#CBA6F7"
+	wantPaletteSecondary   = "#94E2D5"
+	wantPaletteSuccess     = "#A6E3A1"
+	wantPaletteWarning     = "#F9E2AF"
+	wantPaletteError       = "#F38BA8"
+	wantPaletteBorder      = "#7F849C"
+	wantPaletteBorderFocus = "#89B4FA"
+	wantPaletteSelectedBg  = "#313244"
 )
 
 func contrastRGB(t *testing.T, c color.Color) color.RGBA {
@@ -93,11 +96,15 @@ func TestThemePaletteRolesMeetWCAG(t *testing.T) {
 
 	body := contrastRGB(t, theme.CanvasColor())
 	surface := contrastRGB(t, theme.HeaderBar.GetBackground())
+	selectedBg := contrastRGB(t, theme.SelectedBgColor())
 	if got := contrastHex(t, theme.CanvasColor()); got != wantPaletteBackground {
 		t.Fatalf("canvas = %s, want %s", got, wantPaletteBackground)
 	}
 	if got := contrastHex(t, theme.HeaderBar.GetBackground()); got != wantPaletteSurface {
 		t.Fatalf("header surface = %s, want %s", got, wantPaletteSurface)
+	}
+	if got := contrastHex(t, theme.SelectedBgColor()); got != wantPaletteSelectedBg {
+		t.Fatalf("selected background = %s, want %s", got, wantPaletteSelectedBg)
 	}
 
 	roles := []struct {
@@ -117,11 +124,21 @@ func TestThemePaletteRolesMeetWCAG(t *testing.T) {
 		{"NavActive", theme.NavActive.GetForeground(), body, 7},
 		{"NavInactive", theme.NavInactive.GetForeground(), body, 7},
 		{"DefaultForeground", theme.DefaultForeground(), body, 7},
+		{"Text", theme.Text.GetForeground(), body, 7},
+		{"Muted", theme.Muted.GetForeground(), body, 7},
+		{"Dim", theme.Dim.GetForeground(), body, 7},
+		{"Info", theme.Info.GetForeground(), body, 7},
+		{"Notice", theme.Notice.GetForeground(), body, 7},
 		{"Border", theme.Border.GetForeground(), body, 3},
+		{"BorderFocus", theme.BorderFocus.GetForeground(), body, 3},
 		{"HeaderTitle", theme.HeaderTitle.GetForeground(), surface, 7},
 		{"HeaderAccent", theme.HeaderAccent.GetForeground(), surface, 7},
 		{"HeaderMuted", theme.HeaderMuted.GetForeground(), surface, 7},
 		{"HeaderDivider", theme.HeaderDivider.GetForeground(), surface, 3},
+		{"SelectedText", theme.Selected.GetForeground(), selectedBg, 7},
+		{"SelectedMuted", theme.Muted.GetForeground(), selectedBg, 7},
+		{"SelectedBorderFocus", theme.BorderFocus.GetForeground(), selectedBg, 3},
+		{"SelectedBorder", theme.Border.GetForeground(), selectedBg, 3},
 	}
 
 	for _, role := range roles {
@@ -152,9 +169,9 @@ func TestThemePaletteRolesMeetWCAG(t *testing.T) {
 	}
 }
 
-// TestThemeUsesMidnightLagoonPalette pins each style to the researched palette
+// TestThemeUsesAgenticDarkPalette pins each style to the researched palette
 // instead of accepting any color pair that happens to pass the ratio check.
-func TestThemeUsesMidnightLagoonPalette(t *testing.T) {
+func TestThemeUsesAgenticDarkPalette(t *testing.T) {
 	theme := NewTheme(true)
 
 	roles := []struct {
@@ -173,6 +190,14 @@ func TestThemeUsesMidnightLagoonPalette(t *testing.T) {
 		{"NavActive", theme.NavActive.GetForeground(), wantPalettePrimary},
 		{"NavInactive", theme.NavInactive.GetForeground(), wantPaletteForeground},
 		{"Border", theme.Border.GetForeground(), wantPaletteBorder},
+		{"BorderFocus", theme.BorderFocus.GetForeground(), wantPaletteBorderFocus},
+		{"Text", theme.Text.GetForeground(), wantPaletteForeground},
+		{"Muted", theme.Muted.GetForeground(), wantPaletteMuted},
+		{"Dim", theme.Dim.GetForeground(), wantPaletteDim},
+		{"Info", theme.Info.GetForeground(), wantPaletteSecondary},
+		{"Notice", theme.Notice.GetForeground(), wantPaletteForeground},
+		{"Selected foreground", theme.Selected.GetForeground(), wantPaletteForeground},
+		{"Selected background", theme.SelectedBgColor(), wantPaletteSelectedBg},
 		{"HeaderTitle", theme.HeaderTitle.GetForeground(), wantPaletteForeground},
 		{"HeaderAccent", theme.HeaderAccent.GetForeground(), wantPalettePrimary},
 		{"HeaderMuted", theme.HeaderMuted.GetForeground(), wantPaletteMuted},
@@ -451,7 +476,7 @@ func TestColoredHelpOverlayKeepsTitleAndFooter(t *testing.T) {
 				t.Fatalf("w=%d h=%d help title hidden", width, height)
 			}
 			footer := ansi.Strip(lines[len(lines)-1])
-			if !strings.Contains(footer, "quit") {
+			if !strings.Contains(footer, "Esc") && !strings.Contains(footer, "close") {
 				t.Fatalf("w=%d h=%d help footer hidden: %q", width, height, footer)
 			}
 		}

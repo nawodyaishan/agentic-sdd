@@ -16,6 +16,31 @@ import (
 // agent: the user selects and copies the visible text.
 const FirstRouterPrompt = "Use `agentic-sdd-router`. Inspect this repository, ask at most the consequential questions you can't resolve from the code, and draft `spec.md`, `plan.md`, and `tasks.md` for my combined approval. Stop before implementing."
 
+// QuickStartName is the user-facing name of the optional, in-session tour. It
+// is a presentation label: the model type keeps its historical name so the
+// existing host wiring stays stable.
+const QuickStartName = "Quick start"
+
+// PostSetupSectionTitle heads the copyable first-prompt guidance offered after
+// a successful setup.
+const PostSetupSectionTitle = "First prompt & next steps"
+
+// PostSetupBody returns the exact, copyable first Router prompt and the plain
+// next steps offered after a successful setup. The caller renders the lines;
+// nothing is copied, opened or executed, and no client or agent is contacted.
+func PostSetupBody() []string {
+	return []string{
+		FirstRouterPrompt,
+		"",
+		"Next steps:",
+		"1. Paste the prompt into the agent client of your choice when you are ready.",
+		"2. Inspect installed skills again any time with `agentic-sdd preview` (read-only).",
+		"3. Re-open this " + QuickStartName + " from Home with o; nothing is saved between sessions.",
+		"",
+		"Nothing is copied automatically, and no agent, client, clipboard or browser is started.",
+	}
+}
+
 // OnboardingStep is one screen of the shared, skippable tour.
 type OnboardingStep int
 
@@ -134,6 +159,18 @@ func NewOnboardingSummary(catalog Catalog) OnboardingSummary {
 	return summary
 }
 
+// NewOnboardingSummaryFromSetup derives the tour's review summary from the
+// read-only catalog plus the current in-session setup choices. It copies the
+// selection so later installer edits cannot mutate the tour, reads no files or
+// network, and never creates a preview token or consent.
+func NewOnboardingSummaryFromSetup(catalog Catalog, install InstallModel) OnboardingSummary {
+	summary := NewOnboardingSummary(catalog)
+	summary.Clients = append([]string(nil), install.SelectedClients()...)
+	summary.WithOpenCode = install.WithOpenCode()
+	summary.OpenCodeFreeFirst = install.OpenCodeFreeFirst()
+	return summary
+}
+
 // OnboardingModel is the shared, skippable onboarding tour. It is a pure
 // Bubble Tea model: it holds no opener, clipboard, filesystem or process
 // handle, and rendering or initializing it has no side effect. An explicit o/a
@@ -164,7 +201,7 @@ func NewOnboardingModel(cfg TUIConfig, summary OnboardingSummary) OnboardingMode
 	cfg = cfg.Normalize()
 	return OnboardingModel{
 		cfg:     cfg,
-		theme:   NewTheme(cfg.Color),
+		theme:   newThemeForConfig(cfg),
 		summary: summary,
 		step:    OnboardingWelcome,
 		outcome: OnboardingActive,
@@ -284,6 +321,17 @@ func (m OnboardingModel) Finished() bool { return m.outcome == OnboardingComplet
 // close it. The finish step is not done so its prompt stays visible.
 func (m OnboardingModel) Done() bool { return m.outcome.Terminal() }
 
+// Reopen returns the tour at its first step with the same summary, theme and
+// size. Re-opening is an in-session action: it never changes setup choices,
+// revives a preview token or creates consent, and it never writes a first-run
+// preference.
+func (m OnboardingModel) Reopen() OnboardingModel {
+	m.step = OnboardingWelcome
+	m.outcome = OnboardingActive
+	m.scroll = 0
+	return m
+}
+
 // Prompt returns the exact first router prompt shown on the finish step.
 func (m OnboardingModel) Prompt() string { return FirstRouterPrompt }
 
@@ -324,15 +372,15 @@ func (m OnboardingModel) Lines(width int) []string {
 	lines = append(lines, styledParagraph("by "+BrandAuthor, width, 0, theme.Hint.Render)...)
 	lines = append(lines, "")
 	lines = append(lines, styledParagraph(fmt.Sprintf(
-		"%s | step %d of 4 | read-only and skippable",
-		m.step.String(), int(m.step)+1,
+		"%s · %s | step %d of 4 | optional, read-only and skippable",
+		QuickStartName, m.step.String(), int(m.step)+1,
 	), width, 0, theme.Subtitle.Render)...)
 	lines = append(lines, "")
 
 	if m.outcome.Terminal() {
-		title := "Onboarding skipped"
+		title := QuickStartName + " skipped"
 		if m.outcome == OnboardingCancelled {
-			title = "Onboarding cancelled"
+			title = QuickStartName + " cancelled"
 		}
 		lines = append(lines, m.section(title,
 			"No files were written, no browser opened, nothing was copied and no agent ran. Return to the main menu when you are ready.", width)...)
@@ -344,9 +392,9 @@ func (m OnboardingModel) Lines(width int) []string {
 	switch m.step {
 	case OnboardingWelcome:
 		lines = append(lines, m.section("Welcome",
-			"This short tour explains what Agentic-SDD installs and how to start.\n"+
+			"This optional "+QuickStartName+" explains what Agentic-SDD installs and how to start.\n"+
 				"It is read-only: no files are written, no browser opens and no agent runs.\n"+
-				"You can skip at any time or go back without changing anything.", width)...)
+				"You can skip at any time, go back without changing anything, or re-open it later from Home with o.", width)...)
 		lines = append(lines, "")
 		lines = append(lines, m.section("What this tour covers",
 			"1. What gets installed\n"+
@@ -370,8 +418,10 @@ func (m OnboardingModel) Lines(width int) []string {
 
 	case OnboardingFinish:
 		lines = append(lines, m.section("You're ready",
-			"Onboarding complete. Copy the first prompt below into your agent of choice.\n"+
-				"Nothing is copied automatically and no agent is started. Select the text and copy it yourself.", width)...)
+			QuickStartName+" complete. Copy the first prompt below into your agent of choice.\n"+
+				"Nothing is copied automatically and no agent is started. Select the text and copy it yourself.\n"+
+				"Next steps: inspect installed skills with `agentic-sdd preview`, then run `agentic-sdd-router` when you are ready.\n"+
+				"Re-open this "+QuickStartName+" any time from Home with o; nothing is saved between sessions.", width)...)
 		lines = append(lines, "")
 		lines = append(lines, styledParagraph("First prompt:", width, 0, theme.Section.Render)...)
 		lines = append(lines, styledParagraph(FirstRouterPrompt, width, 2, theme.Accent.Render)...)
@@ -408,24 +458,24 @@ func (m OnboardingModel) View() tea.View {
 
 	view := tea.NewView(strings.Join(lines, "\n"))
 	view.AltScreen = m.cfg.Interactive
-	view.WindowTitle = BrandName + " onboarding"
+	view.WindowTitle = BrandName + " " + QuickStartName
 	return view
 }
 
 func (m OnboardingModel) installedBody() string {
 	clients := "Clients: selected later in Install & Manage."
 	if len(m.summary.Clients) > 0 {
-		clients = "Clients: " + strings.Join(m.summary.Clients, ", ") + "."
+		clients = "Clients: " + clientPlainNames(m.summary.Clients) + "."
 	}
 
 	optional := "Optional content: not selected."
 	switch {
 	case m.summary.WithOpenCode && m.summary.OpenCodeFreeFirst:
-		optional = "Optional content: OpenCode pack and Free-first presets."
+		optional = "Optional content: OpenCode agent profiles and the free-model template preference."
 	case m.summary.WithOpenCode:
-		optional = "Optional content: OpenCode pack."
+		optional = "Optional content: OpenCode agent profiles."
 	case m.summary.OpenCodeFreeFirst:
-		optional = "Optional content: Free-first presets."
+		optional = "Optional content: the free-model template preference."
 	}
 
 	return fmt.Sprintf(
@@ -437,7 +487,7 @@ func (m OnboardingModel) installedBody() string {
 func (m OnboardingModel) reviewBody() string {
 	clients := "No client destinations were reported for this selection."
 	if len(m.summary.Clients) > 0 {
-		clients = "Clients: " + strings.Join(m.summary.Clients, ", ") + "."
+		clients = "Clients: " + clientPlainNames(m.summary.Clients) + "."
 	}
 
 	home := "Home directory: not reported."

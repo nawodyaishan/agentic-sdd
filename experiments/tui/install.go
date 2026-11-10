@@ -66,6 +66,9 @@ const (
 	InstallOutcomeRefused   InstallOutcome = "refused"
 	InstallOutcomeFailed    InstallOutcome = "failed"
 	InstallOutcomeCancelled InstallOutcome = "cancelled"
+	// InstallOutcomeUnknown means the engine returned without a definite write
+	// outcome. It is never reported as success or as a failure.
+	InstallOutcomeUnknown InstallOutcome = "unknown"
 )
 
 // PreviewOp is the operation seam for generating an installation preview.
@@ -111,6 +114,11 @@ type InstallModel struct {
 	previewLoading bool
 	previewResult  *appops.PreviewResult
 	previewToken   string
+	// impactCursor and impactExpanded are presentation-only state for the
+	// derived impact projection. They are reset when the preview identity
+	// changes and never influence the plan, token or write request.
+	impactCursor   int
+	impactExpanded map[int]bool
 	applyLoading   bool
 	applyResult    *appops.ApplyResult
 	err            error
@@ -132,7 +140,7 @@ type InstallModel struct {
 // are selectable, and by default all supported clients are selected.
 func NewInstallModel(cfg TUIConfig) InstallModel {
 	cfg = cfg.Normalize()
-	theme := NewTheme(cfg.Color)
+	theme := newThemeForConfig(cfg)
 
 	supported := skillsync.SupportedClientIDs()
 	selected := make(map[string]bool, len(supported))
@@ -322,10 +330,18 @@ func (m *InstallModel) SetInspectOp(op InspectOp) {
 func (m *InstallModel) invalidateConfirmation() {
 	m.previewToken = ""
 	m.previewResult = nil
+	m.resetImpactPresentation()
 	m.confirmNoSelected = true
 	if m.step == InstallStepConfirm || m.step == InstallStepPreview {
 		m.step = InstallStepReview
 	}
+}
+
+// resetImpactPresentation discards grouping state. It never touches the
+// authoritative plan; it only makes the next render start collapsed.
+func (m *InstallModel) resetImpactPresentation() {
+	m.impactCursor = 0
+	m.impactExpanded = nil
 }
 
 // PreviewCmd generates a tea.Cmd for executing the preview asynchronously.
@@ -339,6 +355,8 @@ func (m *InstallModel) previewCmd() tea.Cmd {
 	m.previewLoading = true
 	m.previewResult = nil
 	m.previewToken = ""
+	m.resetImpactPresentation()
+	m.notice = ""
 	m.err = nil
 	m.validationErr = ""
 
@@ -405,6 +423,7 @@ func (m InstallModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = nil
 		m.notice = ""
 		m.scroll = 0
+		m.resetImpactPresentation()
 		return m, nil
 
 	case WriteStartedMsg:
@@ -492,8 +511,48 @@ func classifyInstallOutcome(result appops.ApplyResult, err error) InstallOutcome
 	case result.Outcome == skillsync.OutcomeApplied:
 		return InstallOutcomeApplied
 	default:
-		return InstallOutcomeFailed
+		return InstallOutcomeUnknown
 	}
+}
+
+// appliedChangeCounts separates newly installed destinations from replacements
+// using the typed applied actions only. An action this build does not know is
+// not counted as either.
+func appliedChangeCounts(applied []skillsync.ResultChange) (installed, updated int) {
+	for _, change := range applied {
+		switch change.Action {
+		case skillsync.ChangeInstall:
+			installed++
+		case skillsync.ChangeReplace:
+			updated++
+		}
+	}
+	return installed, updated
+}
+
+// clientSelectionText renders selected clients as plain display names with
+// their engine IDs kept visible, so a confirmation cannot hide the identity it
+// will act on.
+func clientSelectionText(ids []string) string {
+	if len(ids) == 0 {
+		return "none (an explicit empty selection is invalid)"
+	}
+	labels := make([]string, 0, len(ids))
+	for _, id := range ids {
+		labels = append(labels, ClientSelectionLabel(id))
+	}
+	return strings.Join(labels, ", ")
+}
+
+// clientPlainNames renders clients for orientation prose, where the exact
+// engine ID and destination belong in the following review/confirmation
+// details instead.
+func clientPlainNames(ids []string) string {
+	names := make([]string, 0, len(ids))
+	for _, id := range ids {
+		names = append(names, ClientDisplayName(id))
+	}
+	return strings.Join(names, ", ")
 }
 
 func (m InstallModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -591,7 +650,7 @@ func (m InstallModel) handleKeyOptions(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 			m.invalidateConfirmation()
 		} else {
 			if !m.withOpenCode {
-				m.validationErr = "Free-first preset requires the OpenCode pack to be enabled."
+				m.validationErr = "Prefer free models in the provided templates requires the OpenCode agent profiles option."
 			} else {
 				m.freeFirst = !m.freeFirst
 				m.invalidateConfirmation()
@@ -642,6 +701,12 @@ func (m InstallModel) handleKeyPreview(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		return m, nil
 	}
 	if keyMatches(msg, "esc", "left", "b") {
+		if m.PreviewNoOp() {
+			// A zero-change preview is not consent for a later state. Leaving
+			// it discards the read-only result so returning always re-previews.
+			m.invalidateConfirmation()
+			return m, nil
+		}
 		m.step = InstallStepReview
 		return m, nil
 	}
@@ -650,6 +715,39 @@ func (m InstallModel) handleKeyPreview(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		m.step = InstallStepResult
 		return m, nil
 	}
+
+	noOp := m.PreviewNoOp()
+	if noOp {
+		// The read-only no-op state accepts only inspection and non-write
+		// route actions. The App owns Home/Library navigation; these keys are
+		// inert here so a standalone model can never start a write either.
+		switch {
+		case keyMatches(msg, "o"):
+			m.step = InstallStepOptions
+			m.invalidateConfirmation()
+			return m, nil
+		case keyMatches(msg, "enter", "y", "Y", "n", "N"):
+			return m, nil
+		}
+	}
+
+	if keyMatches(msg, "x") {
+		m.toggleAllImpactDetails()
+		return m, nil
+	}
+	if keyMatches(msg, "[") {
+		m.moveImpactCursor(-1)
+		return m, nil
+	}
+	if keyMatches(msg, "]") {
+		m.moveImpactCursor(1)
+		return m, nil
+	}
+	if keyMatches(msg, " ", "space") {
+		m.toggleImpactGroup()
+		return m, nil
+	}
+
 	if keyMatches(msg, "up", "k") {
 		if m.scroll > 0 {
 			m.scroll--
@@ -676,8 +774,16 @@ func (m InstallModel) handleKeyPreview(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		return m, nil
 	}
 	if keyMatches(msg, "enter") {
-		// Only advance if preview succeeded and produced a valid token
-		if m.err != nil || m.previewResult == nil || m.previewToken == "" {
+		// Only a complete, classifiable preview with a valid token may open
+		// the default-No confirmation. A no-op, unknown or incomplete result
+		// never advances.
+		if noOp {
+			return m, nil
+		}
+		if !m.previewConfirmable() {
+			if m.previewProjection().hasUnknown() {
+				m.notice = "Confirmation is disabled because the preview contains an action this screen cannot classify. Nothing was written; inspect the plan or use the explicit CLI."
+			}
 			return m, nil
 		}
 		m.step = InstallStepConfirm
@@ -693,8 +799,13 @@ func (m InstallModel) handleKeyConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 	// Only an affirmative 'y' or 'Y' confirms.
 	// Enter must NOT confirm.
 	// Duplicate confirmation cannot double-apply.
-	// Cancel/back is safe.
-	if keyMatches(msg, "y", "Y") {
+	// Cancel/back is safe. q cancels this journey safely and never quits
+	// through the confirmation.
+	if classifyConfirmKey(msg.String()) == confirmKeyIgnore {
+		return m, nil
+	}
+	switch {
+	case keyMatches(msg, "y", "Y"):
 		if m.previewToken == "" {
 			m.outcome = InstallOutcomeRefused
 			m.step = InstallStepResult
@@ -751,6 +862,7 @@ func (m InstallModel) handleKeyResult(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 		m.writeDetail = ""
 		m.validationErr = ""
 		m.confirmNoSelected = true
+		m.resetImpactPresentation()
 		m.scroll = 0
 		return m, nil
 	}
@@ -813,40 +925,57 @@ func paginateLines(lines []string, height, offset int) []string {
 	return rows
 }
 
+// data escapes Unicode source data in ASCII mode so paths, IDs, notices and
+// errors stay reversible on a 7-bit terminal. It never changes the request,
+// token or engine value; callers escape only at the render boundary.
+func (m InstallModel) data(text string) string {
+	if m.cfg.ASCII {
+		return escapeData(text)
+	}
+	return text
+}
+
 // Lines returns the full slice of wrapped lines for the current step at width.
 func (m InstallModel) Lines(width int) []string {
 	if width <= 0 {
 		width = 80
 	}
+	var lines []string
 	switch m.step {
 	case InstallStepClients:
-		return m.clientsLines(width)
+		lines = m.clientsLines(width)
 	case InstallStepOptions:
-		return m.optionsLines(width)
+		lines = m.optionsLines(width)
 	case InstallStepReview:
-		return m.reviewLines(width)
+		lines = m.reviewLines(width)
 	case InstallStepPreview:
-		return m.previewLines(width)
+		lines = m.previewLines(width)
 	case InstallStepConfirm:
-		return m.confirmLines(width)
+		lines = m.confirmLines(width)
 	case InstallStepRunning:
-		return m.runningLines(width)
+		lines = m.runningLines(width)
 	case InstallStepResult:
-		return m.resultLines(width)
+		lines = m.resultLines(width)
 	default:
-		return []string{"Unknown step"}
+		lines = []string{"Unknown step"}
 	}
+	if m.cfg.ASCII {
+		for i := range lines {
+			lines[i] = toASCII(lines[i])
+		}
+	}
+	return lines
 }
 
 func (m InstallModel) clientsLines(width int) []string {
 	var lines []string
 
 	lines = append(lines, m.theme.Title.Render("Install & Manage · Client Target Selection"))
-	lines = append(lines, m.theme.Subtitle.Render("Choose coding clients to receive Agentic SDD skills"))
+	lines = append(lines, m.theme.Subtitle.Render("Choose which coding clients receive the shared Agentic SDD skills"))
 	lines = append(lines, "")
 
 	if m.validationErr != "" {
-		lines = append(lines, m.theme.Bad.Render("  ! "+m.validationErr))
+		lines = append(lines, m.theme.Bad.Render("  ! "+m.data(m.validationErr)))
 		lines = append(lines, "")
 	}
 
@@ -858,23 +987,30 @@ func (m InstallModel) clientsLines(width int) []string {
 			cursor = glyphs.Cursor + " "
 		}
 		check := glyphs.CheckEmpty
+		state := "not selected"
 		if m.selectedClients[id] {
 			check = glyphs.CheckMark
+			state = "selected"
 		}
-		targetPath := ClientTargetDir(m.home, id)
-		row := fmt.Sprintf("%s%s %-6s %s %s (%s)", cursor, check, id, glyphs.Bullet, targetPath, ClientDisplayName(id))
+		targetPath := m.data(ClientTargetDir(m.home, id))
+		row := fmt.Sprintf("%s%s %s — %s", cursor, check, ClientDisplayName(id), state)
 		if i == m.clientCursor && m.theme.Color {
 			row = m.theme.Selected.Bold(true).Render(row)
 		}
 		clientRows = append(clientRows, row)
+		clientRows = append(clientRows, fmt.Sprintf("      id %s · destination %s", id, targetPath))
 	}
 
 	lines = append(lines, Section("Supported Coding Clients", clientRows, width)...)
 	lines = append(lines, "")
+	lines = append(lines, Section("Shared directory", []string{
+		"Shared Agents Skills is one shared skills directory, not a provider, account or runtime.",
+	}, width)...)
+	lines = append(lines, "")
 
 	notes := []string{
 		"The core skill set is installed as a complete, supported unit. Client selection specifies which tool directories are managed.",
-		"At least one client is required; an explicit empty selection is invalid.",
+		"At least one client is required; an explicit empty selection is invalid and no pack-only installation is offered.",
 	}
 	lines = append(lines, Section("Installation Unit Policy", notes, width)...)
 	lines = append(lines, "")
@@ -887,11 +1023,11 @@ func (m InstallModel) optionsLines(width int) []string {
 	var lines []string
 
 	lines = append(lines, m.theme.Title.Render("Install & Manage · Optional Integrations"))
-	lines = append(lines, m.theme.Subtitle.Render("Configure optional OpenCode profile templates and presets"))
+	lines = append(lines, m.theme.Subtitle.Render("Configure optional OpenCode agent profiles and the free-model template preference"))
 	lines = append(lines, "")
 
 	if m.validationErr != "" {
-		lines = append(lines, m.theme.Bad.Render("  ! "+m.validationErr))
+		lines = append(lines, m.theme.Bad.Render("  ! "+m.data(m.validationErr)))
 		lines = append(lines, "")
 	}
 
@@ -914,24 +1050,24 @@ func (m InstallModel) optionsLines(width int) []string {
 		chk1 = glyphs.CheckMark
 	}
 
-	row0 := fmt.Sprintf("%s%s Install OpenCode pack (profiles & skills)", c0, chk0)
+	row0 := fmt.Sprintf("%s%s OpenCode agent profiles", c0, chk0)
 	if m.optionsCursor == 0 && m.theme.Color {
 		row0 = m.theme.Selected.Bold(true).Render(row0)
 	}
 
-	row1 := fmt.Sprintf("%s%s Free-first model preset", c1, chk1)
+	row1 := fmt.Sprintf("%s%s Prefer free models in the provided templates", c1, chk1)
 	if m.optionsCursor == 1 && m.theme.Color {
 		row1 = m.theme.Selected.Bold(true).Render(row1)
 	}
 
 	optionsRows := []string{
 		row0,
-		fmt.Sprintf("    Profile destination: %s", OpenCodeAgentsDir(m.home)),
-		"    (OpenCode profile destination is stated separately from core client selection)",
+		fmt.Sprintf("    Profiles destination: %s", m.data(OpenCodeAgentsDir(m.home))),
+		"    Adds OpenCode agent profile templates and pack skills. This is separate from the core client selection above.",
 		"",
 		row1,
-		"    Configures agent profile templates to prioritize zero-cost free model tiers first.",
-		"    (Requires OpenCode pack; template preset only, does not guarantee model availability or quota)",
+		"    A template preference only: it does not check, enable or guarantee model availability, quota, credentials or privacy.",
+		"    Requires the OpenCode agent profiles option; no pack-only installation is offered.",
 	}
 
 	lines = append(lines, Section("Optional Additions", optionsRows, width)...)
@@ -950,50 +1086,128 @@ func (m InstallModel) reviewLines(width int) []string {
 
 	source := "Embedded portable skills (built-in)"
 	if m.repo != "" {
-		source = m.repo
+		source = m.data(m.repo)
 	}
 
 	summaryRows := []string{
 		"Source repository: " + source,
-		"Target home directory: " + m.home,
-		"Backups directory: " + BackupRootDir(m.repo, m.home),
+		"Target home directory: " + m.data(m.home),
+		"Backups directory: " + m.data(BackupRootDir(m.repo, m.home)),
 	}
 	lines = append(lines, Section("Source & Environment", summaryRows, width)...)
 	lines = append(lines, "")
 
 	var clientRows []string
 	for _, id := range m.SelectedClients() {
-		clientRows = append(clientRows, fmt.Sprintf("• %-6s -> %s", id, ClientTargetDir(m.home, id)))
+		clientRows = append(clientRows, fmt.Sprintf("• %s → %s", ClientSelectionLabel(id), m.data(ClientTargetDir(m.home, id))))
 	}
 	lines = append(lines, Section(fmt.Sprintf("Core Client Destinations (%d)", len(clientRows)), clientRows, width)...)
 	lines = append(lines, "")
 
 	var opencodeRows []string
 	if m.withOpenCode {
-		opencodeRows = append(opencodeRows, "Status: Enabled")
-		opencodeRows = append(opencodeRows, "Profiles destination: "+OpenCodeAgentsDir(m.home))
-		opencodeRows = append(opencodeRows, "(Stated separately from core client skill destinations)")
+		opencodeRows = append(opencodeRows, "Status: enabled")
+		opencodeRows = append(opencodeRows, "Profiles destination: "+m.data(OpenCodeAgentsDir(m.home)))
+		opencodeRows = append(opencodeRows, "Stated separately from the core client skill destinations above.")
 	} else {
-		opencodeRows = append(opencodeRows, "Status: Disabled (core skills only)")
+		opencodeRows = append(opencodeRows, "Status: disabled (core skills only)")
 	}
 	if m.freeFirst {
-		opencodeRows = append(opencodeRows, "Preset: Free-first template preset enabled")
+		opencodeRows = append(opencodeRows, "Template preference: prefer free models in the provided templates (preference only, not an availability or quota guarantee)")
 	} else {
-		opencodeRows = append(opencodeRows, "Preset: Default (none)")
+		opencodeRows = append(opencodeRows, "Template preference: default (none)")
 	}
-	lines = append(lines, Section("OpenCode Profiles & Presets (Separate)", opencodeRows, width)...)
+	lines = append(lines, Section("OpenCode agent profiles & presets (separate)", opencodeRows, width)...)
 	lines = append(lines, "")
 
 	lines = append(lines, m.theme.Hint.Render("Enter: generate exact read-only preview · Esc / b: back to options · ↑/↓: scroll"))
 	return lines
 }
 
-func (m InstallModel) previewLines(width int) []string {
-	var lines []string
+// previewProjection derives the immutable presentation projection from the
+// current typed preview. It never modifies the plan or token.
+func (m InstallModel) previewProjection() impactProjection {
+	if m.previewResult == nil {
+		return impactProjection{}
+	}
+	return projectImpact(m.previewResult.Planned)
+}
 
-	lines = append(lines, m.theme.Title.Render("Install & Manage · Exact Preview Impact"))
-	lines = append(lines, m.theme.Subtitle.Render("Read-only inspection of planned destination changes"))
-	lines = append(lines, "")
+// PreviewNoOp reports whether the preview is a successful, complete plan whose
+// every item is explicitly up to date. Only that state offers the read-only
+// Already up to date branch; an empty, refused, incomplete or unknown plan
+// never does.
+func (m InstallModel) PreviewNoOp() bool {
+	if m.err != nil || m.previewResult == nil || m.previewToken == "" {
+		return false
+	}
+	if m.previewResult.Outcome == skillsync.OutcomeFailed {
+		return false
+	}
+	return m.previewProjection().noOp()
+}
+
+// previewConfirmable reports whether the preview may open the default-No
+// confirmation. A failed outcome, a plan this screen cannot fully classify, or
+// an incomplete result never may.
+func (m InstallModel) previewConfirmable() bool {
+	if m.previewLoading || m.err != nil || m.previewResult == nil || m.previewToken == "" {
+		return false
+	}
+	if m.previewResult.Outcome == skillsync.OutcomeFailed {
+		return false
+	}
+	return !m.previewProjection().hasUnknown()
+}
+
+// previewIncomplete reports a successful preview result that produced no
+// confirmation token, which must not look like a usable plan.
+func (m InstallModel) previewIncomplete() bool {
+	return m.err == nil && !m.previewLoading && m.previewResult != nil && m.previewToken == ""
+}
+
+func (m InstallModel) previewSourceLabel() string {
+	if m.repo != "" {
+		return m.repo
+	}
+	return "Embedded portable skills (built-in)"
+}
+
+// previewPinnedLines is the concise summary the App keeps visible while the
+// destination details page. It is empty whenever no usable plan exists.
+func (m InstallModel) previewPinnedLines(width int) []string {
+	if m.previewLoading || m.err != nil || m.previewResult == nil {
+		return nil
+	}
+	lines := m.previewTitleLines(width)
+	return append(lines, m.previewSummaryLines(width)...)
+}
+
+// previewTitleLines is the shared title block for the preview step.
+func (m InstallModel) previewTitleLines(width int) []string {
+	return []string{
+		m.theme.Title.Render("Install & Manage · Exact Preview Impact"),
+		m.theme.Subtitle.Render("Read-only inspection of planned destination changes"),
+		"",
+	}
+}
+
+// previewSummaryLines is the action-total summary. It stays first and is
+// pinned by the root viewport while the details scroll.
+func (m InstallModel) previewSummaryLines(width int) []string {
+	if m.previewLoading || m.err != nil || m.previewResult == nil {
+		return nil
+	}
+	projection := m.previewProjection()
+	rows := Paragraph(impactSummary(projection), width, 2)
+	for i := range rows {
+		rows[i] = m.theme.Accent.Render(rows[i])
+	}
+	return rows
+}
+
+func (m InstallModel) previewLines(width int) []string {
+	lines := m.previewTitleLines(width)
 
 	if m.previewLoading {
 		loadingBody := []string{
@@ -1006,13 +1220,14 @@ func (m InstallModel) previewLines(width int) []string {
 
 	if m.err != nil {
 		errBody := []string{
-			"Preview failed: " + m.err.Error(),
+			"Preview failed: " + m.data(m.err.Error()),
 			"Press Esc or b to go back and check options or paths.",
+			"This is not a successful no-op: nothing was written and nothing can be confirmed from a failed preview.",
 		}
 		lines = append(lines, Section("Preview Error", errBody, width)...)
 		if m.notice != "" {
 			lines = append(lines, "")
-			lines = append(lines, Paragraph(m.theme.Warn.Render(m.notice), width, 0)...)
+			lines = append(lines, Paragraph(m.theme.Warn.Render(m.data(m.notice)), width, 0)...)
 		}
 		return lines
 	}
@@ -1022,80 +1237,199 @@ func (m InstallModel) previewLines(width int) []string {
 		return lines
 	}
 
-	res := m.previewResult
-	var additions, replacements, unchanged, removals []skillsync.ResultChange
-	for _, ch := range res.Planned {
-		switch ch.Action {
-		case skillsync.ChangeInstall, skillsync.ChangeRestore:
-			additions = append(additions, ch)
-		case skillsync.ChangeReplace:
-			replacements = append(replacements, ch)
-		case skillsync.ChangeUpToDate:
-			unchanged = append(unchanged, ch)
-		case skillsync.ChangeRemove:
-			removals = append(removals, ch)
-		default:
-			additions = append(additions, ch)
-		}
-	}
-
-	summary := fmt.Sprintf("Planned impact: %d additions · %d replacements · %d unchanged", len(additions), len(replacements), len(unchanged))
-	if len(removals) > 0 {
-		summary += fmt.Sprintf(" · %d removals", len(removals))
-	}
-	lines = append(lines, m.theme.Accent.Render("  "+summary))
+	lines = append(lines, m.previewSummaryLines(width)...)
 	lines = append(lines, "")
+	if m.previewResult.Outcome == skillsync.OutcomeFailed {
+		lines = append(lines, Section(m.theme.Warn.Render("Preview refused"), []string{
+			"The preview reported a failed outcome without an error. It is not a successful no-op and cannot be confirmed.",
+			"Nothing was written. Go back and run a fresh preview; if this repeats, inspect the source and destinations with the explicit CLI.",
+		}, width)...)
+		lines = append(lines, "")
+	}
+	lines = append(lines, m.previewDetailLines(width)...)
+	return lines
+}
 
-	if len(additions) > 0 {
-		var addLines []string
-		for _, ch := range additions {
-			addLines = append(addLines, fmt.Sprintf("• %s (%s)", ch.ID, ch.Client))
-			addLines = append(addLines, "  Path: "+ch.Path)
-		}
-		lines = append(lines, Section(fmt.Sprintf("Additions (%d)", len(additions)), addLines, width)...)
+// previewDetailLines renders the destination groups and their expandable item
+// and path details. It never reorders or rewrites the plan.
+func (m InstallModel) previewDetailLines(width int) []string {
+	projection := m.previewProjection()
+	var lines []string
+
+	if m.previewIncomplete() {
+		lines = append(lines, Section(m.theme.Warn.Render("Preview incomplete"), []string{
+			"This preview did not produce a confirmation token, so it is not confirmable.",
+			"Nothing has been written. Go back and run a fresh preview; if this repeats, inspect the source and destinations with the explicit CLI.",
+		}, width)...)
 		lines = append(lines, "")
 	}
 
-	if len(replacements) > 0 {
-		var repLines []string
-		for _, ch := range replacements {
-			repLines = append(repLines, fmt.Sprintf("• %s (%s)", ch.ID, ch.Client))
-			repLines = append(repLines, "  Path: "+ch.Path)
-			repLines = append(repLines, "  (Existing content will be saved to backup before overwrite)")
-		}
-		lines = append(lines, Section(fmt.Sprintf("Replacements (%d)", len(replacements)), repLines, width)...)
+	if m.PreviewNoOp() {
+		lines = append(lines, m.previewNoOpLines(projection, width)...)
+		lines = append(lines, "")
+	} else if projection.total > 0 {
+		lines = append(lines, Section("Planned destinations", []string{
+			"Action totals are shown above. Select a destination group with [ ] and press Space to expand or collapse its items; x shows or hides every path.",
+		}, width)...)
 		lines = append(lines, "")
 	}
 
-	if len(removals) > 0 {
-		var remLines []string
-		for _, ch := range removals {
-			remLines = append(remLines, fmt.Sprintf("• %s (%s)", ch.ID, ch.Client))
-			remLines = append(remLines, "  Path: "+ch.Path)
-		}
-		lines = append(lines, Section(fmt.Sprintf("Removals (%d)", len(removals)), remLines, width)...)
+	if projection.total == 0 {
+		lines = append(lines, Section(m.theme.Warn.Render("No planned items"), []string{
+			"The preview reported a successful operation but no planned destination items. This is not treated as a successful up-to-date result.",
+			"Nothing was written. Use the explicit CLI preview to inspect the source, or go back and check the selected clients and options.",
+		}, width)...)
 		lines = append(lines, "")
 	}
 
-	if len(unchanged) > 0 {
-		var unLines []string
-		for _, ch := range unchanged {
-			unLines = append(unLines, fmt.Sprintf("• %s (%s)", ch.ID, ch.Client))
-			unLines = append(unLines, "  Path: "+ch.Path)
-		}
-		lines = append(lines, Section(fmt.Sprintf("Unchanged (%d — matches source)", len(unchanged)), unLines, width)...)
+	if len(projection.groups) > 0 {
+		lines = append(lines, m.impactGroupLines(projection, width)...)
 		lines = append(lines, "")
 	}
+
+	if projection.hasUnknown() {
+		lines = append(lines, Section(m.theme.Warn.Render(fmt.Sprintf("Unrecognized planned actions (%d)", projection.count(impactUnknown))), []string{
+			"At least one planned action kind is not recognized by this screen. It is shown explicitly and is not treated as a new or up-to-date item.",
+			"Confirmation is disabled until authoritative planning resolves it. Nothing has been written.",
+		}, width)...)
+		lines = append(lines, "")
+	}
+
+	lines = append(lines, Section("Preview identity", []string{
+		"Source: " + m.data(m.previewSourceLabel()),
+		"Target home: " + m.data(m.home),
+	}, width)...)
+	lines = append(lines, "")
 
 	noteBody := []string{
 		"This preview is read-only. Nothing has been written.",
-		"Proceeding to confirmation will require affirmative confirmation ('y') before any file write.",
+	}
+	if m.PreviewNoOp() {
+		noteBody = append(noteBody, "Every planned destination already matches the source, so no confirmation, backup or operation log is offered here.")
+	} else if !m.previewConfirmable() {
+		noteBody = append(noteBody, "This preview is not confirmable from this screen. Nothing will be written.")
+	} else {
+		noteBody = append(noteBody, "Proceeding to confirmation will require affirmative confirmation ('y') before any file write.")
 	}
 	lines = append(lines, Section("Read-Only Notice", noteBody, width)...)
 	lines = append(lines, "")
 
-	lines = append(lines, m.theme.Hint.Render("Enter: proceed to confirmation · Esc / b: back to review · ↑/↓: scroll"))
+	if m.notice != "" {
+		lines = append(lines, Paragraph(m.theme.Warn.Render(m.data(m.notice)), width, 0)...)
+		lines = append(lines, "")
+	}
+	lines = append(lines, m.previewHintLines(width)...)
 	return lines
+}
+
+// previewNoOpLines is the read-only Already up to date panel. It is neutral,
+// not a warning, and it offers inspection and route actions only.
+func (m InstallModel) previewNoOpLines(projection impactProjection, width int) []string {
+	body := []string{
+		"Every planned destination already matches the selected source. This complete preview would change nothing, so no confirmation is offered and nothing can be written from this screen.",
+		"No files will be modified; no backup and no operation log are created by this result.",
+		fmt.Sprintf("Planned items: %d · changes: 0", projection.total),
+	}
+	return Section(m.theme.Accent.Render("Already up to date"), body, width)
+}
+
+// previewHintLines documents the currently eligible read-only actions. The
+// root contextual footer shows the same vocabulary at a narrower budget.
+func (m InstallModel) previewHintLines(width int) []string {
+	if m.PreviewNoOp() {
+		return Paragraph(m.theme.Hint.Render("h Home · l Library · o change options · x view paths · Esc/b back · q quit"), width, 0)
+	}
+	if !m.previewConfirmable() {
+		return Paragraph(m.theme.Hint.Render("Esc/b back to review · x view paths · ↑/↓: scroll · q quit"), width, 0)
+	}
+	return Paragraph(m.theme.Hint.Render("Enter: confirmation · x view paths · [ ]/Space group details · Esc/b back · ↑/↓: scroll · q quit"), width, 0)
+}
+
+// impactGroupLines renders one row per typed destination and, when expanded,
+// its original items with complete paths.
+func (m InstallModel) impactGroupLines(projection impactProjection, width int) []string {
+	glyphs := GlyphSet(m.cfg.ASCII)
+	var lines []string
+	for i, group := range projection.groups {
+		marker := glyphs.Gutter
+		if i == m.impactCursor {
+			marker = glyphs.Cursor
+		}
+		state := "[+]"
+		if m.impactExpanded[i] {
+			state = "[-]"
+		}
+		head := fmt.Sprintf("%s %s %s", marker, state, impactGroupSummary(group, m.data))
+		if i == m.impactCursor && m.theme.Color {
+			head = m.theme.Selected.Bold(true).Render(head)
+		}
+		lines = append(lines, Paragraph(head, width, 0)...)
+		if !m.impactExpanded[i] {
+			continue
+		}
+		for _, item := range group.items {
+			lines = append(lines, Paragraph(fmt.Sprintf("• %s — %s", m.data(impactItemLabel(item)), impactItemIdentity(item, m.data)), width, 4)...)
+			lines = append(lines, Paragraph("Path: "+m.data(item.change.Path), width, 6)...)
+		}
+	}
+	return lines
+}
+
+func (m *InstallModel) moveImpactCursor(delta int) {
+	groups := len(projectImpact(m.plannedOrNil()).groups)
+	if groups == 0 {
+		return
+	}
+	m.impactCursor += delta
+	if m.impactCursor < 0 {
+		m.impactCursor = 0
+	}
+	if m.impactCursor >= groups {
+		m.impactCursor = groups - 1
+	}
+}
+
+func (m InstallModel) plannedOrNil() []skillsync.ResultChange {
+	if m.previewResult == nil {
+		return nil
+	}
+	return m.previewResult.Planned
+}
+
+func (m *InstallModel) toggleImpactGroup() {
+	groups := len(projectImpact(m.plannedOrNil()).groups)
+	if groups == 0 {
+		return
+	}
+	if m.impactCursor < 0 || m.impactCursor >= groups {
+		m.impactCursor = 0
+	}
+	if m.impactExpanded == nil {
+		m.impactExpanded = make(map[int]bool)
+	}
+	m.impactExpanded[m.impactCursor] = !m.impactExpanded[m.impactCursor]
+}
+
+func (m *InstallModel) toggleAllImpactDetails() {
+	groups := len(projectImpact(m.plannedOrNil()).groups)
+	if groups == 0 {
+		return
+	}
+	allExpanded := m.impactExpanded != nil
+	for i := 0; i < groups; i++ {
+		if !m.impactExpanded[i] {
+			allExpanded = false
+			break
+		}
+	}
+	if allExpanded {
+		m.impactExpanded = nil
+		return
+	}
+	m.impactExpanded = make(map[int]bool, groups)
+	for i := 0; i < groups; i++ {
+		m.impactExpanded[i] = true
+	}
 }
 
 // modalSection renders one confirmation section with a themed heading. The
@@ -1115,14 +1449,17 @@ func modalSection(theme Theme, title string, rows []string, width int) []string 
 func (m InstallModel) modalParts(width int) modalParts {
 	warnBody := []string{
 		"Ready to apply installation with previewed changes.",
-		fmt.Sprintf("Target home: %s", m.home),
-		fmt.Sprintf("Selected clients: %s", strings.Join(m.SelectedClients(), ", ")),
+		fmt.Sprintf("Target home: %s", m.data(m.home)),
+		fmt.Sprintf("Selected clients: %s", clientSelectionText(m.SelectedClients())),
+	}
+	for _, id := range m.SelectedClients() {
+		warnBody = append(warnBody, fmt.Sprintf("• %s → %s", ClientSelectionLabel(id), m.data(ClientTargetDir(m.home, id))))
 	}
 	if m.withOpenCode {
-		warnBody = append(warnBody, fmt.Sprintf("OpenCode pack: enabled (profiles in %s)", OpenCodeAgentsDir(m.home)))
+		warnBody = append(warnBody, fmt.Sprintf("OpenCode agent profiles: enabled (destination %s)", m.data(OpenCodeAgentsDir(m.home))))
 	}
 	if m.freeFirst {
-		warnBody = append(warnBody, "Preset: Free-first template preset enabled")
+		warnBody = append(warnBody, "Template preference: prefer free models in the provided templates (preference only)")
 	}
 
 	policyBody := []string{
@@ -1134,14 +1471,14 @@ func (m InstallModel) modalParts(width int) modalParts {
 		"",
 		"  [ No ]      Yes",
 		"",
-		"(Default is No. Only typing 'y' confirms. Enter does not confirm.)",
+		"(Default is No. Only typing 'y' confirms; 'Y' is the same explicit key. Enter does not confirm.)",
 	}
 
 	body := modalSection(m.theme, "Target Configuration", warnBody, width)
 	policy := modalSection(m.theme, "Confirmation", choiceBody, width)
 	if m.notice != "" {
 		policy = append(policy, "")
-		policy = append(policy, Paragraph(m.theme.Warn.Render(m.notice), width, 0)...)
+		policy = append(policy, Paragraph(m.theme.Warn.Render(m.data(m.notice)), width, 0)...)
 	}
 
 	return modalParts{
@@ -1188,12 +1525,12 @@ func (m InstallModel) runningLines(width int) []string {
 		"Pre-execution policy: writes cannot be interrupted midway. Ctrl+C will wait for the active write and backup to finish safely.",
 	}
 	if m.writeDetail != "" {
-		body = append(body, "Detail: "+m.writeDetail)
+		body = append(body, "Detail: "+m.data(m.writeDetail))
 	}
 	lines = append(lines, Section("Write In Progress", body, width)...)
 	if m.notice != "" {
 		lines = append(lines, "")
-		lines = append(lines, Paragraph(m.theme.Warn.Render(m.notice), width, 0)...)
+		lines = append(lines, Paragraph(m.theme.Warn.Render(m.data(m.notice)), width, 0)...)
 	}
 	return lines
 }
@@ -1204,41 +1541,63 @@ func (m InstallModel) resultLines(width int) []string {
 	switch m.outcome {
 	case InstallOutcomeApplied:
 		lines = append(lines, m.theme.OK.Render("Install & Manage · Installation Applied Successfully"))
-		lines = append(lines, m.theme.Subtitle.Render("All planned skills were installed"))
+		lines = append(lines, m.theme.Subtitle.Render("The planned destinations were written"))
 		lines = append(lines, "")
 
 		var body []string
 		if m.applyResult != nil {
-			body = append(body, fmt.Sprintf("Applied changes: %d items", len(m.applyResult.Applied)))
+			installed, updated := appliedChangeCounts(m.applyResult.Applied)
+			switch {
+			case len(m.applyResult.Applied) == 0:
+				body = append(body, "The engine reported success without listing the changed items; inspect the destinations before relying on this result.")
+			default:
+				body = append(body, fmt.Sprintf("Applied changes: %d items (%d new, %d updated)", len(m.applyResult.Applied), installed, updated))
+				if installed > 0 {
+					body = append(body, fmt.Sprintf("New destinations installed: %d", installed))
+				}
+				if updated > 0 {
+					body = append(body, fmt.Sprintf("Existing content updated (backed up first): %d", updated))
+				}
+				if other := len(m.applyResult.Applied) - installed - updated; other > 0 {
+					body = append(body, fmt.Sprintf("Applied items with an unrecognized action (not counted as new or updated): %d", other))
+				}
+			}
 			if m.applyResult.BackupID != "" {
-				body = append(body, fmt.Sprintf("Backup created: %s", m.applyResult.BackupID))
+				body = append(body, fmt.Sprintf("Backup created: %s", m.data(m.applyResult.BackupID)))
 			}
 			if m.applyResult.BackupPath != "" {
-				body = append(body, fmt.Sprintf("Backup location: %s", m.applyResult.BackupPath))
+				body = append(body, fmt.Sprintf("Backup location: %s", m.data(m.applyResult.BackupPath)))
 			}
+		} else {
+			body = append(body, "The engine reported success without a structured change list; inspect the destinations before relying on this result.")
 		}
-		body = append(body, fmt.Sprintf("Target home: %s", m.home))
-		body = append(body, fmt.Sprintf("Selected clients: %s", strings.Join(m.SelectedClients(), ", ")))
+		body = append(body, fmt.Sprintf("Target home: %s", m.data(m.home)))
+		body = append(body, fmt.Sprintf("Selected clients: %s", clientSelectionText(m.SelectedClients())))
 		if m.logPath != "" {
-			body = append(body, "Operation log: "+m.logPath)
+			body = append(body, "Operation log: "+m.data(m.logPath))
 		}
 		lines = append(lines, Section("Installation Summary", body, width)...)
 		lines = append(lines, "")
 
 		nextBody := []string{
-			"Run `agentic-sdd-router` in your terminal to start planning your feature or workflow.",
+			"Optional next step: run `agentic-sdd-router` in your terminal to start planning your feature or workflow.",
 			"Inspect installed skills with `agentic-sdd preview` or explore via the TUI catalog.",
 		}
 		lines = append(lines, Section("Recommended Next Action", nextBody, width)...)
+		lines = append(lines, "")
+		lines = append(lines, Section(PostSetupSectionTitle, PostSetupBody(), width)...)
 
 	case InstallOutcomeNoChange:
-		lines = append(lines, m.theme.Accent.Render("Install & Manage · No Changes Needed"))
-		lines = append(lines, m.theme.Subtitle.Render("All destinations already match source"))
+		lines = append(lines, m.theme.Accent.Render("Install & Manage · Already Current"))
+		lines = append(lines, m.theme.Subtitle.Render("All destinations already match the selected source"))
 		lines = append(lines, "")
 
 		body := []string{
 			"Every planned destination was already up to date with the selected source.",
 			"No files were modified, and no backup was created.",
+		}
+		if m.logPath != "" {
+			body = append(body, "Operation log: "+m.data(m.logPath))
 		}
 		lines = append(lines, Section("Status", body, width)...)
 
@@ -1250,42 +1609,76 @@ func (m InstallModel) resultLines(width int) []string {
 		body := []string{
 			"The apply operation was refused because configuration options, source files, or target destinations changed since the preview token was generated.",
 			"Pre-execution revalidation detected drift. To protect your files, a fresh preview and confirmation are required.",
+			"Target home: " + m.data(m.home),
+			"Selected clients: " + clientSelectionText(m.SelectedClients()),
 		}
 		lines = append(lines, Section("Refusal Reason", body, width)...)
 
 	case InstallOutcomeFailed:
-		lines = append(lines, m.theme.Bad.Render("Install & Manage · Installation Failed"))
+		title := "Install & Manage · Installation Failed"
+		if m.applyResult != nil && m.applyResult.Rollback.Attempted {
+			if m.applyResult.Rollback.Complete {
+				title = "Install & Manage · Installation Failed (rolled back)"
+			} else {
+				title = "Install & Manage · Installation Failed (incomplete)"
+			}
+		}
+		lines = append(lines, m.theme.Bad.Render(title))
 		lines = append(lines, m.theme.Subtitle.Render("An error occurred during installation"))
 		lines = append(lines, "")
 
 		var body []string
 		if m.err != nil {
-			body = append(body, "Error: "+m.err.Error())
+			body = append(body, "Error: "+m.data(m.err.Error()))
 		}
 		if m.applyResult != nil {
 			if m.applyResult.Rollback.Attempted {
 				if m.applyResult.Rollback.Complete {
 					body = append(body, "Rollback status: Succeeded. Committed changes were reverted.")
 				} else {
-					body = append(body, fmt.Sprintf("Rollback status: INCOMPLETE (%s). Destinations may be in a partial state.", m.applyResult.Rollback.Error))
+					body = append(body, fmt.Sprintf("Rollback status: INCOMPLETE (%s). Destinations may be in a partial state.", m.data(m.applyResult.Rollback.Error)))
 				}
+			} else {
+				body = append(body, "Rollback status: not attempted. No committed change is claimed; inspect the destinations if you are unsure.")
 			}
 			if m.applyResult.BackupID != "" {
-				body = append(body, fmt.Sprintf("Pre-failure backup: %s at %s", m.applyResult.BackupID, m.applyResult.BackupPath))
+				body = append(body, fmt.Sprintf("Pre-failure backup: %s at %s", m.data(m.applyResult.BackupID), m.data(m.applyResult.BackupPath)))
 			}
 		}
 		if m.logPath != "" {
-			body = append(body, "Operation log: "+m.logPath)
+			body = append(body, "Operation log: "+m.data(m.logPath))
 		}
+		body = append(body, "Target home: "+m.data(m.home))
+		body = append(body, "Selected clients: "+clientSelectionText(m.SelectedClients()))
+		body = append(body, "Recovery: inspect recorded backups under Install & Manage → Backups & restore (Esc to close, then 2 → b). No restore starts without its own preview and confirmation.")
 		lines = append(lines, Section("Failure Details", body, width)...)
 
-	case InstallOutcomeCancelled:
-		lines = append(lines, m.theme.Warn.Render("Install & Manage · Installation Cancelled"))
-		lines = append(lines, m.theme.Subtitle.Render("Operation cancelled by user"))
+	case InstallOutcomeUnknown:
+		lines = append(lines, m.theme.Warn.Render("Install & Manage · Installation Result Unknown"))
+		lines = append(lines, m.theme.Subtitle.Render("The engine returned without a definite write outcome"))
 		lines = append(lines, "")
 
 		body := []string{
-			"The installation workflow was cancelled.",
+			"This screen does not claim success or failure. Inspect the destinations and the operation log before retrying.",
+		}
+		if m.applyResult != nil && m.applyResult.BackupID != "" {
+			body = append(body, fmt.Sprintf("Backup reference: %s at %s", m.data(m.applyResult.BackupID), m.data(m.applyResult.BackupPath)))
+		}
+		if m.logPath != "" {
+			body = append(body, "Operation log: "+m.data(m.logPath))
+		}
+		body = append(body, "Target home: "+m.data(m.home))
+		body = append(body, "Selected clients: "+clientSelectionText(m.SelectedClients()))
+		body = append(body, "Recovery: inspect the destinations and recorded backups under Install & Manage → Backups & restore before retrying. No restore starts without its own preview and confirmation.")
+		lines = append(lines, Section("Unknown Result", body, width)...)
+
+	case InstallOutcomeCancelled:
+		lines = append(lines, m.theme.Warn.Render("Install & Manage · Installation Cancelled"))
+		lines = append(lines, m.theme.Subtitle.Render("Cancelled before any write"))
+		lines = append(lines, "")
+
+		body := []string{
+			"The installation workflow was cancelled before the confirmed write started.",
 			"No files were modified on disk.",
 		}
 		lines = append(lines, Section("Status", body, width)...)
@@ -1296,27 +1689,39 @@ func (m InstallModel) resultLines(width int) []string {
 
 	if m.notice != "" {
 		lines = append(lines, "")
-		lines = append(lines, Paragraph(m.theme.Warn.Render(m.notice), width, 0)...)
+		lines = append(lines, Paragraph(m.theme.Warn.Render(m.data(m.notice)), width, 0)...)
 	}
 	lines = append(lines, "")
 	lines = append(lines, m.theme.Hint.Render("Enter / Esc / q: close · r: reconfigure from beginning · ↑/↓: scroll"))
 	return lines
 }
 
-// ClientDisplayName returns the user-facing label for a client ID.
+// ClientDisplayName returns the plain, user-facing name for a client ID. The
+// engine ID stays the identity: destinations, requests and logs keep using it.
 func ClientDisplayName(id string) string {
 	switch id {
 	case "agents":
-		return "Agents (Agentic SDD global)"
+		return "Shared Agents Skills"
 	case "codex":
-		return "Codex (Codex CLI)"
+		return "Codex CLI"
 	case "claude":
-		return "Claude (Claude Code)"
+		return "Claude Code"
 	case "agy":
-		return "Agy (Antigravity CLI)"
+		return "Antigravity CLI"
 	default:
 		return id
 	}
+}
+
+// ClientSelectionLabel returns the display name plus the engine ID for the
+// review and confirmation surfaces, where both the plain name and the exact
+// identity must stay visible.
+func ClientSelectionLabel(id string) string {
+	name := ClientDisplayName(id)
+	if name == id {
+		return id
+	}
+	return name + " (" + id + ")"
 }
 
 // ClientTargetDir returns the expected destination directory for a client in home.

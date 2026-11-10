@@ -132,6 +132,9 @@ func Section(title string, body []string, width int) []string {
 // profile content is reported as its own separate totals. All long Home, Repo,
 // backup and notice strings are wrapped, never truncated, so the parent can
 // scroll them back into view.
+//
+// It is the secondary, advanced detail block of Home. The goal-first purpose,
+// setup state and single primary action are composed above it.
 func HomeOverview(catalog Catalog, width int) []string {
 	lines := Section("Local inventory", inventoryLines(catalog), width)
 
@@ -140,20 +143,14 @@ func HomeOverview(catalog Catalog, width int) []string {
 
 	lines = append(lines, "")
 	lines = append(lines, Section("Optional content", []string{
-		fmt.Sprintf("OpenCode pack: %s", optionalPresence(catalog, skillsync.InventoryOriginPack)),
-		fmt.Sprintf("Free-first presets: %s", optionalPresence(catalog, skillsync.InventoryOriginPreset)),
+		fmt.Sprintf("OpenCode agent profiles: %s", optionalPresence(catalog, skillsync.InventoryOriginPack)),
+		fmt.Sprintf("Prefer free models in the provided templates: %s", optionalPresence(catalog, skillsync.InventoryOriginPreset)),
 	}, width)...)
 
 	if len(catalog.Notices) > 0 {
 		lines = append(lines, "")
 		lines = append(lines, Section("Notices", noticeLines(catalog.Notices), width)...)
 	}
-
-	lines = append(lines, "")
-	lines = append(lines, Section("Recommended next step", []string{
-		"Set up / Install Agentic-SDD",
-		"Read-only local inspection: this screen only reads the local inventory and never installs, applies or changes anything.",
-	}, width)...)
 	return lines
 }
 
@@ -173,6 +170,7 @@ func inventoryLines(catalog Catalog) []string {
 		}
 	}
 	lines := []string{
+		"Read-only local inventory; no files are changed here.",
 		fmt.Sprintf("Skills: %d", catalog.SkillCount()),
 		fmt.Sprintf("Profiles: %d", catalog.ProfileCount()),
 		fmt.Sprintf("Core skills: %d", core),
@@ -280,6 +278,220 @@ func clientStatusLines(catalog Catalog) []string {
 		))
 	}
 	return lines
+}
+
+// ---------------------------------------------------------------------------
+// Home setup state
+// ---------------------------------------------------------------------------
+
+// SetupStateKind is the evidence-based setup state Home reports. It is derived
+// from the local read-only snapshot and, when the latest refresh failed, from
+// that failure. It never means authenticated, connected, enabled or running.
+type SetupStateKind string
+
+const (
+	// SetupStateFirstUse means a complete local read found the core source but
+	// no core destination holds content. It is not inferred from absent data
+	// alone: the reported destination statuses must all be missing.
+	SetupStateFirstUse SetupStateKind = "first-use"
+	// SetupStateCurrent means every reported core skill destination matches the
+	// selected source.
+	SetupStateCurrent SetupStateKind = "current"
+	// SetupStatePartial means at least one core destination is missing or
+	// refused while others are present.
+	SetupStatePartial SetupStateKind = "partial"
+	// SetupStateModified means at least one present core destination differs
+	// from the selected source.
+	SetupStateModified SetupStateKind = "modified"
+	// SetupStateUnknown means the snapshot cannot support a coverage
+	// conclusion, so nothing is guessed.
+	SetupStateUnknown SetupStateKind = "unknown"
+	// SetupStateReadFailure means the latest local inventory read failed. The
+	// counts shown are from the previous successful read and may be stale.
+	SetupStateReadFailure SetupStateKind = "read-failure"
+)
+
+// SetupEvidence is the derived coverage evidence behind a setup state. Every
+// number comes from the catalog snapshot; none is a fixed product count.
+type SetupEvidence struct {
+	Skills     int
+	Profiles   int
+	CoreSkills int
+	// Destinations counts reported core-skill destination rows.
+	Destinations int
+	Matching     int
+	Modified     int
+	Missing      int
+	Refused      int
+	// Other counts destination statuses the snapshot did not describe, so they
+	// are never folded into a claim.
+	Other int
+}
+
+// Present reports how many reported core destinations hold content.
+func (e SetupEvidence) Present() int { return e.Matching + e.Modified }
+
+// SetupState is the derived Home setup state plus the evidence behind it.
+type SetupState struct {
+	Kind     SetupStateKind
+	Evidence SetupEvidence
+	// ReadErr is the latest inventory read failure, empty when the last read
+	// succeeded.
+	ReadErr string
+}
+
+// DeriveSetupState classifies one local snapshot. readErr is the latest
+// inventory refresh error, if any. The function is pure: it reads no file,
+// performs no change and invents no count.
+func DeriveSetupState(catalog Catalog, readErr string) SetupState {
+	state := SetupState{Evidence: deriveSetupEvidence(catalog)}
+	if trimmed := strings.TrimSpace(readErr); trimmed != "" {
+		state.Kind = SetupStateReadFailure
+		state.ReadErr = trimmed
+		return state
+	}
+
+	ev := state.Evidence
+	switch {
+	case ev.CoreSkills == 0 || ev.Destinations == 0:
+		// No reported core destination means this snapshot cannot support a
+		// coverage conclusion. "New installation" is never inferred from
+		// absent data alone.
+		state.Kind = SetupStateUnknown
+	case ev.Present() == 0 && ev.Refused == 0 && ev.Other == 0 && ev.Missing == ev.Destinations:
+		// A complete read found the core set but no destination holds content.
+		state.Kind = SetupStateFirstUse
+	case ev.Missing > 0 || ev.Refused > 0:
+		state.Kind = SetupStatePartial
+	case ev.Modified > 0:
+		state.Kind = SetupStateModified
+	case ev.Other > 0:
+		state.Kind = SetupStateUnknown
+	case ev.Matching == ev.Destinations:
+		state.Kind = SetupStateCurrent
+	default:
+		state.Kind = SetupStateUnknown
+	}
+	return state
+}
+
+// deriveSetupEvidence counts the reported core-skill destinations by status.
+func deriveSetupEvidence(catalog Catalog) SetupEvidence {
+	ev := SetupEvidence{Skills: catalog.SkillCount(), Profiles: catalog.ProfileCount()}
+	for _, item := range catalog.Items {
+		if item.Kind != skillsync.InventoryKindSkill || item.Origin != skillsync.InventoryOriginCore {
+			continue
+		}
+		ev.CoreSkills++
+		for _, client := range item.Clients {
+			ev.Destinations++
+			switch client.Status {
+			case skillsync.InventoryStatusMatchesSource:
+				ev.Matching++
+			case skillsync.InventoryStatusDiffersFromSource:
+				ev.Modified++
+			case skillsync.InventoryStatusUnavailable:
+				ev.Refused++
+			case skillsync.InventoryStatusMissing:
+				ev.Missing++
+			default:
+				ev.Other++
+			}
+		}
+	}
+	return ev
+}
+
+// Headline is the one-line setup state Home shows first. It is the state, not
+// a claim about a provider, account, credential or running agent.
+func (s SetupState) Headline() string {
+	switch s.Kind {
+	case SetupStateFirstUse:
+		return "Nothing installed in this home yet."
+	case SetupStateCurrent:
+		return "Current — every core skill destination matches the selected source."
+	case SetupStatePartial:
+		return "Partly installed — some core skill destinations are missing or refused."
+	case SetupStateModified:
+		return "Installed with local modifications."
+	case SetupStateReadFailure:
+		return "Unknown — the last local inventory read failed."
+	default:
+		return "Unknown — the local snapshot cannot support a coverage conclusion."
+	}
+}
+
+// PrimaryAction is the single setup or manage action label for this state.
+func (s SetupState) PrimaryAction() string {
+	if s.Kind == SetupStateCurrent {
+		return "Manage installation"
+	}
+	return "Set up / Install Agentic-SDD"
+}
+
+// Detail explains the state and the safe next step without claiming an
+// operation that did not happen.
+func (s SetupState) Detail(home string) string {
+	switch s.Kind {
+	case SetupStateFirstUse:
+		where := "this home"
+		if strings.TrimSpace(home) != "" {
+			where = home
+		}
+		return "The read-only inventory found the core source but no managed content at its destinations in " + where + ". Nothing has been written."
+	case SetupStateCurrent:
+		return "No action is required. Manage installation still previews every destination and asks before changing a file."
+	case SetupStatePartial:
+		return "Run setup to preview the missing destinations. Existing files are backed up before replacement and nothing is written without your confirmation."
+	case SetupStateModified:
+		return "Present files differ from the selected source. Setup backs up existing content before replacing it and requires explicit confirmation first."
+	case SetupStateReadFailure:
+		return "The read error was: " + s.ReadErr + ". Counts below come from the last successful read and may be stale; this failure is not an operation outcome."
+	default:
+		return "The snapshot did not report enough core destination evidence to classify this home. Nothing was inferred from missing data."
+	}
+}
+
+// EvidenceLine is the secondary derived count line for the setup state.
+func (s SetupState) EvidenceLine() string {
+	ev := s.Evidence
+	if ev.Destinations == 0 {
+		return fmt.Sprintf("Evidence: %d skills · %d profiles in this selection; no core client destinations were reported.", ev.Skills, ev.Profiles)
+	}
+	line := fmt.Sprintf(
+		"Evidence: %d/%d core destinations present (%d matching, %d modified) · %d not present · %d refused",
+		ev.Present(), ev.Destinations, ev.Matching, ev.Modified, ev.Missing, ev.Refused,
+	)
+	if ev.Other > 0 {
+		line += fmt.Sprintf(" · %d with an unrecognized status", ev.Other)
+	}
+	line += fmt.Sprintf(". Source content: %d skills · %d profiles.", ev.Skills, ev.Profiles)
+	return line
+}
+
+// HomePurposeLines is the two-line value proposition Home opens with.
+func HomePurposeLines() []string {
+	return []string{
+		"Install shared Agentic SDD skills for your coding agents and keep them up to date.",
+		"Every change is previewed first and requires your explicit confirmation.",
+	}
+}
+
+// HomeSetupLines renders the setup-state section. The evidence line is
+// secondary to the state itself and never replaces it.
+func HomeSetupLines(state SetupState, home string, width int) []string {
+	body := []string{state.Headline(), state.Detail(home), state.EvidenceLine()}
+	return Section("Setup", body, width)
+}
+
+// HomeActionLines renders the single primary action plus the discovery and
+// recovery links. It never repeats the setup state as a second action.
+func HomeActionLines(state SetupState, width int) []string {
+	return Section("Recommended next step", []string{
+		state.PrimaryAction() + "  (Enter or s)",
+		"Browse Skills (key 3): read-only catalog of every managed skill and profile.",
+		"Recovery (key b): inspect recorded backups and restore one after a read-only preview.",
+	}, width)
 }
 
 // optionalPresence reports whether optional source content is part of the

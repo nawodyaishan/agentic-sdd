@@ -7,43 +7,34 @@ import (
 	"github.com/charmbracelet/colorprofile"
 )
 
-// Midnight Lagoon (Dark) palette. The owner-requested high-contrast shell uses this
-// researched, OKLab-balanced set; every text role sits on #0B1C22 (body),
-// #123039 (header band / surface), or #132E37 (selected row) and clears WCAG AAA (>= 7:1),
-// while borders and indicators clear the >= 3:1 non-text threshold.
+// Agentic Dark palette based on Catppuccin Mocha.
+//
+// The TrueColor palette is the authoritative identity: every text role sits on
+// #1E1E2E (canvas), #181825 (rail/header surface), or #313244 (selected row)
+// and clears WCAG AAA (>= 7:1), while borders and indicators clear the >= 3:1
+// non-text threshold.
+//
+// The ANSI-256 reference mappings are chosen and tested to meet the same
+// actual-pair floor against the documented xterm 256-color reference palette.
+// The ANSI-16 palette is best-effort only: its standard reference colors have
+// no accent magenta or error red that clears AAA on black, so those roles are
+// explicitly not claimed as AAA. User-remapped terminal palettes (OSC 4 or a
+// custom terminal theme) are outside every guarantee here; these tests cover
+// reference palettes, not a user's terminal.
 const (
-	paletteBackground  = "#0B1C22" // full-view canvas
-	paletteSurface     = "#123039" // top-bar band / raised surface
-	paletteForeground  = "#FAF5E9" // body and header primary text
-	paletteMuted       = "#B6CACB" // secondary text
-	paletteDim         = "#AEC2C3" // subtle neutral text (clears AAA >= 7:1)
-	palettePrimary     = "#F39FEC" // violet accent / focus
-	paletteSecondary   = "#35DADA" // cyan section accent / info
-	paletteSuccess     = "#84D987" // labelled success
-	paletteWarning     = "#EAB946" // labelled warning
-	paletteError       = "#FBA7A0" // labelled error
-	paletteBorder      = "#8FA9AD" // dividers and borders
-	paletteBorderFocus = "#F39FEC" // focused border (violet accent, >= 3:1)
-	paletteSelectedBg  = "#132E37" // selected row background tint
-)
-
-// Daylight Lagoon (Light) palette. Inverted high-contrast companion palette;
-// every text role sits on #F8FAFA (canvas), #EDF3F4 (surface), or #E0E9EB (selectedBg)
-// and clears the proposed AAA >= 7:1 floor, while borders and indicators clear >= 3:1.
-const (
-	paletteLightBackground  = "#F8FAFA" // full-view canvas
-	paletteLightSurface     = "#EDF3F4" // top-bar band / raised surface
-	paletteLightForeground  = "#0A1F26" // body and header primary text
-	paletteLightMuted       = "#233A3F" // secondary text
-	paletteLightDim         = "#30484D" // subtle neutral text
-	paletteLightPrimary     = "#661772" // violet accent / focus
-	paletteLightSecondary   = "#004F59" // cyan section accent / info
-	paletteLightSuccess     = "#0B5322" // labelled success
-	paletteLightWarning     = "#643E00" // labelled warning
-	paletteLightError       = "#7E1414" // labelled error
-	paletteLightBorder      = "#688487" // dividers and borders
-	paletteLightBorderFocus = "#661772" // focused border
-	paletteLightSelectedBg  = "#E0E9EB" // selected row background tint
+	paletteBackground  = "#1E1E2E" // Base: full-view canvas
+	paletteSurface     = "#181825" // Mantle: top-bar band / rail surface
+	paletteForeground  = "#CDD6F4" // Text: body and header primary text
+	paletteMuted       = "#BAC2DE" // Subtext1: secondary text
+	paletteDim         = "#A6ADC8" // Subtext0: subtle neutral / tertiary text (clears AAA >= 7:1)
+	palettePrimary     = "#CBA6F7" // Mauve: brand accent / focus
+	paletteSecondary   = "#94E2D5" // Teal: info / section accent
+	paletteSuccess     = "#A6E3A1" // Green: labelled success
+	paletteWarning     = "#F9E2AF" // Yellow: labelled warning
+	paletteError       = "#F38BA8" // Red: labelled error
+	paletteBorder      = "#7F849C" // Overlay1: meaningful borders and dividers (>= 3:1)
+	paletteBorderFocus = "#89B4FA" // Blue: focused border indicator (>= 3:1)
+	paletteSelectedBg  = "#313244" // Surface0: selected row background tint
 )
 
 // TokenDef specifies explicit TrueColor, ANSI-256, and ANSI-16 representations
@@ -83,34 +74,18 @@ type paletteDefs struct {
 
 var darkDefs = paletteDefs{
 	Canvas:      TokenDef{TrueColor: paletteBackground, ANSI256: "234", ANSI: "0"},
-	Surface:     TokenDef{TrueColor: paletteSurface, ANSI256: "236", ANSI: "8"},
-	Text:        TokenDef{TrueColor: paletteForeground, ANSI256: "231", ANSI: "15"},
-	Muted:       TokenDef{TrueColor: paletteMuted, ANSI256: "251", ANSI: "7"},
+	Surface:     TokenDef{TrueColor: paletteSurface, ANSI256: "233", ANSI: "0"},
+	Text:        TokenDef{TrueColor: paletteForeground, ANSI256: "254", ANSI: "15"},
+	Muted:       TokenDef{TrueColor: paletteMuted, ANSI256: "252", ANSI: "7"},
 	Dim:         TokenDef{TrueColor: paletteDim, ANSI256: "248", ANSI: "7"},
-	Accent:      TokenDef{TrueColor: palettePrimary, ANSI256: "219", ANSI: "13"},
-	SelectedBg:  TokenDef{TrueColor: paletteSelectedBg, ANSI256: "237", ANSI: "8"},
-	Border:      TokenDef{TrueColor: paletteBorder, ANSI256: "248", ANSI: "7"},
-	BorderFocus: TokenDef{TrueColor: paletteBorderFocus, ANSI256: "219", ANSI: "13"},
-	Success:     TokenDef{TrueColor: paletteSuccess, ANSI256: "114", ANSI: "10"},
-	Warning:     TokenDef{TrueColor: paletteWarning, ANSI256: "179", ANSI: "11"},
-	Error:       TokenDef{TrueColor: paletteError, ANSI256: "217", ANSI: "9"},
-	Info:        TokenDef{TrueColor: paletteSecondary, ANSI256: "44", ANSI: "14"},
-}
-
-var lightDefs = paletteDefs{
-	Canvas:      TokenDef{TrueColor: paletteLightBackground, ANSI256: "231", ANSI: "15"},
-	Surface:     TokenDef{TrueColor: paletteLightSurface, ANSI256: "254", ANSI: "7"},
-	Text:        TokenDef{TrueColor: paletteLightForeground, ANSI256: "234", ANSI: "0"},
-	Muted:       TokenDef{TrueColor: paletteLightMuted, ANSI256: "237", ANSI: "0"},
-	Dim:         TokenDef{TrueColor: paletteLightDim, ANSI256: "239", ANSI: "8"},
-	Accent:      TokenDef{TrueColor: paletteLightPrimary, ANSI256: "53", ANSI: "5"},
-	SelectedBg:  TokenDef{TrueColor: paletteLightSelectedBg, ANSI256: "253", ANSI: "7"},
-	Border:      TokenDef{TrueColor: paletteLightBorder, ANSI256: "244", ANSI: "8"},
-	BorderFocus: TokenDef{TrueColor: paletteLightBorderFocus, ANSI256: "53", ANSI: "5"},
-	Success:     TokenDef{TrueColor: paletteLightSuccess, ANSI256: "22", ANSI: "2"},
-	Warning:     TokenDef{TrueColor: paletteLightWarning, ANSI256: "94", ANSI: "3"},
-	Error:       TokenDef{TrueColor: paletteLightError, ANSI256: "88", ANSI: "1"},
-	Info:        TokenDef{TrueColor: paletteLightSecondary, ANSI256: "23", ANSI: "6"},
+	Accent:      TokenDef{TrueColor: palettePrimary, ANSI256: "183", ANSI: "13"},
+	SelectedBg:  TokenDef{TrueColor: paletteSelectedBg, ANSI256: "236", ANSI: "4"},
+	Border:      TokenDef{TrueColor: paletteBorder, ANSI256: "244", ANSI: "8"},
+	BorderFocus: TokenDef{TrueColor: paletteBorderFocus, ANSI256: "111", ANSI: "14"},
+	Success:     TokenDef{TrueColor: paletteSuccess, ANSI256: "150", ANSI: "10"},
+	Warning:     TokenDef{TrueColor: paletteWarning, ANSI256: "223", ANSI: "11"},
+	Error:       TokenDef{TrueColor: paletteError, ANSI256: "211", ANSI: "9"},
+	Info:        TokenDef{TrueColor: paletteSecondary, ANSI256: "116", ANSI: "14"},
 }
 
 func (p paletteDefs) resolve(prof colorprofile.Profile) SemanticTokens {
@@ -156,6 +131,11 @@ type Theme struct {
 	Color  bool
 	IsDark bool
 
+	// Profile records which reference color profile resolved the tokens.
+	// Production starts at TrueColor and follows Bubble Tea's reported profile;
+	// tests may construct ANSI-256/ANSI reference themes directly.
+	Profile colorprofile.Profile
+
 	// Tokens holds the resolved semantic color values for this theme.
 	Tokens SemanticTokens
 
@@ -191,32 +171,27 @@ type Theme struct {
 	HeaderDivider lipgloss.Style
 }
 
-// NewThemeWithProfile constructs a theme for a given color setting, light/dark mode,
-// and color profile.
+// referenceProfile normalizes a reported profile to one of the three profiles
+// this package resolves explicitly. Unknown and non-color profiles keep the
+// TrueColor identity; plain/color-off output is controlled by Color, not here.
+func referenceProfile(profile colorprofile.Profile) colorprofile.Profile {
+	switch profile {
+	case colorprofile.ANSI, colorprofile.ANSI256, colorprofile.TrueColor:
+		return profile
+	default:
+		return colorprofile.TrueColor
+	}
+}
+
+// NewThemeWithProfile constructs a theme for a given color setting and color profile.
+// Under Feature 013 B10, a single dark identity (agentic-dark) is established.
 func NewThemeWithProfile(colorEnabled bool, isDark bool, profile colorprofile.Profile) Theme {
 	if !colorEnabled {
 		return Theme{}
 	}
 
-	darkTokens := darkDefs.resolve(profile)
-	lightTokens := lightDefs.resolve(profile)
-
-	ld := lipgloss.LightDark(isDark)
-	tokens := SemanticTokens{
-		Canvas:      ld(lightTokens.Canvas, darkTokens.Canvas),
-		Surface:     ld(lightTokens.Surface, darkTokens.Surface),
-		Text:        ld(lightTokens.Text, darkTokens.Text),
-		Muted:       ld(lightTokens.Muted, darkTokens.Muted),
-		Dim:         ld(lightTokens.Dim, darkTokens.Dim),
-		Accent:      ld(lightTokens.Accent, darkTokens.Accent),
-		SelectedBg:  ld(lightTokens.SelectedBg, darkTokens.SelectedBg),
-		Border:      ld(lightTokens.Border, darkTokens.Border),
-		BorderFocus: ld(lightTokens.BorderFocus, darkTokens.BorderFocus),
-		Success:     ld(lightTokens.Success, darkTokens.Success),
-		Warning:     ld(lightTokens.Warning, darkTokens.Warning),
-		Error:       ld(lightTokens.Error, darkTokens.Error),
-		Info:        ld(lightTokens.Info, darkTokens.Info),
-	}
+	profile = referenceProfile(profile)
+	tokens := darkDefs.resolve(profile)
 
 	body := lipgloss.NewStyle()
 	header := lipgloss.NewStyle().Background(tokens.Surface)
@@ -226,7 +201,8 @@ func NewThemeWithProfile(colorEnabled bool, isDark bool, profile colorprofile.Pr
 
 	return Theme{
 		Color:       true,
-		IsDark:      isDark,
+		IsDark:      true,
+		Profile:     profile,
 		Tokens:      tokens,
 		Title:       body.Bold(true).Foreground(tokens.Accent),
 		Subtitle:    body.Foreground(tokens.Muted),
@@ -247,7 +223,7 @@ func NewThemeWithProfile(colorEnabled bool, isDark bool, profile colorprofile.Pr
 		Selected:    body.Background(tokens.SelectedBg).Foreground(tokens.Text),
 		BorderFocus: body.Foreground(tokens.BorderFocus),
 		KeyHint:     body.Foreground(tokens.Muted),
-		Notice:      body.Foreground(tokens.Warning),
+		Notice:      body.Foreground(tokens.Text),
 
 		HeaderBar:     header,
 		HeaderTitle:   headerText(tokens.Text).Bold(true),
@@ -257,16 +233,39 @@ func NewThemeWithProfile(colorEnabled bool, isDark bool, profile colorprofile.Pr
 	}
 }
 
-// NewAdaptiveTheme builds a theme with the given color setting and light/dark mode
-// using the default TrueColor profile.
+// NewAdaptiveTheme builds a theme with the given color setting using the default TrueColor profile.
+// Retained for constructor compatibility; always resolves to the single agentic-dark identity.
 func NewAdaptiveTheme(colorEnabled bool, isDark bool) Theme {
-	return NewThemeWithProfile(colorEnabled, isDark, colorprofile.TrueColor)
+	return NewThemeWithProfile(colorEnabled, true, colorprofile.TrueColor)
 }
 
-// NewTheme builds the shared style set from the Midnight Lagoon palette.
-// By default, it returns the tested Dark palette when color=true, or plain when color=false.
+// NewTheme builds the shared style set from the Agentic Dark (Catppuccin Mocha) palette.
+// By default, it returns the single tested dark palette when color=true, or plain when color=false.
 func NewTheme(colorEnabled bool) Theme {
 	return NewAdaptiveTheme(colorEnabled, true)
+}
+
+// newThemeForConfig resolves the theme with an explicit reference profile when
+// the caller supplied one; the zero/unknown profile keeps production's
+// TrueColor identity until Bubble Tea reports the terminal profile.
+func newThemeForConfig(cfg TUIConfig) Theme {
+	return NewThemeWithProfile(cfg.Color, true, cfg.ColorProfile())
+}
+
+// ContrastClaim states only what the selected reference profile actually
+// guarantees. It never promises contrast for a user-remapped terminal palette.
+func (t Theme) ContrastClaim() string {
+	if !t.Color {
+		return "plain output; no color contrast is claimed"
+	}
+	switch t.Profile {
+	case colorprofile.ANSI256:
+		return "WCAG AAA reference contrast on the documented xterm 256-color palette (user-remapped ANSI palettes are not guaranteed)"
+	case colorprofile.ANSI:
+		return "best-effort 16-color contrast; the standard ANSI-16 reference palette cannot meet AAA for every accent role (user-remapped palettes are not guaranteed)"
+	default:
+		return "WCAG AAA reference contrast with TrueColor (user-remapped ANSI palettes are not guaranteed)"
+	}
 }
 
 // CanvasColor is the full-view terminal background for a colored session, or

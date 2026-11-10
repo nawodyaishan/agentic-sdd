@@ -729,7 +729,7 @@ func TestClassifyRestoreOutcome(t *testing.T) {
 		{"rolled back", appops.ApplyResult{Rollback: skillsync.RollbackInfo{Attempted: true, Complete: true}}, errors.New("boom"), RestoreOutcomeRolledBack},
 		{"incomplete", appops.ApplyResult{Rollback: skillsync.RollbackInfo{Attempted: true, Complete: false}}, errors.New("boom"), RestoreOutcomeIncomplete},
 		{"failed", appops.ApplyResult{}, errors.New("boom"), RestoreOutcomeFailed},
-		{"unknown success", appops.ApplyResult{Outcome: skillsync.OutcomePreview}, nil, RestoreOutcomeFailed},
+		{"unknown success", appops.ApplyResult{Outcome: skillsync.OutcomePreview}, nil, RestoreOutcomeUnknown},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -323,7 +323,7 @@ func TestT19FullscreenFallbackReachesAllContent(t *testing.T) {
 		"SIGKILL",
 		"Navigation",
 		"Catalog & Search",
-		"Session Settings",
+		"Session Preferences",
 		"Press ? or Esc to return",
 	} {
 		if !strings.Contains(plain, want) {

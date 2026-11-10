@@ -184,7 +184,7 @@ func TestInstallInvalidPreset(t *testing.T) {
 	if m.OpenCodeFreeFirst() {
 		t.Fatal("Free-first preset should not be enabled when WithOpenCode is false")
 	}
-	if m.ValidationError() == "" || !strings.Contains(m.ValidationError(), "requires the OpenCode pack") {
+	if m.ValidationError() == "" || !strings.Contains(m.ValidationError(), "requires the OpenCode agent profiles option") {
 		t.Fatalf("expected OpenCode pack required validation error, got: %q", m.ValidationError())
 	}
 
@@ -468,6 +468,11 @@ func TestInstallExactPreviewPaths(t *testing.T) {
 	updated, _ := m.Update(cmd())
 	m = updated.(InstallModel)
 
+	// FR-11.1: the preview leads with totals and destination groups, and the
+	// individual item/path details are expandable. Expand them here to verify
+	// that the plan's exact identities stay reachable.
+	m, _ = pressKey(m, "x")
+
 	// Wide render (width 80)
 	renderedWide := m.Render(80, 0)
 	for _, p := range planned {
@@ -572,7 +577,7 @@ func TestInstallResultStates(t *testing.T) {
 		t.Fatalf("outcome = %v, want InstallOutcomeNoChange", m.Outcome())
 	}
 	view = m.Render(80, 0)
-	if !strings.Contains(view, "No Changes Needed") {
+	if !strings.Contains(view, "Already Current") {
 		t.Errorf("view missing no-change title: %s", view)
 	}
 
@@ -741,7 +746,7 @@ func TestInstallOpenCodeProfilesSeparate(t *testing.T) {
 	m.step = InstallStepReview
 	view := m.Render(80, 0)
 
-	if !strings.Contains(view, "OpenCode Profiles & Presets (Separate)") {
+	if !strings.Contains(view, "OpenCode agent profiles & presets (separate)") {
 		t.Errorf("review missing separate OpenCode section: %s", view)
 	}
 	if !strings.Contains(view, OpenCodeAgentsDir("/tmp/fakehome")) {

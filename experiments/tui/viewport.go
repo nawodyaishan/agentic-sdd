@@ -7,6 +7,13 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// usableGeometry reports whether the terminal is large enough for the
+// interactive layouts. Below it the viewport shows only resize guidance, so no
+// confirmation may accept an affirmative key.
+func (a App) usableGeometry() bool {
+	return a.width >= 40 && a.height >= 8
+}
+
 // renderViewport reserves chrome before rendering any content. Only already
 // wrapped body rows are paged; a path or warning never disappears horizontally.
 // Help and the install/restore confirmation screens are composed through the
@@ -16,7 +23,7 @@ func (a App) renderViewport() string {
 		return ""
 	}
 	a = a.displayCopy()
-	if a.width < 40 || a.height < 8 {
+	if !a.usableGeometry() {
 		footer := []string{"q quit"}
 		body := a.viewportLines("Terminal too small. Resize to at least 40x8.", a.width)
 		return assembleView(nil, body, footer, a.width, a.height, 0)
@@ -31,6 +38,17 @@ func (a App) renderViewport() string {
 // fills the viewport when no modal is active. It never renders help content:
 // help is always composed as a bounded modal.
 func (a App) renderBackdrop() string {
+	return a.renderBackdropMode(true)
+}
+
+// renderNeutralBackdrop renders the shell chrome without any route content. A
+// confirmation modal uses it so the inactive backdrop never repeats the same
+// confirmation under its own overlay or exposes a second active surface.
+func (a App) renderNeutralBackdrop() string {
+	return a.renderBackdropMode(false)
+}
+
+func (a App) renderBackdropMode(showContent bool) string {
 	// Chrome has a fixed footer budget, even at the smallest usable height.
 	fText := a.viewportFooter()
 	if a.ascii {
@@ -76,7 +94,11 @@ func (a App) renderBackdrop() string {
 	contentWidth--
 	glyphs := GlyphSet(a.ascii)
 	var body []string
-	if a.activeRoute == RouteExplore {
+	if !showContent {
+		// Neutral chrome for a confirmation modal: no route content, no
+		// second copy of the confirmation and no interactive backdrop surface.
+		body = make([]string, bodyHeight)
+	} else if a.activeRoute == RouteExplore {
 		if bodyHeight < 6 && !a.catalogModel.InDetail() {
 			body = a.viewportLines("Resize taller to browse. Press Enter for details.", contentWidth)
 		} else if a.width >= 80 {
@@ -117,9 +139,30 @@ func (a App) renderBackdrop() string {
 			}
 		}
 	} else {
-		lines := a.getContentLines(contentWidth)
-		offset := a.contentScroll
-		body = pageRows(a.viewportLines(strings.Join(lines, "\n"), contentWidth), bodyHeight, offset)
+		if pinned := a.pinnedContentLines(contentWidth); len(pinned) > 0 {
+			// The preview summary is pinned: paging moves only the
+			// destination details below it. It bypasses viewportLines, so the
+			// session's 7-bit conversion is applied explicitly.
+			if a.ascii {
+				for i := range pinned {
+					pinned[i] = toASCII(pinned[i])
+				}
+			}
+			body = append(body, pinned...)
+			remaining := bodyHeight - len(pinned)
+			if remaining < 1 {
+				remaining = 1
+			}
+			rest := a.viewportLines(strings.Join(a.pinnedDetailLines(contentWidth), "\n"), contentWidth)
+			body = append(body, pageRows(rest, remaining, a.contentScroll)...)
+			if len(body) > bodyHeight {
+				body = body[:bodyHeight]
+			}
+		} else {
+			lines := a.getContentLines(contentWidth)
+			offset := a.contentScroll
+			body = pageRows(a.viewportLines(strings.Join(lines, "\n"), contentWidth), bodyHeight, offset)
+		}
 	}
 	for i := range body {
 		body[i] = " " + body[i]
@@ -261,32 +304,33 @@ func (a App) Breadcrumb() string {
 	return strings.Join(a.breadcrumbSegments(), glyphs.BreadcrumbSep)
 }
 
-// StatusCluster returns the factual compact status cluster text.
+// StatusCluster returns concise active or actionable update notices for the top bar header.
 // It never claims connectivity or says an enabled checker is "online".
+// Routine idle/current/disabled/unavailable states do not clutter the header;
+// complete details are maintained in Diagnostics.
 func (a App) StatusCluster() string {
+	if a.updateMgr == nil || a.updateMgr.IsDisabled() {
+		return ""
+	}
+	switch a.updateMgr.State() {
+	case UpdateStatusChecking:
+		if a.activeRoute == RouteHome {
+			return "checking for updates"
+		}
+		return ""
+	case UpdateStatusNewer:
+		return "update available"
+	default:
+		return ""
+	}
+}
+
+// SessionPreferences returns a compact description of session preferences
+// (motion, symbol set, and offline mode) for Help and Diagnostics.
+func (a App) SessionPreferences() string {
 	glyphs := GlyphSet(a.ascii)
 	sep := " " + glyphs.Bullet + " "
 	var parts []string
-	if a.updateMgr != nil {
-		if a.updateMgr.IsDisabled() {
-			parts = append(parts, "upd:disabled")
-		} else {
-			switch a.updateMgr.State() {
-			case UpdateStatusChecking:
-				parts = append(parts, "upd:checking")
-			case UpdateStatusCurrent:
-				parts = append(parts, "upd:current")
-			case UpdateStatusNewer:
-				parts = append(parts, "upd:newer")
-			case UpdateStatusUnavailable:
-				parts = append(parts, "upd:unavailable")
-			case UpdateStatusDisabled:
-				parts = append(parts, "upd:disabled")
-			default:
-				parts = append(parts, "upd:idle")
-			}
-		}
-	}
 	if a.motion {
 		parts = append(parts, "motion:on")
 	} else {
@@ -296,6 +340,11 @@ func (a App) StatusCluster() string {
 		parts = append(parts, "ascii:on")
 	} else {
 		parts = append(parts, "ascii:off")
+	}
+	if a.updateMgr != nil && a.updateMgr.IsDisabled() {
+		parts = append(parts, "upd:disabled")
+	} else {
+		parts = append(parts, "upd:enabled")
 	}
 	return strings.Join(parts, sep)
 }
@@ -526,7 +575,7 @@ func (a App) viewportFooter() string {
 	if a.width < 60 {
 		switch {
 		case a.helpOpen:
-			return "?/Esc back" + sep + "q quit"
+			return "?/Esc close" + sep + "PgUp/Dn scroll"
 		case a.activeRoute == RouteExplore && a.catalogModel.IsFiltering():
 			return "Esc cancel" + sep + "Enter search" + sep + "q quit"
 		case a.focus == FocusCategories:
@@ -543,7 +592,7 @@ func (a App) viewportFooter() string {
 	}
 	switch {
 	case a.helpOpen:
-		return "?/Esc back" + sep + "PgUp/Dn scroll" + sep + "q quit"
+		return "?/Esc close" + sep + "PgUp/Dn scroll"
 	case a.activeRoute == RouteExplore && a.catalogModel.IsFiltering():
 		return "Esc cancel" + sep + "Enter search" + sep + "Ctrl+C quit"
 	case a.focus == FocusCategories:
@@ -576,8 +625,14 @@ func (a *App) clampScrollOffsets() {
 		width -= 19
 	}
 	width = max(1, width-1)
-	content := display.viewportLines(strings.Join(display.getContentLines(width), "\n"), width)
-	a.contentScroll = min(a.contentScroll, max(0, len(content)-rows))
+	if pinned := display.pinnedContentLines(width); len(pinned) > 0 {
+		rows = max(1, rows-len(pinned))
+		content := display.viewportLines(strings.Join(display.pinnedDetailLines(width), "\n"), width)
+		a.contentScroll = min(a.contentScroll, max(0, len(content)-rows))
+	} else {
+		content := display.viewportLines(strings.Join(display.getContentLines(width), "\n"), width)
+		a.contentScroll = min(a.contentScroll, max(0, len(content)-rows))
+	}
 	if a.width >= 80 {
 		width -= 34
 	}
@@ -626,16 +681,44 @@ func (a App) viewportLines(text string, width int) []string {
 
 // Escape dynamic data before decorative ASCII mappings so, for example, a path
 // containing a real em dash is not silently renamed into a path with a hyphen.
+// The child screens render their own dynamic paths; the ASCII presentation flag
+// is propagated to their copies so their data helpers activate, while their
+// authoritative requests keep the original configuration.
 func (a App) displayCopy() App {
 	if !a.ascii {
 		return a
 	}
 	a.catalog.Home = escapeData(a.catalog.Home)
 	a.catalog.BackupRoot = escapeData(a.catalog.BackupRoot)
+	a.catalog.Notices = append([]string(nil), a.catalog.Notices...)
+	for i := range a.catalog.Notices {
+		a.catalog.Notices[i] = escapeData(a.catalog.Notices[i])
+	}
 	a.cfg.Home = escapeData(a.cfg.Home)
 	a.cfg.Repo = escapeData(a.cfg.Repo)
+	a.notice = escapeData(a.notice)
+	a.inventoryErr = escapeData(a.inventoryErr)
+	a.install.cfg.ASCII = true
+	a.restore.cfg.ASCII = true
+	a.catalogModel.cfg.ASCII = true
+	a.catalogModel.catalog.Notices = append([]string(nil), a.catalogModel.catalog.Notices...)
+	for i := range a.catalogModel.catalog.Notices {
+		a.catalogModel.catalog.Notices[i] = escapeData(a.catalogModel.catalog.Notices[i])
+	}
+	if a.onboarding != nil {
+		onboarding := *a.onboarding
+		onboarding.cfg.ASCII = true
+		a.onboarding = &onboarding
+	}
 	a.catalogModel.catalog.Items = append([]CatalogItem(nil), a.catalogModel.catalog.Items...)
-	if item, ok := a.catalogModel.Selected(); ok {
+	// A recommendation override owns the detail card while it is open; the
+	// ASCII-safe copy must escape that item, never replace it with the list
+	// selection.
+	item, ok := a.catalogModel.Selected()
+	if a.catalogModel.detailOverride != nil {
+		item, ok = *a.catalogModel.detailOverride, true
+	}
+	if ok {
 		item.ID = escapeData(item.ID)
 		item.Name = escapeData(item.Name)
 		item.Purpose = escapeData(item.Purpose)

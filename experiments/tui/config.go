@@ -10,6 +10,8 @@
 // pure skillsync.SummarizePlan function.
 package tui
 
+import "github.com/charmbracelet/colorprofile"
+
 const (
 	// EnvTUI is the explicit opt-in for the experimental terminal UI. Only the
 	// exact value "1" enables it; anything else keeps the standard CLI.
@@ -59,6 +61,22 @@ type TUIConfig struct {
 	Motion bool
 	// ASCII forces 7-bit ASCII borders and symbols.
 	ASCII bool
+	// Profile selects the reference color profile used to resolve semantic
+	// tokens. The zero value (Unknown) keeps the TrueColor identity; Bubble Tea
+	// also reports the detected profile at startup through tea.ColorProfileMsg.
+	// This is a presentation seam, not terminal detection performed by the TUI.
+	Profile colorprofile.Profile
+}
+
+// ColorProfile returns the explicit reference profile, defaulting an unset or
+// unsupported value to TrueColor so existing callers keep their identity.
+func (c TUIConfig) ColorProfile() colorprofile.Profile {
+	switch c.Profile {
+	case colorprofile.ANSI, colorprofile.ANSI256, colorprofile.TrueColor:
+		return c.Profile
+	default:
+		return colorprofile.TrueColor
+	}
 }
 
 // Normalize returns a copy with default dimensions applied. Non-positive

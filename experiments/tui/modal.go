@@ -10,6 +10,7 @@ package tui
 // no program loop, dialog controller, consent state or mouse semantics.
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -288,7 +289,7 @@ func (a App) renderModal() string {
 	if mode == modalNone {
 		return a.renderBackdrop()
 	}
-	backdrop := strings.Split(a.renderBackdrop(), "\n")
+	backdrop := strings.Split(a.renderModalBackdrop(), "\n")
 	bodyStart := a.headerRowCount()
 	footerRows := a.footerRowCount()
 	bodyEnd := a.height - footerRows
@@ -304,6 +305,40 @@ func (a App) renderModal() string {
 		a.replaceFullscreen(backdrop, parts, width, bodyStart, bodyEnd)
 	}
 	return strings.Join(backdrop, "\n")
+}
+
+// renderModalBackdrop chooses what sits under the modal. Help keeps the route
+// content as context unless that content is a confirmation, which is never
+// repeated under another dialog. Install and restore confirmations always use
+// the neutral chrome so the confirmation is not duplicated under its overlay.
+func (a App) renderModalBackdrop() string {
+	if kind, ok := a.activeModalKind(); ok {
+		switch kind {
+		case modalKindInstallConfirm, modalKindRestoreConfirm:
+			return a.renderNeutralBackdrop()
+		case modalKindHelp:
+			if a.underlyingConfirmation() {
+				return a.renderNeutralBackdrop()
+			}
+		}
+	}
+	return a.renderBackdrop()
+}
+
+// underlyingConfirmation reports whether the route beneath an overlay is an
+// install or restore confirmation awaiting a decision.
+func (a App) underlyingConfirmation() bool {
+	if a.write != nil || a.childWritePending() || a.activeRoute != RouteInstall {
+		return false
+	}
+	switch a.installSection {
+	case installSectionInstall:
+		return a.install.Step() == InstallStepConfirm
+	case installSectionBackups:
+		return a.restore.Stage() == RestoreStageConfirm
+	default:
+		return false
+	}
 }
 
 // overlayCentered dims the inactive backdrop and centers the framed dialog in
@@ -505,6 +540,7 @@ func (a App) helpModalParts(width int) modalParts {
 
 	add(section("Navigation", []string{
 		"  Tab          Cycle navigation, categories (Explore), and content",
+		"  Shift+Tab    Cycle the same regions in reverse",
 		"  ↑/↓/j/k      Move selection in navigation or catalog list",
 		"  1 - 4        Direct jump to destination (1:Home, 2:Install, 3:Explore, 4:Help)",
 		"  Enter        Open item or activate highlighted route",
@@ -512,6 +548,11 @@ func (a App) helpModalParts(width int) modalParts {
 		"  Home / End   Jump to top or bottom of navigation / catalog",
 		"  pgup / pgdn  Scroll content up / down",
 	}))
+	if title := a.contextHelpTitle(); title != "" {
+		if rows := a.contextHelpLines(); len(rows) > 0 {
+			add(section(title, rows))
+		}
+	}
 	add(section("Catalog & Search", []string{
 		"  /            Filter catalog items by ID, kind, origin, or client",
 		"  c            Focus the category control",
@@ -524,11 +565,25 @@ func (a App) helpModalParts(width int) modalParts {
 		safety = append(safety, a.theme.Warn.Render(line))
 	}
 
-	add(section("Session Settings", []string{
-		"  m            Toggle logo reveal motion animation (on/off)",
-		"  u            Toggle symbol set (Unicode icons vs 7-bit ASCII)",
+	motionStatus := "off"
+	if a.motion {
+		motionStatus = "on"
+	}
+	symbolStatus := "Unicode icons"
+	if a.ascii {
+		symbolStatus = "ASCII"
+	}
+	offlineStatus := "checks enabled"
+	if a.updateMgr != nil && a.updateMgr.IsDisabled() {
+		offlineStatus = "checks disabled"
+	}
+
+	add(section("Session Preferences", []string{
+		fmt.Sprintf("  m            Toggle motion animation (current: %s)", motionStatus),
+		fmt.Sprintf("  u            Toggle symbol set (current: %s)", symbolStatus),
+		fmt.Sprintf("  d            Toggle update checks for this session (current: %s)", offlineStatus),
 		"  ?            Toggle this help screen",
-		"  q / Ctrl+C   Quit when idle; Ctrl+C during a write exits after it",
+		"  q / Ctrl+C   Quit when idle; q never quits through help or a confirmation, and Ctrl+C during a write exits after it",
 	}))
 	add([]string{a.theme.Hint.Render("Press ? or Esc to return to the previous screen.")})
 
@@ -537,7 +592,7 @@ func (a App) helpModalParts(width int) modalParts {
 		Subtitle: "Contextual help · press ? or Esc to close",
 		Warning:  section("Write Execution Safety", safety),
 		Body:     body,
-		Footer:   "? or Esc close · PgUp/PgDn scroll · q quit",
+		Footer:   "? or Esc close · PgUp/PgDn scroll",
 	}
 }
 

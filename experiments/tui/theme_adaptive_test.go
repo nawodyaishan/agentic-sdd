@@ -30,33 +30,33 @@ const (
 	wantPaletteLightSelectedBg  = "#E0E9EB"
 )
 
-// TestAdaptiveThemeLightPaletteMeetsWCAG tests the Daylight Lagoon light palette
-// against the proposed AAA (7:1 text, 3:1 non-text) floor across canvas, surface,
-// and selected backgrounds.
-func TestAdaptiveThemeLightPaletteMeetsWCAG(t *testing.T) {
-	theme := NewAdaptiveTheme(true, false)
+// TestThemeAgenticDarkActualPairsMeetWCAG tests the Agentic Dark (Catppuccin Mocha) palette
+// against the WCAG AAA (7:1 text, 3:1 non-text) floor across canvas, surface,
+// and selected backgrounds for every actual pair.
+func TestThemeAgenticDarkActualPairsMeetWCAG(t *testing.T) {
+	theme := NewTheme(true)
 	if !theme.Color {
-		t.Fatal("NewAdaptiveTheme(true, false) must enable color")
+		t.Fatal("NewTheme(true) must enable color")
 	}
-	if theme.IsDark {
-		t.Fatal("NewAdaptiveTheme(true, false) must have IsDark=false")
+	if !theme.IsDark {
+		t.Fatal("NewTheme(true) must have IsDark=true")
 	}
 
 	canvas := contrastRGB(t, theme.CanvasColor())
 	surface := contrastRGB(t, theme.SurfaceColor())
 	selected := contrastRGB(t, theme.SelectedBgColor())
 
-	if got := contrastHex(t, theme.CanvasColor()); got != wantPaletteLightBackground {
-		t.Fatalf("light canvas = %s, want %s", got, wantPaletteLightBackground)
+	if got := contrastHex(t, theme.CanvasColor()); got != wantPaletteBackground {
+		t.Fatalf("canvas = %s, want %s", got, wantPaletteBackground)
 	}
-	if got := contrastHex(t, theme.SurfaceColor()); got != wantPaletteLightSurface {
-		t.Fatalf("light surface = %s, want %s", got, wantPaletteLightSurface)
+	if got := contrastHex(t, theme.SurfaceColor()); got != wantPaletteSurface {
+		t.Fatalf("surface = %s, want %s", got, wantPaletteSurface)
 	}
-	if got := contrastHex(t, theme.SelectedBgColor()); got != wantPaletteLightSelectedBg {
-		t.Fatalf("light selectedBg = %s, want %s", got, wantPaletteLightSelectedBg)
+	if got := contrastHex(t, theme.SelectedBgColor()); got != wantPaletteSelectedBg {
+		t.Fatalf("selectedBg = %s, want %s", got, wantPaletteSelectedBg)
 	}
 
-	// Text roles must clear >= 7:1 against both canvas and surface (and selectedBg where applicable).
+	// Text roles on Canvas and Rail/Header surface must clear >= 7:1 AAA.
 	textRoles := []struct {
 		name string
 		fg   color.Color
@@ -75,6 +75,7 @@ func TestAdaptiveThemeLightPaletteMeetsWCAG(t *testing.T) {
 		{"DefaultForeground", theme.DefaultForeground()},
 		{"Dim", theme.Dim.GetForeground()},
 		{"Info", theme.Info.GetForeground()},
+		{"Notice", theme.Notice.GetForeground()},
 	}
 
 	for _, role := range textRoles {
@@ -85,17 +86,33 @@ func TestAdaptiveThemeLightPaletteMeetsWCAG(t *testing.T) {
 		}{
 			{"canvas", canvas},
 			{"surface", surface},
-			{"selected", selected},
 		} {
 			ratio := contrastRatio(fg, bg.bgCol)
 			if ratio+1e-9 < 7.0 {
-				t.Errorf("Light role %s on %s contrast %.2f:1 (%s on %s), want >= 7.0:1",
+				t.Errorf("Role %s on %s contrast %.2f:1 (%s on %s), want >= 7.0:1",
 					role.name, bg.bgName, ratio, contrastHex(t, role.fg), contrastHex(t, bg.bgCol))
 			}
 		}
 	}
 
-	// Non-text roles must clear >= 3:1 against canvas, surface, and selected.
+	// Selected row actual text pairs: Text and Muted must clear >= 7:1 AAA on SelectedBg.
+	selectedTextRoles := []struct {
+		name string
+		fg   color.Color
+	}{
+		{"SelectedText", theme.Selected.GetForeground()},
+		{"SelectedMuted", theme.Muted.GetForeground()},
+	}
+	for _, role := range selectedTextRoles {
+		fg := contrastRGB(t, role.fg)
+		ratio := contrastRatio(fg, selected)
+		if ratio+1e-9 < 7.0 {
+			t.Errorf("Selected text role %s on selectedBg contrast %.2f:1 (%s on %s), want >= 7.0:1",
+				role.name, ratio, contrastHex(t, role.fg), contrastHex(t, selected))
+		}
+	}
+
+	// Non-text roles must clear >= 3:1 against canvas, surface, and selectedBg.
 	nonTextRoles := []struct {
 		name string
 		fg   color.Color
@@ -116,7 +133,7 @@ func TestAdaptiveThemeLightPaletteMeetsWCAG(t *testing.T) {
 		} {
 			ratio := contrastRatio(fg, bg.bgCol)
 			if ratio+1e-9 < 3.0 {
-				t.Errorf("Light non-text role %s on %s contrast %.2f:1 (%s on %s), want >= 3.0:1",
+				t.Errorf("Non-text role %s on %s contrast %.2f:1 (%s on %s), want >= 3.0:1",
 					role.name, bg.bgName, ratio, contrastHex(t, role.fg), contrastHex(t, bg.bgCol))
 			}
 		}
@@ -137,7 +154,7 @@ func TestAdaptiveThemeLightPaletteMeetsWCAG(t *testing.T) {
 		bgRGB := contrastRGB(t, s.bg)
 		ratio := contrastRatio(canvas, bgRGB)
 		if ratio+1e-9 < 7.0 {
-			t.Errorf("Light reverse text canvas on %s contrast %.2f:1 (%s on %s), want >= 7.0:1",
+			t.Errorf("Reverse text canvas on %s contrast %.2f:1 (%s on %s), want >= 7.0:1",
 				s.name, ratio, contrastHex(t, theme.CanvasColor()), contrastHex(t, s.bg))
 		}
 	}
@@ -158,7 +175,7 @@ func TestAdaptiveThemeDarkPaletteRolesAndTokens(t *testing.T) {
 	surface := contrastRGB(t, theme.SurfaceColor())
 	selected := contrastRGB(t, theme.SelectedBgColor())
 
-	// Dim role must reach >= 7:1 against canvas, surface, and selectedBg.
+	// Dim role must reach >= 7:1 against canvas and surface.
 	dimFG := contrastRGB(t, theme.Dim.GetForeground())
 	for _, bg := range []struct {
 		bgName string
@@ -166,7 +183,6 @@ func TestAdaptiveThemeDarkPaletteRolesAndTokens(t *testing.T) {
 	}{
 		{"canvas", canvas},
 		{"surface", surface},
-		{"selected", selected},
 	} {
 		ratio := contrastRatio(dimFG, bg.bgCol)
 		if ratio+1e-9 < 7.0 {
@@ -175,13 +191,16 @@ func TestAdaptiveThemeDarkPaletteRolesAndTokens(t *testing.T) {
 		}
 	}
 
-	// BorderFocus must reach >= 3:1 against canvas and surface.
+	// BorderFocus must reach >= 3:1 against canvas, surface, and selectedBg.
 	focusFG := contrastRGB(t, theme.BorderFocus.GetForeground())
 	if ratio := contrastRatio(focusFG, canvas); ratio < 3.0 {
 		t.Errorf("Dark BorderFocus on canvas contrast %.2f:1, want >= 3.0:1", ratio)
 	}
 	if ratio := contrastRatio(focusFG, surface); ratio < 3.0 {
 		t.Errorf("Dark BorderFocus on surface contrast %.2f:1, want >= 3.0:1", ratio)
+	}
+	if ratio := contrastRatio(focusFG, selected); ratio < 3.0 {
+		t.Errorf("Dark BorderFocus on selected contrast %.2f:1, want >= 3.0:1", ratio)
 	}
 
 	// Selected text must reach >= 7:1 on SelectedBg.
@@ -191,40 +210,193 @@ func TestAdaptiveThemeDarkPaletteRolesAndTokens(t *testing.T) {
 	}
 }
 
-// TestThemeProfileMappingsAndRemappingLimitations verifies profile resolution
-// across TrueColor, ANSI-256, and ANSI-16, and demonstrates/documents that user-remapped
-// ANSI colors cannot be universally guaranteed.
-func TestThemeProfileMappingsAndRemappingLimitations(t *testing.T) {
-	// 1. TrueColor profile produces 24-bit RGB colors matching our hex definitions.
-	tcTheme := NewThemeWithProfile(true, true, colorprofile.TrueColor)
-	if got := contrastHex(t, tcTheme.CanvasColor()); got != wantPaletteBackground {
-		t.Errorf("TrueColor canvas = %s, want %s", got, wantPaletteBackground)
+// TestThemeReferenceProfilesActualPairs verifies each reference profile against
+// the actual pairs the UI paints. TrueColor and the chosen ANSI-256 mappings
+// must meet AAA text / 3:1 non-text. ANSI-16 is explicitly best-effort: the
+// standard reference palette cannot make every accent role AAA, so the test
+// pins the documented failing roles instead of claiming they pass. None of
+// this is a promise for a user-remapped terminal palette.
+func TestThemeReferenceProfilesActualPairs(t *testing.T) {
+	type pair struct {
+		name string
+		fg   color.Color
+		bg   color.Color
+		min  float64
 	}
 
-	// 2. ANSI-256 profile resolves to mapped 256-color indices.
-	a256Theme := NewThemeWithProfile(true, true, colorprofile.ANSI256)
-	if a256Theme.Tokens.Text == nil {
-		t.Fatal("ANSI-256 profile must resolve tokens")
+	profiles := []struct {
+		name       string
+		profile    colorprofile.Profile
+		wantCanvas string
+		aaa        bool
+	}{
+		{"TrueColor", colorprofile.TrueColor, "#1E1E2E", true},
+		{"ANSI256", colorprofile.ANSI256, "#1C1C1C", true},
+		{"ANSI16", colorprofile.ANSI, "#000000", false},
 	}
 
-	// 3. ANSI-16 profile resolves to basic 16-color indices.
-	ansiTheme := NewThemeWithProfile(true, true, colorprofile.ANSI)
-	if ansiTheme.Tokens.Text == nil {
-		t.Fatal("ANSI-16 profile must resolve tokens")
+	for _, p := range profiles {
+		t.Run(p.name, func(t *testing.T) {
+			theme := NewThemeWithProfile(true, true, p.profile)
+			if theme.Profile != p.profile {
+				t.Fatalf("theme.Profile = %v, want %v", theme.Profile, p.profile)
+			}
+			if got := contrastHex(t, theme.CanvasColor()); got != p.wantCanvas {
+				t.Fatalf("canvas = %s, want %s for %v", got, p.wantCanvas, p.profile)
+			}
+
+			canvas := contrastRGB(t, theme.CanvasColor())
+			surface := contrastRGB(t, theme.SurfaceColor())
+			selected := contrastRGB(t, theme.SelectedBgColor())
+
+			// These structural pairs are required for every color profile: body
+			// text, the selected row, and the meaningful borders. They are the
+			// pairs a user cannot avoid seeing.
+			required := []pair{
+				{"Text/canvas", theme.Text.GetForeground(), canvas, 7},
+				{"Text/surface", theme.Text.GetForeground(), surface, 7},
+				{"SelectedText/selected", theme.Selected.GetForeground(), selected, 7},
+				{"Muted/canvas", theme.Muted.GetForeground(), canvas, 7},
+				{"Muted/surface", theme.Muted.GetForeground(), surface, 7},
+				{"SelectedMuted/selected", theme.Muted.GetForeground(), selected, 7},
+				{"Border/canvas", theme.Border.GetForeground(), canvas, 3},
+				{"Border/surface", theme.Border.GetForeground(), surface, 3},
+				{"Border/selected", theme.Border.GetForeground(), selected, 3},
+				{"BorderFocus/canvas", theme.BorderFocus.GetForeground(), canvas, 3},
+				{"BorderFocus/surface", theme.BorderFocus.GetForeground(), surface, 3},
+				{"BorderFocus/selected", theme.BorderFocus.GetForeground(), selected, 3},
+				{"HeaderTitle/surface", theme.HeaderTitle.GetForeground(), surface, 7},
+				{"HeaderMuted/surface", theme.HeaderMuted.GetForeground(), surface, 7},
+				{"HeaderDivider/surface", theme.HeaderDivider.GetForeground(), surface, 3},
+			}
+
+			if p.aaa {
+				// Semantic text roles and the reverse status pairs are design
+				// guards for the profiles that promise AAA.
+				required = append(required,
+					pair{"Title/canvas", theme.Title.GetForeground(), canvas, 7},
+					pair{"Subtitle/canvas", theme.Subtitle.GetForeground(), canvas, 7},
+					pair{"Section/canvas", theme.Section.GetForeground(), canvas, 7},
+					pair{"Accent/canvas", theme.Accent.GetForeground(), canvas, 7},
+					pair{"OK/canvas", theme.OK.GetForeground(), canvas, 7},
+					pair{"Warn/canvas", theme.Warn.GetForeground(), canvas, 7},
+					pair{"Bad/canvas", theme.Bad.GetForeground(), canvas, 7},
+					pair{"Hint/canvas", theme.Hint.GetForeground(), canvas, 7},
+					pair{"NavActive/canvas", theme.NavActive.GetForeground(), canvas, 7},
+					pair{"NavInactive/canvas", theme.NavInactive.GetForeground(), canvas, 7},
+					pair{"Dim/canvas", theme.Dim.GetForeground(), canvas, 7},
+					pair{"Info/canvas", theme.Info.GetForeground(), canvas, 7},
+					pair{"Notice/canvas", theme.Notice.GetForeground(), canvas, 7},
+					pair{"HeaderAccent/surface", theme.HeaderAccent.GetForeground(), surface, 7},
+					pair{"Canvas/Accent", theme.CanvasColor(), theme.Tokens.Accent, 7},
+					pair{"Canvas/Success", theme.CanvasColor(), theme.Tokens.Success, 7},
+					pair{"Canvas/Warning", theme.CanvasColor(), theme.Tokens.Warning, 7},
+					pair{"Canvas/Error", theme.CanvasColor(), theme.Tokens.Error, 7},
+					pair{"Canvas/Info", theme.CanvasColor(), theme.Tokens.Info, 7},
+				)
+			}
+
+			for _, check := range required {
+				ratio := contrastRatio(contrastRGB(t, check.fg), contrastRGB(t, check.bg))
+				if ratio+1e-9 < check.min {
+					t.Errorf("%s contrast %.2f:1, want >= %.1f:1", check.name, ratio, check.min)
+				}
+			}
+
+			if p.aaa {
+				return
+			}
+
+			// ANSI-16 is best-effort. The standard palette's bright magenta and
+			// bright red cannot clear AAA on black, so those roles must stay
+			// documented as failing rather than being presented as AAA.
+			if claim := theme.ContrastClaim(); !strings.Contains(claim, "best-effort") {
+				t.Errorf("ANSI-16 claim = %q, want an explicit best-effort statement", claim)
+			}
+			bestEffort := []pair{
+				{"Title/canvas", theme.Title.GetForeground(), canvas, 7},
+				{"Accent/canvas", theme.Accent.GetForeground(), canvas, 7},
+				{"NavActive/canvas", theme.NavActive.GetForeground(), canvas, 7},
+				{"Bad/canvas", theme.Bad.GetForeground(), canvas, 7},
+				{"HeaderAccent/surface", theme.HeaderAccent.GetForeground(), surface, 7},
+			}
+			for _, check := range bestEffort {
+				ratio := contrastRatio(contrastRGB(t, check.fg), contrastRGB(t, check.bg))
+				if ratio >= check.min {
+					t.Errorf("%s now meets %.1f:1 on the ANSI-16 reference palette; update the best-effort claim and mapping", check.name, check.min)
+				}
+			}
+		})
 	}
 
-	// 4. Limitation disclosure and verification:
-	// If a user has remapped their terminal emulator palette (e.g. customized color 0 to light grey
-	// or color 15 to dark grey), standard ANSI indexed colors will display with the user's remapped
-	// values, which can alter the effective contrast ratio.
-	// We verify that standard reference ANSI values produce valid contrast, but note the limitation.
-	t.Log("Verified: TokenDef provides explicit mappings for TrueColor, ANSI-256, and ANSI-16.")
-	t.Log("Documented limitation: User-remapped ANSI colors (custom terminal emulator themes) cannot be universally guaranteed without active OSC 4 querying.")
+	// The remapping limitation is part of the claim, not a test-only log line.
+	for _, p := range []colorprofile.Profile{colorprofile.TrueColor, colorprofile.ANSI256, colorprofile.ANSI} {
+		claim := NewThemeWithProfile(true, true, p).ContrastClaim()
+		if !strings.Contains(claim, "user-remapped") {
+			t.Errorf("profile %v claim does not disclose user-remapped palettes: %q", p, claim)
+		}
+	}
+}
+
+// TestAppColorProfileMessageUsesReferenceMappings proves Bubble Tea's reported
+// profile selects the explicit reference mapping without resetting route,
+// filter or selection state, and that a TUIConfig profile is an explicit seam
+// before the message arrives.
+func TestAppColorProfileMessageUsesReferenceMappings(t *testing.T) {
+	app := NewApp(TUIConfig{Width: 100, Height: 24, Color: true, Interactive: true}, contrastCatalog())
+	app = contrastPress(t, app, tea.KeyPressMsg{Code: '3', Text: "3"})
+	app.catalogModel.SetFilter("beta")
+	if app.theme.Profile != colorprofile.TrueColor {
+		t.Fatalf("initial profile = %v, want TrueColor", app.theme.Profile)
+	}
+
+	updated, _ := app.Update(tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
+	app = updated.(App)
+	if app.theme.Profile != colorprofile.ANSI256 {
+		t.Fatalf("after ANSI256 message profile = %v", app.theme.Profile)
+	}
+	if got := contrastHex(t, app.theme.CanvasColor()); got != "#1C1C1C" {
+		t.Fatalf("ANSI256 canvas = %s, want #1C1C1C", got)
+	}
+	if app.ActiveRoute() != RouteExplore || app.catalogModel.list.FilterValue() != "beta" {
+		t.Fatalf("profile message reset route/filter: route=%v filter=%q", app.ActiveRoute(), app.catalogModel.list.FilterValue())
+	}
+	if app.install.theme.Profile != colorprofile.ANSI256 || app.restore.theme.Profile != colorprofile.ANSI256 || app.activity.theme.Profile != colorprofile.ANSI256 {
+		t.Fatal("profile message did not propagate to child themes")
+	}
+
+	updated, _ = app.Update(tea.ColorProfileMsg{Profile: colorprofile.ANSI})
+	app = updated.(App)
+	if app.theme.Profile != colorprofile.ANSI {
+		t.Fatalf("after ANSI message profile = %v", app.theme.Profile)
+	}
+	if got := contrastHex(t, app.theme.CanvasColor()); got != "#000000" {
+		t.Fatalf("ANSI canvas = %s, want #000000", got)
+	}
+	if !strings.Contains(app.theme.ContrastClaim(), "best-effort") {
+		t.Fatalf("ANSI claim = %q", app.theme.ContrastClaim())
+	}
+
+	// A non-color profile keeps the explicit identity rather than disabling it.
+	updated, _ = app.Update(tea.ColorProfileMsg{Profile: colorprofile.NoTTY})
+	app = updated.(App)
+	if app.theme.Profile != colorprofile.ANSI {
+		t.Fatalf("non-color profile changed the theme to %v", app.theme.Profile)
+	}
+
+	// The config seam resolves before any message arrives.
+	seeded := NewApp(TUIConfig{Width: 100, Height: 24, Color: true, Profile: colorprofile.ANSI256}, contrastCatalog())
+	if seeded.theme.Profile != colorprofile.ANSI256 {
+		t.Fatalf("configured profile = %v, want ANSI256", seeded.theme.Profile)
+	}
+	if seeded.install.theme.Profile != colorprofile.ANSI256 || seeded.restore.theme.Profile != colorprofile.ANSI256 || seeded.catalogModel.theme.Profile != colorprofile.ANSI256 {
+		t.Fatal("configured profile did not reach the child constructors")
+	}
 }
 
 // TestAppBackgroundColorAdaptation verifies that root App queries background color
-// in interactive colored mode, switches theme when BackgroundColorMsg arrives, and
-// starts with tested dark palette before any reply.
+// in interactive colored mode, retains the single agentic-dark identity when BackgroundColorMsg arrives,
+// and starts with tested dark palette before and after any reply.
 func TestAppBackgroundColorAdaptation(t *testing.T) {
 	app := NewApp(TUIConfig{Width: 80, Height: 24, Color: true, Interactive: true}, contrastCatalog())
 
@@ -255,28 +427,29 @@ func TestAppBackgroundColorAdaptation(t *testing.T) {
 		t.Fatalf("Update returned %T, want App", updated)
 	}
 
-	if appUpdated.theme.IsDark {
-		t.Fatal("after light BackgroundColorMsg, theme.IsDark must be false")
+	// B10 T29: Single dark identity; background-color messages must NOT switch theme to light.
+	if !appUpdated.theme.IsDark {
+		t.Fatal("after BackgroundColorMsg, theme.IsDark must still be true")
 	}
-	if got := contrastHex(t, appUpdated.theme.CanvasColor()); got != wantPaletteLightBackground {
-		t.Fatalf("after light msg canvas = %s, want %s", got, wantPaletteLightBackground)
+	if got := contrastHex(t, appUpdated.theme.CanvasColor()); got != wantPaletteBackground {
+		t.Fatalf("after light msg canvas = %s, want %s", got, wantPaletteBackground)
 	}
-	if got := contrastHex(t, appUpdated.theme.DefaultForeground()); got != wantPaletteLightForeground {
-		t.Fatalf("after light msg foreground = %s, want %s", got, wantPaletteLightForeground)
+	if got := contrastHex(t, appUpdated.theme.DefaultForeground()); got != wantPaletteForeground {
+		t.Fatalf("after light msg foreground = %s, want %s", got, wantPaletteForeground)
 	}
 
-	// Verify child screens received the light theme.
-	if appUpdated.catalogModel.theme.IsDark {
-		t.Error("catalogModel theme must be updated to light")
+	// Verify child screens retain the dark theme.
+	if !appUpdated.catalogModel.theme.IsDark {
+		t.Error("catalogModel theme must remain dark")
 	}
-	if appUpdated.install.theme.IsDark {
-		t.Error("install theme must be updated to light")
+	if !appUpdated.install.theme.IsDark {
+		t.Error("install theme must remain dark")
 	}
-	if appUpdated.restore.theme.IsDark {
-		t.Error("restore theme must be updated to light")
+	if !appUpdated.restore.theme.IsDark {
+		t.Error("restore theme must remain dark")
 	}
-	if appUpdated.activity.theme.IsDark {
-		t.Error("activity theme must be updated to light")
+	if !appUpdated.activity.theme.IsDark {
+		t.Error("activity theme must remain dark")
 	}
 
 	// Now simulate receiving a dark BackgroundColorMsg.
@@ -292,7 +465,7 @@ func TestAppBackgroundColorAdaptation(t *testing.T) {
 }
 
 // TestAppLateBackgroundColorMsgPreservesState verifies that receiving a late
-// background message does not reset selection, route, filter query, or scroll.
+// background message does not switch scheme, reset selection, route, filter query, or scroll.
 func TestAppLateBackgroundColorMsgPreservesState(t *testing.T) {
 	app := NewApp(TUIConfig{Width: 80, Height: 24, Color: true, Interactive: true}, contrastCatalog())
 
@@ -320,8 +493,11 @@ func TestAppLateBackgroundColorMsgPreservesState(t *testing.T) {
 	if appUpdated.catalogModel.list.FilterValue() != "beta" {
 		t.Errorf("filter value changed to %q, want beta", appUpdated.catalogModel.list.FilterValue())
 	}
-	if appUpdated.theme.IsDark {
-		t.Error("theme was not updated to light")
+	if !appUpdated.theme.IsDark {
+		t.Error("theme must remain dark")
+	}
+	if got := contrastHex(t, appUpdated.theme.CanvasColor()); got != wantPaletteBackground {
+		t.Errorf("canvas changed to %s, want %s", got, wantPaletteBackground)
 	}
 }
 

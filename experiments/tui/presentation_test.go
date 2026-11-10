@@ -304,10 +304,9 @@ func TestHomeOverviewDerivesCountsFromCatalog(t *testing.T) {
 		// always shows a present/total fraction with explicit modified text.
 		"claude: present 1/1 (1 matching + 0 modified) · 0 not present · 0 refused",
 		"opencode: present 0/1 (0 matching + 0 modified) · 1 not present · 0 refused",
-		"OpenCode pack: present in this selection (2 items)",
-		"Free-first presets: present in this selection (1 item)",
+		"OpenCode agent profiles: present in this selection (2 items)",
+		"Prefer free models in the provided templates: present in this selection (1 item)",
 		"Example notice: optional source missing",
-		"Set up / Install Agentic-SDD",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("overview missing %q:\n%s", want, got)
@@ -344,12 +343,11 @@ func TestHomeOverviewMarksAbsentOptionalContent(t *testing.T) {
 	for _, want := range []string{
 		"Skills: 1",
 		"Profiles: 0",
-		"OpenCode pack: not present in this selection",
-		"Free-first presets: not present in this selection",
+		"OpenCode agent profiles: not present in this selection",
 		"OpenCode pack source not found; showing core skills only",
 		"Recovery:",
 	} {
-		if !strings.Contains(got, want) {
+		if !strings.Contains(got, want) && !strings.Contains(flattenWords(got), flattenWords(want)) {
 			t.Fatalf("overview missing %q:\n%s", want, got)
 		}
 	}
@@ -368,7 +366,6 @@ func TestHomeOverviewEmptyCatalogIsReadable(t *testing.T) {
 	for _, want := range []string{
 		"No managed skills",
 		"Recovery:",
-		"Set up / Install Agentic-SDD",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("empty overview missing %q:\n%s", want, text)

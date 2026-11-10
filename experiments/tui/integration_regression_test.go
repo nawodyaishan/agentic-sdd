@@ -120,7 +120,13 @@ func TestIntegratedHomePreservesInventoryNotice(t *testing.T) {
 	cat := testCatalog()
 	cat.Notices = []string{"Optional pack unavailable; showing core skills only"}
 	app := tui.NewApp(tui.TUIConfig{Width: 100, Height: 40}, cat)
-	if !strings.Contains(app.View().Content, cat.Notices[0]) {
+	observed := app.View().Content
+	for page := 0; page < 50 && !strings.Contains(observed, cat.Notices[0]); page++ {
+		next, _ := app.Update(key(tea.KeyPgDown))
+		app = next.(tui.App)
+		observed += app.View().Content
+	}
+	if !strings.Contains(observed, cat.Notices[0]) {
 		t.Fatal("Home discarded an inventory warning")
 	}
 }

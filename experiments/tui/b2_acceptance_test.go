@@ -222,12 +222,17 @@ func b2ConsumeFilterResults(t *testing.T, model *tui.CatalogModel, cmd tea.Cmd) 
 	t.Helper()
 	consumed := 0
 	for _, msg := range b2RunCmds(cmd) {
-		result, ok := msg.(list.FilterMatchesMsg)
+		// Filter results are delivered inside the model's generation/category
+		// envelope; applying the envelope is what the running App does.
+		envelope, ok := msg.(tui.FilterEnvelope)
 		if !ok {
 			continue
 		}
+		if _, ok := envelope.Msg.(list.FilterMatchesMsg); !ok {
+			continue
+		}
 		consumed++
-		next, _ := model.Update(result)
+		next, _ := model.Update(envelope)
 		updated, ok := next.(tui.CatalogModel)
 		if !ok {
 			t.Fatalf("Update returned %T, want tui.CatalogModel", next)

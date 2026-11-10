@@ -126,6 +126,16 @@ type RestoreRevalidatedMsg struct {
 	Err      error
 }
 
+// RestoreManifestMsg carries one bounded raw manifest read. Generation and
+// BackupID bind it to the exact details selection that requested it, so a late
+// read can never replace the content of another backup or stage.
+type RestoreManifestMsg struct {
+	Generation uint64
+	BackupID   string
+	Content    string
+	Err        error
+}
+
 // RestoreCloseMsg asks the parent shell to leave the recovery screen. It is
 // only emitted from the backup list; backing out of later stages stays inside
 // the screen so a pending transaction is never silently abandoned.
@@ -157,6 +167,9 @@ const (
 	// RestoreOutcomeCancelled means the operation reported cancellation. A
 	// cancellation that arrived after work began cannot claim no writes.
 	RestoreOutcomeCancelled RestoreOutcomeKind = "cancelled"
+	// RestoreOutcomeUnknown means the engine returned without a definite
+	// outcome. It is never reported as success or as failure.
+	RestoreOutcomeUnknown RestoreOutcomeKind = "unknown"
 )
 
 // RestoreOutcome is the screen's result data. BackupID is the backup being
@@ -215,6 +228,20 @@ type RestoreModel struct {
 
 	notice string
 	result *RestoreOutcome
+
+	// detailsBackupID / detailsBreakdown cache the pure manifest analysis for
+	// the backup whose details are open, so rendering never re-derives facts.
+	detailsBackupID  string
+	detailsBreakdown *BackupBreakdown
+
+	// The raw manifest view is a bounded read performed by a tea.Cmd. Its
+	// generation and backup ID identify the request, so a stale result is
+	// discarded instead of replacing newer content.
+	showRawManifest  bool
+	manifestContent  string
+	manifestLoading  bool
+	manifestReadGen  uint64
+	manifestBackupID string
 }
 
 // NewRestoreModel builds the recovery screen for one configured home. It
@@ -225,7 +252,7 @@ func NewRestoreModel(cfg TUIConfig, ops RestoreOps) RestoreModel {
 	cfg = cfg.Normalize()
 	m := RestoreModel{
 		cfg:    cfg,
-		theme:  NewTheme(cfg.Color),
+		theme:  newThemeForConfig(cfg),
 		ops:    ops.withDefaults(),
 		stage:  RestoreStageList,
 		opID:   appops.OperationID{Generation: 1},
@@ -326,6 +353,8 @@ func (m RestoreModel) Update(msg tea.Msg) (RestoreModel, tea.Cmd) {
 		return m.handlePreview(msg)
 	case RestoreRevalidatedMsg:
 		return m.handleRevalidated(msg)
+	case RestoreManifestMsg:
+		return m.handleManifest(msg)
 	case WriteStartedMsg:
 		if m.stage != RestoreStageRunning || msg.Kind != WriteRestore {
 			return m, nil
@@ -525,9 +554,11 @@ func classifyRestoreOutcome(result appops.ApplyResult, err error) RestoreOutcome
 		return RestoreOutcomeApplied
 	case skillsync.OutcomeNoChange:
 		return RestoreOutcomeNoChange
-	default:
-		// No error and no definite success outcome: never claim success.
+	case skillsync.OutcomeFailed:
 		return RestoreOutcomeFailed
+	default:
+		// No error and no definite outcome: never claim success or failure.
+		return RestoreOutcomeUnknown
 	}
 }
 
@@ -582,6 +613,21 @@ func (m RestoreModel) handleDetailsKey(key string) (RestoreModel, tea.Cmd) {
 	case "esc", "b":
 		m.stage = RestoreStageList
 		m.clearTransaction()
+	case "m", "M":
+		m.showRawManifest = !m.showRawManifest
+		m.scroll = 0
+		if !m.showRawManifest {
+			return m, nil
+		}
+		if m.manifestBackupID == m.selectedID && m.manifestContent != "" {
+			// The cached read belongs to this backup; no second read is needed.
+			return m, nil
+		}
+		m.manifestReadGen++
+		m.manifestBackupID = m.selectedID
+		m.manifestContent = ""
+		m.manifestLoading = true
+		return m, m.manifestCmd(m.manifestReadGen, m.selectedID)
 	case "enter", "p":
 		return m.beginPreview()
 	case "up", "k":
@@ -595,6 +641,24 @@ func (m RestoreModel) handleDetailsKey(key string) (RestoreModel, tea.Cmd) {
 	case "home":
 		m.scroll = 0
 	}
+	return m, nil
+}
+
+// handleManifest accepts one bounded raw manifest read only for the exact
+// backup and generation that requested it, and only while its details are
+// open. A read that finishes after Esc, after another selection or after a
+// newer request is discarded.
+func (m RestoreModel) handleManifest(msg RestoreManifestMsg) (RestoreModel, tea.Cmd) {
+	if msg.Generation != m.manifestReadGen || msg.BackupID != m.selectedID ||
+		m.stage != RestoreStageDetails || !m.showRawManifest {
+		return m, nil
+	}
+	m.manifestLoading = false
+	if msg.Err != nil {
+		m.manifestContent = fmt.Sprintf("Manifest unavailable: %v", msg.Err)
+		return m, nil
+	}
+	m.manifestContent = msg.Content
 	return m, nil
 }
 
@@ -614,8 +678,12 @@ func (m RestoreModel) handlePreviewKey(key string) (RestoreModel, tea.Cmd) {
 		if m.previewLoading {
 			return m, nil
 		}
-		if m.previewErr != "" || m.preview.PreviewToken == "" {
-			m.notice = "No confirmation is available: the preview did not produce a valid plan. Press Esc to go back. Nothing was changed."
+		if !m.previewConfirmable() {
+			if projectImpact(m.preview.Planned).hasUnknown() {
+				m.notice = "Confirmation is disabled: the preview contains an action this screen cannot classify. Nothing was changed."
+			} else {
+				m.notice = "No confirmation is available: the preview did not produce a valid plan. Press Esc to go back. Nothing was changed."
+			}
 			return m, nil
 		}
 		m.stage = RestoreStageConfirm
@@ -636,11 +704,17 @@ func (m RestoreModel) handlePreviewKey(key string) (RestoreModel, tea.Cmd) {
 }
 
 func (m RestoreModel) handleConfirmKey(key string) (RestoreModel, tea.Cmd) {
+	switch classifyConfirmKey(key) {
+	case confirmKeyIgnore:
+		// No backdrop or alias may act while this confirmation owns focus.
+		return m, nil
+	}
 	switch key {
-	case "y":
+	case "y", "Y":
 		return m.confirmRestore()
-	case "n", "esc", "b":
-		// Cancelling is always safe: no write has been dispatched.
+	case "n", "esc", "b", "q":
+		// Cancelling is always safe: no write has been dispatched. q is a
+		// cancellation here, never an application quit through the modal.
 		m.stage = RestoreStagePreview
 		m.clearConsent()
 		m.notice = "Restore cancelled. Nothing was written."
@@ -652,7 +726,7 @@ func (m RestoreModel) handleConfirmKey(key string) (RestoreModel, tea.Cmd) {
 		m.scrollBy(-4)
 	case "pgdown", "pagedown", "ctrl+d":
 		m.scrollBy(4)
-	case "home":
+	case "home", "g":
 		m.scroll = 0
 	case "enter":
 		// Enter is deliberately inert. Default No means only an explicit y
@@ -707,6 +781,8 @@ func (m RestoreModel) openSelected() (RestoreModel, tea.Cmd) {
 	}
 	if err := skillsync.ValidateBackupID(backup.ID); err != nil {
 		m.selectedID = ""
+		m.detailsBackupID = ""
+		m.detailsBreakdown = nil
 		m.stage = RestoreStageDetails
 		m.previewErr = "Invalid backup selection: " + m.data(err.Error()) +
 			"\nRecovery: return to the list and choose a backup whose ID matches YYYYMMDDTHHMMSS.nnnnnnnnnZ. Nothing was changed."
@@ -714,10 +790,29 @@ func (m RestoreModel) openSelected() (RestoreModel, tea.Cmd) {
 		return m, nil
 	}
 	m.selectedID = backup.ID
+	m.cacheBreakdown(backup)
 	m.stage = RestoreStageDetails
 	m.clearTransaction()
 	m.scroll = 0
 	return m, nil
+}
+
+// cacheBreakdown stores the pure manifest analysis for the backup whose
+// details are open. Analysis performs no I/O, and caching it keeps rendering
+// from recomputing the same facts on every frame.
+func (m *RestoreModel) cacheBreakdown(backup skillsync.Backup) {
+	breakdown := AnalyzeBackup(backup)
+	m.detailsBackupID = backup.ID
+	m.detailsBreakdown = &breakdown
+}
+
+// breakdownFor returns the cached analysis for backup, or a fresh pure
+// analysis when the selection was reached without opening its details.
+func (m RestoreModel) breakdownFor(backup skillsync.Backup) BackupBreakdown {
+	if m.detailsBreakdown != nil && m.detailsBackupID == backup.ID {
+		return *m.detailsBreakdown
+	}
+	return AnalyzeBackup(backup)
 }
 
 func (m RestoreModel) beginPreview() (RestoreModel, tea.Cmd) {
@@ -730,6 +825,13 @@ func (m RestoreModel) beginPreview() (RestoreModel, tea.Cmd) {
 	if backup.Unusable != "" {
 		m.stage = RestoreStageDetails
 		m.previewErr = m.describeProblem(errors.New(backup.Unusable))
+		m.notice = "This backup cannot be previewed or restored. Nothing was changed."
+		return m, nil
+	}
+	breakdown := m.breakdownFor(backup)
+	if breakdown.IsEmpty {
+		m.stage = RestoreStageDetails
+		m.previewErr = "This backup is empty (records zero destination entries and zero saved snapshots).\nRecovery: choose a valid backup from the list. Nothing was changed."
 		m.notice = "This backup cannot be previewed or restored. Nothing was changed."
 		return m, nil
 	}
@@ -758,7 +860,7 @@ func (m RestoreModel) beginPreview() (RestoreModel, tea.Cmd) {
 }
 
 func (m RestoreModel) confirmRestore() (RestoreModel, tea.Cmd) {
-	if m.previewErr != "" || m.preview.PreviewToken == "" || m.previewID == "" {
+	if !m.previewConfirmable() || m.previewID == "" {
 		m.notice = "The preview is not confirmable. Press Esc and run a fresh preview. Nothing was written."
 		return m, nil
 	}
@@ -805,6 +907,11 @@ func (m *RestoreModel) clearTransaction() {
 	m.driftNotice = ""
 	m.notice = ""
 	m.scroll = 0
+	m.showRawManifest = false
+	m.manifestContent = ""
+	m.manifestLoading = false
+	m.manifestReadGen++
+	m.manifestBackupID = ""
 }
 
 func (m RestoreModel) request(backupID string) (appops.RestoreRequest, error) {
@@ -833,6 +940,22 @@ func (m RestoreModel) revalidateCmd(id appops.OperationID, backupID string, req 
 	return func() tea.Msg {
 		result, err := preview(req)
 		return RestoreRevalidatedMsg{ID: id, BackupID: backupID, Result: result, Err: err}
+	}
+}
+
+// manifestCmd performs one bounded read-only manifest read outside Update. It
+// validates the configured backup root and the backup ID before opening
+// anything.
+func (m RestoreModel) manifestCmd(generation uint64, backupID string) tea.Cmd {
+	root := restoreBackupRoot(m.cfg.Repo, m.cfg.Home)
+	return func() tea.Msg {
+		content, err := ReadBackupManifestContent(root, backupID, DefaultMaxLogBytes)
+		return RestoreManifestMsg{
+			Generation: generation,
+			BackupID:   backupID,
+			Content:    content,
+			Err:        err,
+		}
 	}
 }
 
@@ -976,25 +1099,99 @@ func (m RestoreModel) detailsLines(width int) []string {
 			"The selected backup is no longer in the list. Press Esc and refresh; nothing was changed.",
 		}
 	}
+	breakdown := m.breakdownFor(backup)
 	body := []string{
 		"Backup ID: " + m.data(backup.ID),
-		"Created: " + m.data(restoreWhen(backup)),
-		"Operation: " + m.data(restoreOperation(backup)),
-		"Source: " + m.data(restoreSource(backup)),
-		"Format: " + m.data(restoreFormat(backup)),
+		"Created: " + m.data(breakdown.ReadableDate) + " (" + m.data(breakdown.RawDate) + ")",
+		"Operation: " + m.data(breakdown.Operation),
+		"Source: " + m.data(breakdown.Source),
+		"Format: " + m.data(breakdown.Format),
+	}
+	switch {
+	case breakdown.IsUnusable:
+		// A failed entry has no trustworthy metadata; never print zero-valued
+		// counts that would read as a fresh install.
+		body = append(body,
+			"Recorded changed destinations: unavailable (the entry failed validation)",
+			"Recorded fresh-install entries: unknown",
+			"Saved replacement snapshots: unknown",
+			"Known affected client groups: unknown",
+		)
+	case breakdown.IsLegacy:
+		body = append(body,
+			"Saved replacement snapshots: unknown (legacy format records the skill set, not saved per-client snapshots)",
+			"Recorded fresh-install entries: unknown (not recorded in legacy format)",
+			"Known affected client groups: unknown (legacy format records destination paths only)",
+			"Legacy backup: only the saved skills are recorded; skills installed fresh by that apply are left as is.",
+		)
+	case breakdown.SavedReplacements < 0:
+		body = append(body,
+			"Recorded fresh-install entries: unknown (metadata not recorded)",
+			"Saved replacement snapshots: unknown (metadata not recorded)",
+			"Known affected client groups: unknown (metadata not recorded)",
+		)
+	default:
+		freshText := fmt.Sprintf("%d", breakdown.RecordedFreshInstalls)
+		savedText := fmt.Sprintf("%d", breakdown.SavedReplacements)
+		switch {
+		case breakdown.IsEmpty:
+			savedText = "0 (empty backup records no destinations)"
+		case breakdown.SavedReplacements == 0:
+			savedText = "0 (fresh install; no pre-existing files replaced)"
+		}
+		body = append(body,
+			"Recorded fresh-install entries: "+freshText,
+			"Saved replacement snapshots: "+savedText,
+		)
+		switch {
+		case len(breakdown.AffectedClients) > 0:
+			body = append(body, "Known affected client groups: "+m.data(strings.Join(breakdown.AffectedClients, ", ")))
+		case breakdown.IsEmpty:
+			body = append(body, "Known affected client groups: none (empty backup)")
+		default:
+			body = append(body, "Known affected client groups: unknown (not recorded)")
+		}
+		if breakdown.IsEmpty {
+			body = append(body, "Notice: empty backup (records zero destinations and zero snapshots).")
+		}
 	}
 	if backup.Summary != "" {
 		body = append(body, "Summary: "+m.data(backup.Summary))
 	}
-	if backup.Legacy {
-		body = append(body, "Legacy backup: only the saved skills are recorded; skills installed fresh by that apply are left as is.")
-	}
+	// Operation logs are named independently of backup IDs and no structured
+	// manifest field records which run produced a backup, so this screen never
+	// guesses an association from a filename.
+	body = append(body, "Associated operation log: unavailable (no verified association is recorded)")
+
 	lines := Section(m.theme.Title.Render("Backup details"), body, width)
+
+	if m.showRawManifest {
+		lines = append(lines, "")
+		manifestLines := []string{"[Press 'm' to toggle raw manifest view]"}
+		switch {
+		case m.manifestLoading:
+			manifestLines = append(manifestLines, "Reading manifest.json (read-only) ...")
+		case m.manifestBackupID == backup.ID && m.manifestContent != "":
+			for _, line := range strings.Split(m.manifestContent, "\n") {
+				manifestLines = append(manifestLines, m.data(line))
+			}
+		default:
+			manifestLines = append(manifestLines, "Manifest content is not loaded. Press 'm' again to request a bounded read.")
+		}
+		lines = append(lines, Section(m.theme.Section.Render("Technical manifest (raw JSON, read-only)"), manifestLines, width)...)
+	}
+
 	if backup.Unusable != "" {
 		lines = append(lines, "")
 		lines = append(lines, Section(m.theme.Bad.Render("Unusable backup"), []string{
 			m.data(backup.Unusable),
 			"Recovery: this backup cannot be previewed or restored. Return to the list and choose another backup, or inspect and remove this entry with the explicit CLI. No confirmation is offered and nothing was changed.",
+		}, width)...)
+	} else if breakdown.IsEmpty {
+		lines = append(lines, "")
+		lines = append(lines, Section(m.theme.Bad.Render("Empty backup"), []string{
+			"This backup records zero destination entries and zero saved snapshots.",
+			"Recovery: this backup cannot be previewed or restored. Return to the list and choose another backup. No confirmation is offered and nothing was changed.",
 		}, width)...)
 	} else if m.previewErr != "" {
 		lines = append(lines, "")
@@ -1010,7 +1207,7 @@ func (m RestoreModel) detailsLines(width int) []string {
 		lines = append(lines, Paragraph(m.theme.Warn.Render(m.data(m.notice)), width, 0)...)
 	}
 	lines = append(lines, "")
-	lines = append(lines, Paragraph(m.theme.Hint.Render("Esc back to backups | Enter/p preview | q quit from the shell"), width, 0)...)
+	lines = append(lines, Paragraph(m.theme.Hint.Render("Esc back to backups | Enter/p preview | m view manifest | q quit from the shell"), width, 0)...)
 	return lines
 }
 
@@ -1039,8 +1236,18 @@ func (m RestoreModel) previewLines(width int) []string {
 	}
 	if m.previewErr == "" && !m.previewLoading {
 		lines = append(lines, "")
+		lines = append(lines, Paragraph(m.theme.Accent.Render(impactSummary(projectImpact(m.preview.Planned))), width, 0)...)
+		lines = append(lines, "")
 		lines = append(lines, m.previewImpactLines(m.preview, width, m.theme.Section.Render)...)
 		lines = append(lines, "")
+		if m.preview.Outcome == skillsync.OutcomeFailed {
+			lines = append(lines, Paragraph(m.theme.Warn.Render("The preview reported a failed outcome without an error. It is not a successful no-op and no confirmation is offered. Nothing has been written."), width, 0)...)
+			lines = append(lines, "")
+		}
+		if projectImpact(m.preview.Planned).hasUnknown() {
+			lines = append(lines, Paragraph(m.theme.Warn.Render("Confirmation is disabled: this preview contains a planned action kind this screen cannot classify. Nothing has been written."), width, 0)...)
+			lines = append(lines, "")
+		}
 		if restoreChangeCount(m.preview.Planned) == 0 {
 			lines = append(lines, Paragraph("Restoring this backup would change nothing; no pre-restore backup would be written.", width, 0)...)
 		} else {
@@ -1053,7 +1260,7 @@ func (m RestoreModel) previewLines(width int) []string {
 	}
 	lines = append(lines, "")
 	hint := "Esc details | p refresh preview | enter confirmation"
-	if m.previewErr != "" || m.previewLoading {
+	if !m.previewConfirmable() {
 		hint = "Esc details | p retry preview"
 	}
 	lines = append(lines, Paragraph(m.theme.Hint.Render(hint), width, 0)...)
@@ -1068,6 +1275,8 @@ func (m RestoreModel) modalParts(width int) modalParts {
 	body := []string{}
 	body = append(body, Paragraph(m.data(fmt.Sprintf("Restore backup %s and change the destinations listed below? Their current content is saved to a new pre-restore backup first.", m.previewID)), width, 0)...)
 	body = append(body, "")
+	body = append(body, Paragraph(m.theme.Accent.Render(impactSummary(projectImpact(m.preview.Planned))), width, 0)...)
+	body = append(body, "")
 	body = append(body, impact...)
 	policy := Paragraph(m.data("No changes have been written yet. y restore | n/Esc cancel. Enter does not confirm."), width, 0)
 	if m.notice != "" {
@@ -1080,7 +1289,7 @@ func (m RestoreModel) modalParts(width int) modalParts {
 		Warning:  Paragraph(m.theme.Warn.Render(m.data("Default: No. Only pressing y confirms. Enter does not confirm.")), width, 0),
 		Policy:   policy,
 		Body:     body,
-		Footer:   "y restore · n / Esc cancel · Enter: safe No · ? help · q quit",
+		Footer:   "y restore · n / Esc cancel · q cancel · Enter: safe No · ? help",
 	}
 }
 
@@ -1170,13 +1379,25 @@ func (m RestoreModel) resultLines(width int) []string {
 		lines = append(lines, "")
 		lines = append(lines, Paragraph("The operation reported cancellation. A cancellation after work began cannot guarantee that no destination changed; inspect the references below before retrying.", width, 0)...)
 		lines = append(lines, m.safetyBackupLines(out, width)...)
-	default:
+	case RestoreOutcomeFailed:
 		lines = append(lines, Paragraph(m.theme.Bad.Render("Restore failed."), width, 0)...)
 		lines = append(lines, "")
 		if out.SafetyBackupID == "" {
 			lines = append(lines, Paragraph("The engine reported no pre-restore backup, so it failed before saving current content. Inspect the destinations if you are unsure.", width, 0)...)
 		} else {
 			lines = append(lines, Paragraph("A pre-restore backup was written before the failure. Inspect it before retrying.", width, 0)...)
+			lines = append(lines, m.safetyBackupLines(out, width)...)
+		}
+	case RestoreOutcomeUnknown:
+		lines = append(lines, Paragraph(m.theme.Warn.Render("Restore result unknown."), width, 0)...)
+		lines = append(lines, "")
+		lines = append(lines, Paragraph("The engine returned without a definite outcome. This screen does not claim success or failure; inspect the destinations and the operation log before retrying.", width, 0)...)
+		lines = append(lines, m.safetyBackupLines(out, width)...)
+	default:
+		lines = append(lines, Paragraph(m.theme.Warn.Render("Restore result unknown."), width, 0)...)
+		lines = append(lines, "")
+		lines = append(lines, Paragraph("The result state is not one this build recognizes, so no success or failure is claimed. Inspect the destinations and the operation log before retrying.", width, 0)...)
+		if out.SafetyBackupID != "" {
 			lines = append(lines, m.safetyBackupLines(out, width)...)
 		}
 	}
@@ -1213,52 +1434,58 @@ func (m RestoreModel) safetyBackupLines(out RestoreOutcome, width int) []string 
 	return lines
 }
 
+// previewConfirmable reports whether the restore plan may open its default-No
+// confirmation. A plan this screen cannot fully classify never may.
+func (m RestoreModel) previewConfirmable() bool {
+	if m.previewErr != "" || m.previewLoading || m.preview.PreviewToken == "" {
+		return false
+	}
+	if m.preview.Outcome == skillsync.OutcomeFailed {
+		return false
+	}
+	return !projectImpact(m.preview.Planned).hasUnknown()
+}
+
 // previewImpactLines groups the exact planned changes by action. Every path is
 // shown through wrapping, never truncated: overwrite and removal impact must
 // stay fully inspectable.
 func (m RestoreModel) previewImpactLines(result appops.PreviewResult, width int, style func(...string) string) []string {
+	projection := projectImpact(result.Planned)
 	var lines []string
 	groups := []struct {
-		action skillsync.ChangeAction
-		title  string
+		class impactClass
+		title string
 	}{
-		{skillsync.ChangeReplace, "Will overwrite existing content"},
-		{skillsync.ChangeRestore, "Will restore a missing destination"},
-		{skillsync.ChangeRemove, "Will remove content that did not exist before that backup"},
-		{skillsync.ChangeUpToDate, "Already up to date (left untouched)"},
+		{impactReplace, "Will overwrite existing content"},
+		{impactRestore, "Will restore a missing destination"},
+		{impactRemove, "Will remove content that did not exist before that backup"},
+		{impactUnchanged, "Already up to date (left untouched)"},
 	}
 	for _, group := range groups {
-		var matches []skillsync.ResultChange
-		for _, change := range result.Planned {
-			if change.Action == group.action {
-				matches = append(matches, change)
-			}
-		}
+		matches := projection.itemsOf(group.class)
 		if len(matches) == 0 {
 			continue
 		}
 		body := make([]string, 0, len(matches))
-		for _, change := range matches {
-			body = append(body, m.data(change.Path))
+		for _, item := range matches {
+			body = append(body, m.data(item.change.Path))
 		}
 		if len(lines) > 0 {
 			lines = append(lines, "")
 		}
 		lines = append(lines, Section(style(fmt.Sprintf("%s (%d)", group.title, len(matches))), body, width)...)
 	}
-	// Unknown actions stay visible instead of silently disappearing.
-	var other []skillsync.ResultChange
-	for _, change := range result.Planned {
-		switch change.Action {
-		case skillsync.ChangeReplace, skillsync.ChangeRestore, skillsync.ChangeRemove, skillsync.ChangeUpToDate:
-		default:
-			other = append(other, change)
-		}
-	}
+	// Unknown actions stay visible and explicit instead of silently
+	// disappearing or being treated as a known action.
+	other := projection.itemsOf(impactUnknown)
 	if len(other) > 0 {
 		body := make([]string, 0, len(other))
-		for _, change := range other {
-			body = append(body, m.data(fmt.Sprintf("%s (%s)", change.Path, change.Action)))
+		for _, item := range other {
+			action := string(item.change.Action)
+			if action == "" {
+				action = "unreported"
+			}
+			body = append(body, m.data(fmt.Sprintf("%s (%s)", item.change.Path, action)))
 		}
 		if len(lines) > 0 {
 			lines = append(lines, "")
@@ -1375,7 +1602,12 @@ func restoreWhen(backup skillsync.Backup) string {
 func restoreOperation(backup skillsync.Backup) string {
 	op := backup.Manifest.Operation
 	switch {
-	case op == "" || op == "apply":
+	case op == "" && backup.Legacy:
+		// Format 1 backups were written by apply only.
+		return "apply"
+	case op == "":
+		return "operation not recorded"
+	case op == "apply":
 		return "apply"
 	case op == "restore" && backup.Manifest.RestoredFrom != "":
 		return "restore from " + backup.Manifest.RestoredFrom

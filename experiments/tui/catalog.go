@@ -179,6 +179,9 @@ func (i CatalogItem) FilterValue() string {
 	parts := []string{i.ID, i.Name, i.Kind, i.Origin, i.Category, i.Group}
 	if !strings.Contains(strings.ToLower(i.Purpose), "not documented") {
 		parts = append(parts, i.Purpose)
+		if !strings.Contains(strings.ToLower(i.When), "unknown here") && !strings.Contains(strings.ToLower(i.When), "not documented") {
+			parts = append(parts, i.When)
+		}
 	}
 	for _, c := range i.Clients {
 		parts = append(parts, c.Client)
