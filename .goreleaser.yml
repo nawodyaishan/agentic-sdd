@@ -37,7 +37,7 @@ builds:
         -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
         -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
         -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
-        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if .Env.SDD_SOURCE_DIGEST }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if index .Env "SDD_SOURCE_DIGEST" }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
         -X agentic-sdd/internal/buildinfo.DistributionMarker=generic
 
   - id: cli-homebrew
@@ -62,7 +62,7 @@ builds:
         -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
         -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
         -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
-        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if .Env.SDD_SOURCE_DIGEST }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if index .Env "SDD_SOURCE_DIGEST" }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
         -X agentic-sdd/internal/buildinfo.DistributionMarker=homebrew
 
   - id: tui-companion
@@ -87,7 +87,7 @@ builds:
         -s -w
         -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
         -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
-        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if .Env.SDD_SOURCE_DIGEST }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if index .Env "SDD_SOURCE_DIGEST" }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
         -X agentic-sdd/internal/buildinfo.DistributionMarker=generic
 
 # One universal entry per application: explicit input build IDs, replace the
