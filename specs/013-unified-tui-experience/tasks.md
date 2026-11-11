@@ -179,12 +179,12 @@ Assignments are inherited once from plan §8.6; no task-specific specialist/tool
 
 | ID | Objective / likely components | Dependency | Completion / focused verification | Status |
 |---|---|---|---|---|
-| T38 | Release readiness from accepted `main`: full core/nested gates, nonpublishing snapshot, paired archive/checksum/Mach-O/cask identity, release notes and exact tag/release/tap commands. Stop before live publication. | T39–T41; pinned Go/GoReleaser toolchain | Snapshot proof and release note; intended version/state; live tag/release/tap/Homebrew explicitly `not_run`; missing prerequisite blocks | accepted by owner — local snapshot passed 2026-11-11 (GoReleaser v2.14.0, Go 1.27.1, dirty `dev+707883e`); cask/archive identity verified; `v0.8.0` release authorized |
+| T38 | Release readiness from accepted `main`: full core/nested gates, nonpublishing snapshot, paired archive/checksum/Mach-O/cask identity, release notes and exact tag/release/tap commands. Stop before live publication. | T39–T41; pinned Go/GoReleaser toolchain | Snapshot proof and release note; intended version/state; live tag/release/tap/Homebrew explicitly `not_run`; missing prerequisite blocks | accepted and published — local snapshot passed; `v0.8.0` release/tag published 2026-11-11 (workflow `42934695704`); tap cask 0.8.0 verified |
 | T39 | Record ANSI-16 best-effort decision in spec/plan/B13 checklist/release notes; keep TrueColor/ANSI-256 AAA tests; no palette rewrite. | D07 | Claim audit; no AAA claim for ANSI-16 accent/error; tests unchanged or stronger | accepted — documented best-effort; no palette rewrite |
 | T40 | Replace formula-specific update copy in `cmd/agentic-sdd/updates.go` with release/package-neutral wording; update only affected CLI output fixtures. | D07 | Focused update/guide tests; reviewed wording diff; fixed endpoint/timeout/bounds/no-credential behavior unchanged | accepted — wording diff and fixtures reviewed; focused tests pass |
 | T41 | Add `internal/buildinfo` to all supported-core selectors and required-directory/package-count guidance (`Taskfile.yml`, `tests/supported-core-go.sh`, `harness/checks.json`, `AGENTS.md`, `CONTRIBUTING.md`, `tests/harness` selector tests/README; README has no package-count list). | D07 | Nine-package `task test`/`task vet`, focused buildinfo tests, selector/list audit; no existing package removed or exclusion enabled | accepted — nine-package selectors and count guidance reconciled; gates pass |
 | T42 | Record trusted-CI adoption boundary; confirm this batch edits the repository contract only and does not claim adoption. | T41 | Documentation/evidence note; trusted-CI adoption `not_run`; no excluded 005/006/007 validation | accepted — trusted-CI adoption remains separate; architecture/update/package docs reconciled |
-| — | Final B14 gate: run T38/T40/T41 evidence together; publish `v0.8.0` after clean-tree gates/snapshot; no trusted-CI adoption. | T38–T42 | Actual commands/results, code-state identity, release/cask verification | accepted — release execution in progress |
+| — | Final B14 gate: run T38/T40/T41 evidence together; publish `v0.8.0` after clean-tree gates/snapshot; no trusted-CI adoption. | T38–T42 | Actual commands/results, code-state identity, release/cask verification | accepted and published — `v0.8.0` release, paired archives, checksums and tap cask verified |
 
 ## 3. Verification policy and commands
 
@@ -221,14 +221,14 @@ sh tests/docker-e2e.sh
 - **Deferred decisions:** the former R6-RELEASE, ANSI16-CONTRACT, UPDATE-COPY, B6-GATE-1 and TRUSTED-CI-1 items are now B14/T38–T42 under D07. Their live-release/trusted-CI boundaries remain unchanged.
 - **Next permitted action:** B14 implementation is authorized. Do not tag/release, push the tap, run a live Homebrew operation or claim trusted-CI adoption without separate authorization.
 
-### B14 implementation continuation — awaiting human review
+### B14 implementation continuation — accepted and released
 
-- **Position:** T38–T42 implemented and verified on the working tree; B14 is `awaiting human review`, not accepted. No live tag/release/tap/live Homebrew/trusted-CI adoption was performed.
-- **Approval pointer:** [spec.md §Approval](spec.md#approval), B14 closeout authorization and D07. This continuation records execution only.
+- **Position:** T38–T42 accepted and published. B14 tree is `8dc3636`; `v0.8.0` tag/release published 2026-11-11.
+- **Approval pointer:** [spec.md §Approval](spec.md#approval), B14 acceptance/release authorization and D07. This continuation records execution only.
 - **Implementation evidence:** T40 wording diff and focused `cmd/agentic-sdd` tests pass; T41 nine-package `task test`/`task vet` pass with `internal/buildinfo`, and the four explicit harness selector files pass; T39/T42 documentation reconciled, including `docs/tui-architecture.md`, `docs/guide-flows.md`, `docs/installer-reference.md` and B13 limitation text.
-- **Release-preparation evidence:** `PATH=/tmp/opencode/b6-tools:$PATH task -t Taskfile.experimental.yml release:snapshot` passed 2026-11-11 with GoReleaser v2.14.0/Go 1.27.1 and dirty identity `dev+707883e`. Homebrew archive SHA256 `343e7372...`; cask has both `binary` stanzas and two `xattr` post-install actions; archive contains `agentic-sdd` + `agentic-sdd-tui`; both universal binaries report x86_64+arm64. Snapshot version reflects the current `v0.7.0` tag; an actual r6 release would need a new tag (proposed `v0.8.0`) and a clean-tree rerun.
-- **Live boundary:** no tag, GitHub release, tap/cask push, live Homebrew install, trusted-CI adoption or real-home apply. Those remain `not_run`/blocked until separately authorized.
-- **Next permitted action:** human review/acceptance of B14 and the release-readiness evidence. Do not publish the release from this state without a separate explicit authorization and a clean accepted commit.
+- **Release evidence:** clean-tree `release:snapshot` passed (dirty=false) before tagging; GitHub Release `v0.8.0` workflow `42934695704` succeeded; assets are `agentic-sdd_0.8.0_darwin_all_generic.tar.gz`, `agentic-sdd_0.8.0_darwin_all_homebrew.tar.gz` and `checksums.txt`; Homebrew archive SHA256 `fc4a2d3bcd2da90b9c7d4e363b6989428682e0689e09f074b472c92d7554c50a`; tap cask is version `0.8.0` with both binary stanzas and quarantine actions.
+- **Live boundary:** trusted-CI adoption, real-home apply and a real macOS install of 0.8.0 remain separate/`not_run`. No gate weakening or excluded validation.
+- **Next permitted action:** no further Feature 013 action. If desired, run a macOS 0.8.0 cask install walkthrough and a later trusted-CI adoption under separate authorization.
 
 ### Pre-r6 implementation continuation (historical evidence; not UX authorization)
 

@@ -12,9 +12,9 @@ retain the CLI contracts. `agentic-sdd tui` is the explicit entry point, and
 `agentic-sdd-tui` is the trusted sibling. No root `internal/tui` migration is
 required.
 
-The `v0.7.0` cask release and tap migration are published; the r6 UX changes
-are published on `main` but do not yet have their own release tag. The explicit
-CLI remains fully supported and is the noninteractive/scripting path.
+The `v0.8.0` cask release is published and the tap cask points to `0.8.0`;
+`v0.7.0` remains the earlier formula→cask migration release. The explicit CLI
+remains fully supported and is the noninteractive/scripting path.
 
 **Historical record (Feature 012):** [012 — CLI UI/UX Remediation & Hybrid TUI Experience](../specs/012-cli-tui-remediation/spec.md)
 **Delivered by:** 012 batch B2 (T06–T08), preserved below as history
