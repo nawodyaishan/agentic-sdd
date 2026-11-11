@@ -3,10 +3,10 @@
 ## 1. Status and Scope
 
 - **Batch**: B13 (preparation lane for T35, T36, T37).
-- **Working tree**: `main` at `0f853b5` plus the uncommitted Feature 013 integration (B8–B13 presentation changes). Re-ran the selectors below on 2026-11-11 against this working tree.
-- **Role of this lane**: preparation and automated evidence only. This file is not an acceptance record, does not change the combined approval in [spec.md §Approval](spec.md#approval), and does not claim human acceptance or whole-feature readiness.
-- **Boundaries**: no whole-feature readiness claim, no final AC-17–22 human acceptance, no release/tag/tap publication, no real-home write, no live network/browser call, and no change to B8/B9/B11/B12-owned semantics outside the review fixes recorded in §5.
-- **Preparedness**: T35 fixtures and T36 selectors are runnable on the current tree. T37 owner walkthrough, novice study, and platform-specific observations remain `not_run`.
+- **Working tree**: published `main` through `c5fe4aa`/`6a249d0`/`6c84266`; the selectors below were re-run on 2026-11-11 against the integrated tree. These are automated checks, not a substitute for the owner's observations.
+- **Role of this lane**: automated evidence plus a record of owner-confirmed human checks. This file does not change the combined approval in [spec.md §Approval](spec.md#approval) and is not an independent platform/study transcript.
+- **Boundaries**: no release/tag/tap publication, no real-home write, no live network/browser call, and no change to B8/B9/B11/B12-owned semantics outside the review fixes recorded in §5.
+- **Preparedness**: T35 fixtures and T36 selectors are runnable. The owner confirmed on 2026-11-11 that the T37 walkthrough, novice study, visual review and platform checks were completed; granular participant/platform records were not supplied in this session.
 
 ---
 
@@ -106,8 +106,8 @@ Run against the integrated tree with temporary homes and fake/read-only operatio
 
 ### 4.1 Study and Platform Status
 
-- **Novice orientation**: `not_run` (pending human cohort). Report participant count and method when conducted; never infer from unit tests.
-- **Platform-specific**: macOS PTY, SSH/tmux, screen readers, and terminal-remapped ANSI palettes are `not_run` until observed on the target environment.
+- **Novice orientation**: owner-confirmed complete on 2026-11-11. Participant count and method were not recorded in this repository; do not infer them from unit tests.
+- **Platform-specific**: owner-confirmed complete on 2026-11-11 for macOS cask install/quarantine/migration, PTY, SSH/tmux, terminal/accessibility and visual review. Platform transcripts were not supplied; this record is a confirmation pointer, not an independent reproduction.
 
 ---
 
