@@ -38,8 +38,12 @@ type change struct {
 	// action is the planned structured action for the result API. Direct
 	// internal test callers may leave it empty; changeAction derives one.
 	action ChangeAction
-	stage  string
-	undo   string
+	// data, when non-nil, is staged verbatim for a file change instead of
+	// reading src from source. Fleet apply/restore use it for rendered and
+	// backed-up bytes that do not come from a filesystem.
+	data  []byte
+	stage string
+	undo  string
 }
 
 // operation identifies which command is writing a backup, so installChanges
@@ -169,6 +173,9 @@ func SyncWithOptionsResult(repo, home string, apply bool, opts Options, out io.W
 			return result, err
 		}
 
+		// The 009 install set is exactly packFS/agents/*.md. adapters/ holds
+		// Feature 014 fleet-only render sources and presets/ is selected by
+		// OpenCodeFreeFirst; neither is installed by --with-opencode.
 		agentEntries, err := fs.ReadDir(packFS, "agents")
 		if err != nil {
 			return result, err
@@ -319,6 +326,12 @@ func backupRootFor(repo, home string) (root, sourceLabel string) {
 	return filepath.Join(home, ".agentic-sdd", "backups"), "embedded"
 }
 
+// BackupRootFor returns the backup root directory for repo and home.
+func BackupRootFor(repo, home string) string {
+	root, _ := backupRootFor(repo, home)
+	return root
+}
+
 func discoverSkills(source fs.FS) ([]string, error) {
 	entries, err := fs.ReadDir(source, ".")
 	if err != nil {
@@ -407,6 +420,16 @@ type writeOutcome struct {
 // a manifest whose Targets stay the full canonical client identity for home,
 // then stages and commits the changes with rollback on failure.
 func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []string, changes []change, op operation, out io.Writer) (writeOutcome, error) {
+	return installChangesWithHook(backupRoot, home, sourceLabel, source, names, changes, op, nil, out)
+}
+
+// afterBackupHook is called once the backup directory is complete and
+// restorable, but before any destination is staged or changed. It may write
+// additional provenance into the backup directory; an error aborts the
+// transaction with no destination modified.
+type afterBackupHook func(backupDir string) error
+
+func installChangesWithHook(backupRoot, home, sourceLabel string, source fs.FS, names []string, changes []change, op operation, afterBackup afterBackupHook, out io.Writer) (writeOutcome, error) {
 	var written writeOutcome
 	now := time.Now().UTC()
 	stamp := now.Format("20060102T150405.000000000Z")
@@ -518,6 +541,11 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 	// no longer means "nothing happened".
 	written.backupID = stamp
 	written.backupPath = backup
+	if afterBackup != nil {
+		if err := afterBackup(backup); err != nil {
+			return written, err
+		}
+	}
 	// Build every replacement before touching an installed skill or agent profile.
 	for i := range changes {
 		c := &changes[i]
@@ -539,26 +567,44 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 				return written, err
 			}
 			c.stage = stageF.Name()
-			in, err := srcFS.Open(c.src)
-			if err != nil {
-				_ = stageF.Close()
-				cleanupStages(changes)
-				return written, err
-			}
-			_, copyErr := io.Copy(stageF, in)
-			closeInErr := in.Close()
-			closeFErr := stageF.Close()
-			if copyErr != nil {
-				cleanupStages(changes)
-				return written, copyErr
-			}
-			if closeInErr != nil {
-				cleanupStages(changes)
-				return written, closeInErr
-			}
-			if closeFErr != nil {
-				cleanupStages(changes)
-				return written, closeFErr
+			if c.data != nil {
+				_, writeErr := stageF.Write(c.data)
+				syncErr := stageF.Sync()
+				closeErr := stageF.Close()
+				if writeErr != nil {
+					cleanupStages(changes)
+					return written, writeErr
+				}
+				if syncErr != nil {
+					cleanupStages(changes)
+					return written, syncErr
+				}
+				if closeErr != nil {
+					cleanupStages(changes)
+					return written, closeErr
+				}
+			} else {
+				in, err := srcFS.Open(c.src)
+				if err != nil {
+					_ = stageF.Close()
+					cleanupStages(changes)
+					return written, err
+				}
+				_, copyErr := io.Copy(stageF, in)
+				closeInErr := in.Close()
+				closeFErr := stageF.Close()
+				if copyErr != nil {
+					cleanupStages(changes)
+					return written, copyErr
+				}
+				if closeInErr != nil {
+					cleanupStages(changes)
+					return written, closeInErr
+				}
+				if closeFErr != nil {
+					cleanupStages(changes)
+					return written, closeFErr
+				}
 			}
 			if err := os.Chmod(c.stage, installedFileMode); err != nil {
 				cleanupStages(changes)

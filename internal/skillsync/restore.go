@@ -17,6 +17,25 @@ import (
 // traverse out of a backup root; there is no separate traversal check.
 var backupIDPattern = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}\.[0-9]{9}Z$`)
 
+// fleetManifestFileName is the format-4 sidecar the fleet manager writes next
+// to the generic manifest. Legacy listing and restore ignore it; the fleet's
+// own reader validates it.
+const fleetManifestFileName = "fleet-manifest.json"
+
+// isManagedAgentFileName accepts the bare OpenCode agent-profile names the
+// package and the fleet manager both write. The fleet may manage profile names
+// outside the sdd-* family, but neither writer may touch AGENTS.md, a
+// non-markdown name or a path with separators.
+func isManagedAgentFileName(name string) bool {
+	if name == "" || name != filepath.Base(name) {
+		return false
+	}
+	if strings.EqualFold(name, "AGENTS.md") {
+		return false
+	}
+	return strings.HasSuffix(name, ".md")
+}
+
 // ValidateBackupID reports whether id has the exact syntax of a backup
 // directory name. Callers that need a distinct usage-error exit status for
 // a malformed ID (as opposed to a well-formed ID that turns out not to
@@ -180,6 +199,18 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 			}
 			continue
 		}
+		if te.Name() == fleetManifestFileName {
+			// A fleet sidecar (format 4) next to the generic manifest. Legacy
+			// paths ignore it; its own reader validates it separately.
+			info, err := os.Lstat(filepath.Join(backupDir, te.Name()))
+			if err != nil {
+				return manifest{}, nil, err
+			}
+			if !info.Mode().IsRegular() {
+				return manifest{}, nil, fmt.Errorf("refusing special %s in backup %s", fleetManifestFileName, id)
+			}
+			continue
+		}
 		if te.Name() == "opencode-agents" {
 			clientDir := filepath.Join(backupDir, te.Name())
 			clientInfo, err := os.Lstat(clientDir)
@@ -194,7 +225,7 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 				return manifest{}, nil, err
 			}
 			for _, se := range agentEntries {
-				if !strings.HasPrefix(se.Name(), "sdd-") || !strings.HasSuffix(se.Name(), ".md") {
+				if !isManagedAgentFileName(se.Name()) {
 					return manifest{}, nil, fmt.Errorf("refusing non-agent entry %s/%s in backup %s", te.Name(), se.Name(), id)
 				}
 				agentFile := filepath.Join(clientDir, se.Name())
@@ -265,7 +296,7 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 			if e.Client != "opencode-agents" {
 				return manifest{}, nil, fmt.Errorf("backup %s opencode-agent entry has invalid client %s", id, e.Client)
 			}
-			if !strings.HasPrefix(e.Skill, "sdd-") || !strings.HasSuffix(e.Skill, ".md") {
+			if !isManagedAgentFileName(e.Skill) {
 				return manifest{}, nil, fmt.Errorf("backup %s entry has invalid agent file name %s", id, e.Skill)
 			}
 			wantPath := filepath.Join(openCodeAgentsTarget(home).path, e.Skill)

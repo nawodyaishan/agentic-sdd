@@ -44,6 +44,11 @@ func openCodePackFS(repo string) (fs.FS, error) {
 	return fs.Sub(os.DirFS(repo), "opencode-pack")
 }
 
+// OpenCodePackFS exports openCodePackFS for internal packages such as internal/fleet.
+func OpenCodePackFS(repo string) (fs.FS, error) {
+	return openCodePackFS(repo)
+}
+
 func checkTreeFS(source fs.FS, root string) error {
 	return fs.WalkDir(source, root, func(p string, entry fs.DirEntry, err error) error {
 		if err != nil {

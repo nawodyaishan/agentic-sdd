@@ -141,3 +141,13 @@ func fileDigest(source fs.FS, relPath string) (string, error) {
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
+
+// FileDigest exports fileDigest for internal packages such as internal/fleet.
+func FileDigest(source fs.FS, relPath string) (string, error) {
+	return fileDigest(source, relPath)
+}
+
+// TreeDigest exports treeDigest for internal packages such as internal/fleet.
+func TreeDigest(source fs.FS, root string) (string, error) {
+	return treeDigest(source, root)
+}

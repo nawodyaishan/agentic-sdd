@@ -93,6 +93,10 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 				printOrchestrateUsage(stdout)
 				return 0
 			}
+			if len(args) == 2 && args[1] == "fleet" {
+				printFleetUsage(stdout)
+				return 0
+			}
 			if len(args) == 2 {
 				printTopicHelp(stdout, args[1])
 			}
@@ -108,6 +112,8 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			return runGuide(args[1:], stdout, stderr, stdin, env)
 		case "tui":
 			return runTUICommand(args[1:], stdin, stdout, stderr, env)
+		case "fleet":
+			return runFleet(args[1:], stdout, stderr, env)
 		default:
 			if !strings.HasPrefix(args[0], "-") {
 				fmt.Fprintf(stderr, "error: unknown command %q\n", args[0])
@@ -262,7 +268,7 @@ func shellQuoteIfNeeded(s string) string {
 
 func isHelpTopic(s string) bool {
 	switch s {
-	case "preview", "apply", "backups", "logs", "restore", "guide", "version", "tui", "opencode", "opencode-harness", "orchestrate":
+	case "preview", "apply", "backups", "logs", "restore", "guide", "version", "tui", "opencode", "opencode-harness", "orchestrate", "fleet":
 		return true
 	}
 	return false
@@ -557,7 +563,8 @@ func printUsage(out io.Writer) {
        agentic-sdd restore [ID] [--apply] [--repo PATH] [--home PATH]
        agentic-sdd restore list|preview|apply [ID] [--repo PATH] [--home PATH]
        agentic-sdd guide [--repo PATH] [--home PATH]
-       agentic-sdd help [preview|apply|backups|logs|restore|tui]
+       agentic-sdd fleet status|plan|apply|restore|doctor [--config PATH] [--home PATH]
+       agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -568,6 +575,7 @@ Commands:
   restore        Preview or restore a backup, selected by id or number.
   guide          Interactive step-by-step wizard for terminal users.
   tui            Open the terminal UI in a real terminal (packaged companion).
+  fleet          Manage agent fleet profiles and model overrides.
 
 With the Homebrew package, a bare "agentic-sdd" in a real interactive terminal
 opens the terminal UI. Any command or flag, a non-terminal stdin or stdout, and

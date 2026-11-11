@@ -23,7 +23,7 @@ approved feature scope, a security requirement, or maintainer authorization.
 2. Install Go Task, clone the repository and run `task hooks-install` once.
 3. Run `task help` to see the available commands.
 
-The pre-commit hook checks Go formatting, runs `task test` and `task vet` on the 9 supported-core Go packages, and checks staged changes for whitespace errors. Run the same checks yourself before opening a pull request:
+The pre-commit hook checks Go formatting, runs `task test` and `task vet` on the 10 supported-core Go packages, and checks staged changes for whitespace errors. Run the same checks yourself before opening a pull request:
 
 ```sh
 task test
@@ -33,9 +33,9 @@ git diff --check
 
 ### Supported-core verification and experimental task separation
 
-Default `task test` and `task vet` run the 9 supported-core Go packages (`.`, `./internal/version`, `./internal/skillsync`, `./internal/harnesscheck`, `./internal/harnessevidence`, `./internal/appops`, `./internal/buildinfo`, `./cmd/agentic-sdd`, `./cmd/sdd-check`). `task test-core` and `task vet-core` are retained as parity-enforced aliases (`sh tests/supported-core-go.sh test|vet`).
+Default `task test` and `task vet` run the 10 supported-core Go packages (`.`, `./internal/version`, `./internal/skillsync`, `./internal/harnesscheck`, `./internal/harnessevidence`, `./internal/appops`, `./internal/buildinfo`, `./internal/fleet`, `./cmd/agentic-sdd`, `./cmd/sdd-check`). `task test-core` and `task vet-core` are retained as parity-enforced aliases (`sh tests/supported-core-go.sh test|vet`).
 
-Experimental tools (such as the `opencode` CLI helper) are compiled out of default release and core builds via build tags (`!agentic_sdd_experimental`) on CLI entry points (`cmd/agentic-sdd/opencode_disabled.go`), severing the import edge to `internal/opencodeadapter` (`go list -deps ./cmd/agentic-sdd`) and returning exit 2 (`unavailable in this build`). The `internal/opencodeadapter` package itself is excluded from default verification by the explicit 9-package core selection. Their tasks live in the separate, non-default `Taskfile.experimental.yml` (`task --taskfile Taskfile.experimental.yml opencode-help`) and are never invoked by default tasks, pre-commit hooks, or release pipelines.
+Experimental tools (such as the `opencode` CLI helper) are compiled out of default release and core builds via build tags (`!agentic_sdd_experimental`) on CLI entry points (`cmd/agentic-sdd/opencode_disabled.go`), severing the import edge to `internal/opencodeadapter` (`go list -deps ./cmd/agentic-sdd`) and returning exit 2 (`unavailable in this build`). The `internal/opencodeadapter` package itself is excluded from default verification by the explicit 10-package core selection. Their tasks live in the separate, non-default `Taskfile.experimental.yml` (`task --taskfile Taskfile.experimental.yml opencode-help`) and are never invoked by default tasks, pre-commit hooks, or release pipelines.
 
 Portable OpenCode skill installation (`~/.agents/skills`) remains part of the supported core installer.
 

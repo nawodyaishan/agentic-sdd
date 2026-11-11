@@ -20,6 +20,7 @@ CORE_PACKAGES = [
     "./internal/harnessevidence",
     "./internal/appops",
     "./internal/buildinfo",
+    "./internal/fleet",
     "./cmd/agentic-sdd",
     "./cmd/sdd-check",
 ]
@@ -42,6 +43,7 @@ class SupportedCoreSelectionTests(unittest.TestCase):
             "internal/harnessevidence",
             "internal/appops",
             "internal/buildinfo",
+            "internal/fleet",
             "cmd/agentic-sdd",
             "cmd/sdd-check",
         ]:
@@ -125,6 +127,7 @@ class SupportedCoreSelectionTests(unittest.TestCase):
             self.root / "internal/harnessevidence",
             self.root / "internal/appops",
             self.root / "internal/buildinfo",
+            self.root / "internal/fleet",
             self.root / "cmd/agentic-sdd",
         ]
         for target in cases:

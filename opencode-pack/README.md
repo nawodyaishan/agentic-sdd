@@ -32,6 +32,9 @@ opencode-pack/
     sdd-implement-2.md
     sdd-test-implement-1.md
     sdd-test-implement-2.md
+  adapters/                             # fleet-only render sources (Feature 014); never installed by --with-opencode
+    sdd-spec-9r.md
+    sdd-plan-9r.md
   routing.md                            # models, lanes, fallbacks, MCP access
   README.md
 ```
@@ -42,7 +45,7 @@ opencode-pack/
 
 ```bash
 agentic-sdd preview --with-opencode                       # default: show the plan, write nothing
-agentic-sdd apply   --with-opencode                       # 18 core skills + orchestrate + 12 profiles
+agentic-sdd apply   --with-opencode                       # 18 core skills + orchestrate + 14 profiles
 agentic-sdd preview --with-opencode --opencode-free-first  # also plan the 4 Free-first profiles
 agentic-sdd apply   --with-opencode --opencode-free-first  # back up and replace them too
 ```
@@ -51,7 +54,7 @@ agentic-sdd apply   --with-opencode --opencode-free-first  # back up and replace
 - The 14 agent profiles go to `<home>/.config/opencode/agents/`, derived from the resolved `--home` (not `XDG_CONFIG_HOME`).
 - Existing copies of the five deny-by-default profiles (`sdd-architecture-review-9r`, `sdd-code-review-9r`, `sdd-review-verification-1`, `sdd-review-verification-2`, `sdd-lightweight`) are backed up before replacement.
 - `--opencode-free-first` additionally backs up and replaces `sdd-implement-1`, `sdd-implement-2`, `sdd-test-implement-1` and `sdd-test-implement-2`.
-- `sdd-spec-9r`, `sdd-plan-9r`, `sdd-implement-9r-*`, `sdd-implement-free-*`, `vision`, `opencode.json` and `AGENTS.md` are not modified in any mode.
+- `sdd-spec-9r`, `sdd-plan-9r`, `sdd-implement-9r-*`, `sdd-implement-free-*`, `vision`, `opencode.json` and `AGENTS.md` are not modified in any mode. The `adapters/` sources are fleet-only: `--with-opencode` never installs them, so the installed set stays 14 profiles.
 
 ## Preview, backup, restore
 
@@ -79,4 +82,4 @@ See [routing.md](routing.md) for the pinned specialist models, the Free-first la
 
 ## Verification
 
-The pack is covered by the static test `TestOpenCodePackAssetsAndPermissions` in `internal/skillsync`, which checks both the embedded tree and the on-disk directory for required files, valid frontmatter, resolvable relative links, OpenCode v2 permission syntax, and the deny-by-default ordering rules.
+The pack is covered by the static test `TestOpenCodePackAssetsAndPermissions` in `internal/skillsync`, which checks both the embedded tree and the on-disk directory for required files, valid frontmatter, resolvable relative links, OpenCode v2 permission syntax, and the deny-by-default ordering rules. The fleet-only `adapters/` sources are covered by the Feature 014 resolver/render tests and by `TestWithOpenCodeExcludesFleetAdapters`, which pins their exclusion from the 009 install set.
