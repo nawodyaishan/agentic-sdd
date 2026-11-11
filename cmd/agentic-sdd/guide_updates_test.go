@@ -215,7 +215,7 @@ func TestGuideUpdatesStates(t *testing.T) {
 			result: updateResult{state: updateNewer, current: "0.9.0", latest: "0.10.0"},
 			want: []string{
 				"Update available: 0.9.0 -> 0.10.0",
-				"For Homebrew installations — copy and run manually",
+				"If installed with a package manager, copy and run the update manually:",
 				updateBrewCommand,
 				updateVerifyCommand,
 				updateReleasesURL,

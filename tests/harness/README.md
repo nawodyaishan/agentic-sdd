@@ -3,12 +3,13 @@
 ## Supported-core Go selection
 
 `task test` / `task vet` and the `test-core` / `vet-core` aliases select the same
-eight supported-core packages: `.`, `./internal/version`, `./internal/skillsync`,
+nine supported-core packages: `.`, `./internal/version`, `./internal/skillsync`,
 `./internal/harnesscheck`, `./internal/harnessevidence`, `./internal/appops`,
-`./cmd/agentic-sdd`, and `./cmd/sdd-check`. The aliases use
+`./internal/buildinfo`, `./cmd/agentic-sdd`, and `./cmd/sdd-check`. The aliases use
 `tests/supported-core-go.sh`, whose required-directory checks fail closed.
-Feature 013 D03 explicitly authorizes adding the shared metadata package without
-removing earlier coverage. `internal/opencodeadapter`'s experimental tests and the CLI's
+Feature 013 D03 authorized adding the shared metadata package, and B14/T41 with D07
+authorize adding the build-identity package without removing earlier coverage.
+`internal/opencodeadapter`'s experimental tests and the CLI's
 `opencode_test.go` are not selected; no 006 native/profile/dispatch/pilot or 007
 historical migration/adoption suite is selected. Shipped-reference/package and
 current core check/evidence tests stay covered regardless of their feature origin.

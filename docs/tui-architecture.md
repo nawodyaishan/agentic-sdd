@@ -1,21 +1,27 @@
 # TUI Architecture and Toolchain Migration Blueprint
 
-**Current support (Feature 013, batch under review — not verified fact):** Feature 012
-delivered the read-only nested shell/catalog spike as historical evidence below.
-Feature 013 B1/B2 delivered the read-only nested shell/catalog (accepted by owner).
-013 B3 — implemented and awaiting human review, not verified — adds a shared
-stdlib operation seam (`internal/appops`) with structured engine results and
-explicit client selection. The TUI cannot write through any shipped path yet;
-write workflows (B4), recovery/activity/onboarding (B5), and companion
-packaging (B6) remain future work. No release, tag, formula publication, or
-companion binary exists from this batch. The explicit CLI remains the supported
-entry point.
+**Current support (Feature 013, owner-accepted):** Feature 012 delivered the
+read-only nested shell/catalog spike as historical evidence below. Feature 013
+B1–B13 are accepted and published. The nested TUI now includes the shared
+`internal/appops` operation host, preview-first install/update, backup/restore,
+activity/help, onboarding, the `agentic-dark` theme and the r6 UX refinements.
+The Homebrew cask installs the paired `agentic-sdd` CLI and `agentic-sdd-tui`
+companion; a Homebrew real-interactive zero-argument invocation opens the TUI,
+while explicit commands, non-TTY/scripted invocation and generic/source builds
+retain the CLI contracts. `agentic-sdd tui` is the explicit entry point, and
+`agentic-sdd-tui` is the trusted sibling. No root `internal/tui` migration is
+required.
+
+The `v0.7.0` cask release and tap migration are published; the r6 UX changes
+are published on `main` but do not yet have their own release tag. The explicit
+CLI remains fully supported and is the noninteractive/scripting path.
 
 **Historical record (Feature 012):** [012 — CLI UI/UX Remediation & Hybrid TUI Experience](../specs/012-cli-tui-remediation/spec.md)
 **Delivered by:** 012 batch B2 (T06–T08), preserved below as history
 **013 scope:** [013 — Unified TUI Experience and Animated Branding](../specs/013-unified-tui-experience/spec.md) —
-B3 authorized, B4–B6 not authorized; approval in [013 spec.md §Approval](../specs/013-unified-tui-experience/spec.md#approval)
-**Status:** experimental architecture note. It records a spike that exists and a
+B1–B13 accepted/published; B14 release/contract closeout authorized; approval in
+[013 spec.md §Approval](../specs/013-unified-tui-experience/spec.md#approval)
+**Status:** experimental architecture note. It records the delivered nested TUI and a
 migration that does not. It is not an approval record, a batch authorization, a
 release commitment or evidence that the TUI is wired into the shipped binary.
 New B3 descriptions in §§3/5 are batch-under-review, not verified fact.
@@ -361,10 +367,12 @@ verified fact:
 | 012 Phase 3 | Promote `experiments/tui` to `internal/tui`, wire `agentic-sdd guide` behind the §3 gate, add Huh v2 forms and backup/log viewers | superseded: no promotion to root `internal/tui`, no `guide`→TUI wiring (`guide` unchanged per D01) |
 | B1 (Feature 013) | Persistent responsive shell, accessible animated branding; Explore stays usable | accepted by owner |
 | B2 (Feature 013) | Shared metadata/gate coverage, categorized rich catalog, local dashboard, agent routing details, high-contrast shell | completed — accepted by owner 2026-11-10 |
-| B3 (Feature 013) | Controlled operation host: `internal/appops` seam, typed requests/results, structured engine results, explicit client selection | implemented, awaiting human review — not verified |
-| B4 (Feature 013) | Preview-first install journey with safe async execution | future work, not authorized |
-| B5 (Feature 013) | Backup/restore, activity/help, automatic main-menu update check, browser guide, onboarding | future work, not authorized |
-| B6 (Feature 013) | Paired package/marker proof first, then Homebrew-default launcher and nested companion (`agentic-sdd-tui`) distribution, final acceptance | future work, not authorized |
+| B3 (Feature 013) | Controlled operation host: `internal/appops` seam, typed requests/results, structured engine results, explicit client selection | accepted by owner; published |
+| B4 (Feature 013) | Preview-first install journey with safe async execution | accepted by owner; published |
+| B5 (Feature 013) | Backup/restore, activity/help, automatic main-menu update check, browser guide, onboarding | accepted by owner; published |
+| B6 (Feature 013) | Paired package/marker proof, Homebrew-default launcher, nested companion (`agentic-sdd-tui`) distribution, cask release and final acceptance | T15/T14/T21 published; T16 owner-confirmed; `v0.7.0` cask/tap published |
+| B7 (Feature 013) | Semantic `agentic-dark` theme, chrome/list/glyph refinement, modals and truthful feedback | accepted by owner; published |
+| B8–B13 (Feature 013) | r6 impact/no-op/confirmation, purpose-first Home, single dark theme, Library/Recovery/Help, Quick start and responsive evidence | accepted by owner; published |
 
 013 contracts this path must preserve: non-TTY stdout stays byte-identical,
 numeric menu IDs stay stable for scripted journeys, the explicit CLI remains
@@ -376,14 +384,16 @@ mutation-free.
 
 - This document does not authorize raising `go.mod`, changing container images,
   pulling new digests, publishing a release or running any live operation.
-- It does not claim the TUI is reachable from the shipped `agentic-sdd` binary.
+- The Homebrew cask is the supported paired-binary distribution. Generic/source
+  builds retain the historical preview default and require the explicit `tui`
+  command or a paired companion.
 - It does not promise the 20-module dependency footprint; it is a measurement of
   one pin set, not a budget.
-- 013 B3 descriptions above are batch-under-review, not verified fact. B4–B6
-  remain future work: no write workflow, recovery/activity/update-checker, or
-  companion packaging is delivered by this batch.
-- No platform certification is claimed (macOS PTY, SSH/tmux, reduced-color /
-  truecolor, screen readers remain `not_run`).
-- No release, tag, formula publication, or live-operation authorization is
-  granted by this reconciliation; developing the Homebrew-default design does
-  not authorize publishing it.
+- Platform observations were owner-confirmed for B6/T16 on 2026-11-11, but no
+  macOS/SSH/tmux/screen-reader transcripts are stored here. Terminal-remapped
+  ANSI palettes remain outside universal contrast guarantees; ANSI-16 is
+  best-effort, while TrueColor/ANSI-256 reference pairs meet the documented
+  floors.
+- `v0.7.0` is published, but the r6 UX changes have no r6 release tag. No new
+  release/tag/tap operation is authorized by this note; publishing one requires
+  separate authorization.

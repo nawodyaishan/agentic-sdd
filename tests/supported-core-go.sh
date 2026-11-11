@@ -15,7 +15,7 @@ repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo"
 
 # Verify required core package paths and disabled boundary file exist.
-for dir in internal/version internal/skillsync internal/harnesscheck internal/harnessevidence internal/appops cmd/agentic-sdd cmd/sdd-check; do
+for dir in internal/version internal/skillsync internal/harnesscheck internal/harnessevidence internal/appops internal/buildinfo cmd/agentic-sdd cmd/sdd-check; do
     if [ ! -d "$dir" ]; then
         echo "missing required core directory: $dir" >&2
         exit 2
@@ -31,4 +31,4 @@ done
 # Do not inherit test filters or a foreign workspace/configuration into this scope.
 export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS=
 echo "Supported-core $mode only; excluded validations not selected; not an aggregate-gate result."
-go "$mode" . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./cmd/agentic-sdd ./cmd/sdd-check
+go "$mode" . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./internal/buildinfo ./cmd/agentic-sdd ./cmd/sdd-check

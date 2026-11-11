@@ -442,8 +442,8 @@ func TestUpdatesPrintNewer(t *testing.T) {
 	if len(lines) == 0 || lines[0] != "Update available: 0.9.0 -> 0.10.0" {
 		t.Fatalf("first line = %q", lines[0])
 	}
-	if !hasLine("For Homebrew installations — copy and run manually") {
-		t.Errorf("missing exact Homebrew-only label:\n%s", text)
+	if !hasLine("If installed with a package manager, copy and run the update manually:") {
+		t.Errorf("missing exact package-manager update label:\n%s", text)
 	}
 	for _, command := range []string{updateBrewCommand, updateVerifyCommand, updatePreviewCommand, updateApplyCommand} {
 		if !hasLine(command) {
@@ -451,7 +451,7 @@ func TestUpdatesPrintNewer(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		"Homebrew",
+		"package manager",
 		"metadata",
 		"dependencies",
 		"lag",
@@ -470,7 +470,7 @@ func TestUpdatesPrintNewer(t *testing.T) {
 			t.Errorf("preview and apply must stay separate: %q", line)
 		}
 	}
-	for _, forbidden := range []string{"[Copy]", "clipboard", "curl ", "| sh", "sudo ", "successfully", "self-update"} {
+	for _, forbidden := range []string{"[Copy]", "clipboard", "curl ", "| sh", "sudo ", "successfully", "self-update", "formula"} {
 		if strings.Contains(strings.ToLower(text), strings.ToLower(forbidden)) {
 			t.Errorf("output contains forbidden text %q:\n%s", forbidden, text)
 		}

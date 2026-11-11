@@ -60,12 +60,12 @@ On terminal stdout, `agentic-sdd guide` adds restrained visual styling:
   - No background polling, telemetry, token lookup, or binary download.
   - Compares stable numeric `major.minor.patch` SemVer. Non-stable, prerelease, or `dev` builds still make the explicitly requested check; after valid metadata is received they explain why comparison is unavailable and show the validated latest published version.
   - Offline, timeout, or error responses output `Could not check for updates.` with the releases URL and return to the menu without changing installer state.
-  - If a newer release exists, displays copyable Homebrew commands:
+  - If a newer release exists, displays copyable package update commands:
     ```sh
     brew update && brew upgrade nawodyaishan/tap/agentic-sdd
     agentic-sdd version
     ```
-    with notes on Homebrew tap synchronization and manual installation links to the GitHub releases URL. No clipboard access (OSC 52), shell execution, or automatic upgrades are performed.
+    with a release/package-neutral note that package metadata can lag a GitHub release, plus manual installation links to the GitHub releases URL. No clipboard access (OSC 52), shell execution, or automatic upgrades are performed.
 
 ## Journeys
 

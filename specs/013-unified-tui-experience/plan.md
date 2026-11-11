@@ -1,9 +1,9 @@
 # Plan: Feature 013 — Unified TUI Experience and Animated Branding
 
-**Revision:** r5 — cask packaging amendment authorized 2026-11-10; r3/B1–B6 and r4/B7 history preserved.
-**Input:** [spec.md](spec.md) approved r3 plus approved r4 FR-10/AC-15/16 and r5 D05. **Approval:** [spec.md §Approval](spec.md#approval) only; B6 cask implementation and local proof are authorized, but no live release/tag/cask or tap operation is.
+**Revision:** r7 — B14 release/contract closeout authorized 2026-11-11; r3–r6 history preserved.
+**Input:** [spec.md](spec.md) approved r3–r6 plus B14 FR-16/AC-23/D07. **Approval:** [spec.md §Approval](spec.md#approval) only; B14 implementation and local nonpublishing release preparation are authorized, but no live tag/release/tap/live Homebrew or trusted-CI adoption is.
 
-**UX amendment input:** r6 draft [FR-11–15 / AC-17–22](spec.md#fr-11--p0-decision-clarity-and-interaction-consistency-r6-draft). §9 proposes B8–B13; it is not approved or authorized implementation. r5 cask design and prior acceptance remain intact.
+**UX amendment input:** r6 [FR-11–15 / AC-17–22](spec.md#fr-11--p0-decision-clarity-and-interaction-consistency-r6-draft) is approved, accepted and published. §9 records B8–B13; §10 records B14 release/contract closeout.
 
 ## 1. Architecture and verified baseline
 
@@ -211,9 +211,9 @@ Conditional tools: targeted `read`/`grep`/`glob` (CodeGraph attempted but report
 - Principal risks: background query observes our own painted canvas (one-shot pre-paint ordering and no repeated queries); child themes diverge (one propagated resolver); selected/dim colors fail contrast (test real pairs); chrome/modal consumes safety text (one budget and full-screen fallback); compositor corrupts ANSI/OSC/cursor (cell-aware fixtures); spinner ticks leak/stale (identity/generation plus stop tests). Mitigation failure blocks B7 acceptance, not a reason to alter operation safety or root dependencies.
 - **Resolved owner decisions (D04/DEP-B7):** light AAA floor and reduced-color limitation approved; decorative emoji removed with no Nerd Font opt-in; real-phase spinner exception to FR-08 approved; optional native progress omitted unless separately requested and lifecycle-tested; B6 and B7 start in parallel, B6 T15 before T14, B7 T17 → T20. Proposed geometry/palette implementation values may be refined within the approved contrast/fit contracts; any lower contrast or behavior/dependency change returns for approval. After T20, stop awaiting human review; B6/T16 remains a separate acceptance stop.
 
-## 9. r6 UX-priority amendment — proposed B8–B13
+## 9. r6 UX-priority amendment — B8–B13
 
-**Status:** draft for one combined approval with spec r6 and tasks r6; no implementation authority. Input is the [review](agentic-sdd-tui-ux-ui-review-2026-11-10.md), especially UX-01–16 and Slices A–E, interpreted through spec D06. Preserve approved r5 cask/T21 work without expanding release or tap authority. Vision §§6–8 favor bounded review, optional learning, reversible architecture and evidence, not a framework rewrite.
+**Status:** approved, implemented, accepted and published. Input is the [review](agentic-sdd-tui-ux-ui-review-2026-11-10.md), especially UX-01–16 and Slices A–E, interpreted through spec D06. Preserve approved r5 cask/T21 work without expanding release or tap authority. Vision §§6–8 favor bounded review, optional learning, reversible architecture and evidence, not a framework rewrite.
 
 ### 9.1 Current evidence and explicit conflict decisions
 
@@ -311,3 +311,37 @@ No new user study, terminal rendering experiment, code test or reproduced defect
 After B8–B13 integration, an owner-requested OpenAI GPT-6.1 Sol read-only architecture/code review returned **Needs changes** with 14 findings: Recovery I/O and unsafe/file-association presentation, hidden confirmation execution below minimum geometry, stale catalog/activity results, missing no-op inventory refresh, Router detail-state leakage, unsupported reduced-color claims, ASCII path rewriting, misleading B13 evidence, the `m` key conflict, hardcoded Activity preferences and Library path ordering. Two DeepSeek fix lanes addressed all 14; an independent DeepSeek verification returned **Ready with findings**, and a third DeepSeek lane closed five minor residuals (Activity ASCII data, manifest open race, B13 numbering, synchronous ActivityModel I/O, filter query validation). The final tree passes nested test/vet/race, root `task test`/`task vet`, `git diff --check` and the B13 selectors.
 
 This is automated/source evidence and a technical verdict chain. The owner separately confirmed on 2026-11-11 that the B6/T16 walkthrough, B13 novice study/visual review and macOS/platform checks were completed; no separate transcripts or participant counts were supplied. `ANSI-16` accent/error roles remain **best-effort** on the standard reference palette; TrueColor and ANSI-256 pairs meet the approved floors. Release, update-copy wording, `internal/buildinfo` gate adoption and trusted-CI adoption remain deferred decisions.
+
+## 10. B14 — Release preparation and contract/gate closeout
+
+**Approved by owner 2026-11-11; implementation authorized, live publication is not.** This batch closes the five deferred decisions from §9.9. Read [FR-16/AC-23](spec.md#fr-16--release-and-contractgate-closeout-b14) and [D07](spec.md#5-decisions-and-dependencies). It does not reopen B1–B13 behavior.
+
+### 10.1 Release readiness (T38)
+
+From the accepted `main` tree, run the full supported-core and nested gates, then the local nonpublishing snapshot with the pinned Go/GoReleaser toolchain. Verify both paired archives, checksums, Mach-O universal slices, generated cask binary stanzas/quarantine hook and matching build identities. Prepare release notes and exact tag/release/tap commands, but **do not create a tag, release, tap commit or live install**. Record the intended version and the fact that `v0.7.0` predates B8–B13. A missing toolchain or snapshot prerequisite blocks release preparation rather than being skipped.
+
+### 10.2 ANSI-16 decision (T39)
+
+Retain the current best-effort ANSI-16 mapping and its disclosure. TrueColor and ANSI-256 reference pairs remain the tested AAA evidence. Full ANSI-16 AAA is out of scope without a separate palette decision; do not weaken TrueColor/256 tests or claim universal terminal contrast. Update the B13 checklist/spec/plan and release notes so the limitation is visible.
+
+### 10.3 Release-neutral update wording (T40)
+
+In `cmd/agentic-sdd/updates.go`, replace the formula-specific sentence with wording that covers the release/package state without naming a formula or promising a package manager. Preserve the fixed endpoint, timeout, body cap, redirect refusal, no credentials/inventory, exit behavior and actionable release URL. Update only affected CLI output fixtures with a reviewed diff; no unrelated rebaseline. FR-16.3 supersedes the Homebrew-specific update wording in 011 FR-08 for current behavior; 011 remains historical and is not rewritten.
+
+### 10.4 `internal/buildinfo` core coverage (T41)
+
+Add `internal/buildinfo` to `Taskfile.yml` test/vet, `tests/supported-core-go.sh` required-directory and `go test`/`go vet` lists, `harness/checks.json` test/vet argv, and the package-count guidance in `AGENTS.md` and `CONTRIBUTING.md` (README has no package-count list). Also reconcile `tests/harness` selector tests/README. Preserve every existing core package and sanitized environment setting. Run the actual nine-package selector and focused `internal/buildinfo` tests. This is a gate-selection change, not trusted-CI adoption evidence.
+
+### 10.5 Trusted-CI boundary (T42)
+
+Record that amended `harness/checks.json` adoption in a trusted-CI environment remains separately authorized. Do not run or claim a trusted-CI adoption, and do not treat the repository contract edit as environment evidence. No excluded 005/006/007 validation is selected.
+
+### 10.6 Assignments, ordering and risks
+
+Execution order: T39/T40/T41 implementation, then T38 release readiness, then T42/documentation reconciliation. T38 depends on T40/T41 because the release tree must include the final wording and gate scope. T39/T42 are documentation/decision work.
+
+Assignments: one DeepSeek Go implementation lane for T40/T41 (root CLI + gate selectors), a read-only DeepSeek/Gemini verification lane for the selector audit and wording diff, and main-agent execution of the nonpublishing release snapshot plus final gate evidence. `golang-pro`/`test-driven-development` guidance applies; no new dependency or framework work is needed. Exa/Context7 only for a concrete release-tool or CLI-contract fact; local official source/pins take precedence.
+
+Risks: a selector edit that omits an existing package or hides a failure (audit every list/count, run the nine-package selector); output fixtures rebaselined too broadly (review only the intended sentence diff); release preparation mistaken for release authorization (stop before tag/release/tap); trusted-CI edit treated as adoption evidence (keep T42 separate); ANSI-16 claim drifting back to AAA (keep disclosure/tests explicit).
+
+Verification: `task test`, `task vet`, `git diff --check`, focused `cmd/agentic-sdd` and `internal/buildinfo` tests, nested test/vet/race only if code under `experiments/tui` changes (it should not), and the nonpublishing snapshot. Live tag/release/tap/Homebrew checks remain `not_run`/blocked until separately authorized.

@@ -1,7 +1,7 @@
 # Feature 013 — Unified TUI Experience and Animated Branding
 
-**Revision:** r5 — cask packaging amendment authorized 2026-11-10; r3/B1–B6 and r4/B7 scope and history remain unchanged. Cask implementation and local proof are authorized; no live release, tag, cask/tap publication or real-home operation is authorized.
-**UX amendment revision:** r6 draft — FR-11–FR-15 / AC-17–AC-22 and proposed B8–B13 pending combined approval. The r5 cask amendment and all prior approval/history remain intact; no UX implementation is authorized by this draft.
+**Revision:** r7 — B14 release/contract closeout authorized 2026-11-11; r3–r6 scope and history preserved. B14 implementation and local nonpublishing release preparation are authorized; no live tag/release/tap/live Homebrew or trusted-CI adoption is.
+**UX amendment revision:** r6 approved and accepted — FR-11–FR-15 / AC-17–AC-22, B8–B13 implemented, accepted and published. B14 adds FR-16/AC-23/D07 for release and gate closeout. All prior approval/history remains intact.
 **Outcome:** Extend the Feature 012 catalog spike into a coherent, accessible, preview-first management interface.  
 **Sources:** Owner's redesign guide and TUI best-practices brief in this session; [012 handover](../../docs/handovers/2026-11-10_012.md); [012 specification](../012-cli-tui-remediation/spec.md); [012 ledger](../012-cli-tui-remediation/tasks.md); [architecture evidence](../../docs/tui-architecture.md). Product compass: [vision §§3, 6–7](../../docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md).
 
@@ -142,6 +142,14 @@ Preserve FR-02 breakpoints (110/80/60) until measured evidence justifies a separ
 
 Optional Quick start/tour is in-session, skippable and re-openable; it reuses setup and links the first Router prompt after success without persistence or automatic execution. Future personal Fleet/profile editing is **deferred**, with no functional-looking placeholder, subscription changes or runtime activation in 013. The review's OpenCode support recommendation applies only to existing optional template distribution, not fenced native/runtime features.
 
+### FR-16 — Release and contract/gate closeout (B14)
+
+- **FR-16.1 — Release readiness, not live release:** Prepare the next release only from an accepted `main` tree after the full supported-core and nested gates plus a nonpublishing snapshot. Produce release notes/tag instructions and verify the paired archive/cask identities. Creating a real tag, GitHub release, tap/cask push or live Homebrew operation requires a separate explicit authorization and is not implied by B14 implementation.
+- **FR-16.2 — ANSI-16 decision:** Retain ANSI-16 accent/error roles as documented best-effort, not AAA, on the standard reference palette. TrueColor and ANSI-256 reference pairs keep the approved >=7:1 text / >=3:1 non-text floors. Full ANSI-16 AAA requires separate palette work and an explicit owner decision; no universal ANSI or user-remapped-palette guarantee is claimed.
+- **FR-16.3 — Release-neutral update wording:** Replace the stale “formula can lag a GitHub release” copy with release/package-neutral wording that does not promise a specific package manager. Preserve the fixed endpoint, timeout, bounds, no-credential behavior and actionable release URL. Review the intentional CLI output fixture change rather than rebaselining unrelated output.
+- **FR-16.4 — `internal/buildinfo` core coverage:** Add `internal/buildinfo` to every maintained supported-core selector, required-directory check, harness contract test/vet list and package-count guidance. Preserve all existing core packages and sanitation; no skip, filter, tolerance or excluded-feature enablement. Document the new nine-package scope.
+- **FR-16.5 — Trusted-CI boundary:** Do not adopt the amended `harness/checks.json` in a trusted-CI environment in B14. That remains a separately authorized operation with its own environment evidence. The repository contract change in FR-16.4 is not trusted-CI adoption evidence.
+
 ## 4. Acceptance criteria
 
 | ID | Observable result | Required evidence |
@@ -176,6 +184,12 @@ Optional Quick start/tour is in-session, skippable and re-openable; it reuses se
 
 The review's 5-second explanation and 60-second discovery tests are usability targets, not measured claims. A 3–5 novice-user walkthrough is desirable if participants are available; record sample/method or `not_run`, never infer results from automated tests.
 
+### B14 acceptance addition
+
+| ID | Observable result | Required evidence |
+|---|---|---|
+| AC-23 | FR-16: release readiness is prepared without a live tag/release; ANSI-16 limitation and trusted-CI boundary are explicit; update wording is package-neutral; `internal/buildinfo` is in all core selectors | Gate output naming nine packages; nonpublishing snapshot/archive/cask identity; reviewed wording fixtures; selector-list/count audit; explicit `not_run` for live release, tap push, trusted-CI adoption and platform walkthroughs |
+
 ## 5. Decisions and dependencies
 
 - **D01 — Resolved scope direction:** The owner's follow-up explicitly requests Homebrew-default TUI. r2 specifies Homebrew interactive zero-argument launch, preserves explicit/non-TTY behavior, and leaves `guide` on its historical CLI path. This removes the r1 design hold; it does not record combined approval or authorize publication.
@@ -189,6 +203,7 @@ The review's 5-second explanation and 60-second discovery tests are usability ta
 
 - **D06 — r6 proposal, approval pending:** Adopt single-dark direction, goal-first hierarchy and progressive disclosure, but retain AAA (adjust selected/border tokens), four routes, nonempty core selection, engine safety, compact animated branding option and current breakpoints. Do not adopt root `internal/tui` migration, pack-only selection, personal fleet editing or experimental OpenCode activation. These resolve draft conflicts explicitly, not by silently overriding approved r4.
 - **DEP-UX — no new execution authorization:** B8–B13 are proposed remediation batches, not reopening accepted B1–B5/B7. B6/T16 and cask T21 remain separate; prior acceptance cannot cover AC-17–22. Integrated r6 evidence and separate B6 closure are required before whole-feature readiness claims.
+- **D07 — B14 closeout approved:** Owner accepted the recommended options on 2026-11-11: prepare an r6 release without live publication, retain ANSI-16 best-effort, make update wording release-neutral, add `internal/buildinfo` to the core selector, and keep trusted-CI adoption separate. B14 code/docs implementation is authorized; tag/release/tap push/live Homebrew and trusted-CI adoption are not.
 
 ## Approval
 
@@ -199,6 +214,8 @@ Single combined approval record for this feature's three documents.
 - **B11–B13 authorization:** `authorized by owner` on 2026-11-10, current-session message “start rest of the batches parallelly with gemini flash and deepseek go flash”. This authorizes B11, B12 and B13 to start in isolated worktrees with Gemini Flash / DeepSeek Go Flash lanes. Integration remains sequential **B8 → B9 → B10 → B11 → B12 → B13**; B13's final acceptance and any whole-feature readiness claim still require the integrated tree and explicit human review. No release, tag, cask/tap publication, real-home apply or gate-change authority is added.
 - **B8–B13 acceptance:** `accepted by owner` on 2026-11-11, current-session message “accepted and commit and psuh”. This accepts the integrated B8–B13 working tree, the B13 automated evidence packet and the OpenAI Sol review/DeepSeek fix/verification cycle, and authorizes committing and pushing that tree. ANSI-16 accent/error roles remain documented best-effort. No release, tag, cask/tap publication or real-home apply is authorized.
 - **B6/T16, B6-PLATFORM-1 and B13 T37 completion:** `confirmed by owner` on 2026-11-11, current-session message “above completed so commit those”. This records owner confirmation that the AC-01–14 matrix, owner walkthrough, architecture support reconciliation, macOS cask install/quarantine/migration check, macOS PTY/SSH/tmux/terminal/accessibility checks, novice orientation study and visual review were completed. Separate logs, participant counts and platform transcripts were not supplied in this session; this confirmation is the evidence pointer, not an independently reproduced result. No live release/tag/tap operation is authorized by this confirmation.
+- **B14 closeout authorization:** `authorized by owner` on 2026-11-11, current-session message “update spec plan tasks for these as next batch / implement these with sub agents”. This approves FR-16/AC-23, D07 and tasks T38–T42 as the next batch. It authorizes code/docs/gate implementation and local nonpublishing release preparation only. It does **not** authorize a real tag, GitHub release, tap/cask push, live Homebrew operation, trusted-CI adoption or real-home apply.
+- **B14 acceptance and v0.8 release authorization:** `accepted by owner` on 2026-11-11, current-session message “b14 accepted / release v0.8”. This accepts T38–T42 and authorizes committing/pushing the B14 tree, creating the `v0.8.0` tag, publishing the GitHub release and letting the release workflow publish the matching Homebrew cask. It does not authorize a real-home apply, trusted-CI adoption or unrelated live operations. The release version is `v0.8.0`; “v0.8” is treated as the minor release line.
 
 - **Decision:** `approved` by owner on 2026-11-10.
 - **Human actor / evidence:** Repository owner, current session message: “approved 3 docs” followed by “now run architecture review using subagent via deepseek flash model”.
@@ -215,4 +232,4 @@ Single combined approval record for this feature's three documents.
 - **B7 acceptance:** `accepted by owner` on 2026-11-10, current-session message “b7 accepted”. This accepts the integrated T17–T20 styling implementation and its verification evidence. The B7 implementation tree was subsequently committed and pushed as `430b0e0`.
 - **B6 T14 review:** `reviewed by owner` on 2026-11-10, current-session message “t14 reviewed / b6 commit and push / report back any blockers”. This accepts the T14 launcher implementation and authorizes committing and pushing the B6 T15/T14 tree. T16 final acceptance and owner walkthrough remain pending.
 - **Cask migration authorization:** `authorized by owner` on 2026-11-10, current-session message “use docs/handovers/2026-11-10_013g.md / and start cask migration / use exa and context7 for research”. This authorizes D05 implementation, local nonpublishing cask proof and documentation. It does not authorize a tag or release, a tap push, `tap_migrations.json` publication, or a live Homebrew install.
-- **Execution authorization:** B1–B5 and B7 accepted; B6 T15/T14 reviewed and authorized for commit/push, with T16 still pending. Cask migration implementation and local proof are authorized. No live apply, release, tag, cask/tap publication or real-home operation is authorized.
+- **Current execution authorization:** B1–B5/B7 accepted; B8–B13 accepted and published; B6/T16, B6-PLATFORM-1 and B13 T37 owner-confirmed; B14 implementation and local nonpublishing release preparation authorized. No live apply, tag, release, cask/tap publication, live Homebrew operation or trusted-CI adoption is authorized.

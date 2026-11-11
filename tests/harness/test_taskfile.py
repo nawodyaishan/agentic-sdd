@@ -72,7 +72,7 @@ class TaskfileTests(unittest.TestCase):
             self.assertEqual((root / "capture").read_text(), "/desired")
 
     def test_task_test_and_vet_sanitize_environment_and_select_core(self):
-        core_args = ". ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./cmd/agentic-sdd ./cmd/sdd-check"
+        core_args = ". ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./internal/buildinfo ./cmd/agentic-sdd ./cmd/sdd-check"
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             fake_go = root / "go"
