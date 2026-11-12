@@ -97,6 +97,10 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 				printFleetUsage(stdout)
 				return 0
 			}
+			if len(args) == 2 && args[1] == "mcp" {
+				printMCPUsage(stdout)
+				return 0
+			}
 			if len(args) == 2 {
 				printTopicHelp(stdout, args[1])
 			}
@@ -114,6 +118,8 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			return runTUICommand(args[1:], stdin, stdout, stderr, env)
 		case "fleet":
 			return runFleet(args[1:], stdout, stderr, env)
+		case "mcp":
+			return runMCP(args[1:], stdout, stderr, env)
 		default:
 			if !strings.HasPrefix(args[0], "-") {
 				fmt.Fprintf(stderr, "error: unknown command %q\n", args[0])
@@ -268,7 +274,7 @@ func shellQuoteIfNeeded(s string) string {
 
 func isHelpTopic(s string) bool {
 	switch s {
-	case "preview", "apply", "backups", "logs", "restore", "guide", "version", "tui", "opencode", "opencode-harness", "orchestrate", "fleet":
+	case "preview", "apply", "backups", "logs", "restore", "guide", "version", "tui", "opencode", "opencode-harness", "orchestrate", "fleet", "mcp":
 		return true
 	}
 	return false
@@ -564,7 +570,8 @@ func printUsage(out io.Writer) {
        agentic-sdd restore list|preview|apply [ID] [--repo PATH] [--home PATH]
        agentic-sdd guide [--repo PATH] [--home PATH]
        agentic-sdd fleet status|plan|apply|restore|doctor [--config PATH] [--home PATH]
-       agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet]
+       agentic-sdd mcp status|doctor|preview [--config PATH] [--home PATH] [--json]
+       agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -576,6 +583,7 @@ Commands:
   guide          Interactive step-by-step wizard for terminal users.
   tui            Open the terminal UI in a real terminal (packaged companion).
   fleet          Manage agent fleet profiles and model overrides.
+  mcp            Inspect the default MCP tools read-only (status, doctor, preview).
 
 With the Homebrew package, a bare "agentic-sdd" in a real interactive terminal
 opens the terminal UI. Any command or flag, a non-terminal stdin or stdout, and
