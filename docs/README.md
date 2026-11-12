@@ -21,6 +21,10 @@ specifications, evidence and handovers continue to work.
   specialist subagents, MCP tools (`codegraph`, `context7`, `exa`), and backup/restore.
 - [Installer reference](installer-reference.md) — commands, flags, backups,
   restore, file permissions, and logs.
+- [CodeGraph setup and continuous sync](codegraph.md) — local index bootstrap,
+  MCP/CLI fallback, sync checks and troubleshooting; never committed.
+- [Default MCP integration study](mcp-default-integration-study.md) — CodeGraph,
+  Context7 and Exa install-time checks, config merge and missing-piece options.
 - [TUI architecture and toolchain migration blueprint](tui-architecture.md) —
   experimental Charm v2 hybrid spike and 8-point toolchain audit for Feature 012.
 - [Feature 009 spec](../specs/009-opencode-orchestration/spec.md),

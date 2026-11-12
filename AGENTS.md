@@ -4,6 +4,36 @@
 
 This repository holds the canonical Agentic SDD skill files and a Go CLI that installs them into user skill directories. Treat `skills-files/` as the source of truth. Keep `backups/` local and out of Git; it may contain private previous skill content.
 
+## CodeGraph index
+
+CodeGraph is a default code-discovery tool for this repository. Treat it as
+session infrastructure, not as product scope or a source of approval.
+
+- **Use it first.** If the CodeGraph MCP server is available, call
+  `codegraph_explore` before grep/read for indexed code. It is Read-equivalent
+  and returns symbol source, call paths and blast radius in one call. Use the
+  CLI fallback (`codegraph explore`, `codegraph node`, `codegraph callers`,
+  `codegraph impact`) when the MCP server is unavailable.
+- **Bootstrap once.** Check `codegraph status` or `.codegraph/` first. If the
+  index is absent, `codegraph` is installed and this is an ordinary project
+  checkout (not a home directory, filesystem root or private vault), run
+  `codegraph init -y`, then verify with `codegraph status --json`. If the CLI is
+  absent or initialization fails, report it and continue with targeted
+  Read/Grep; do not install tools silently.
+- **Keep it synced.** The MCP server's watcher normally indexes edits within
+  about a second. After a bulk edit, a branch switch, or before a review/commit,
+  run `codegraph sync` and verify `codegraph status`. If a response carries a
+  staleness banner, Read the flagged files before relying on them. `codegraph
+  unlock` clears a stale lock; `codegraph index` rebuilds from scratch only
+  when the database is genuinely corrupt.
+- **Keep it local.** `.codegraph/` is machine-local state and must never be
+  committed; it self-ignores, and the root `.gitignore` also excludes it. Do not
+  index `backups/`, private homes, credentials or other unmanaged private
+  material. Never put secrets or private code in CodeGraph queries.
+
+See [docs/codegraph.md](docs/codegraph.md) for the bootstrap, sync, MCP
+continuity and troubleshooting procedure.
+
 ## Product vision and engineering principles
 
 [docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md) is the canonical product compass: mission, audiences, non-negotiable engineering principles, and conditional long-term direction.
