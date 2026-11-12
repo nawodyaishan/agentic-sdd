@@ -31,13 +31,15 @@ import (
 type installSection int
 
 const (
-	// installSectionHub is the two-entry destination menu plus the read-only
+	// installSectionHub is the three-entry destination menu plus the read-only
 	// preview command hints and backup directory.
 	installSectionHub installSection = iota
 	// installSectionInstall is the preview-first InstallModel journey.
 	installSectionInstall
 	// installSectionBackups is the RestoreModel backup/restore journey.
 	installSectionBackups
+	// installSectionFleet is the FleetModel read-only fleet manager.
+	installSectionFleet
 )
 
 // Default read-only operation endpoints, shown as copyable commands. They are
@@ -225,6 +227,17 @@ func (a *App) startInventoryRefresh() tea.Cmd {
 	case WriteRestore:
 		scope.Home = a.activeRequest.Restore.Home()
 		scope.Repo = a.activeRequest.Restore.Repo()
+	case WriteFleetApply, WriteFleetRestore:
+		// Fleet apply/restore changes the managed OpenCode files, so the
+		// catalog and Fleet status both need a fresh read. The scope keeps the
+		// configured repo/options and takes the request's resolved home.
+		if home := a.activeRequest.Fleet.Home; strings.TrimSpace(home) != "" {
+			scope.Home = home
+		}
+	case WriteSourceSave:
+		// Source save changes only the personal source; the Fleet model
+		// refreshes status itself and the installed inventory is unchanged.
+		return nil
 	default:
 		return nil
 	}
@@ -414,6 +427,34 @@ func (a App) homeLines(width int) []string {
 // Install & Manage hub and child rendering
 // ---------------------------------------------------------------------------
 
+type installHubEntry struct {
+	key     string
+	title   string
+	desc    string
+	section installSection
+}
+
+var installHubEntries = []installHubEntry{
+	{
+		key:     "i",
+		title:   "Install or update",
+		desc:    "Choose clients and optional packs, review the exact read-only impact, then confirm a default-No apply.",
+		section: installSectionInstall,
+	},
+	{
+		key:     "b",
+		title:   "Backups & restore",
+		desc:    "Browse recorded backups, inspect one read-only plan, then confirm a default-No restore.",
+		section: installSectionBackups,
+	},
+	{
+		key:     "f",
+		title:   "Fleet Manager",
+		desc:    "Inspect agent instances, models, enablement and drift without modifying files.",
+		section: installSectionFleet,
+	},
+}
+
 // installRouteLines renders the hub or the active child screen at width.
 func (a App) installRouteLines(width int) []string {
 	switch a.installSection {
@@ -421,6 +462,8 @@ func (a App) installRouteLines(width int) []string {
 		return a.install.Lines(width)
 	case installSectionBackups:
 		return a.restore.Lines(width)
+	case installSectionFleet:
+		return a.fleet.Lines(width)
 	default:
 		return a.installHubLines(width)
 	}
@@ -434,26 +477,10 @@ func (a App) installHubLines(width int) []string {
 
 	b.WriteString(a.theme.Title.Render("Install & Manage"))
 	b.WriteString("\n")
-	b.WriteString(a.theme.Subtitle.Render("Preview-first install and update, plus backup recovery"))
+	b.WriteString(a.theme.Subtitle.Render("Preview-first install and update, plus backup recovery and fleet status"))
 	b.WriteString("\n\n")
 
-	type hubEntry struct {
-		key   string
-		title string
-		desc  string
-	}
-	entries := []hubEntry{
-		{
-			key:   "i",
-			title: "Install or update",
-			desc:  "Choose clients and optional packs, review the exact read-only impact, then confirm a default-No apply.",
-		},
-		{
-			key:   "b",
-			title: "Backups & restore",
-			desc:  "Browse recorded backups, inspect one read-only plan, then confirm a default-No restore.",
-		},
-	}
+	entries := installHubEntries
 	rows := make([]string, 0, len(entries))
 	glyphs := GlyphSet(a.ascii)
 	for i, entry := range entries {
@@ -512,7 +539,7 @@ func (a App) installHubLines(width int) []string {
 		b.WriteString(a.theme.Accent.Render(line) + "\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(a.theme.Hint.Render("hub controls: j/k select · i install · b backups · Enter open · Esc navigation"))
+	b.WriteString(a.theme.Hint.Render("hub controls: j/k select · i install · b backups · f fleet · Enter open · Esc navigation"))
 
 	return strings.Split(b.String(), "\n")
 }
@@ -525,20 +552,30 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
 	if a.installSection == installSectionHub {
+		n := len(installHubEntries)
 		switch key {
 		case "j", "down":
-			a.installHubIndex = (a.installHubIndex + 1) % 2
+			a.installHubIndex = (a.installHubIndex + 1) % n
 			return *a, nil
 		case "k", "up":
-			a.installHubIndex = (a.installHubIndex - 1 + 2) % 2
+			a.installHubIndex = (a.installHubIndex - 1 + n) % n
 			return *a, nil
 		case "i":
 			return *a, a.openInstallScreen()
 		case "b":
 			return *a, a.openBackupsScreen()
+		case "f":
+			return *a, a.openFleetScreen()
 		case "enter":
-			if a.installHubIndex == 1 {
-				return *a, a.openBackupsScreen()
+			if a.installHubIndex >= 0 && a.installHubIndex < n {
+				switch installHubEntries[a.installHubIndex].section {
+				case installSectionInstall:
+					return *a, a.openInstallScreen()
+				case installSectionBackups:
+					return *a, a.openBackupsScreen()
+				case installSectionFleet:
+					return *a, a.openFleetScreen()
+				}
 			}
 			return *a, a.openInstallScreen()
 		case "esc":
@@ -549,6 +586,26 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	width, height := a.childContentWidth(), a.childBodyHeight()
+
+	if a.installSection == installSectionFleet {
+		if a.fleet.WantsHome(key) {
+			return a.switchRoute(0)
+		}
+		if a.fleet.WantsClose(key) {
+			return *a, a.closeInstallHub("")
+		}
+		if isScrollKey(key) && a.fleet.ShouldScrollBody(key) {
+			a.scrollChildContent(key, width, height)
+			return *a, nil
+		}
+		prev := a.fleet.ActiveView()
+		updated, cmd := a.fleet.Update(msg)
+		a.fleet = updated
+		if a.fleet.ActiveView() != prev {
+			a.contentScroll = 0
+		}
+		return *a, cmd
+	}
 
 	if a.installSection == installSectionInstall {
 		// The read-only no-op panel routes Home/Library through the existing
@@ -694,6 +751,16 @@ func (a *App) openBackupsScreen() tea.Cmd {
 	return cmd
 }
 
+// openFleetScreen activates the Fleet Manager read-only screen.
+func (a *App) openFleetScreen() tea.Cmd {
+	a.installSection = installSectionFleet
+	a.contentScroll = 0
+	a.fleet.SetSize(a.childContentWidth(), a.childBodyHeight())
+	m, cmd := a.fleet.EnsureLoaded()
+	a.fleet = m
+	return cmd
+}
+
 // closeInstallHub returns to the destination hub. The optional notice is shown
 // by the hub's parent notice section.
 func (a *App) closeInstallHub(notice string) tea.Cmd {
@@ -736,7 +803,7 @@ func (a App) backupDetailsActive() bool {
 // whose StartWriteMsg may not have reached the root model yet. Navigation and
 // quit keys are ignored in that window, exactly like an accepted write.
 func (a App) childWritePending() bool {
-	return a.install.Step() == InstallStepRunning || a.restore.Busy()
+	return a.install.Step() == InstallStepRunning || a.restore.Busy() || a.fleet.WritePending()
 }
 
 // pinnedContentLines is the concise install-preview summary the viewport keeps

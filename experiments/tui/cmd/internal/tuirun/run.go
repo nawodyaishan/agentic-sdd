@@ -35,6 +35,9 @@ type Launch struct {
 	// UserHomeDir; empty Repo keeps the embedded assets.
 	Home string
 	Repo string
+	// FleetConfig is the optional explicit personal fleet.json path. Empty
+	// selects no source; nothing is scanned or inferred here.
+	FleetConfig string
 	// WithOpenCode and OpenCodeFreeFirst mirror the catalog pack/preset options.
 	WithOpenCode      bool
 	OpenCodeFreeFirst bool
@@ -42,6 +45,10 @@ type Launch struct {
 	// be explicit before the alternate screen may open. The packaged companion
 	// is explicit by construction and passes false.
 	RequireOptIn bool
+	// FleetLive is the reviewed live-fleet capability, injected from release
+	// metadata by the command. It is not an environment, config or CLI toggle:
+	// an unset value keeps the preview-only default.
+	FleetLive bool
 	// StdinTTY and StdoutTTY are real terminal checks made by the command, never
 	// forced-terminal flags.
 	StdinTTY  bool
@@ -116,12 +123,14 @@ func Run(launch Launch) int {
 	cfg := tui.TUIConfig{
 		Repo:              launch.Repo,
 		Home:              resolvedHome,
+		FleetConfig:       launch.FleetConfig,
 		Color:             launch.Getenv("NO_COLOR") == "",
 		Interactive:       isTerm,
 		WithOpenCode:      launch.WithOpenCode,
 		OpenCodeFreeFirst: launch.OpenCodeFreeFirst,
 		Motion:            motion,
 		ASCII:             ascii,
+		FleetLive:         launch.FleetLive,
 	}.Normalize()
 
 	catalog, err := tui.LoadCatalog(cfg)

@@ -293,6 +293,16 @@ func TestTUIExplicitRequestForwarding(t *testing.T) {
 			args: []string{"tui", "--opencode-free-first"},
 			want: tuiRequest{Explicit: true, WithOpenCode: true, OpenCodeFreeFirst: true},
 		},
+		{
+			name: "explicit fleet config forwarded",
+			args: []string{"tui", "--fleet-config", "/tmp/example-home/fleet.json"},
+			want: tuiRequest{Explicit: true, WithOpenCode: true, FleetConfig: "/tmp/example-home/fleet.json"},
+		},
+		{
+			name: "whitespace fleet config stays unset",
+			args: []string{"tui", "--fleet-config", "   "},
+			want: tuiRequest{Explicit: true, WithOpenCode: true},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -325,13 +335,14 @@ func TestTUICompanionArgs(t *testing.T) {
 	}{
 		{"defaults forward nothing", tuiRequest{}, nil},
 		{"home and repo", tuiRequest{Home: "/h", Repo: "/r"}, []string{"--home", "/h", "--repo", "/r"}},
+		{"fleet config", tuiRequest{FleetConfig: "/f/fleet.json"}, []string{"--fleet-config", "/f/fleet.json"}},
 		{"pack on", tuiRequest{WithOpenCode: true, WithOpenCodeSet: true}, []string{"--with-opencode=true"}},
 		{"pack off", tuiRequest{WithOpenCode: false, WithOpenCodeSet: true}, []string{"--with-opencode=false"}},
 		{"free first", tuiRequest{WithOpenCode: true, OpenCodeFreeFirst: true}, []string{"--opencode-free-first"}},
 		{
 			"all options",
-			tuiRequest{Home: "/h", Repo: "/r", WithOpenCode: false, WithOpenCodeSet: true, OpenCodeFreeFirst: true},
-			[]string{"--home", "/h", "--repo", "/r", "--with-opencode=false", "--opencode-free-first"},
+			tuiRequest{Home: "/h", Repo: "/r", FleetConfig: "/f/fleet.json", WithOpenCode: false, WithOpenCodeSet: true, OpenCodeFreeFirst: true},
+			[]string{"--home", "/h", "--repo", "/r", "--fleet-config", "/f/fleet.json", "--with-opencode=false", "--opencode-free-first"},
 		},
 	}
 	for _, tc := range cases {
@@ -354,6 +365,7 @@ func TestTUICommandUsageErrors(t *testing.T) {
 	}{
 		{"help", []string{"-h"}, 0, "Usage: agentic-sdd tui"},
 		{"long help", []string{"--help"}, 0, "AGENTIC_SDD_FORCE_INTERACTIVE=1"},
+		{"fleet config help", []string{"--help"}, 0, "--fleet-config PATH"},
 		{"unknown flag", []string{"--wat"}, 2, "flag provided but not defined"},
 		{"unexpected argument", []string{"extra"}, 2, `unexpected argument "extra"`},
 		{"free first without pack", []string{"--with-opencode=false", "--opencode-free-first"}, 2, "--opencode-free-first requires --with-opencode"},

@@ -84,6 +84,7 @@ const (
 	HelpSectionDiagnostics
 	HelpSectionAbout
 	HelpSectionPreferences
+	HelpSectionFleet
 )
 
 // HelpSectionInfo holds display metadata for one help section tab.
@@ -105,6 +106,43 @@ func AllHelpSections() []HelpSectionInfo {
 		{Section: HelpSectionDiagnostics, Key: "6", Title: "Diagnostics"},
 		{Section: HelpSectionAbout, Key: "7", Title: "About"},
 		{Section: HelpSectionPreferences, Key: "8", Title: "Preferences"},
+		{Section: HelpSectionFleet, Key: "9", Title: "Fleet Manager"},
+	}
+}
+
+// FleetHelpLines returns the Fleet Manager help/quick-start topic as unwrapped
+// prose lines. It states only behavior this build implements: an explicit local
+// source, previewed deployment, default-No confirmation, managed-backup restore
+// and preview-only capability. It names no machine-specific path and makes no
+// subscription, entitlement, authentication or runtime-verification claim.
+// Keep it short: the "All" topic renders every section in one bounded view.
+func FleetHelpLines() []string {
+	return []string{
+		"Fleet Manager keeps agent profiles in one personal fleet.json and renders the managed OpenCode agent files from it.",
+		"",
+		"First use (pick one; nothing is scanned or inferred):",
+		"- Existing file: press s on Overview and type its exact path.",
+		"- Just looking: read this topic and docs/fleet-manager-tui.md; both are read-only.",
+		"- CLI: run agentic-sdd help fleet, then agentic-sdd fleet status --config PATH.",
+		"",
+		"Everyday flow:",
+		"1. Choose the source. Overview shows the explicit path and read state; empty stays \"(none selected)\".",
+		"2. Change a model. In Profiles (p) press m to pick a model for one instance; the edit stays staged in memory.",
+		"3. Save the personal source. A separate, explicit write, not available in this TUI build; edit fleet.json yourself, then press r.",
+		"4. Preview the deployment. Review (c) shows the exact managed-file plan; previewing writes nothing.",
+		"5. Apply with default-No. Deployment needs an explicit y; Enter, n or Esc means no. A live apply backs up first.",
+		"6. Restore a managed backup. Recovery (e) lists managed backups; a restore also needs an explicit y.",
+		"",
+		"Labels that are easy to confuse:",
+		"- Role vs instance: a role is the job (for example reviewer); an instance is one entry with its own ID, provider, model and enabled state.",
+		"- Personal source vs rendered file vs installed agent: fleet.json is yours, the rendered file is generated from it, and the installed agent is what OpenCode loads; they can differ until you apply and reload.",
+		"- installed is not selected primary, not authenticated and not runtime-verified: primary choice, credentials and a model reply are unchecked here.",
+		"",
+		"Limits in this build:",
+		"- Preview only: live deployment and restore are disabled, so apply and restore stay previews.",
+		"- No subscription, price, entitlement or quota state is shown or promised.",
+		"- No automatic adoption or bulk repair; unmanaged files stay untouched; adoption is an explicit CLI decision.",
+		"- Nothing is committed, pushed or sent to a Git host.",
 	}
 }
 

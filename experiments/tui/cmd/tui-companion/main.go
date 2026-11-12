@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/charmbracelet/x/term"
 
@@ -64,10 +65,11 @@ func run(args []string, stdout, stderr io.Writer, env environment) int {
 
 	fs := flag.NewFlagSet("agentic-sdd-tui", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var home, repo string
+	var home, repo, fleetConfig string
 	var withOpenCode, openCodeFreeFirst, showVersion, protocolInfo bool
 	fs.StringVar(&home, "home", "", "home directory whose client folders are inspected (default: the current user home)")
 	fs.StringVar(&repo, "repo", "", "skills checkout to read (default: the embedded assets)")
+	fs.StringVar(&fleetConfig, "fleet-config", "", "explicit personal fleet.json path (default: none selected)")
 	fs.BoolVar(&withOpenCode, "with-opencode", true, "include the optional OpenCode pack and profiles (default true)")
 	fs.BoolVar(&openCodeFreeFirst, "opencode-free-first", false, "preset OpenCode profiles to Free-first models (requires --with-opencode)")
 	fs.BoolVar(&showVersion, "version", false, "print version and build identity information")
@@ -112,19 +114,27 @@ func run(args []string, stdout, stderr io.Writer, env environment) int {
 		fmt.Fprintln(stderr, "error: --opencode-free-first requires --with-opencode")
 		return 2
 	}
+	// An empty or whitespace-only value is unset; the companion never invents
+	// or scans for a fleet.json path.
+	fleetConfig = strings.TrimSpace(fleetConfig)
 
 	return tuirun.Run(tuirun.Launch{
 		Program:           "agentic-sdd-tui",
 		Home:              home,
 		Repo:              repo,
+		FleetConfig:       fleetConfig,
 		WithOpenCode:      withOpenCode,
 		OpenCodeFreeFirst: openCodeFreeFirst,
 		RequireOptIn:      false,
-		StdinTTY:          env.stdinTTY,
-		StdoutTTY:         env.stdoutTTY,
-		Stderr:            stderr,
-		Getenv:            env.getenv,
-		UserHomeDir:       env.userHomeDir,
+		// The live fleet capability is a reviewed build value injected at link
+		// time (default preview). No flag, environment or config key can flip
+		// it at runtime.
+		FleetLive:   buildinfo.FleetLiveEnabled(),
+		StdinTTY:    env.stdinTTY,
+		StdoutTTY:   env.stdoutTTY,
+		Stderr:      stderr,
+		Getenv:      env.getenv,
+		UserHomeDir: env.userHomeDir,
 	})
 }
 
@@ -140,7 +150,7 @@ func printVersion(out io.Writer) {
 }
 
 func printUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd-tui [--home PATH] [--repo PATH] [--with-opencode[=false]] [--opencode-free-first]
+	fmt.Fprint(out, `Usage: agentic-sdd-tui [--home PATH] [--repo PATH] [--fleet-config PATH] [--with-opencode[=false]] [--opencode-free-first]
        agentic-sdd-tui --version
        agentic-sdd-tui --protocol-info
 
@@ -151,6 +161,8 @@ real input and output terminal.
 Options:
   --home PATH            Home directory whose client folders are inspected.
   --repo PATH            Skills checkout to read (default: embedded assets).
+  --fleet-config PATH    Explicit personal fleet.json path; no path is scanned
+                         or inferred, and omitting it selects no source.
   --with-opencode        Include the optional OpenCode pack and profiles (default true).
   --opencode-free-first  Preset OpenCode profiles to Free-first models
                          (requires --with-opencode).

@@ -25,6 +25,12 @@ const QuickStartName = "Quick start"
 // a successful setup.
 const PostSetupSectionTitle = "First prompt & next steps"
 
+// FleetHint is the optional, skippable pointer to Fleet Manager shown on the
+// tour's welcome step. It adds no state: the tour still writes nothing, and
+// skipping or cancelling leaves it unread. It names no path and makes no
+// deployment, authentication or entitlement claim.
+const FleetHint = "Optional later: Fleet Manager (Install & Manage, key f) shows the configured agent models. Deployment and restore are preview only in this build, and nothing is written from here."
+
 // PostSetupBody returns the exact, copyable first Router prompt and the plain
 // next steps offered after a successful setup. The caller renders the lines;
 // nothing is copied, opened or executed, and no client or agent is contacted.
@@ -400,6 +406,8 @@ func (m OnboardingModel) Lines(width int) []string {
 			"1. What gets installed\n"+
 				"2. A client and source review\n"+
 				"3. Your first agentic-sdd-router prompt", width)...)
+		lines = append(lines, "")
+		lines = append(lines, m.section("Fleet models (optional)", FleetHint, width)...)
 
 	case OnboardingInstalled:
 		lines = append(lines, m.section("What gets installed",

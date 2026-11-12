@@ -13,8 +13,10 @@ package tui
 //
 // The engine contracts stay in internal/appops: this host reuses the immutable
 // InstallRequest/RestoreRequest, the preview token and the structured
-// ApplyResult. It never parses transcripts, never invents a percentage and never
-// touches a destination itself.
+// ApplyResult. Fleet source-save, fleet apply and fleet restore run through the
+// same single slot as install and restore: they are three more kinds on this one
+// host, never a second writer. It never parses transcripts, never invents a
+// percentage and never touches a destination itself.
 
 import (
 	"errors"
@@ -30,6 +32,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"agentic-sdd/internal/appops"
+	"agentic-sdd/internal/fleet"
 	"agentic-sdd/internal/skillsync"
 )
 
@@ -49,6 +52,11 @@ var ErrWriteInProgress = errors.New("a write is already running")
 // ErrWriteInvalid reports a write request that cannot be started safely.
 var ErrWriteInvalid = errors.New("write request is invalid")
 
+// ErrFleetUnavailable reports a fleet write whose engine seam is not wired in
+// this build. It is always a refusal: the host opens no transcript and calls no
+// engine, so the operation can never look like a successful write.
+var ErrFleetUnavailable = errors.New("fleet write seam is not wired in this build")
+
 // WriteKind identifies which engine operation a write transaction runs.
 type WriteKind int
 
@@ -57,6 +65,13 @@ const (
 	WriteInstall WriteKind = iota + 1
 	// WriteRestore runs one revalidated restore apply.
 	WriteRestore
+	// WriteFleetApply runs one revalidated fleet deployment apply. The plan is
+	// held in memory and identified by its plan ID, never by a plan file.
+	WriteFleetApply
+	// WriteFleetRestore restores one managed fleet backup.
+	WriteFleetRestore
+	// WriteSourceSave saves the personal fleet source file.
+	WriteSourceSave
 )
 
 // String returns the engine-style verb for display and log headers.
@@ -66,9 +81,54 @@ func (k WriteKind) String() string {
 		return "apply"
 	case WriteRestore:
 		return "restore"
+	case WriteFleetApply:
+		return "fleet-apply"
+	case WriteFleetRestore:
+		return "fleet-restore"
+	case WriteSourceSave:
+		return "save-config"
 	default:
 		return "unknown"
 	}
+}
+
+// isFleet reports whether the kind is one of the fleet write kinds. All of them
+// carry their payload in WriteRequest.Fleet and resolve their own home.
+func (k WriteKind) isFleet() bool {
+	switch k {
+	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
+		return true
+	default:
+		return false
+	}
+}
+
+// FleetWriteRequest is one confirmed fleet write. It is TUI-local: it carries
+// only resolved identities the caller already obtained from the shared seam, so
+// no screen can join, clean or invent a path here.
+//
+//   - Home is the resolved home used for the private operation log. It is
+//     required even when the personal source lives outside it.
+//   - ConfigPath is the selected personal fleet source file.
+//   - PlanID identifies the in-memory plan a fleet apply was confirmed against.
+//     It is an identity label, never a temporary plan file.
+//   - Plan is the immutable in-memory plan the apply carries to the shared
+//     appops seam. It is an identity payload, never a second plan file, and the
+//     seam deep-copies and revalidates it before any write.
+//   - BackupID identifies the managed fleet backup a restore was confirmed for.
+//   - Token is the preview token the apply/restore/save seam revalidates.
+//   - Label is a short human-readable description of the confirmed change set.
+//   - Source is the display label for the fleet source; empty falls back to
+//     ConfigPath so a fleet write is never recorded as "embedded".
+type FleetWriteRequest struct {
+	Home       string
+	ConfigPath string
+	PlanID     string
+	Plan       *fleet.Plan
+	BackupID   string
+	Token      string
+	Label      string
+	Source     string
 }
 
 // WriteRequest is one approved write transaction. It is constructed from the
@@ -79,8 +139,12 @@ type WriteRequest struct {
 	Kind    WriteKind
 	Install appops.InstallRequest
 	Restore appops.RestoreRequest
-	Token   string
+	// Fleet carries the payload for WriteFleetApply, WriteFleetRestore and
+	// WriteSourceSave. It must stay zero for install and restore.
+	Fleet FleetWriteRequest
+	Token string
 	// Command is the transcript header, for example "apply --with-opencode".
+	// For fleet kinds the header is derived and this must be empty or match it.
 	Command string
 	// Label is a short human-readable description of the confirmed change set.
 	Label string
@@ -93,13 +157,64 @@ func (r WriteRequest) home() string {
 		return r.Install.Home()
 	case WriteRestore:
 		return r.Restore.Home()
+	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
+		return r.Fleet.Home
 	default:
 		return ""
 	}
 }
 
-// source returns the transcript source identity, or "embedded".
+// token returns the preview token the matching engine seam revalidates.
+func (r WriteRequest) token() string {
+	if r.Kind.isFleet() {
+		return r.Fleet.Token
+	}
+	return r.Token
+}
+
+// command returns the transcript command header. Fleet headers are derived so
+// they cannot drift from the confirmed identity.
+func (r WriteRequest) command() string {
+	if cmd := r.fleetCommand(); cmd != "" {
+		return cmd
+	}
+	if r.Command != "" {
+		return r.Command
+	}
+	return r.Kind.String()
+}
+
+// fleetCommand returns the exact fleet command header for the request kind, or
+// "" for a non-fleet kind.
+func (r WriteRequest) fleetCommand() string {
+	switch r.Kind {
+	case WriteFleetApply:
+		if r.Fleet.PlanID == "" {
+			return "fleet apply"
+		}
+		return "fleet apply --plan " + r.Fleet.PlanID
+	case WriteFleetRestore:
+		if r.Fleet.BackupID == "" {
+			return "fleet restore"
+		}
+		return "fleet restore " + r.Fleet.BackupID
+	case WriteSourceSave:
+		return "fleet config save"
+	default:
+		return ""
+	}
+}
+
+// source returns the transcript source identity, or "embedded". Fleet writes
+// always report the selected personal source and its path, never "embedded".
 func (r WriteRequest) source() string {
+	switch r.Kind {
+	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
+		if r.Fleet.Source != "" {
+			return r.Fleet.Source
+		}
+		return r.Fleet.ConfigPath
+	}
 	var repo string
 	switch r.Kind {
 	case WriteInstall:
@@ -357,6 +472,11 @@ type InstallApplier func(req appops.InstallRequest, token string, out io.Writer)
 // RestoreApplier runs one revalidated restore.
 type RestoreApplier func(req appops.RestoreRequest, token string, out io.Writer) (appops.ApplyResult, error)
 
+// FleetWriter runs one revalidated fleet write against the shared appops seam.
+// The three fleet kinds share this signature because they share one write slot
+// and one structured result; the seam itself decides which engine call runs.
+type FleetWriter func(req FleetWriteRequest, token string, out io.Writer) (appops.ApplyResult, error)
+
 // WriteLog is one write transcript destination. Flush must persist buffered
 // data; Close must always run, including after a failed write.
 type WriteLog interface {
@@ -370,12 +490,23 @@ type WriteLog interface {
 type WriteLogFactory func(kind WriteKind, home string) (log WriteLog, path string, err error)
 
 // OpsHostOptions injects the host's narrow seams. The zero value uses the
-// production appops engine and the private file logger.
+// production appops engine and the private file logger for install, restore,
+// fleet apply and fleet restore.
+//
+// Fleet source save has no production default: B4's native source-write surface
+// is separately gated, so leaving SaveFleetSource nil fails that operation with
+// ErrFleetUnavailable instead of reporting a write that never ran.
 type OpsHostOptions struct {
 	ApplyInstall InstallApplier
 	ApplyRestore RestoreApplier
-	OpenLog      WriteLogFactory
-	Now          func() time.Time
+	// ApplyFleet runs one revalidated fleet deployment apply.
+	ApplyFleet FleetWriter
+	// ApplyFleetRestore runs one revalidated managed-backup restore.
+	ApplyFleetRestore FleetWriter
+	// SaveFleetSource saves the personal fleet source file.
+	SaveFleetSource FleetWriter
+	OpenLog         WriteLogFactory
+	Now             func() time.Time
 }
 
 // OpsHost owns the single write slot. It is safe to share through App copies;
@@ -387,27 +518,41 @@ type OpsHost struct {
 	completed    appops.OperationID
 	hasCompleted bool
 
-	applyInstall InstallApplier
-	applyRestore RestoreApplier
-	openLog      WriteLogFactory
-	now          func() time.Time
-	progressSink func(tea.Msg)
+	applyInstall      InstallApplier
+	applyRestore      RestoreApplier
+	applyFleet        FleetWriter
+	applyFleetRestore FleetWriter
+	saveFleetSource   FleetWriter
+	openLog           WriteLogFactory
+	now               func() time.Time
+	progressSink      func(tea.Msg)
 }
 
-// NewOpsHost builds one host with the supplied seams. Nil seams fall back to
-// the production implementation.
+// NewOpsHost builds one host with the supplied seams. Nil install/restore/fleet
+// apply/fleet restore/log seams fall back to the production implementation; a
+// nil SaveFleetSource seam stays nil so the separately gated source save is
+// refused rather than faked.
 func NewOpsHost(opts OpsHostOptions) *OpsHost {
 	host := &OpsHost{
-		applyInstall: opts.ApplyInstall,
-		applyRestore: opts.ApplyRestore,
-		openLog:      opts.OpenLog,
-		now:          opts.Now,
+		applyInstall:      opts.ApplyInstall,
+		applyRestore:      opts.ApplyRestore,
+		applyFleet:        opts.ApplyFleet,
+		applyFleetRestore: opts.ApplyFleetRestore,
+		saveFleetSource:   opts.SaveFleetSource,
+		openLog:           opts.OpenLog,
+		now:               opts.Now,
 	}
 	if host.applyInstall == nil {
 		host.applyInstall = appops.ApplyInstall
 	}
 	if host.applyRestore == nil {
 		host.applyRestore = appops.ApplyRestore
+	}
+	if host.applyFleet == nil {
+		host.applyFleet = appOpsFleetApply
+	}
+	if host.applyFleetRestore == nil {
+		host.applyFleetRestore = appOpsFleetRestore
 	}
 	if host.openLog == nil {
 		host.openLog = openFileWriteLog
@@ -416,6 +561,29 @@ func NewOpsHost(opts OpsHostOptions) *OpsHost {
 		host.now = time.Now
 	}
 	return host
+}
+
+// appOpsFleetApply is the production fleet apply seam. It rebuilds the shared
+// immutable request from the confirmed in-memory plan and resolved home, then
+// lets appops revalidate the preview token before writing. A malformed plan or
+// home is a typed refusal with no engine call.
+func appOpsFleetApply(req FleetWriteRequest, token string, out io.Writer) (appops.ApplyResult, error) {
+	request, err := appops.NewFleetApplyRequest(req.Plan, req.Home)
+	if err != nil {
+		return appops.ApplyResult{Operation: skillsync.OperationApply, Outcome: skillsync.OutcomeFailed}, err
+	}
+	return appops.ApplyFleet(request, token, out)
+}
+
+// appOpsFleetRestore is the production managed-backup restore seam. It rebuilds
+// the shared immutable request from the confirmed backup identity and resolved
+// home, then revalidates the restore preview token before writing.
+func appOpsFleetRestore(req FleetWriteRequest, token string, out io.Writer) (appops.ApplyResult, error) {
+	request, err := appops.NewFleetRestoreApplyRequest(req.Home, req.BackupID)
+	if err != nil {
+		return appops.ApplyResult{Operation: skillsync.OperationRestore, Outcome: skillsync.OutcomeFailed}, err
+	}
+	return appops.ApplyFleetRestore(request, token, out)
 }
 
 // SetProgressSink routes progress messages to the running program, usually
@@ -478,15 +646,20 @@ func (h *OpsHost) BeginWrite(req WriteRequest) (WriteStartedMsg, tea.Cmd, error)
 	h.active = status
 	// Capture the seams and the home under the lock so the command never reads
 	// mutable host state while Update runs.
-	applyInstall := h.applyInstall
-	applyRestore := h.applyRestore
-	openLog := h.openLog
-	now := h.now
+	seams := writeSeams{
+		applyInstall:      h.applyInstall,
+		applyRestore:      h.applyRestore,
+		applyFleet:        h.applyFleet,
+		applyFleetRestore: h.applyFleetRestore,
+		saveFleetSource:   h.saveFleetSource,
+		openLog:           h.openLog,
+		now:               h.now,
+	}
 	home := req.home()
 	h.mu.Unlock()
 
 	cmd := func() tea.Msg {
-		return h.run(req, id, home, openLog, now, applyInstall, applyRestore)
+		return h.run(req, id, home, seams)
 	}
 	return started, cmd, nil
 }
@@ -524,8 +697,13 @@ func (h *OpsHost) Completed() (appops.OperationID, bool) {
 func (r WriteRequest) validate() error {
 	switch r.Kind {
 	case WriteInstall, WriteRestore:
+	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
+		return r.validateFleet()
 	default:
 		return fmt.Errorf("%w: unknown operation kind", ErrWriteInvalid)
+	}
+	if r.Fleet != (FleetWriteRequest{}) {
+		return fmt.Errorf("%w: %s does not take a fleet payload", ErrWriteInvalid, r.Kind)
 	}
 	if r.Token == "" {
 		return fmt.Errorf("%w: a preview token is required", ErrWriteInvalid)
@@ -536,29 +714,103 @@ func (r WriteRequest) validate() error {
 	return nil
 }
 
-// run executes one claimed write. It is called from a tea.Cmd goroutine only.
-func (h *OpsHost) run(
-	req WriteRequest,
-	id appops.OperationID,
-	home string,
-	openLog WriteLogFactory,
-	now func() time.Time,
-	applyInstall InstallApplier,
-	applyRestore RestoreApplier,
-) WriteResultMsg {
-	result := WriteResultMsg{ID: id, Kind: req.Kind, Label: req.Label, FinishedAt: now()}
+// validateFleet rejects a fleet request whose kind, identity or token does not
+// match its payload. It never weakens the install/restore checks.
+func (r WriteRequest) validateFleet() error {
+	fleet := r.Fleet
+	if fleet.Token == "" {
+		return fmt.Errorf("%w: %s requires the resolved preview token", ErrWriteInvalid, r.Kind)
+	}
+	if r.Token != "" && r.Token != fleet.Token {
+		return fmt.Errorf("%w: %s preview token does not match the fleet request", ErrWriteInvalid, r.Kind)
+	}
+	if fleet.Home == "" {
+		return fmt.Errorf("%w: %s requires a resolved home", ErrWriteInvalid, r.Kind)
+	}
+	switch r.Kind {
+	case WriteFleetApply:
+		if fleet.ConfigPath == "" {
+			return fmt.Errorf("%w: %s requires the fleet config path", ErrWriteInvalid, r.Kind)
+		}
+		if fleet.BackupID != "" {
+			return fmt.Errorf("%w: %s does not take a backup identity", ErrWriteInvalid, r.Kind)
+		}
+		if fleet.PlanID == "" {
+			return fmt.Errorf("%w: %s requires the plan identity", ErrWriteInvalid, r.Kind)
+		}
+	case WriteFleetRestore:
+		if fleet.PlanID != "" || fleet.Plan != nil {
+			return fmt.Errorf("%w: %s does not take a plan identity", ErrWriteInvalid, r.Kind)
+		}
+		if fleet.BackupID == "" {
+			return fmt.Errorf("%w: %s requires the backup identity", ErrWriteInvalid, r.Kind)
+		}
+	case WriteSourceSave:
+		if fleet.ConfigPath == "" {
+			return fmt.Errorf("%w: %s requires the fleet config path", ErrWriteInvalid, r.Kind)
+		}
+		if fleet.PlanID != "" || fleet.Plan != nil || fleet.BackupID != "" {
+			return fmt.Errorf("%w: %s takes neither a plan nor a backup identity", ErrWriteInvalid, r.Kind)
+		}
+	}
+	if want := r.fleetCommand(); r.Command != "" && r.Command != want {
+		return fmt.Errorf("%w: %s command header must be %q", ErrWriteInvalid, r.Kind, want)
+	}
+	return nil
+}
 
-	log, path, err := openLog(req.Kind, home)
+// writeSeams is the immutable set of engine seams one claimed write captured.
+// Passing it by value keeps the command independent of later host changes.
+type writeSeams struct {
+	applyInstall      InstallApplier
+	applyRestore      RestoreApplier
+	applyFleet        FleetWriter
+	applyFleetRestore FleetWriter
+	saveFleetSource   FleetWriter
+	openLog           WriteLogFactory
+	now               func() time.Time
+}
+
+// fleetWriter returns the seam for one fleet kind, or nil when this build has
+// no wiring for it.
+func (s writeSeams) fleetWriter(kind WriteKind) FleetWriter {
+	switch kind {
+	case WriteFleetApply:
+		return s.applyFleet
+	case WriteFleetRestore:
+		return s.applyFleetRestore
+	case WriteSourceSave:
+		return s.saveFleetSource
+	default:
+		return nil
+	}
+}
+
+// run executes one claimed write. It is called from a tea.Cmd goroutine only.
+func (h *OpsHost) run(req WriteRequest, id appops.OperationID, home string, seams writeSeams) WriteResultMsg {
+	result := WriteResultMsg{ID: id, Kind: req.Kind, Label: req.Label, FinishedAt: seams.now()}
+
+	// A fleet kind without its seam must never look like a write that ran. The
+	// refusal happens before the transcript is opened and before any engine
+	// call, so no log file and no destination change is produced.
+	var fleetWriter FleetWriter
+	if req.Kind.isFleet() {
+		fleetWriter = seams.fleetWriter(req.Kind)
+		if fleetWriter == nil {
+			result.Err = fmt.Errorf("%w: %s", ErrFleetUnavailable, req.Kind)
+			result.FinishedAt = seams.now()
+			return result
+		}
+	}
+
+	log, path, err := seams.openLog(req.Kind, home)
 	if err != nil {
 		result.Err = fmt.Errorf("open operation log: %w", err)
-		result.FinishedAt = now()
+		result.FinishedAt = seams.now()
 		return result
 	}
 	result.LogPath = path
-	command := req.Command
-	if command == "" {
-		command = req.Kind.String()
-	}
+	command := req.command()
 	_, _ = fmt.Fprintf(log, "Started: %s\nCommand: %s\nSource: %s\nHome: %s\n",
 		result.FinishedAt.UTC().Format(time.RFC3339Nano), command, req.source(), home)
 
@@ -567,11 +819,13 @@ func (h *OpsHost) run(
 
 	switch req.Kind {
 	case WriteInstall:
-		result.Result, result.Err = applyInstall(req.Install, req.Token, log)
+		result.Result, result.Err = seams.applyInstall(req.Install, req.Token, log)
 	case WriteRestore:
-		result.Result, result.Err = applyRestore(req.Restore, req.Token, log)
+		result.Result, result.Err = seams.applyRestore(req.Restore, req.Token, log)
+	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
+		result.Result, result.Err = fleetWriter(req.Fleet, req.token(), log)
 	}
-	result.FinishedAt = now()
+	result.FinishedAt = seams.now()
 
 	h.emit(WriteProgressMsg{ID: id, Kind: req.Kind, Step: WriteStepFlushing, Detail: path})
 
@@ -580,7 +834,7 @@ func (h *OpsHost) run(
 		outcome = "failure"
 		_, _ = fmt.Fprintf(log, "error: %v\n", result.Err)
 	}
-	_, _ = fmt.Fprintf(log, "Result: %s\nFinished: %s\n", outcome, now().UTC().Format(time.RFC3339Nano))
+	_, _ = fmt.Fprintf(log, "Result: %s\nFinished: %s\n", outcome, seams.now().UTC().Format(time.RFC3339Nano))
 	flushErr := log.Flush()
 	closeErr := log.Close()
 	result.LogErr = errors.Join(flushErr, closeErr)

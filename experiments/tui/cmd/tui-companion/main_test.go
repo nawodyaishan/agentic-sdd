@@ -112,6 +112,7 @@ func TestHelpIsPublicAndNonInteractive(t *testing.T) {
 		"Usage: agentic-sdd-tui",
 		"--home PATH",
 		"--repo PATH",
+		"--fleet-config PATH",
 		"--with-opencode",
 		"--opencode-free-first",
 		"--version",
@@ -183,6 +184,29 @@ func TestFreeFirstRequiresOpenCodePack(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "--opencode-free-first requires --with-opencode") {
 		t.Fatalf("free-first without pack stderr = %q", stderr.String())
+	}
+}
+
+func TestFleetConfigFlagIsAccepted(t *testing.T) {
+	// The flag must parse on the public surface; the value is forward-only, so
+	// reaching the same terminal gate as a no-flag launch proves acceptance
+	// without starting a UI. The test seam does not expose the forwarded value;
+	// tuirun owns that assignment.
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--fleet-config", "/tmp/example/fleet.json"}, &stdout, &stderr, environment{
+		getenv:      func(string) string { return "" },
+		stdinTTY:    false,
+		stdoutTTY:   true,
+		userHomeDir: fatalHome(t),
+	})
+	if code != 2 {
+		t.Fatalf("--fleet-config launch exit = %d, want 2 (stderr: %s)", code, stderr.String())
+	}
+	if strings.Contains(stderr.String(), "flag provided but not defined") {
+		t.Fatalf("--fleet-config was not accepted: %s", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "stdin is not a terminal") {
+		t.Fatalf("--fleet-config stderr = %q, want the stdin terminal gate", stderr.String())
 	}
 }
 

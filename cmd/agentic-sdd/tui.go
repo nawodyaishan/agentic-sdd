@@ -70,6 +70,10 @@ type tuiRequest struct {
 	WithOpenCode      bool
 	WithOpenCodeSet   bool
 	OpenCodeFreeFirst bool
+	// FleetConfig is an optional explicit personal fleet.json path. Empty means
+	// unset: the companion selects no source and the TUI asks for one. The
+	// launcher never scans, infers or defaults this path.
+	FleetConfig string
 }
 
 // tuiProcess is one started companion process. It is an interface so the
@@ -144,12 +148,13 @@ func (e *Env) tuiDefaultLaunch() bool {
 func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env *Env) int {
 	fs := flag.NewFlagSet("agentic-sdd tui", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var home, repo string
+	var home, repo, fleetConfig string
 	var withOpenCode, openCodeFreeFirst bool
 	// The companion's documented default is on; the historical preview/apply
 	// default of the CLI is off and stays untouched.
 	fs.StringVar(&home, "home", "", "home directory whose client folders are inspected (default: your home)")
 	fs.StringVar(&repo, "repo", "", "skills checkout to read (default: skills embedded in this binary)")
+	fs.StringVar(&fleetConfig, "fleet-config", "", "explicit personal fleet.json path (default: none selected)")
 	fs.BoolVar(&withOpenCode, "with-opencode", true, "include the optional OpenCode pack and profiles (default true)")
 	fs.BoolVar(&openCodeFreeFirst, "opencode-free-first", false, "preset OpenCode profiles to Free-first models (requires --with-opencode)")
 	if err := fs.Parse(args); err != nil {
@@ -178,6 +183,9 @@ func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env
 			withOpenCodeSet = true
 		}
 	})
+	// An empty or whitespace-only value is unset, not a source path: the
+	// companion must never receive a path the user did not actually type.
+	fleetConfig = strings.TrimSpace(fleetConfig)
 	// The companion repeats these gates; checking them here keeps a scripted
 	// run from even starting a second process and never opens an alternate
 	// screen. A failure is explicit, never a silent preview.
@@ -198,13 +206,14 @@ func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env
 		WithOpenCode:      withOpenCode,
 		WithOpenCodeSet:   withOpenCodeSet,
 		OpenCodeFreeFirst: openCodeFreeFirst,
+		FleetConfig:       fleetConfig,
 	}, stdin, stdout, stderr, env)
 }
 
 // printTUIUsage is the explicit command's own flag reference. It is a new
 // help surface, so the historical usage block keeps its shape.
 func printTUIUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd tui [--repo PATH] [--home PATH] [--with-opencode[=false]] [--opencode-free-first]
+	fmt.Fprint(out, `Usage: agentic-sdd tui [--repo PATH] [--home PATH] [--fleet-config PATH] [--with-opencode[=false]] [--opencode-free-first]
 
 Opens the packaged terminal UI from the same installation. It needs a real
 input and output terminal; a pipe, a script, or
@@ -215,6 +224,8 @@ silent fallback.
 Options:
   --home PATH            Home directory whose client folders are inspected.
   --repo PATH            Skills checkout to read (default: embedded assets).
+  --fleet-config PATH    Explicit personal fleet.json path; no path is scanned
+                         or inferred, and omitting it selects no source.
   --with-opencode        Include the optional OpenCode pack and profiles (default true).
   --opencode-free-first  Preset OpenCode profiles to Free-first models
                          (requires --with-opencode).
@@ -242,6 +253,9 @@ func tuiCompanionArgs(req tuiRequest) []string {
 	}
 	if req.Repo != "" {
 		args = append(args, "--repo", req.Repo)
+	}
+	if req.FleetConfig != "" {
+		args = append(args, "--fleet-config", req.FleetConfig)
 	}
 	if req.WithOpenCodeSet {
 		args = append(args, fmt.Sprintf("--with-opencode=%t", req.WithOpenCode))

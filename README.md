@@ -311,6 +311,7 @@ agentic-sdd restore apply BACKUP_ID   # restore skills and OpenCode agent profil
 - **[Installer reference](docs/installer-reference.md)** — commands, Format 2/3 backups, restore, and file behavior.
 - **[Guided CLI journeys and flow tracing](docs/guide-flows.md)** — screen and prompt catalog, trace schema, and `AGENTIC_SDD_TRACE` events.
 - **[TUI architecture](docs/tui-architecture.md)** — packaged companion design, experimental nested module, and toolchain migration blueprint.
+- **[Fleet Manager (terminal UI)](docs/fleet-manager-tui.md)** — explicit local `fleet.json` source, staged model changes, source save pending separate approval, preview-only deployment and managed-backup restore.
 - **[OpenCode pack reference](opencode-pack/README.md)** & **[Model routing policy](opencode-pack/routing.md)** — specialist profiles, permissions, and fallback ladders.
 - **[Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)** — why the project exists and where it is headed.
 - **[Documentation index](docs/README.md)** & **[Contributing](CONTRIBUTING.md)**.

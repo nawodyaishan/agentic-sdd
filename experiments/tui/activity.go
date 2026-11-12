@@ -701,6 +701,7 @@ func (m ActivityModel) Lines(width int) []string {
 			"4. Start your first agentic workflow: agentic-sdd-router",
 			"",
 			"New here? Start with SDD Router in the Library (press 's' in Explore for details).",
+			"Agent models: open Fleet Manager (Install & Manage, key f) or read the Fleet Manager topic; preview only in this build.",
 			"Command hint: agentic-sdd preview",
 		}
 		sections = append(sections, Section(m.theme.Section.Render("Quick Start Guide"), workflowBody, width))
@@ -788,6 +789,17 @@ func (m ActivityModel) Lines(width int) []string {
 			m.theme.Hint.Render("Session preferences take effect immediately and persist for this session. No connectivity is claimed."),
 		}
 		sections = append(sections, Section(m.theme.Section.Render("Session Preferences"), prefBody, width))
+	}
+
+	// Fleet Manager. "All" keeps a compact pointer so adding the topic does not
+	// bury the later reference sections; the full guidance is its own tab.
+	if m.activeSection == HelpSectionAll {
+		sections = append(sections, Section(m.theme.Section.Render("Fleet Manager"), []string{
+			"See the Fleet Manager topic (9) for source, model, preview/apply and restore guidance; this build is preview only.",
+		}, width))
+	}
+	if m.activeSection == HelpSectionFleet {
+		sections = append(sections, Section(m.theme.Section.Render("Fleet Manager"), FleetHelpLines(), width))
 	}
 
 	// Flatten all sections with blank separators

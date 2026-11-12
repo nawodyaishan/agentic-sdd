@@ -102,6 +102,10 @@ type App struct {
 	installHubIndex int
 	install         InstallModel
 	restore         RestoreModel
+	fleet           FleetModel
+	fleetReader     FleetReader
+	fleetEditor     FleetEditor
+	fleetPlanner    FleetPlanner
 
 	// Activity & Help plus the once-per-session update check state machine.
 	// The model's read generation binds one bounded log read to the live
@@ -163,6 +167,14 @@ type AppScreenOptions struct {
 	// CatalogRefresh replaces the generation-bound read-only inventory refresh
 	// started after a completed write. Nil uses LoadCatalog.
 	CatalogRefresh func(TUIConfig) (Catalog, error)
+	// FleetReader replaces the Fleet Manager status and inventory reader.
+	FleetReader FleetReader
+	// FleetEditor replaces the read-only source preview editor.
+	FleetEditor FleetEditor
+	// FleetPlanner replaces the read-only deployment and recovery projection.
+	FleetPlanner FleetPlanner
+	// FleetDoctor replaces the opt-in local diagnostics seam.
+	FleetDoctor FleetDoctor
 }
 
 // NewAppWithScreens constructs the root shell with both the host seams and the
@@ -187,6 +199,29 @@ func NewAppWithScreens(cfg TUIConfig, catalog Catalog, opts AppOptions, screens 
 	}
 	if screens.CatalogRefresh != nil {
 		app.catalogLoader = screens.CatalogRefresh
+	}
+	if screens.FleetReader != nil || screens.FleetEditor != nil || screens.FleetPlanner != nil {
+		reader := screens.FleetReader
+		if reader == nil {
+			reader = app.fleetReader
+		}
+		editor := screens.FleetEditor
+		if editor == nil {
+			editor = app.fleetEditor
+		}
+		planner := screens.FleetPlanner
+		if planner == nil {
+			planner = app.fleetPlanner
+		}
+		app.fleetReader = reader
+		app.fleetEditor = editor
+		app.fleetPlanner = planner
+		app.fleet = NewFleetModelWithSeams(app.cfg, reader, editor, planner)
+		app.fleet.SetSize(app.childContentWidth(), app.childBodyHeight())
+		app.fleet.SetTheme(app.theme)
+	}
+	if screens.FleetDoctor != nil {
+		app.fleet.SetDoctor(screens.FleetDoctor)
 	}
 	return app
 }
@@ -243,6 +278,19 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 		logHome = catalog.Home
 	}
 
+	// Production fleet seams are read-only adapters over appops. They perform
+	// no read at construction: the engine is reached only when Fleet is opened
+	// and an explicit source is selected. A session without a resolved home
+	// keeps the truthful not-available defaults.
+	fleetReader := FleetReader(DefaultFleetReader{})
+	fleetEditor := FleetEditor(DefaultFleetEditor{})
+	fleetPlanner := FleetPlanner(DefaultFleetPlanner{})
+	if strings.TrimSpace(cfg.Home) != "" {
+		fleetReader = AppOpsFleetReader{Home: cfg.Home, Repo: cfg.Repo}
+		fleetEditor = AppOpsFleetEditor{Home: cfg.Home, Repo: cfg.Repo}
+		fleetPlanner = AppOpsFleetPlanner{Home: cfg.Home, Repo: cfg.Repo}
+	}
+
 	app := App{
 		cfg:          cfg,
 		theme:        theme,
@@ -259,6 +307,10 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 		routes:       routes,
 		install:      NewInstallModel(cfg),
 		restore:      NewRestoreModel(cfg, RestoreOps{}),
+		fleetReader:  fleetReader,
+		fleetEditor:  fleetEditor,
+		fleetPlanner: fleetPlanner,
+		fleet:        NewFleetModelWithSeams(cfg, fleetReader, fleetEditor, fleetPlanner),
 		activity: NewActivityModel(ActivityConfig{
 			Theme:         theme,
 			Width:         cfg.Width,
@@ -284,6 +336,10 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 	// the root viewport, so wrapping and paging agree on every row.
 	app.install.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.restore.SetSize(app.childContentWidth(), app.childBodyHeight())
+	app.fleet.SetSize(app.childContentWidth(), app.childBodyHeight())
+	// The diagnostics adapter inspects only a path the user types; it needs no
+	// home and performs no read until the panel runs an explicit request.
+	app.fleet.SetDoctor(AppOpsFleetDoctor{})
 	app.activity.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.applyTheme(theme)
 	return app
@@ -295,6 +351,7 @@ func (a *App) applyTheme(theme Theme) {
 	a.theme = theme
 	a.install.SetTheme(theme)
 	a.restore.SetTheme(theme)
+	a.fleet.SetTheme(theme)
 	a.activity.SetTheme(theme)
 	a.catalogModel.SetTheme(theme)
 	if a.onboarding != nil {
@@ -432,6 +489,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.catalogModel.SetSize(a.contentWidth(), a.contentHeight())
 		a.install.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.restore.SetSize(a.childContentWidth(), a.childBodyHeight())
+		a.fleet.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.activity.SetSize(a.childContentWidth(), a.childBodyHeight())
 		if a.onboarding != nil {
 			a.onboarding.SetSize(a.childContentWidth(), a.childBodyHeight())
@@ -606,6 +664,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, cmd
 
+	case FleetStatusMsg, FleetSourcePreviewMsg, FleetPlanPreviewMsg, FleetBackupsMsg, FleetRestorePreviewMsg, FleetDoctorMsg:
+		updated, cmd := a.fleet.Update(msg)
+		a.fleet = updated
+		return a, cmd
+
 	case tea.KeyPressMsg:
 		a.clampScrollOffsets()
 		return a.handleKey(msg)
@@ -645,6 +708,9 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			a.catalogModel = cat
 		}
 		return *a, cmd
+	}
+	if a.activeRoute == RouteInstall && a.installSection == installSectionFleet && a.fleet.IsInputFocused() {
+		return a.handleInstallRouteKey(msg)
 	}
 
 	key := msg.String()
@@ -701,6 +767,21 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// global quit keys stay above it.
 	if a.onboarding != nil {
 		return a.handleOnboardingKey(msg)
+	}
+
+	// Fleet Manager owns a few printable keys that collide with global shell
+	// toggles. Route them to the Fleet model before the global switch so the
+	// deployment review, model picker and view tabs are reachable. Route jumps
+	// (1-4), quit, help and Tab keep their global meaning.
+	if a.activeRoute == RouteInstall && a.installSection == installSectionFleet && !a.fleet.IsInputFocused() {
+		switch key {
+		case "c", "C":
+			return a.handleInstallRouteKey(msg)
+		case "m", "M":
+			if a.fleet.ActiveView() == FleetViewProfiles {
+				return a.handleInstallRouteKey(msg)
+			}
+		}
 	}
 
 	// A backup-details action owns 'm' in its own context, so the raw manifest
@@ -839,13 +920,15 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// The hub's two explicit shortcuts work from navigation focus too.
+	// The hub's explicit shortcuts work from navigation focus too.
 	if a.activeRoute == RouteInstall && a.installSection == installSectionHub {
 		switch key {
 		case "i":
 			return *a, a.openInstallScreen()
 		case "b":
 			return *a, a.openBackupsScreen()
+		case "f":
+			return *a, a.openFleetScreen()
 		}
 	}
 
@@ -1056,6 +1139,10 @@ func (a *App) routeWriteMsg(kind WriteKind, msg tea.Msg) tea.Cmd {
 			a.contentScroll = 0
 		}
 		return cmd
+	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
+		updated, cmd := a.fleet.Update(msg)
+		a.fleet = updated
+		return cmd
 	default:
 		return nil
 	}
@@ -1176,6 +1263,7 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 	if a.activeRoute == RouteInstall {
 		a.install.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.restore.SetSize(a.childContentWidth(), a.childBodyHeight())
+		a.fleet.SetSize(a.childContentWidth(), a.childBodyHeight())
 	}
 	if len(cmds) == 0 {
 		return *a, nil

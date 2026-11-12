@@ -1,15 +1,12 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"os"
+	iofs "io/fs"
 	"path/filepath"
-	"sort"
 
 	"agentic-sdd/internal/fleet"
 	"agentic-sdd/internal/skillsync"
@@ -152,112 +149,75 @@ func runFleetStatus(args []string, stdout, stderr io.Writer, env *Env) int {
 		return 1
 	}
 
-	cfg, _, configDigest, err := fleet.LoadConfigFile(configPath)
+	status, err := fleet.BuildStatus(configPath, repo, resolvedHome)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
-		return 2
-	}
-
-	absRepo := ""
-	if repo != "" {
-		absRepo, err = filepath.Abs(repo)
-		if err != nil {
-			fmt.Fprintf(stderr, "error: %v\n", err)
+		if errors.Is(err, fleet.ErrInvalidConfig) || errors.Is(err, iofs.ErrNotExist) {
 			return 2
 		}
-	}
-	pack, err := skillsync.OpenCodePackFS(absRepo)
-	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
-		return 2
-	}
-	_, err = fleet.Resolve(pack, cfg)
-	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
-		return 2
-	}
-
-	targetRoot := fleet.TargetRootForHome(resolvedHome)
-	live, err := fleet.ReadLiveManifest(resolvedHome)
-	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 
 	fmt.Fprintf(stdout, "Fleet Status:\n")
-	fmt.Fprintf(stdout, "  Configuration: %s (digest: %s)\n", configPath, configDigest)
-	fmt.Fprintf(stdout, "  Target root:   %s\n", targetRoot)
-	fmt.Fprintf(stdout, "  Instances (%d):\n", len(cfg.Instances))
+	fmt.Fprintf(stdout, "  Configuration: %s (digest: %s)\n", status.ConfigPath, status.ConfigDigest)
+	fmt.Fprintf(stdout, "  Target root:   %s\n", status.TargetRoot)
+	fmt.Fprintf(stdout, "  Instances (%d):\n", len(status.Instances))
 
-	ids := make([]string, 0, len(cfg.Instances))
-	for id := range cfg.Instances {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-
-	for _, id := range ids {
-		inst := cfg.Instances[id]
-		fileName := id + ".md"
-		targetFile := filepath.Join(targetRoot, fileName)
-		info, statErr := os.Lstat(targetFile)
-		exists := statErr == nil
-		record, recorded := live.RecordFor(targetFile)
-
-		currentDigest := ""
-		if exists && info.Mode().IsRegular() {
-			if data, err := os.ReadFile(targetFile); err == nil {
-				h := sha256.Sum256(data)
-				currentDigest = hex.EncodeToString(h[:])
-			}
-		}
-
-		installedStatus := "absent"
-		switch {
-		case exists && !info.Mode().IsRegular():
-			installedStatus = "installed (unsafe target; refused)"
-		case exists && recorded && record.IsManaged():
-			if record.DesiredDigest != "" && currentDigest != record.DesiredDigest {
-				installedStatus = "installed (managed, drifted)"
-			} else {
-				installedStatus = "installed (managed)"
-			}
-		case exists && info.Mode().IsRegular():
-			installedStatus = "installed (unmanaged/legacy provenance unknown)"
-		}
-
-		priorModel := ""
-		if recorded && record.Model != "" {
-			priorModel = record.Model
-		} else if exists && info.Mode().IsRegular() {
-			if content, readErr := os.ReadFile(targetFile); readErr == nil {
-				priorModel = fleet.ExtractModelFromContent(content)
-			}
-		}
-
+	for _, inst := range status.Instances {
 		enabledStr := "enabled"
-		if !inst.IsEnabled() {
+		if !inst.Enabled {
 			enabledStr = "disabled"
 		}
 
-		fmt.Fprintf(stdout, "    - %s:\n", id)
-		fmt.Fprintf(stdout, "        Model:            %s\n", inst.Model)
-		fmt.Fprintf(stdout, "        Source:           %s\n", inst.Source)
+		fmt.Fprintf(stdout, "    - %s:\n", inst.InstanceID)
+		fmt.Fprintf(stdout, "        Model:            %s\n", inst.ConfiguredModel)
+		fmt.Fprintf(stdout, "        Source:           %s\n", inst.SourceRef)
 		fmt.Fprintf(stdout, "        State:            %s\n", enabledStr)
-		fmt.Fprintf(stdout, "        Installed:        %s\n", installedStatus)
+		fmt.Fprintf(stdout, "        Installed:        %s\n", fleetStatusInstalledLabel(inst))
 		fmt.Fprintf(stdout, "        Selected primary: not selected (offline default)\n")
 		fmt.Fprintf(stdout, "        Runtime:          not checked (offline)\n")
-		if recorded && record.IsManaged() {
-			fmt.Fprintf(stdout, "        Provenance:       %s (last applied %s)\n", record.Provenance, shortDigest(record.DesiredDigest))
+		if inst.LastAppliedDigest != "" {
+			fmt.Fprintf(stdout, "        Provenance:       %s (last applied %s)\n", inst.Provenance, shortDigest(inst.LastAppliedDigest))
 		}
-		if priorModel != "" && inst.Model != "" && priorModel != inst.Model {
-			fmt.Fprintf(stdout, "        Warning:          model route changed from %q to %q\n", priorModel, inst.Model)
+		if inst.PriorModel != "" && inst.ConfiguredModel != "" && inst.PriorModel != inst.ConfiguredModel {
+			fmt.Fprintf(stdout, "        Warning:          model route changed from %q to %q\n", inst.PriorModel, inst.ConfiguredModel)
 		}
-		if fleet.IsReservedName(id) {
-			fmt.Fprintf(stdout, "        Warning:          instance uses reserved SDD name (%s)\n", id)
+		if fleet.IsReservedName(inst.InstanceID) {
+			fmt.Fprintf(stdout, "        Warning:          instance uses reserved SDD name (%s)\n", inst.InstanceID)
 		}
 	}
 
 	return 0
+}
+
+// fleetStatusInstalledLabel preserves the historical `fleet status` wording for
+// the typed InstalledState projection. A missing target used to print "absent"
+// even when a managed record still existed, so that case keeps the same text
+// instead of upgrading a read-only status line into a new claim.
+func fleetStatusInstalledLabel(inst fleet.InstanceStatus) string {
+	switch inst.Installed {
+	case fleet.InstalledUnsafeTarget:
+		return "installed (unsafe target; refused)"
+	case fleet.InstalledManagedCurrent, fleet.InstalledPendingApply:
+		return "installed (managed)"
+	case fleet.InstalledManagedDrifted:
+		if inst.CurrentDigest == "" {
+			return "absent"
+		}
+		return "installed (managed, drifted)"
+	case fleet.InstalledDisabled:
+		if inst.Conflict != "" {
+			return "installed (managed, drifted)"
+		}
+		return "installed (managed)"
+	case fleet.InstalledUnmanaged, fleet.InstalledLegacyUnknown:
+		if inst.CurrentDigest == "" {
+			return "absent"
+		}
+		return "installed (unmanaged/legacy provenance unknown)"
+	default:
+		return "absent"
+	}
 }
 
 func shortDigest(digest string) string {

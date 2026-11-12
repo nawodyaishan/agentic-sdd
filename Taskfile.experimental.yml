@@ -156,6 +156,47 @@ tasks:
         TMPDIR="$work" AGENTIC_SDD_TUI_TEST_BINARY="$binary" python3 -B -m unittest discover -s tests/tui -p test_terminal_lifecycle.py
         AGENTIC_SDD_TUI_PAIR_DIR="$2" TMPDIR="$work" python3 -B -m unittest discover -s tests/tui -p test_launcher_lifecycle.py
         ' sh {{.GOCACHE | shellQuote}} {{.SDD_TUI_PAIR_DIR | shellQuote}}
+  tui:fleet-pty:
+    desc: Run the opt-in Python stdlib Fleet Manager PTY lifecycle, resize and accessibility checks against a freshly built TUI binary
+    dir: '{{.ROOT_DIR}}'
+    cmds:
+      - |
+        sh -c '
+        set -eu
+        root=$(pwd)
+        if ! command -v python3 >/dev/null 2>&1; then
+          echo "tui:fleet-pty: BLOCKED - python3 is not installed; the PTY harness needs the Python 3 standard library. This is not a pass." >&2
+          exit 2
+        fi
+        if ! python3 -c "import pty, termios, select, signal; signal.SIGWINCH" >/dev/null 2>&1; then
+          echo "tui:fleet-pty: BLOCKED - Python pty/termios/select/SIGWINCH are unavailable; Linux or macOS is required to drive a real PTY resize. This is not a pass." >&2
+          exit 2
+        fi
+        if ! command -v go >/dev/null 2>&1; then
+          echo "tui:fleet-pty: BLOCKED - the Go toolchain is not installed; experiments/tui must be built first. This is not a pass." >&2
+          exit 2
+        fi
+        version=$(GOTOOLCHAIN=local go env GOVERSION)
+        major=$(printf "%s" "$version" | sed -n "s/^go\([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1/p")
+        minor=$(printf "%s" "$version" | sed -n "s/^go\([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\2/p")
+        if [ -z "$major" ] || [ -z "$minor" ]; then
+          echo "tui:fleet-pty: BLOCKED - cannot parse Go version \"$version\". This is not a pass." >&2
+          exit 2
+        fi
+        if [ "$major" -lt 1 ] || { [ "$major" -eq 1 ] && [ "$minor" -lt 26 ]; }; then
+          echo "tui:fleet-pty: BLOCKED - experiments/tui needs Go 1.26 or newer; found $version. This is not a pass." >&2
+          exit 2
+        fi
+        work=$(mktemp -d /tmp/opencode/agentic-sdd-tui-fleet-pty.XXXXXX) || { echo "tui:fleet-pty: BLOCKED - cannot create a temporary directory under /tmp/opencode. This is not a pass." >&2; exit 2; }
+        trap "rm -rf -- \"$work\"" EXIT INT TERM
+        binary="$work/tui-spike"
+        (
+          cd experiments/tui
+          GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= GOPROXY=off go build -o "$binary" ./cmd/tui-spike
+        )
+        cd "$root"
+        TMPDIR="$work" AGENTIC_SDD_TUI_PTY_TMPDIR="$work" AGENTIC_SDD_TUI_TEST_BINARY="$binary" python3 -B -m unittest discover -s tests/tui -p test_fleet_lifecycle.py
+        ' sh {{.GOCACHE | shellQuote}}
   tui:run:
     desc: Interact with the experimental read-only TUI application shell in a disposable temporary home
     interactive: true

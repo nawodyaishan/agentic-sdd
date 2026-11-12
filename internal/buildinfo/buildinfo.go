@@ -67,6 +67,38 @@ func (d Distribution) AllowsInteractiveDefault() bool {
 	return d == DistributionHomebrew
 }
 
+// FleetCapability is the reviewed build-time capability marker for Fleet
+// Manager deployment and restore. It is provenance, never a user preference:
+// only the two reviewed markers are valid, and an absent, unknown or malformed
+// value always fails safe to preview.
+type FleetCapability string
+
+const (
+	// FleetCapabilityPreview is the shipped default. Apply and restore are
+	// hidden or disabled with "Preview only" and no key sequence can dispatch
+	// them.
+	FleetCapabilityPreview FleetCapability = "preview"
+	// FleetCapabilityLive enables the reviewed live apply/restore controls.
+	// Enabling it requires Feature 014 acceptance and a separate release
+	// decision; no implementation batch may flip it.
+	FleetCapabilityLive FleetCapability = "live"
+)
+
+// Valid reports whether c is one of the two reviewed capability markers.
+func (c FleetCapability) Valid() bool {
+	switch c {
+	case FleetCapabilityPreview, FleetCapabilityLive:
+		return true
+	}
+	return false
+}
+
+// AllowsLiveFleet reports whether this marker permits live fleet deployment
+// and restore. Only the explicit live marker opts in.
+func (c FleetCapability) AllowsLiveFleet() bool {
+	return c == FleetCapabilityLive
+}
+
 // These variables are the link-time injection points. Keep their names stable:
 // .goreleaser.yml and the local paired-build task address them with
 // -X agentic-sdd/internal/buildinfo.<Name>=<value>.
@@ -82,7 +114,32 @@ var (
 	SourceDigest = "unknown"
 	// DistributionMarker is the packaging provenance; see Distribution.
 	DistributionMarker = string(DistributionDev)
+	// FleetCapabilityMarker is the reviewed live-fleet capability. No release
+	// configuration injects it, so every shipped build keeps the preview
+	// default; enabling "live" is a separate release decision after Feature 014
+	// acceptance.
+	FleetCapabilityMarker = string(FleetCapabilityPreview)
 )
+
+// CurrentFleetCapability returns the injected fleet capability. An unset,
+// unknown or malformed marker fails safe to preview instead of live: the value
+// must match a reviewed marker exactly, so stray whitespace or aliases never
+// enable writes. This is a read of link-time state only: there is no
+// environment, config, CLI or key override anywhere in the process.
+func CurrentFleetCapability() FleetCapability {
+	marker := FleetCapability(FleetCapabilityMarker)
+	if !marker.Valid() {
+		return FleetCapabilityPreview
+	}
+	return marker
+}
+
+// FleetLiveEnabled reports whether this build may dispatch live fleet
+// deployment and restore. Tests inject the live marker directly; shipped
+// artifacts stay preview-only.
+func FleetLiveEnabled() bool {
+	return CurrentFleetCapability().AllowsLiveFleet()
+}
 
 // Identity is the part of the build identity that must match across a parent
 // CLI and its companion. Distribution is intentionally excluded.

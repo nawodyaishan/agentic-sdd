@@ -61,6 +61,12 @@ type TUIConfig struct {
 	Motion bool
 	// ASCII forces 7-bit ASCII borders and symbols.
 	ASCII bool
+	// FleetConfig is an optional explicit path to personal fleet.json.
+	// Empty means the Overview first-use choice is presented.
+	FleetConfig string
+	// FleetLive indicates whether live fleet apply/restore capabilities are enabled.
+	// Defaults to false (preview only).
+	FleetLive bool
 	// Profile selects the reference color profile used to resolve semantic
 	// tokens. The zero value (Unknown) keeps the TrueColor identity; Bubble Tea
 	// also reports the detected profile at startup through tea.ColorProfileMsg.

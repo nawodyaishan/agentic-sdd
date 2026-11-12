@@ -9,6 +9,7 @@ import (
 	"io"
 	"strconv"
 
+	"agentic-sdd/internal/fleet"
 	"agentic-sdd/internal/skillsync"
 )
 
@@ -44,7 +45,10 @@ type PreviewResult struct {
 // left untouched; Applied lists only committed changes and stays empty on
 // failure. BackupID and BackupPath identify the backup the operation wrote
 // (for a restore, the pre-restore backup). PreviewToken is the token this
-// apply consumed; a refused apply carries none.
+// apply consumed; a refused apply carries none. FleetApply and FleetRestore
+// are additive fleet-engine details populated only by ApplyFleet and
+// ApplyFleetRestore; they stay nil for install and skillsync restore, whose
+// existing fields and semantics are unchanged.
 type ApplyResult struct {
 	Operation    skillsync.OperationKind
 	Outcome      skillsync.Outcome
@@ -55,6 +59,8 @@ type ApplyResult struct {
 	Rollback     skillsync.RollbackInfo
 	SourceDigest string
 	PreviewToken string
+	FleetApply   *fleet.ApplyResult
+	FleetRestore *fleet.RestoreResult
 }
 
 // PreviewInstall runs the read-only install engine variant and returns its

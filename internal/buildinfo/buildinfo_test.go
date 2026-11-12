@@ -1,6 +1,7 @@
 package buildinfo_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -117,6 +118,74 @@ func TestDistributionMatrix(t *testing.T) {
 				t.Fatalf("%q.AllowsInteractiveDefault() = %v, want %v", tt.marker, got, tt.homebrew)
 			}
 		})
+	}
+}
+
+func TestFleetCapabilityDefaultsToPreviewAndFailsSafe(t *testing.T) {
+	original := buildinfo.FleetCapabilityMarker
+	t.Cleanup(func() { buildinfo.FleetCapabilityMarker = original })
+
+	if got := buildinfo.CurrentFleetCapability(); got != buildinfo.FleetCapabilityPreview {
+		t.Fatalf("CurrentFleetCapability default = %q, want %q", got, buildinfo.FleetCapabilityPreview)
+	}
+	if buildinfo.FleetLiveEnabled() {
+		t.Fatal("FleetLiveEnabled default = true, want false so an uninjected build stays preview-only")
+	}
+
+	buildinfo.FleetCapabilityMarker = string(buildinfo.FleetCapabilityLive)
+	if !buildinfo.FleetLiveEnabled() {
+		t.Fatal("FleetLiveEnabled = false for an explicit live marker")
+	}
+
+	for _, invalid := range []string{"", "LIVE", "Live", "true", "1", "yes", "preview-only", " live "} {
+		buildinfo.FleetCapabilityMarker = invalid
+		if got := buildinfo.CurrentFleetCapability(); got != buildinfo.FleetCapabilityPreview {
+			t.Fatalf("CurrentFleetCapability(%q) = %q, want the preview fallback", invalid, got)
+		}
+		if buildinfo.FleetLiveEnabled() {
+			t.Fatalf("FleetLiveEnabled(%q) = true; an invalid marker must never enable live writes", invalid)
+		}
+	}
+}
+
+func TestFleetCapabilityMatrix(t *testing.T) {
+	tests := []struct {
+		marker buildinfo.FleetCapability
+		valid  bool
+		live   bool
+	}{
+		{buildinfo.FleetCapabilityPreview, true, false},
+		{buildinfo.FleetCapabilityLive, true, true},
+		{buildinfo.FleetCapability(""), false, false},
+		{buildinfo.FleetCapability("preview-only"), false, false},
+		{buildinfo.FleetCapability("live "), false, false},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.marker), func(t *testing.T) {
+			if got := tt.marker.Valid(); got != tt.valid {
+				t.Fatalf("%q.Valid() = %v, want %v", tt.marker, got, tt.valid)
+			}
+			if got := tt.marker.AllowsLiveFleet(); got != tt.live {
+				t.Fatalf("%q.AllowsLiveFleet() = %v, want %v", tt.marker, got, tt.live)
+			}
+		})
+	}
+}
+
+// TestReleaseConfigKeepsFleetPreviewOnly guards FR-20/AC-36: the released
+// capability is a link-time value that no release configuration may flip to
+// live. Enabling it is a separate release decision after Feature 014
+// acceptance.
+func TestReleaseConfigKeepsFleetPreviewOnly(t *testing.T) {
+	for _, path := range []string{"../../.goreleaser.yml", "../../.github/workflows/release.yml"} {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		config := string(source)
+		if strings.Contains(config, "FleetCapability") {
+			t.Fatalf("%s references the fleet capability; the released default must stay preview", path)
+		}
 	}
 }
 
