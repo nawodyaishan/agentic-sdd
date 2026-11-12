@@ -1,13 +1,14 @@
 # Feature 015 — Fleet Manager TUI
 
 **Status:** APPROVED r1 (2026-11-12) — combined spec/plan/tasks approval in `## Approval`; Wave 1 authorized; B4 source-write remains separately gated.
+**Amendment status:** **MCP Integration Amendment r1 (2026-11-12) — MCP-A IMPLEMENTED; MCP-B–MCP-D AUTHORIZED.** The owner accepted the reviewer recommendations, authorized and completed MCP-A (T26–T30), then explicitly authorized **MCP-B, MCP-C and MCP-D** for parallel implementation. MCP-B's configuration write surface is authorized for development and fixture tests only. No package installation, network/OAuth call, real-home change, real-home apply or release is authorized.
 **Location:** `specs/015-fleet-manager-tui/spec.md` (this directory; input drafts retained beside it).
-**Prepared:** 2026-11-11.
-**Depends on:** Feature 013 Unified TUI Experience (accepted, published `v0.8.0`), Feature 014 Agent Fleet Model Overrides (B1–B9 implemented, **awaiting human review + Opus verdict**), Feature 009 OpenCode orchestration (accepted behavior and permissions), `internal/appops` (Feature 013 shared operation seam).
+**Prepared:** 2026-11-11; MCP amendment prepared 2026-11-12.
+**Depends on:** Feature 013 Unified TUI Experience (accepted, published `v0.8.0`), Feature 014 Agent Fleet Model Overrides (implemented scope **awaiting human/Opus acceptance**; batch ledger unchanged), Feature 009 OpenCode orchestration (accepted behavior and permissions), `internal/appops` (Feature 013 shared operation seam).
 **Target:** Paired `agentic-sdd` / `agentic-sdd-tui` distribution, root Go 1.23 + nested TUI Go 1.26/Charm v2, supported OpenCode V2 configurations only.
-**Inputs:** `015-fleet-manager-tui-experience-r2-ux-optimized.md` and `015-fleet-manager-tui-ux-review-2026-11-11.md` in this directory. Both are advisory; this document is the canonical proposal.
+**Inputs:** `015-fleet-manager-tui-experience-r2-ux-optimized.md` and `015-fleet-manager-tui-ux-review-2026-11-11.md` in this directory. Both are advisory; this document is the canonical proposal. The MCP amendment also uses `docs/mcp-default-integration-study.md` and `docs/codegraph.md`; vendor documentation was checked on 2026-11-12 and is advisory.
 
-> **Approval boundary.** Drafting and review are read-only. This document does not authorize code changes, a new batch, real-home application, private Git mutation, model/network calls, paid inference, trusted-CI adoption, tag/release/tap publication, or overriding the Feature 014 gate. The only approval that can activate work is the single combined `spec/plan/tasks` record under `## Approval`.
+> **Approval boundary.** Drafting and review are read-only. This document does not authorize code changes, a new batch, real-home application, private Git mutation, model/network calls, paid inference, trusted-CI adoption, tag/release/tap publication, package installation, OAuth login, or overriding the Feature 014 gate. The only approval that can activate work is the single combined `spec/plan/tasks` record under `## Approval`, including the separate MCP amendment approval. The MCP amendment text in this file is a proposal, not authority.
 
 ## 1. Executive decision
 
@@ -225,6 +226,24 @@ For FR-08, `SaveConfig` requires `SaveOptions.ExpectDigest`: empty is a usage/re
 
 **FR-22 — Onboarding and docs.** Add one skippable inline Fleet hint and one Help topic: choose source → change model → save source → preview/apply separately. Explain role vs instance, source vs rendered vs installed, and that installed ≠ authenticated ≠ primary. Provide a temporary-home demo with one model change, one conflict and one restore. Link the canonical 014 CLI docs. No private path exposure.
 
+**FR-23 — MCP discovery and truthful status (P0).** Add a read-only MCP surface for the default set — CodeGraph, Context7 and Exa — inside the existing TUI and CLI. Ordinary `status`, `preview` and offline `doctor` operations perform no write, no model call and no remote contact. They may perform a bounded local executable lookup (`exec.LookPath`) but do not execute `opencode`, `codegraph`, a package manager or a vendor installer. Version evidence for a write is collected only inside the explicit apply path; connection/handshake execution is deferred to a separately approved capability. Report only evidence-backed states: `not configured`, `configured`, `disabled`, `missing prerequisite`, `authentication not checked` / `needs authentication` (only from local runtime evidence), `conflict`, `schema mismatch`, `unsafe target`, `unknown / not checked` and `verified connected` (only from an explicit connection check). A configured remote server is never labeled connected, authenticated or working without verification. The status projection is shared by CLI and TUI; screens never parse CLI prose.
+
+**FR-24 — MCP configuration ownership and scope (P1).** The initial supported target is the global OpenCode V2 configuration (`~/.config/opencode/opencode.json(c)`). v1 requires an existing regular target file; when neither `.json` nor `.jsonc` exists it reports `not configured` and shows a manual snippet instead of creating one. Validate `mcp.servers` and preserve every unrelated top-level field, unknown field, unmanaged server and user-disabled server. Detect both `.json` and `.jsonc`; when both exist, block rather than guess. Never silently migrate V1 `mcp.<name>`/`enabled` configuration. Reject unmanaged name collisions. Do not add MCP keys to `fleet.json`, reuse Feature 014's personal model manifest, rewrite global `AGENTS.md`, or create a second fallback/delegation or permission registry. Project-local scope is deferred until precedence, conflict and restoration behavior are fully specified.
+
+**FR-25 — MCP preview, apply and restore transaction (P1).** Provide a shared preview that shows the exact target file, selected servers, entries to add/change/leave unchanged, conflicts, authentication implications, local-binary requirements, backup and restoration effects. A separate default-No confirmation is required before apply. Apply requires an exact configuration digest, performs a bounded local OpenCode version/schema probe using `--opencode-bin` when supplied or one resolved local executable (no shell, no network, no model), takes a shared engine lock covering both the target and the ownership manifest, revalidates the file under that lock immediately before writing, creates a private recoverable backup of the managed-entry ranges plus metadata and a separate MCP ownership manifest, writes only the selected managed entries, and reports the real result, no-op, conflict or rollback. The `OpsHost` single slot is process-local; it is not a substitute for the cross-process engine lock. A missing or unsupported runtime fails closed. Restore (and any future uninstall) removes or reverts only entries and files Agentic-SDD actually manages and must never erase later user edits. The CLI and TUI share one validation, planning, application and restoration implementation.
+
+**FR-26 — JSONC and unsafe-edit handling.** Handle JSONC conservatively. Preserve comments, key order and unrelated formatting where a lossless byte-range edit is supported; "in-place" means a byte-range transformation followed by atomic replacement, not an overwrite of the live file. If preservation cannot be proven, refuse and show an exact manual snippet rather than reserializing the file. Reject malformed JSON/JSONC, invalid server entries, wrong schema, duplicate keys, symlinks, special files, traversal, ambiguous targets and changed digests. Do not add a JSONC dependency merely to reformat a user file. Never write a plaintext API key or OAuth token into the configuration; use `{env:NAME}` placeholders and delegate OAuth to OpenCode. A managed entry that contains a literal credential is refused until the user moves it to a placeholder; this check runs before any diff or error text is rendered, and the matched value is never echoed. The private backup stores only the managed-entry text and metadata, not unrelated servers or their credentials; it is `0700`/`0600`, never repo-local, never printed, and redacted in reports.
+
+**FR-27 — CodeGraph lifecycle.** Detect the installed `codegraph` CLI, the configured MCP entry, the project `.codegraph/` index and index freshness only to the extent actually checked. Distinguish all five facts: CLI installed, MCP entry configured, project index initialized, index current/stale, and server connection tested/not tested. `codegraph status` is not proof that the MCP server is connected. Do not call `codegraph install` as the default config writer because it can also modify agent instructions and other configuration. Do not automatically run `codegraph init -y` during global MCP setup. Project index initialization is a separate, explicitly scoped action and must never target the home directory, filesystem root, `backups/`, private vaults or unrelated repositories. Respect the repository's CodeGraph discovery and synchronization rules.
+
+**FR-28 — Context7 and Exa authentication honesty.** Prefer the documented hosted Context7 endpoint. Recommend OAuth as the default Context7 recipe only when the target OpenCode version supports it; the user must explicitly accept that recipe in the configuration plan. Document the API-key route as a separate alternative using an environment placeholder. Do not perform OAuth login or persist a preference. Prefer the hosted Exa endpoint and make keyless the default only after the user explicitly acknowledges the visible rate-limit and privacy limitations; make OAuth or API-key authentication optional and user-controlled. Do not automatically upgrade Exa to an authenticated/paid route, and do not treat keyless availability as unlimited free usage. Do not invoke `ctx7 setup`, because it can install additional rules and skills. Configuration is not authentication and authentication is not actual tool availability. Availability checks must not transmit private source code, credentials or unrelated repository contents.
+
+**FR-29 — MCP TUI experience.** Extend the existing four-route application; do not add a fifth global route. Place **MCP Tools** inside **Install & Manage** alongside Install, Backups and Fleet Manager, appended after Fleet Manager so existing hub indices remain stable. Provide an MCP Overview for the three default servers, a server-selection step, an exact configuration preview, a separate default-No confirmation, and diagnostics/recovery. Choosing a server, reviewing configuration and applying a change are separate actions. Connection testing is not a TUI action in v1: the Diagnostics view shows `connection not tested` and CLI guidance. A future TUI connection test requires its own explicit capability and confirmation. Reuse the `agentic-dark` theme, existing key bindings, modal/focus behavior, responsive breakpoints, plain/ASCII/reduced-motion modes and Help/Activity experience. No mandatory animation, onboarding wizard or new design system. Large diffs are scrollable, searchable where practical and readable on narrow terminals.
+
+**FR-30 — MCP CLI parity, compatibility and shared host.** Add an isolated `agentic-sdd mcp` command family with read-only `status`, offline-default `doctor`, `preview`, `apply` and `restore`/`restore preview`. A network or connection-enabled doctor is a distinct, explicitly requested CLI operation and is **deferred** out of MCP-A; the TUI exposes no active network/connection test in v1. Preserve every existing `preview`, `apply`, `backups`, `restore`, `guide`, `tui`, `fleet`, `opencode` and `help` contract. `--with-opencode` never writes MCP configuration merely because an agent pack was installed. A future `--with-mcp` convenience flag is optional and must not be introduced unless it preserves every existing CLI compatibility contract; it is not part of this amendment's first implementation. The TUI never directly parses or rewrites OpenCode configuration, executes shell commands, writes backups or manifests, performs model inference, contacts Context7/Exa, runs CodeGraph indexing or installs packages. Any future explicitly confirmed connection test would be a typed `appops` request, not a TUI network call; it is not part of v1. Domain operations live outside `Update()`/`View()`, use typed requests/results, and route through `internal/appops` and the existing single-write `OpsHost` slot.
+
+**FR-31 — Deferred installation and launch (P2).** Defer all missing-software installation and vendor setup from this amendment. The MCP screens may display missing prerequisites and supported installation guidance, but must not execute package managers, run vendor setup scripts, download or execute arbitrary scripts, install Node or npm packages silently, rewrite `AGENTS.md`, automatically initialize CodeGraph in a repository, or perform OAuth/provider login on the user's behalf. `agentic-sdd mcp install-missing` and `agentic-sdd opencode launch --free` are future separately approved capabilities, not part of MCP-A–MCP-D.
+
 ## 7. Non-functional requirements
 
 | ID | Requirement |
@@ -241,6 +260,11 @@ For FR-08, `SaveConfig` requires `SaveOptions.ExpectDigest`: empty is a usage/re
 | NFR-10 | No root dependency/toolchain change; no 009/013/014 CLI contract regression; nested companion build preserved. |
 | NFR-11 | Evidence distinguishes UI-fixture success from a genuine engine run; record commit, config digest and environment for any release claim. |
 | NFR-12 | Offline read-only workflows function without Git remotes, provider auth or Internet; unavailable services show nonblocking diagnostics. |
+| NFR-13 | MCP `status`, `preview` and ordinary `doctor` are zero-write and offline. They invoke no model, package manager, vendor installer or remote MCP endpoint. A network or connection-enabled doctor is explicit, bounded by a timeout and separate from the default path. |
+| NFR-14 | MCP configuration uses `{env:NAME}` placeholders; Agentic-SDD never writes a plaintext API key or OAuth token into it, and OAuth is delegated to OpenCode. A managed entry with a literal credential is refused. Backups store only managed-entry text/metadata, are `0700`/`0600`, never repo-local, and credentials are never printed in UI/logs/manifests/fixtures. |
+| NFR-15 | Static configuration checks, local probes and runtime connectivity are labeled separately. Green static parsing never becomes a `connected`, `authenticated` or `tool available` claim. |
+| NFR-16 | MCP Overview/Preview/Diagnostics meet the existing 110/80/60-column and 8/10/16-height breakpoints, preserve focus/scroll/state across drill-downs, and keep large diffs bounded and reachable. A resize cannot confirm a write. |
+| NFR-17 | No new root Go dependency and no new root package are introduced for MCP. `internal/skillsync`, `internal/appops`, `cmd/agentic-sdd` and the nested TUI remain the integration points; the 10-package supported-core gate stays intact unless a separately approved package decision changes it. |
 
 ## 8. Acceptance criteria
 
@@ -299,9 +323,39 @@ Every criterion records **Pass / Fail / Blocked / Not run** with revision and ve
 - **AC-37 — Owner walkthrough.** One ordinary journey (choose source → model change → save → plan → apply → restore), one modified-file conflict and one no-config path are reviewed in temporary fixtures.
 - **AC-38 — Completion packet.** Exact changes, state, supported platform, tests run/not run, PTY/screenshot evidence if produced, tested guarantees, gaps, release disposition and next human action. Green tests are not release approval.
 
+### F. MCP integration amendment (pending approval)
+
+These criteria are appended without renumbering AC-01–AC-38. They apply only if the separate MCP amendment approval is recorded. Network, OAuth, package installation and real-home checks remain `not_run` unless separately authorized.
+
+- **AC-51 — MCP Overview coverage.** The MCP Overview displays exactly the three default servers — CodeGraph, Context7 and Exa — with name, purpose, local/remote type, configuration status, prerequisite, verification state and next recommended action. It remains reachable inside Install & Manage and does not create a fifth global route.
+- **AC-52 — Read-only, offline status and preview.** Ordinary `mcp status`, `mcp preview` and offline `mcp doctor` create, modify and delete no file; invoke no model, package manager, vendor installer or remote MCP endpoint; and report `not checked` where evidence was not collected.
+- **AC-53 — Existing CLI compatibility.** Every pre-existing `preview`, `apply`, `backups`, `restore`, `guide`, `tui`, `fleet`, `opencode` and `help` invocation keeps its existing grammar, text output and exit behavior except additive `mcp` help/usage text. Golden and parser tests cover the unchanged paths.
+- **AC-54 — Fleet Manager regression.** Fleet Manager remains reachable from the hub by cursor/Enter and `f`; its Overview, Profiles, Review Changes, Recovery, doctor, live gate and single-write behavior remain unchanged apart from updating hub entry-count/navigation tests for the fourth child.
+- **AC-55 — `--with-opencode` does not write MCP configuration.** A `preview` or `apply` with `--with-opencode` leaves `opencode.json`/`opencode.jsonc` byte-identical and creates no MCP backup, manifest or entry, even when an agent pack is installed.
+- **AC-56 — Missing CodeGraph is reported, not installed.** With no `codegraph` binary available, status reports `missing prerequisite` and supported guidance; no package manager, download, vendor installer or network request runs, and no binary is installed.
+- **AC-57 — Missing CodeGraph index is not silently initialized.** With an existing repository checkout but no `.codegraph/`, status/doctor reports `index not initialized`; no `codegraph init` or `codegraph init -y` runs. Project initialization remains a separate, explicitly scoped action with home/root/backups/vaults guards.
+- **AC-58 — No invented MCP authentication.** Context7 and Exa are never shown as authenticated, connected or tool-available from configuration alone. `needs authentication` appears only from local OpenCode/connection evidence; otherwise the label is `authentication not checked` or `unknown`.
+- **AC-59 — Unmanaged MCP server preservation.** An unrelated `mcp.servers` entry, unknown top-level field, unknown field inside an unrelated entry and an existing `disabled: true` server survive preview and apply unchanged; a disabled server is never re-enabled. The diff and manifest identify only Agentic-SDD-managed names.
+- **AC-60 — Conflict refusal.** An existing unmanaged server with a managed name but different content is a conflict. Preview reports it; apply refuses without overwriting; the file digest is unchanged.
+- **AC-61 — JSON/JSONC ambiguity and schema mismatch.** When both `.json` and `.jsonc` targets exist for the selected scope, status/preview report an ambiguity and apply refuses. The tool never guesses, merges or creates the missing alternative. A V1 `mcp.<name>`/`enabled` shape, unknown schema or invalid `mcp.servers` entry is `schema mismatch`/`invalid`, never silently migrated.
+- **AC-62 — JSONC comments preserved or refused.** A JSONC file with comments is either edited losslessly with comments/formatting preserved, or refused with an exact manual snippet. Comments are never silently discarded by JSON reserialization.
+- **AC-63 — Stale digest, lock and runtime evidence block apply.** Apply requires the exact preview digest and a successful bounded local OpenCode version/schema probe bound into the token. Any external edit, schema change, target change, selected-server change or evidence mismatch after preview makes apply refuse with no write and a replan/reload instruction. A shared engine lock covers the target and ownership manifest; a competing CLI/TUI writer is refused. A missing, older or unsupported OpenCode runtime/schema is reported `unsupported`/`unknown` and blocks apply rather than being rewritten.
+- **AC-64 — Unsafe or missing target rejection.** Symlinked configuration, non-regular files, traversal paths, paths outside the selected global scope, changed modes and unsupported special files are rejected without reading or writing outside the intended target. A missing global target is reported `not configured` with a manual snippet; v1 does not create it.
+- **AC-65 — Accurate recoverable backup.** A successful apply creates a private backup containing the original managed-entry text/range, digest, mode and target identity plus a separate MCP ownership manifest; it does not copy unrelated servers or their credentials. Restore preview can identify the exact recoverable entries without inferring success from a filename.
+- **AC-66 — Failure and rollback honesty.** A simulated failure before or during the multi-step write either restores the original managed-entry bytes exactly or reports what changed, what stayed unchanged, the transaction-intent phase, the backup identity and the exact recovery action. Structural ambiguity (created containers, comment/delimiter ownership, stale ranges) is `needs recovery`, never a best-effort rewrite. No partial write is labeled successful.
+- **AC-67 — Idempotent no-op.** Applying an identical selection and configuration twice reports `up to date` / no-op on the second run, creates no second backup and leaves the target bytes unchanged.
+- **AC-68 — Restore preserves later user edits.** Restore and any supported uninstall path change only managed entries whose current content still matches the recorded installed digest. Later edits to unrelated top-level fields, unrelated MCP servers or a managed entry are preserved or refused with a conflict, never erased.
+- **AC-69 — Single-write host.** MCP apply/restore and the existing install/restore and fleet apply/restore write kinds (plus the source-save seam when enabled) share the one `OpsHost` slot. Tests cover both directions, explicit busy refusal and no queued second write. Because `OpsHost` is process-local, a separate shared engine lock covers cross-process CLI/TUI writers.
+- **AC-70 — Navigation continuity.** Server selection, preview, confirmation, diagnostics and recovery retain focus, scroll, selection and valid draft state across overlay open/close, Back/Esc and parent-route round trips.
+- **AC-71 — Resize cannot confirm.** Resizing from a wide layout to a narrow or short layout during MCP confirmation keeps `No` selected, keeps Cancel/Back reachable and cannot dispatch a write.
+- **AC-72 — Script compatibility.** Non-interactive `mcp status`, `mcp preview`, `mcp apply` and `mcp restore` do not enter the alternate screen, do not prompt, emit stable text or `--json`, use documented exit codes and require no terminal.
+- **AC-73 — Offline test safety.** Offline tests invoke no default model, no remote MCP endpoint, no OAuth flow and no package installation. Fake `codegraph`/`opencode` executables and temporary homes are the only probes; `doctor --network`/`--connect` are recorded as `not_run`.
+- **AC-74 — Permission and role preservation.** MCP configuration does not change canonical agent roles, Feature 009 permissions, fallback/delegation policy or Feature 014 model/fleet state. A hash/snapshot of `opencode-pack` and installed agent profiles is unchanged by MCP apply/restore.
+- **AC-75 — Static versus runtime evidence.** Test reports and UI labels distinguish static config parsing, local executable/config probes and actual runtime MCP connectivity. A static fixture never supports a `verified connected` claim, and a runtime check that was not run is `not_run`, not `pass`.
+
 ### 8.1 Disposition of the r2 supplemental criteria
 
-The advisory r2 draft added AC-39–AC-50. They are not dropped; each is enforced by a canonical criterion above:
+The advisory r2 draft added AC-39–AC-50. They are not dropped; each is enforced by a canonical criterion above. Those identifiers remain historical advisory IDs and are not reused by the MCP amendment, whose criteria begin at AC-51:
 
 | r2 ID | Canonical mapping |
 |---|---|
@@ -353,6 +407,27 @@ The plan must allocate fixtures/tests for at least:
 29. UI reports success after a partial failure: test **fails**.
 30. Read-only/user-owned path with changed mode: refuse without damaging the file.
 
+### 9.1 MCP amendment negative and failure fixtures (pending approval)
+
+The plan must allocate deterministic fixtures for at least:
+
+31. Malformed JSON/JSONC and duplicate keys: parse error with redacted location; zero writes.
+32. Invalid `mcp.servers` entry, unknown `type`, wrong schema or V1 `mcp.<name>` shape: blocked with migration guidance; no silent conversion.
+33. Managed and unmanaged servers share a name with different content: conflict; file untouched.
+34. Both `opencode.json` and `opencode.jsonc` exist: ambiguity; no target selected, no write.
+35. `codegraph` binary absent: `missing prerequisite`; no install, download or network.
+36. Existing `disabled: true` server: preserved as disabled; never re-enabled by a merge.
+37. Injected failure after temp write or rename: original restored or exact rollback/recovery evidence; no false success.
+38. Source/config change or stale preview token between preview and apply: `ErrStaleConfig`/`ErrNeedsPreview`; no write.
+39. Missing, older or unsupported OpenCode runtime version: static `unsupported`/`unknown` report; no schema rewrite and no runtime claim.
+40. JSONC comments/formatting in the edit region: lossless edit or manual-snippet refusal; no comment loss.
+41. Symlinked config, traversal path or special file: rejection before read/write; no path escape.
+42. Restore after a later user edit to an unrelated field or managed entry, or after deletion of a managed entry: preserve/refuse; no erasure and no silent re-add.
+43. CodeGraph index absent or stale: `index not initialized` or `freshness not checked`; no automatic init, index or sync.
+44. Context7 OAuth pending or Exa keyless rate limit: `authentication not checked`/`rate-limited (not verified)` from evidence only; no invented success and no credential handling.
+45. Managed entry contains a literal API key/OAuth token instead of `{env:NAME}`: `blocked: literal credential`; no write and no credential copied into backup/manifest.
+46. No global `opencode.json(c)` exists: `not configured` plus a manual snippet; apply refuses and creates no file or directory.
+
 ## 10. Verification strategy
 
 | Layer | Evidence | Establishes | Does not establish |
@@ -364,9 +439,12 @@ The plan must allocate fixtures/tests for at least:
 | Headless Bubble Tea v2 | Update/View messages, size fixtures, semantic focus/viewport | interactive model correctness | all terminals/screen readers |
 | PTY smoke | launch, narrow resize, search, preview/confirm, recovery, quit | real terminal routing in a controlled environment | untested platforms |
 | Packaging | nested/root builds, paired candidate invocation, installed help/status | artifact contract on tested OS | future releases/other OS |
+| MCP static config | golden JSON/JSONC fixtures, UI status/preview, diff and token tests | detection/merge/ownership logic and offline behavior | remote server connection, OAuth or tool availability |
+| MCP local probe | fake `codegraph`/`opencode` executables, explicit binary paths, temporary homes | local prerequisite and version reporting | package installation or a real user installation |
+| MCP runtime (optional) | explicit `mcp doctor --network`/`--connect` against an authorized endpoint | one observed connection result | general availability, authentication entitlement or release approval |
 | Human review | owner end-to-end walkthrough + accessibility fallback | acceptance of the documented experience | statistical novice study |
 
-**Restrictions:** no real `~/.config/opencode`, private Git checkout, network, model calls or paid provider use. Isolated roots, fixture JSON and fake runtime evidence only. Root tests use `GOPROXY=off`/`GOWORK=off` and the approved package gate; nested Charm deps stay in their module. Missing Linux/macOS/manual checks are `not_run`, never `pass`.
+**Restrictions:** no real `~/.config/opencode`, private Git checkout, network, model calls or paid provider use. Isolated roots, fixture JSON and fake runtime evidence only. Root tests use `GOPROXY=off`/`GOWORK=off` and the approved package gate; nested Charm deps stay in their module. Missing Linux/macOS/manual checks are `not_run`, never `pass`. MCP tests never install CodeGraph, Context7, Exa, Node or npm packages and never invoke OAuth.
 
 ## 11. Delivery grouping (not batch authorization)
 
@@ -378,8 +456,12 @@ The plan must allocate fixtures/tests for at least:
 | D4 — Source save | Native save operation + CLI parity + CAS/backup tests (separately gated) | D2; approval of the new write surface |
 | D5 — Recovery | Restore preview/restore, drift/legacy/conflict guidance, doctor | D1, D3; restore preview |
 | D6 — Robustness and docs | PTY/resize/accessibility/large-fleet, paired artifact, owner walkthrough, docs | D1–D5 |
+| D7 — MCP read-only foundation (MCP-A) | Metadata, target/config detection, offline status/doctor, shared state vocabulary, CLI parity | Amendment approval; no write authorization |
+| D8 — MCP safe configuration (MCP-B) | Preview/digest, ownership manifest, backup, transactional apply/restore, JSONC/conflict handling | D7; separate MCP write-surface authorization |
+| D9 — MCP TUI experience (MCP-C) | Hub child, Overview, selection, preview, confirmation, diagnostics/recovery, single-write host | D7; D8 for write screens |
+| D10 — MCP verification and closeout (MCP-D) | Root/nested tests, PTY/headless evidence, no-network/temp-home safety, docs, acceptance packet | D7–D9; owner review |
 
-If the 014 gate remains blocked, D3/D5 land in fixture/preview mode only; no production apply path is enabled to complete the TUI.
+If the 014 gate remains blocked, D3/D5 land in fixture/preview mode only; no production apply path is enabled to complete the TUI. D7–D10 are independent of Fleet live enablement but remain `pending approval`; D8 requires its own write-surface decision and is not B4.
 
 ## 12. Deferred and excluded
 
@@ -392,6 +474,11 @@ If the 014 gate remains blocked, D3/D5 land in fixture/preview mode only; no pro
 - No automatic Git clone/commit/push/pull or credential handling.
 - No unreviewed dependency expansion; no Huh migration without a separate value/maintenance assessment.
 - No second approval ledger; `specs/015-fleet-manager-tui/` and the repo SDD records are canonical.
+- **MCP P2 installation is deferred:** no package manager, vendor setup script, `codegraph install`, `ctx7 setup`, Node/npm install, automatic `codegraph init -y`, OAuth/provider login or `AGENTS.md` rewrite.
+- **MCP project-local scope is deferred** until its precedence, conflict, ownership and restoration behavior is fully specified; v1 manages the global configuration only.
+- **MCP uninstall and `agentic-sdd opencode launch --free` are deferred** to separately approved capabilities. The amendment's restore/rollback work does not authorize a general uninstaller or an agent launcher.
+- **`--with-mcp` is not introduced** by this amendment. If proposed later, it must preserve every existing CLI compatibility contract and must never install missing software.
+- **MCP permissions are not configured here.** Feature 009 remains the sole permission/delegation authority; MCP configuration only makes a server available to OpenCode.
 
 ## 13. Risks and release gates
 
@@ -409,6 +496,14 @@ If the 014 gate remains blocked, D3/D5 land in fixture/preview mode only; no pro
 | New root deps/migration | Root Go 1.23 stdlib; nested Charm v2 isolated. |
 | Real-home hit in tests | `t.TempDir`/isolated HOME; no network/model calls. |
 | Artifact mismatch | Paired candidate test, checksums/packaging check, separate publication approval. |
+| MCP edit becomes a second config manager | One owned target; semantic merge; separate manifest; CLI/TUI share `appops`/engine; no vendor installer; no `fleet.json` extension. |
+| JSONC reserialization destroys comments | Conservative lossless edit or refusal with an exact manual snippet; no reformat dependency; golden JSONC fixtures. |
+| False MCP connectivity/authentication | Static config, local probe and runtime evidence labeled separately; `connected` only from an explicit check; `not_run` stays `not_run`. |
+| Unmanaged server overwritten | Name-collision conflict; exact digest and ownership manifest; restore only matching managed entries. |
+| CodeGraph init/indexes an unsafe path | Project initialization is separate and explicit; home/root/backups/vaults rejection; no automatic `init -y` in global setup. |
+| MCP write bypasses the single-write slot | `WriteMCPApply`/`WriteMCPRestore` are the only TUI path; one `OpsHost` slot; pairwise busy-refusal tests. |
+| MCP feature accidentally installs software | P2 excluded; status/doctor only report; no package manager/vendor installer; fake binaries in tests. |
+| Amendment is read as Fleet/014 approval | Separate pending MCP approval; B4 and Fleet live gates untouched; release authorization remains separate. |
 
 **Release readiness:** implementation and green tests are insufficient while 014 is unresolved or the paired candidate is unexercised. The final report says **no-go** or **preview-only** where appropriate. No design work grants tag, cask/tap, CI trusted-base or production-install authority.
 
@@ -440,7 +535,7 @@ If the 014 gate remains blocked, D3/D5 land in fixture/preview mode only; no pro
 **Hosted model/API/paid usage:** Not authorized.
 **Trusted CI / release / tag / tap publication:** Not authorized.
 **014 approval/batch history:** Preserved; not superseded or reopened. Live apply/restore remains behind the 014 gate and the reviewed build capability.
-**Next SDD action:** Owner review of the Wave 3 completion packet (`w3-acceptance.md`) and B4 decision; preview-only / no-go for live release until 014 acceptance.
+**Next SDD action:** Implement and verify **MCP-A only** (T26–T30), then return it for human review. MCP-B–MCP-D remain deferred. Wave 3 acceptance, the B4 decision and Feature 014 acceptance remain separate; preview-only / no-go for live release until 014 acceptance. MCP-A does not resolve any of those gates.
 
 ### Review reconciliation (2026-11-12)
 
@@ -452,9 +547,280 @@ Gemini provisional code/architecture reviews and the verification review identif
 - **L-03 (Model-clear limitation):** Documented limitation; clearing an existing model override back to canonical inheritance is a CLI/editor operation in v1 (`docs/fleet-manager-tui.md`).
 - **A3-1 (Inline confirmations):** Fixed in docs; Fleet apply/restore confirmations are inline subview confirmations with the same default-No, focus-trap and tiny-geometry guards, while `modal.go` remains the compositor for global install/restore/help. Do not claim modal reuse that does not exist.
 
+### MCP Integration Amendment — APPROVED THROUGH MCP-D (2026-11-12)
+
+**State:** **APPROVED — MCP-A implemented; MCP-B–MCP-D authorized for parallel implementation.** This is the amendment approval record for §16, FR-23–FR-31, NFR-13–NFR-17 and AC-51–AC-75.
+
+**Approval evidence:**
+1. Owner message on 2026-11-12: “accpted all” followed by “Start implementation parally using sub agents of 9r gemini flash , deepseek free , mimo free , deepseek high”. This authorized the reviewer-recommended **MCP-A (T26–T30)** scope.
+2. Owner message on 2026-11-12: “commit current changes and start mcp b c d in parallelly if possible using implement agents utilizing maximum num , also use deepseek high, free models and gemini flash high as models”. This explicitly authorizes **MCP-B, MCP-C and MCP-D**, including MCP-B's MCP configuration write surface for development, fixture tests and CLI/TUI implementation, and authorizes committing the current changes.
+
+**Authorized scope:**
+1. **MCP-A (T26–T30):** implemented; `awaiting human review` at CP-A.
+2. **MCP-B (T31–T37):** authorized. The write surface may be implemented and exercised only against isolated temporary-home fixtures. No real-home OpenCode configuration may be modified.
+3. **MCP-C (T38–T42):** authorized, including the TUI fourth child, preview/confirmation/diagnostics/recovery and `OpsHost` MCP write kinds.
+4. **MCP-D (T43–T46):** authorized for verification/closeout.
+5. **Commit:** authorized for the current MCP-A code/tests and Feature 015 documentation.
+
+**What this approval still does not do:** It does not accept Feature 014, accept Wave 3, authorize B4, enable `FleetCapability=live`, authorize a real-home write, install CodeGraph/Context7/Exa/Node/npm, start OAuth/login, invoke a model, or authorize a tag/cask/tap/release.
+
+**Next action:** commit the current MCP-A work, then implement MCP-B–MCP-D in parallel with disjoint file ownership; return each integrated batch for human review. No real-home apply or release.
+
 ## 15. Provenance
 
 - **Owner-provided:** `docs/handovers/2026-11-11_014b.md`; the two advisory documents in this directory.
 - **Repository evidence:** checkout `d5eaa7a`; `experiments/tui/{app,app_screens,ops_host,viewport,modal,theme,config}.go`; `internal/appops/{ops,requests,routing}.go`; `internal/fleet/*.go`; `cmd/agentic-sdd/fleet*.go`; `specs/013-unified-tui-experience/{spec,plan,tasks}.md`; `specs/014-agent-fleet-model-overrides/{spec,plan,tasks}.md`; root/nested `go.mod`.
 - **External patterns (advisory only):** Bubble Tea v2 / Bubbles v2 / Huh v2 docs, Lazygit, K9s, chezmoi, Vercel CLI, OpenCode agent/model docs. Design patterns are not evidence of this repository's safety, performance or acceptance.
 - **Boundary:** this is a proposed canonical document. It does not validate runtime behavior, approve 014, or authorize implementation.
+
+## 16. MCP integration amendment (proposed 2026-11-12 — pending owner approval)
+
+> **Amendment boundary.** This section is a proposal for the owner's review. It authorizes no code, configuration write, package installation, network call, OAuth flow, model invocation, real-home change, commit, tag or release. It does not alter accepted Feature 015 Waves 1–2, the implemented-but-unreviewed Wave 3, the Feature 014 acceptance gate, the B4 source-save gate or the Fleet live-capability gate. The amendment approval is recorded separately under `## Approval` only after the owner explicitly accepts it.
+
+### 16.1 Objective and staged decision
+
+Make the default Agentic-SDD MCP tool set — **CodeGraph** (local code intelligence), **Context7** (hosted library documentation) and **Exa** (hosted web research) — discoverable, configurable, diagnosable and recoverable by beginners without weakening the repository's preview-first, digest-checked, backup-first, single-writer guarantees.
+
+The binding staging is:
+
+| Phase | Scope | Authorization |
+|---|---|---|
+| **P0 — Read-only foundation** | Detect and report the three servers; shared state vocabulary; offline `status`/`doctor`; a read-only `preview` that shows the current recipe/static comparison and writes nothing, with **no apply token**. This is the default entry point. | **Recommended: MCP-A only.** No write authorization. |
+| **P1 — Opt-in configuration and restoration** | Explicit server selection, exact preview, separate default-No confirmation, digest-checked apply, private backup/ownership manifest, managed restore. Global OpenCode configuration only. | Proposed MCP-B/MCP-C, with a **separate MCP write-surface decision**. |
+| **P2 — Missing-software installation** | Package managers, vendor installers, Node/npm, OAuth login, automatic CodeGraph init. | **Deferred.** Not part of this amendment. A future feature must provide version pinning, explicit argv review, consent, timeout and supply-chain controls. |
+
+`agentic-sdd opencode launch --free` is likewise deferred to a separate optional capability. It is not bundled into MCP configuration work.
+
+### 16.2 Baseline reconciliation (2026-11-12)
+
+The pre-amendment baseline was clean on `main` at `4c2b9bd` (`docs: Document CodeGraph workflows`), whose parent is `74f568b` (`feat(fleet): add fleet manager TUI`). The latest handover's statement that the CodeGraph default-rule changes were uncommitted is **stale**: `AGENTS.md`, `docs/codegraph.md`, `docs/orchestration-guide.md`, the portable router policy and the docs index were committed in `4c2b9bd`. No code changed between `74f568b` and the pre-amendment baseline `4c2b9bd`.
+
+Reconciled state:
+
+- Feature 015 Waves 1–2 are owner-accepted; Wave 3 is implemented and pushed as `74f568b`, **awaiting human review**. `w3-acceptance.md` retains its historical "uncommitted tree" baseline; this amendment does not rewrite that history.
+- Feature 014 remains **awaiting its human/Opus acceptance**; its batch ledger is unchanged. This amendment does not accept, reopen or apply Feature 014.
+- B4 Fleet native source save remains **not authorized** (`T14`–`T17` unchecked). MCP work does not repurpose B4 or its reserved IDs.
+- Fleet live apply/restore remains gated by the reviewed `FleetCapability` build value, default `preview`. MCP work does not change it.
+- No new implementation batch is authorized. MCP-A–MCP-D are **pending approval**.
+- `docs/mcp-default-integration-study.md` recommends a broader P2 installation and an OpenCode launcher. This amendment **narrows** that study: P0 first, P1 opt-in, P2 and the launcher deferred.
+
+### 16.3 Ownership and configuration precedence
+
+| Component | Authority |
+|---|---|
+| Existing SDD skills and approvals | Engineering methodology, skill content and approval records |
+| Feature 009 | Agent permissions, delegation and fallback policy |
+| Feature 014 | Personal models, fleet instances and the `fleet.json` schema |
+| MCP integration | MCP server configuration and its managed lifecycle |
+| OpenCode | Runtime connection, authentication, MCP tool execution and effective configuration |
+
+Rules:
+
+- Do **not** extend `fleet.json` with MCP server definitions. Do not reuse Feature 014's personal model manifest as the MCP ownership record.
+- Do **not** create another fallback/delegation policy or permission registry. Feature 009 remains authoritative.
+- Do **not** overwrite global `AGENTS.md`. The MCP integration writes only the selected OpenCode configuration file and its own private backup/manifest area.
+- Configuration ownership is separate from runtime ownership: Agentic-SDD owns the managed entry text and lifecycle; OpenCode owns OAuth credentials, connection state, tool catalogs and execution. The private MCP ownership state lives under `<home>/.agentic-sdd/mcp/` (`manifest.json` and `backups/<stamp>/`), outside the selected checkout and the skillsync backup namespace.
+- MCP configuration does not grant permissions. Configuring a server makes it available to OpenCode; Feature 009 profiles and OpenCode V2 `permissions`/`policies` still decide whether an agent may use it.
+- OpenCode V2 keeps these permission/policy facts separate from MCP configuration: MCP tools use permission action `_` (resource `*`); Code Mode uses `execute`; remote/local server entries can set `codemode: false` to expose tools directly; and policy action `mcp.use` can deny a server by name. Policy-action support is version-dependent; an older runtime is reported `unknown`/`unsupported` and is never edited. The MCP amendment never edits those rules. A `configured` server may still be denied or unused by an agent, and the UI must not conflate configuration with availability.
+
+OpenCode configuration precedence, verified against current V2 vendor documentation:
+
+| Layer | Typical path | MCP consequence |
+|---|---|---|
+| Global | `~/.config/opencode/opencode.json(c)` | The only target managed in this amendment. |
+| Project direct | `<project>/opencode.json(c)` | Higher precedence; a same-name server replaces the entire global server object. v1 does not manage it. |
+| Project `.opencode` | `<project>/.opencode/opencode.json(c)` | Higher precedence than direct project config. v1 does not manage it. |
+| System / managed | `/etc/opencode/opencode.json`, macOS managed preferences | Highest precedence; can override or deny. Never managed by this amendment. |
+| Runtime/OAuth | OpenCode credential store outside the config | Never read or written by Agentic-SDD. |
+
+A global entry is reported as `configured (global)`, not `effective`, because a project or system layer may override it. Both `.json` and `.jsonc` at the selected scope are an ambiguity, not a preference. V2 uses `mcp.servers.<name>` and `disabled`; V1 uses `mcp.<name>` and `enabled`. V1 is detected and refused with migration guidance, never silently converted. The default global path follows OpenCode's documented platform location; macOS variants must be verified at implementation, and `--config` is the explicit override.
+
+### 16.4 Supported default servers
+
+These are the proposed default recipes. Exact endpoint/header/field details are verified at implementation against the pinned software versions; the manifest records the version used.
+
+| Server | Type | Purpose | Proposed entry | Prerequisite | Authentication |
+|---|---|---|---|---|---|
+| **CodeGraph** | local stdio | Repository code intelligence (`codegraph_explore`, CLI fallback) | `command: ["codegraph","serve","--mcp"]`, `codemode: false` | `codegraph` CLI; a project `.codegraph/` index for actual tools | None |
+| **Context7** | remote HTTP | Hosted library documentation (`resolve-library-id`, `query-docs`) | OAuth route `https://mcp.context7.com/mcp/oauth` (recommended default); API-key alternative `https://mcp.context7.com/mcp` with `Authorization: Bearer {env:CONTEXT7_API_KEY}` and `oauth: false` | None | OAuth recommended and explicitly accepted, or API-key placeholder; no automatic login |
+| **Exa** | remote HTTP | Hosted web research (`web_search_exa`, `web_fetch_exa`; `agent_run` requires auth) | Keyless `https://mcp.exa.ai/mcp` (default after acknowledgement); optional OAuth `?login` or `x-api-key: {env:EXA_API_KEY}` | None | Keyless (rate-limited) with explicit limits/privacy acknowledgement; optional OAuth or API key; no automatic upgrade |
+
+Proposed CodeGraph entry. Local CLI 1.6.2 was verified to support `codegraph serve --mcp` and `codegraph init -y`; the OpenCode entry shape is the vendor's documented `--print-config opencode` output recorded in the study and must be re-verified before any write:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "codegraph": {
+        "type": "local",
+        "command": ["codegraph", "serve", "--mcp"],
+        "disabled": false,
+        "codemode": false
+      }
+    }
+  }
+}
+```
+
+Context7 and Exa are written as remote entries with only documented fields. The implementation must not copy V1 `mcp.<name>`/`enabled` examples, and must not invent headers. The Context7 OAuth entry is selected only when the user explicitly chooses OAuth; the API-key entry is a separately labeled choice with an environment placeholder. The Exa keyless entry is the default only if the user accepts the visible rate-limit and privacy note; OAuth/API key are optional and user-controlled.
+
+CodeGraph facts that the status surface must keep separate:
+
+1. CLI installed (local lookup).
+2. MCP entry configured (config inspection).
+3. Project index initialized (`.codegraph/` presence).
+4. Index current/stale (only from a separate explicit local probe; ordinary status/offline doctor execute nothing and show `freshness not checked`).
+5. MCP server connection tested/not tested (only from an explicit connection check).
+
+`codegraph status` is an index check, not MCP connectivity. `codegraph install` is not a config writer for this feature because it can also write agent instructions/`AGENTS.md`. `codegraph init -y` is not run during global MCP setup; project initialization is a separate, explicitly scoped action that refuses the home directory, filesystem root, `backups/`, private vaults and unrelated repositories. The repository's CodeGraph discovery/synchronization rules in `AGENTS.md` and `docs/codegraph.md` remain binding.
+
+### 16.5 User journeys
+
+**A — Discover (P0, no writes).** Install & Manage → MCP Tools → Overview. The user sees three server rows, the local/remote type, configuration status, prerequisite, verification state and one next action. Opening the screen does not read the network, run a model or write configuration. A beginner can tell “not configured” from “configured but not checked” and from “missing CodeGraph CLI.”
+
+**B — Configure (P1, opt-in).** MCP Tools → Select servers → choose CodeGraph/Context7/Exa. Context7 presents OAuth as the recommended default requiring explicit acceptance; Exa presents keyless as the default requiring acknowledgement of the rate/privacy limits. Each has an explicitly selected API-key alternative where applicable. Then Preview → review the exact target file, entries to add/change/leave, conflicts, auth implications, local-binary requirement and backup/restore effect → default-No Confirm → apply through the shared operation host → see the real result and backup identity. If no global config exists, the journey stops at a manual snippet; v1 does not create one. Selecting `--with-opencode`, installing an agent pack or merely opening Fleet Manager never enables MCP configuration.
+
+**C — Diagnose.** MCP Tools → Diagnostics (`d` or equivalent). The panel explains: CodeGraph missing; CodeGraph index missing/stale; Context7 authentication pending; Exa rate limits; OpenCode schema mismatch; unmanaged MCP server conflict; JSONC formatting conflict; stale plan; failed apply or incomplete rollback. Recovery uses actual transaction metadata. Connection state is shown as `not tested` with CLI guidance; the TUI has no active network/connection test in v1, and any future CLI `--network`/`--connect` remains a separate explicitly approved capability.
+
+**D — Restore.** MCP Tools → Recovery → managed MCP backups → preview exact current-versus-restore effects → default-No restore. Only entries Agentic-SDD manages are considered. Later user edits to unrelated fields, unrelated servers or a managed entry are preserved or reported as a conflict, never erased.
+
+**E — Refuse safely.** JSONC comments, `.json`/`.jsonc` ambiguity, V1 schema, unmanaged collision, symlink/traversal, stale digest, missing auth choice or unsupported runtime produces a specific explanation, the exact safe next action and, where applicable, a copyable manual snippet. No best-effort rewrite and no optimistic success.
+
+### 16.6 Status and evidence vocabulary
+
+| Display state | Evidence | Never implies |
+|---|---|---|
+| `not configured` | No managed name in the inspected file | Server absent from project/system layers |
+| `configured (global)` | Entry exists, not `disabled: true` | Connected, authenticated, effective or tool-available |
+| `disabled` | Entry exists with `disabled: true` | Removed; the user's disabled state is preserved |
+| `missing prerequisite` | Local binary lookup failed for a selected local server | Permission to install |
+| `authentication not checked` | Offline/default path; no local runtime evidence | Authentication failure or success |
+| `needs authentication` | Explicit local OpenCode or connection evidence reports it | That every server/tool is unusable |
+| `conflict` | Unmanaged name collision, differing managed entry, JSONC ambiguity or unsafe edit | Permission to overwrite |
+| `schema mismatch` | V1 `mcp.<name>`, unknown schema or invalid `mcp.servers` | Permission to migrate |
+| `unsafe target` | Symlink, traversal, non-regular file, changed mode, out-of-scope path | Permission to follow or repair silently |
+| `unknown / not checked` | Offline path did not perform the check | Failure |
+| `verified connected` | Explicit bounded connection check produced evidence | Authenticated, entitled, model success or tool correctness |
+| `index not initialized` | CodeGraph project has no `.codegraph/` | Permission to run `init` |
+| `index freshness not checked` | No explicit `codegraph status`/`sync` run | Index current |
+| `stale plan` | Config digest/target/selection changed after preview | Permission to reuse the preview |
+| `previously managed, now absent` | Ownership manifest records the name but the current config has no entry | Permission to re-add; explicit confirmation is required, never silent restoration |
+
+Configured entries also carry an ownership axis: `managed` (recorded in the MCP ownership manifest with a matching installed digest) or `unmanaged` (present but not owned by Agentic-SDD). Only managed entries can be restored or removed; unmanaged entries are preserved and a same-name content difference is a conflict. Static config, local probe and runtime connection are separate evidence classes. A report must say which class supports each state.
+
+### 16.7 TUI experience and shared architecture
+
+MCP Tools is a **fourth child of Install & Manage**, reached by key `t` (Tools) and Enter. `m` is not used because it is the existing global motion toggle. The hub's cursor wrap/bounds continue to use `len(entries)`. There is no fifth global destination.
+
+Local MCP views:
+
+| View | Content | Primary action |
+|---|---|---|
+| **Overview** | Three server rows: name, purpose, type, configuration, prerequisite, verification, next action; last operation and backup pointer | Open selection, diagnostics or recovery |
+| **Select servers** | All three defaults, explicit selection, Context7 OAuth/API-key choice, Exa keyless acknowledgement/optional auth, prerequisite warnings | Preview configuration |
+| **Preview** | Selected servers, existing configuration, exact target file and base digest, entries add/change/leave, conflicts, auth implications, local-binary requirement, backup/restore effect, scrollable diff | Confirm or Back |
+| **Confirm** | Default-No inline confirmation; exact target and digest; separate from selection and review | Apply through `OpsHost` |
+| **Diagnostics** | Contextual explanations and next safe actions; connection state `not tested`; CLI guidance only | Reload/replan/CLI guidance |
+| **Recovery** | Managed backups, restore preview, default-No restore, conflict/rollback evidence | Restore or Back |
+
+Interaction constraints:
+
+- Reuse `agentic-dark`, existing keys (`j/k`, Enter, Esc, `/`, Tab/Shift+Tab, `?`, Home/End), focus traps, viewport and reduced-motion/plain/ASCII modes. Status text is primary; color/shape cues are secondary, never a decorative badge that replaces the explanation.
+- Navigation preserves selection, filter, scroll, view and valid state. A picker/dialog/error is a local subview, not a tab.
+- Large diffs are scrollable; `/` filters lines where practical; long paths/URLs are reachable and elide only in list rows.
+- At <60 columns or height <8, show resize guidance and no affirmative key. Resize cannot confirm.
+- No mandatory animation, onboarding wizard, new design system, fifth route or duplicate Help/Activity experience.
+- The MCP panel feels like a natural extension of Fleet Manager, not a separate application.
+
+Dependency direction:
+
+```text
+Existing Bubble Tea TUI (experiments/tui)
+                 │  typed view/draft state only
+                 ▼
+          internal/appops
+                 │  immutable requests/results, preview tokens
+                 ▼
+  Existing supported Go core (internal/skillsync MCP config + transaction)
+                 │  parse · merge · digest · backup · manifest · restore
+                 ▼
+        global OpenCode configuration
+```
+
+The TUI must not directly parse/rewrite OpenCode configuration, execute shell commands, write backups/manifests, perform model inference, contact Context7/Exa, run CodeGraph indexing or install packages. Domain work stays outside `Update()`/`View()`. Apply/restore route through the existing single `OpsHost` write slot; MCP and install/restore/Fleet writes are mutually exclusive.
+
+### 16.8 CLI surface and compatibility
+
+Proposed grammar (command-name availability verified: `cmd/agentic-sdd/main.go` at `4c2b9bd` has no `mcp` dispatch or help topic; `fleet` is the additive-dispatch precedent):
+
+```text
+agentic-sdd mcp status  [--home PATH] [--config PATH] [--project PATH] [--json]
+agentic-sdd mcp doctor  [--home PATH] [--config PATH] [--opencode-bin PATH]
+                        [--codegraph-bin PATH] [--project PATH] [--json]
+                        # --network/--connect: deferred separate capability, not MCP-A
+agentic-sdd mcp preview [--servers NAME,...] [--auth context7=oauth|api-key]
+                        [--auth exa=keyless|oauth|api-key] [--home PATH] [--config PATH] [--json]
+agentic-sdd mcp apply   --expect-config SHA256 [--opencode-bin PATH] [--servers NAME,...]
+                        [--auth ...] [--home PATH] [--config PATH] [--json]
+agentic-sdd mcp restore list|preview|apply [ID] [--home PATH] [--config PATH] [--json]
+agentic-sdd mcp help
+```
+
+- **MCP-A implements only `status`, offline `doctor`, read-only `preview` and `help`.** `apply`, `restore` and any write path remain MCP-B and are not present in an A-only build. `agentic-sdd mcp` with no subcommand behaves as read-only `status`; `mcp help` prints usage.
+- `status`/`preview`/ordinary `doctor` are offline and zero-write. They may use a local executable lookup, but execute no binary. `doctor --network` (remote reachability) and `doctor --connect` (MCP handshake, which may start a local server) are deferred out of MCP-A to a separately approved capability and are never default.
+- In **MCP-A**, `preview` is a read-only current-recipe/static comparison and returns no apply token; it may print a manual snippet. In **MCP-B**, the same command is extended to return the semantic diff, target identity, base/plan digest and token. `apply` requires `--expect-config`; empty is a usage error, mismatch is a stale/conflict error, and neither writes. `apply` also requires a successful bounded local OpenCode version/schema probe bound into the token.
+- `restore list|preview|apply` follows the existing restore style: preview first, explicit ID, default-No interactive confirmation, entry-level restore. Whole-file restore is not part of v1 and cannot erase later edits.
+- Exit codes follow 014/015: `2` usage/validation/schema/unsafe target, `1` runtime/stale/conflict/rollback, `0` success or no-op. `--json` output is stable and script-compatible.
+- Existing CLI grammar/output is unchanged. `--with-opencode` never writes MCP configuration. A future `--with-mcp` is **not introduced** unless separately approved and compatibility-tested.
+- The TUI never spawns `agentic-sdd mcp ...` and parses text. Both CLI and TUI call the same `appops` requests.
+
+### 16.9 Exclusions and deferrals
+
+- No P2 installation: package managers, vendor setup scripts, `codegraph install`, `ctx7 setup`, Node/npm installs, downloads, arbitrary scripts, OAuth/provider login.
+- No automatic `codegraph init -y` in global setup; no indexing of home, root, `backups/`, private vaults or unrelated repositories.
+- No project-local MCP configuration management in v1; no `.json`/`.jsonc` guessing; no silent V1 migration.
+- No creation of a missing global config in v1 and no `--create` implementation; a future `--create` requires a separate design with exclusive creation, absent-file identity, parent-directory handling and recovery of an unchanged tool-created file.
+- No `--replace`/force flag in v1. Conflicts are always refused; a future replace capability requires its own adoption/credential/restore design.
+- No CodeGraph project initialization implementation (`codegraph init`) in this amendment; a future explicit project action must carry path guards, consent and its own approval.
+- No `fleet.json` MCP fields; no second permission/fallback registry; no `AGENTS.md` rewrite; no agent profile changes.
+- No MCP marketplace, remote catalog, server discovery, ratings or automatic server recommendations.
+- No plaintext API keys or OAuth tokens written by Agentic-SDD into configuration, logs, manifests, backups or fixtures. A managed entry with a literal credential is refused; backups store only managed-entry text/metadata. OAuth credentials stay in OpenCode's store.
+- No general MCP uninstaller, `mcp install-missing` or `opencode launch --free` in this amendment.
+- No live network/MCP handshake, OAuth flow, package install, real-home write or model call in default tests or CI.
+- No code, commit, tag, cask/tap, release or real-home operation is authorized by this amendment text.
+
+### 16.10 Dependencies, release gates and workstreams
+
+| Workstream | Scope | Depends on | State |
+|---|---|---|---|
+| **MCP-A — Read-only foundation** | Metadata; target detection; offline status/doctor; read-only preview (no token); state vocabulary; CLI `status`/`doctor`/`preview`; compatibility tests | Amendment approval; no write authorization | `implemented — awaiting human review` |
+| **MCP-B — Safe configuration management** | Structured preview/digest; JSONC byte-range merge; ownership manifest; backup; transactional apply/restore; runtime evidence; cross-process lock; failure tests | MCP-A + explicit MCP write-surface authorization | `authorized — parallel implementation` |
+| **MCP-C — TUI experience** | Hub child; Overview; selection; preview; confirmation; diagnostics; recovery; single-write host | MCP-A; MCP-B interfaces | `authorized — parallel implementation` |
+| **MCP-D — Verification and closeout** | Root/nested gates; PTY/headless; no-network/temp-home evidence; docs/onboarding; acceptance packet | MCP-A–C; owner review | `authorized — parallel implementation` |
+
+Prerequisites and release gates:
+
+- The amendment approval is separate from Feature 015 r1 approval. It approves the amended text; it does not by itself authorize MCP-B's write surface. The owner must explicitly name that surface, exactly as B4 requires a separate decision.
+- MCP-A may be developed and tested independently of the write surface. Deterministic UI/config tests must not require live remote connections, OAuth, package installation or a real OpenCode home.
+- Feature 014 acceptance, the Feature 015 Wave 3 review, B4, Fleet live capability and release authorization remain separate. No MCP test result, green build or reviewer verdict resolves them.
+- No test result authorizes a real-home modification, package installation, network call, model invocation, OAuth flow, commit, tag or publication.
+
+### 16.11 Recommended decisions (proposed; owner approval still required)
+
+**Independent review (OpenAI GPT-6.1 Sol, 2026-11-12): verdict “Needs changes.”** Its blocking findings and decision recommendations were reconciled into this amendment: offline-doctor consistency, a distinct P0 preview without a token, apply-time runtime evidence, cross-process locking, structural recovery, conflict/create deferral, and corrected reuse claims. The review is advisory and is not human approval.
+
+These are **recommendations, not approvals**; the owner may reject or amend any of them.
+
+| # | Issue | Recommended decision | Guardrail |
+|---|---|---|---|
+| 1 | Approval scope | **Approve MCP-A only now.** Keep MCP-B–D deferred as proposed direction. | A has no writer, no usable apply path and no connection execution. |
+| 2 | MCP-B write surface | **Require a separate pre-start write-surface authorization**, not B4 and not implied by A. | Authorization before T34; evidence acceptance at CP-B is a separate step. |
+| 3 | Context7 auth | **OAuth recommended default, explicitly accepted in the plan.** API key is a separately selected alternative. | No automatic login, credential-store access or silent API-key fallback. |
+| 4 | Exa auth | **Keyless default after explicit acknowledgement of rate/privacy limits.** OAuth/API key optional. | No automatic authenticated/paid upgrade; no keyless-unlimited claim. |
+| 5 | JSONC | **Lossless byte-range editing only.** Refuse when preservation cannot be proven; atomic replacement, not live overwrite. | Preserve unrelated bytes/comments; ambiguous comment ownership or delimiter edits produce a manual snippet. |
+| 6 | Conflicts | **Always refuse in v1; no replace flag.** | Updates to unchanged, proven-managed entries remain allowed; unmanaged/user-modified entries do not. |
+| 7 | Connection test | **CLI-only when later approved; no TUI connection action in v1.** `--network`/`--connect` are deferred out of MCP-A. | TUI shows `connection not tested` and CLI guidance; no process start or auth side effect from the TUI. |
+| 8 | Missing config | **No creation in v1; no `--create` authorization.** | A future create design needs exclusive creation, absent-file identity, parent-directory handling and recovery of an unchanged tool-created file. |
+| 9 | Future scope | **Defer uninstall, `--with-mcp`, project-local management and CodeGraph project-init.** | Each needs a separate precedence/ownership/recovery/consent design. |
+
+**Implementation confirmations (not owner decisions):** CodeGraph `codemode: false` per the vendor print-config recipe; Context7/Exa default `codemode` remains to be verified at implementation; CodeGraph 1.6.2 is locally verified but the supported minimum version must be recorded in the manifest; exact Context7/Exa headers/endpoints are re-verified before any write.
