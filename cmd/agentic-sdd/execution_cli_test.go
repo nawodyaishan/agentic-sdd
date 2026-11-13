@@ -16,6 +16,9 @@ import (
 // fixture. Tests never touch a real home or the repository's own checkout.
 func executionTestRepo(t *testing.T) string {
 	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git unavailable")
+	}
 	dir := t.TempDir()
 	runGit := func(args ...string) {
 		t.Helper()

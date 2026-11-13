@@ -62,6 +62,9 @@ func repoTestGit(t *testing.T, dir string, args ...string) string {
 
 func repoTestGitCode(t *testing.T, dir string, args ...string) (string, int) {
 	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git unavailable")
+	}
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	cmd.Env = repoTestEnv(t)
