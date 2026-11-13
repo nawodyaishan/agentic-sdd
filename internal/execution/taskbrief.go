@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -57,55 +56,195 @@ func BatchSectionScopeDigest(tasksData []byte, batchID string) (string, error) {
 // TaskBrief extracts an authorized task section from tasks.md, resolves its FR/AC
 // references in spec.md, renders a task brief, and writes briefs/<task>.md atomically.
 func TaskBrief(req TaskBriefRequest) (*Brief, error) {
-	// If RunDir is provided, attempt to load run.json if parameters are omitted.
-	if strings.TrimSpace(req.RunDir) != "" {
-		identity, err := LoadRunIdentity(req.RunDir)
-		if err == nil {
-			if identity.Scope.Kind == ScopeDirect {
-				return nil, fmt.Errorf("%w: task brief is not supported for direct-scope runs", ErrUsage)
-			}
-			if strings.TrimSpace(req.RunID) == "" {
-				req.RunID = identity.RunID
-			}
-			if strings.TrimSpace(req.BatchID) == "" {
-				req.BatchID = identity.Scope.BatchID
-			}
-			if strings.TrimSpace(req.RepoRoot) == "" {
-				req.RepoRoot = identity.Scope.RepoRoot
-			}
-			if strings.TrimSpace(req.TasksPath) == "" {
-				req.TasksPath = identity.Scope.TasksPath
-			}
-			if strings.TrimSpace(req.SpecPath) == "" {
-				req.SpecPath = identity.Scope.SpecPath
-			}
-		} else {
-			if _, statErr := os.Stat(filepath.Join(req.RunDir, "run.json")); statErr == nil {
-				return nil, err
-			}
+	runDir := strings.TrimSpace(req.RunDir)
+
+	// Pure extraction: RunDir is empty
+	if runDir == "" {
+		if strings.TrimSpace(req.RunID) != "" {
+			return nil, fmt.Errorf("%w: run ID cannot be provided without run directory", ErrUsage)
 		}
+		if strings.TrimSpace(req.BatchID) == "" {
+			return nil, fmt.Errorf("%w: batch ID is required", ErrUsage)
+		}
+		if strings.TrimSpace(req.TaskID) == "" {
+			return nil, fmt.Errorf("%w: task ID is required", ErrUsage)
+		}
+		if strings.TrimSpace(req.TasksPath) == "" {
+			return nil, fmt.Errorf("%w: tasks.md path is required", ErrUsage)
+		}
+		if strings.TrimSpace(req.SpecPath) == "" {
+			return nil, fmt.Errorf("%w: spec.md path is required", ErrUsage)
+		}
+
+		tasksFullPath := req.TasksPath
+		if !filepath.IsAbs(tasksFullPath) && strings.TrimSpace(req.RepoRoot) != "" {
+			tasksFullPath = filepath.Join(req.RepoRoot, tasksFullPath)
+		}
+		specFullPath := req.SpecPath
+		if !filepath.IsAbs(specFullPath) && strings.TrimSpace(req.RepoRoot) != "" {
+			specFullPath = filepath.Join(req.RepoRoot, specFullPath)
+		}
+
+		tasksBytes, err := readBoundedRegular(tasksFullPath, MaxTasksFileBytes)
+		if err != nil {
+			return nil, err
+		}
+		specBytes, err := readBoundedRegular(specFullPath, MaxSpecFileBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		extracted, err := ExtractTask(tasksBytes, req.BatchID, req.TaskID)
+		if err != nil {
+			return nil, err
+		}
+
+		resolvedRefs, err := ResolveReferences(specBytes, extracted.References)
+		if err != nil {
+			return nil, err
+		}
+
+		batchScopeDigest, err := NormalizedBatchScopeDigest(tasksBytes, req.BatchID)
+		if err != nil {
+			return nil, err
+		}
+
+		tasksDigest := DigestBytes(tasksBytes)
+		specDigest := DigestBytes(specBytes)
+
+		rendered := RenderTaskBrief(req, extracted, resolvedRefs, tasksDigest, batchScopeDigest, specDigest)
+		briefBytes := []byte(rendered)
+		briefDigest := DigestBytes(briefBytes)
+
+		return &Brief{
+			SchemaVersion: SchemaVersion,
+			Kind:          "execution.task.brief",
+			RunID:         "",
+			TaskID:        extracted.TaskID,
+			BriefPath:     "",
+			BriefDigest:   briefDigest,
+			SourcePath:    req.TasksPath,
+			LineStart:     extracted.LineStart,
+			LineEnd:       extracted.LineEnd,
+			References:    extracted.References,
+			GeneratedAt:   time.Now().UTC(),
+		}, nil
 	}
 
-	if strings.TrimSpace(req.BatchID) == "" {
-		return nil, fmt.Errorf("%w: batch ID is required", ErrUsage)
+	// Run-backed operation: RunDir is provided
+	runDir = filepath.Clean(runDir)
+	identity, err := LoadRunIdentity(runDir)
+	if err != nil {
+		return nil, err
 	}
+	if identity.Scope.Kind == ScopeDirect {
+		return nil, fmt.Errorf("%w: task brief is not supported for direct-scope runs", ErrUsage)
+	}
+
+	// Validate explicit fields against run identity (reject contradictory fields with ErrConflict)
+	if strings.TrimSpace(req.RunID) != "" {
+		if strings.TrimSpace(req.RunID) != identity.RunID {
+			return nil, fmt.Errorf("%w: request run ID %q does not match owning run %q", ErrConflict, req.RunID, identity.RunID)
+		}
+	} else {
+		req.RunID = identity.RunID
+	}
+
+	if strings.TrimSpace(req.BatchID) != "" {
+		if strings.TrimSpace(req.BatchID) != identity.Scope.BatchID {
+			return nil, fmt.Errorf("%w: request batch ID %q does not match run scope batch %q", ErrConflict, req.BatchID, identity.Scope.BatchID)
+		}
+	} else {
+		req.BatchID = identity.Scope.BatchID
+	}
+
+	if strings.TrimSpace(req.RepoRoot) != "" {
+		absRepo, err := filepath.Abs(req.RepoRoot)
+		if err != nil || filepath.Clean(absRepo) != filepath.Clean(identity.Scope.RepoRoot) {
+			return nil, fmt.Errorf("%w: request repo root %q does not match run scope repo root %q", ErrConflict, req.RepoRoot, identity.Scope.RepoRoot)
+		}
+	} else {
+		req.RepoRoot = identity.Scope.RepoRoot
+	}
+
+	canonicalTasks := scopeSourcePath(identity.Scope.RepoRoot, identity.Scope.TasksPath)
+	if strings.TrimSpace(req.TasksPath) != "" {
+		var candidateTasks string
+		if filepath.IsAbs(req.TasksPath) {
+			candidateTasks = filepath.Clean(req.TasksPath)
+		} else {
+			candidateTasks = filepath.Clean(filepath.Join(identity.Scope.RepoRoot, req.TasksPath))
+		}
+		if candidateTasks != filepath.Clean(canonicalTasks) {
+			return nil, fmt.Errorf("%w: request tasks path %q does not match run canonical tasks path %q", ErrConflict, req.TasksPath, identity.Scope.TasksPath)
+		}
+	}
+	req.TasksPath = identity.Scope.TasksPath
+
+	canonicalSpec := scopeSourcePath(identity.Scope.RepoRoot, identity.Scope.SpecPath)
+	if strings.TrimSpace(req.SpecPath) != "" {
+		var candidateSpec string
+		if filepath.IsAbs(req.SpecPath) {
+			candidateSpec = filepath.Clean(req.SpecPath)
+		} else {
+			candidateSpec = filepath.Clean(filepath.Join(identity.Scope.RepoRoot, req.SpecPath))
+		}
+		if candidateSpec != filepath.Clean(canonicalSpec) {
+			return nil, fmt.Errorf("%w: request spec path %q does not match run canonical spec path %q", ErrConflict, req.SpecPath, identity.Scope.SpecPath)
+		}
+	}
+	req.SpecPath = identity.Scope.SpecPath
+
 	if strings.TrimSpace(req.TaskID) == "" {
 		return nil, fmt.Errorf("%w: task ID is required", ErrUsage)
 	}
-	if strings.TrimSpace(req.TasksPath) == "" {
-		return nil, fmt.Errorf("%w: tasks.md path is required", ErrUsage)
-	}
-	if strings.TrimSpace(req.SpecPath) == "" {
-		return nil, fmt.Errorf("%w: spec.md path is required", ErrUsage)
+	if err := validateToken("task ID", req.TaskID); err != nil {
+		return nil, err
 	}
 
-	tasksFullPath := req.TasksPath
-	if !filepath.IsAbs(tasksFullPath) && strings.TrimSpace(req.RepoRoot) != "" {
-		tasksFullPath = filepath.Join(req.RepoRoot, tasksFullPath)
+	// Acquire per-run writer lock before loading/writing checkpoint or artifact
+	lock, err := acquireRunLock(runDir, "brief")
+	if err != nil {
+		return nil, err
 	}
-	specFullPath := req.SpecPath
-	if !filepath.IsAbs(specFullPath) && strings.TrimSpace(req.RepoRoot) != "" {
-		specFullPath = filepath.Join(req.RepoRoot, specFullPath)
+	defer lock.release()
+
+	// Under lock: reload identity to verify ownership and direct scope
+	identity, err = LoadRunIdentity(runDir)
+	if err != nil {
+		return nil, err
+	}
+	if identity.Scope.Kind == ScopeDirect {
+		return nil, fmt.Errorf("%w: task brief is not supported for direct-scope runs", ErrUsage)
+	}
+
+	// Under lock: load checkpoint (synthesize prepared from identity.Baseline only when missing)
+	checkpoint, err := LoadCheckpoint(runDir)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+		baseline := identity.Baseline
+		checkpoint = &Checkpoint{
+			SchemaVersion:   SchemaVersion,
+			RunID:           identity.RunID,
+			UpdatedAt:       time.Now().UTC(),
+			State:           StatePrepared,
+			LastObservation: &baseline,
+		}
+	}
+	if checkpoint.RunID != identity.RunID {
+		return nil, fmt.Errorf("%w: checkpoint run ID %q does not match run identity %q", ErrConflict, checkpoint.RunID, identity.RunID)
+	}
+
+	// Resolve contained canonical source paths and validate source identity against identity.Scope
+	tasksFullPath, _, err := resolveInside(identity.Scope.RepoRoot, req.TasksPath)
+	if err != nil {
+		return nil, err
+	}
+	specFullPath, _, err := resolveInside(identity.Scope.RepoRoot, req.SpecPath)
+	if err != nil {
+		return nil, err
 	}
 
 	tasksBytes, err := readBoundedRegular(tasksFullPath, MaxTasksFileBytes)
@@ -115,6 +254,25 @@ func TaskBrief(req TaskBriefRequest) (*Brief, error) {
 	specBytes, err := readBoundedRegular(specFullPath, MaxSpecFileBytes)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate current source identity against identity.Scope:
+	// spec digest change -> ErrConflict (cannot bypass with Force)
+	currentSpecDigest := DigestBytes(specBytes)
+	if currentSpecDigest != identity.Scope.SpecDigest {
+		return nil, fmt.Errorf("%w: spec digest %q does not match run scope spec digest %q", ErrConflict, currentSpecDigest, identity.Scope.SpecDigest)
+	}
+
+	// tasks digest change -> if NormalizedBatchScopeDigest(current, batch) differs -> ErrConflict
+	currentTasksDigest := DigestBytes(tasksBytes)
+	if currentTasksDigest != identity.Scope.TasksDigest {
+		currentBatchScopeDigest, err := NormalizedBatchScopeDigest(tasksBytes, req.BatchID)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to calculate batch scope digest: %v", ErrConflict, err)
+		}
+		if currentBatchScopeDigest != identity.Scope.BatchScopeDigest {
+			return nil, fmt.Errorf("%w: batch scope digest %q does not match run scope digest %q", ErrConflict, currentBatchScopeDigest, identity.Scope.BatchScopeDigest)
+		}
 	}
 
 	extracted, err := ExtractTask(tasksBytes, req.BatchID, req.TaskID)
@@ -132,62 +290,42 @@ func TaskBrief(req TaskBriefRequest) (*Brief, error) {
 		return nil, err
 	}
 
-	tasksDigest := DigestBytes(tasksBytes)
-	specDigest := DigestBytes(specBytes)
+	tasksDigest := currentTasksDigest
+	specDigest := currentSpecDigest
 
 	rendered := RenderTaskBrief(req, extracted, resolvedRefs, tasksDigest, batchScopeDigest, specDigest)
 	briefBytes := []byte(rendered)
 	briefDigest := DigestBytes(briefBytes)
 
-	var briefPath string
-	if strings.TrimSpace(req.RunDir) != "" {
-		runDir := filepath.Clean(req.RunDir)
-		info, err := os.Lstat(runDir)
-		if err != nil {
-			return nil, fmt.Errorf("%w: run directory is unreadable", ErrUnsafePath)
-		}
-		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			return nil, fmt.Errorf("%w: run directory is a symlink or not a directory", ErrUnsafePath)
-		}
-		if err := ensureArtifactDir(runDir, "briefs"); err != nil {
-			return nil, err
-		}
-		briefPath = filepath.Join(runDir, "briefs", extracted.TaskID+".md")
+	if err := ensureArtifactDir(runDir, "briefs"); err != nil {
+		return nil, err
+	}
+	briefPath := filepath.Join(runDir, "briefs", extracted.TaskID+".md")
 
-		existingBytes, err := readBoundedRegular(briefPath, MaxSpecFileBytes)
-		if err == nil {
-			if DigestBytes(existingBytes) == briefDigest {
-				// Idempotent no-op
-				return &Brief{
-					SchemaVersion: SchemaVersion,
-					Kind:          "execution.task.brief",
-					RunID:         req.RunID,
-					TaskID:        extracted.TaskID,
-					BriefPath:     briefPath,
-					BriefDigest:   briefDigest,
-					SourcePath:    req.TasksPath,
-					LineStart:     extracted.LineStart,
-					LineEnd:       extracted.LineEnd,
-					References:    extracted.References,
-					GeneratedAt:   time.Now().UTC(),
-				}, nil
-			}
+	existingBytes, err := readBoundedRegular(briefPath, MaxSpecFileBytes)
+	if err == nil {
+		if DigestBytes(existingBytes) == briefDigest {
+			// Idempotent: same bytes. Still register provenance and persist checkpoint below.
+		} else {
 			if !req.Force {
 				return nil, fmt.Errorf("%w: brief %q already exists with differing digest (pass Force to overwrite)", ErrConflict, briefPath)
 			}
-		} else if !errors.Is(err, fs.ErrNotExist) {
-			return nil, err
+			if err := writeFileAtomic(briefPath, briefBytes, 0600); err != nil {
+				return nil, fmt.Errorf("%w: failed to write brief: %v", ErrUsage, err)
+			}
 		}
-
+	} else if errors.Is(err, fs.ErrNotExist) {
 		if err := writeFileAtomic(briefPath, briefBytes, 0600); err != nil {
 			return nil, fmt.Errorf("%w: failed to write brief: %v", ErrUsage, err)
 		}
+	} else {
+		return nil, err
 	}
 
-	return &Brief{
+	brief := &Brief{
 		SchemaVersion: SchemaVersion,
 		Kind:          "execution.task.brief",
-		RunID:         req.RunID,
+		RunID:         identity.RunID,
 		TaskID:        extracted.TaskID,
 		BriefPath:     briefPath,
 		BriefDigest:   briefDigest,
@@ -196,7 +334,21 @@ func TaskBrief(req TaskBriefRequest) (*Brief, error) {
 		LineEnd:       extracted.LineEnd,
 		References:    extracted.References,
 		GeneratedAt:   time.Now().UTC(),
-	}, nil
+	}
+
+	if err := registerTaskBrief(checkpoint, runDir, *brief); err != nil {
+		return nil, err
+	}
+	if err := WriteCheckpoint(runDir, checkpoint); err != nil {
+		return nil, err
+	}
+	// Report a lock that could not be released instead of claiming success. The
+	// deferred release is a no-op once this handle is marked released.
+	if err := lock.release(); err != nil {
+		return nil, err
+	}
+
+	return brief, nil
 }
 
 type lineRecord struct {

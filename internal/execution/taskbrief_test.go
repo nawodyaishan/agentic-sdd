@@ -15,7 +15,6 @@ func TestTaskBrief_HeadingT1(t *testing.T) {
 	specPath := filepath.Join("testdata", "spec", "standard_spec.md")
 
 	req := TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-111111",
 		BatchID:   "B1",
 		TaskID:    "T1",
 		TasksPath: tasksPath,
@@ -51,7 +50,6 @@ func TestTaskBrief_HeadingT01(t *testing.T) {
 	specPath := filepath.Join("testdata", "spec", "standard_spec.md")
 
 	req := TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-222222",
 		BatchID:   "B01",
 		TaskID:    "T01",
 		TasksPath: tasksPath,
@@ -74,7 +72,6 @@ func TestTaskBrief_T1_vs_T10(t *testing.T) {
 
 	// 1. Request T1: must not match T10
 	brief1, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-333333",
 		BatchID:   "B1",
 		TaskID:    "T1",
 		TasksPath: tasksPath,
@@ -89,7 +86,6 @@ func TestTaskBrief_T1_vs_T10(t *testing.T) {
 
 	// 2. Request T10: must not match T1
 	brief10, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-333334",
 		BatchID:   "B1",
 		TaskID:    "T10",
 		TasksPath: tasksPath,
@@ -114,7 +110,6 @@ func TestTaskBrief_CheckboxForm(t *testing.T) {
 	specPath := filepath.Join("testdata", "spec", "standard_spec.md")
 
 	brief, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-444444",
 		BatchID:   "B1",
 		TaskID:    "T01",
 		TasksPath: tasksPath,
@@ -129,7 +124,6 @@ func TestTaskBrief_CheckboxForm(t *testing.T) {
 
 	// Also extract T02 which was [x]
 	brief2, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-444445",
 		BatchID:   "B1",
 		TaskID:    "T02",
 		TasksPath: tasksPath,
@@ -227,7 +221,6 @@ func TestTaskBrief_CRLF(t *testing.T) {
 	}
 
 	brief, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-555555",
 		BatchID:   "B1",
 		TaskID:    "T01",
 		TasksPath: tasksFile,
@@ -266,7 +259,6 @@ func TestTaskBrief_UnresolvedReference(t *testing.T) {
 	}
 
 	_, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-666666",
 		BatchID:   "B1",
 		TaskID:    "T01",
 		TasksPath: tasksFile,
@@ -285,7 +277,6 @@ func TestTaskBrief_DuplicateReferenceInSpec(t *testing.T) {
 	specPath := filepath.Join("testdata", "spec", "duplicate_ref_spec.md")
 
 	_, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-777777",
 		BatchID:   "B01",
 		TaskID:    "T01",
 		TasksPath: tasksPath,
@@ -304,7 +295,6 @@ func TestTaskBrief_MissingTask(t *testing.T) {
 	specPath := filepath.Join("testdata", "spec", "standard_spec.md")
 
 	_, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-888888",
 		BatchID:   "B1",
 		TaskID:    "T99",
 		TasksPath: tasksPath,
@@ -324,7 +314,6 @@ func TestTaskBrief_WrongBatchOnlyTask(t *testing.T) {
 
 	// T20 belongs to B2, but we ask for it in B1
 	_, err := TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-999999",
 		BatchID:   "B1",
 		TaskID:    "T20",
 		TasksPath: tasksPath,
@@ -469,32 +458,22 @@ func TestTaskBrief_ScopeDigest_ProgressOnly(t *testing.T) {
 }
 
 func TestTaskBrief_IdempotenceAndForce(t *testing.T) {
-	tmpDir := t.TempDir()
-	runDir := filepath.Join(tmpDir, "run-test")
-	if err := os.MkdirAll(runDir, 0700); err != nil {
-		t.Fatal(err)
-	}
-
-	tasksPath := filepath.Join("testdata", "tasks", "standard_tasks.md")
-	specPath := filepath.Join("testdata", "spec", "standard_spec.md")
+	_, _, identity := workspaceTestRun(t)
+	runDir := identity.RunDir
 
 	req := TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-abcdef",
-		RunDir:    runDir,
-		BatchID:   "B1",
-		TaskID:    "T1",
-		TasksPath: tasksPath,
-		SpecPath:  specPath,
-		Force:     false,
+		RunDir: runDir,
+		TaskID: "T01",
+		Force:  false,
 	}
 
-	// 1. Initial generation: creates briefs/T1.md
+	// 1. Initial generation: creates briefs/T01.md
 	brief1, err := TaskBrief(req)
 	if err != nil {
 		t.Fatalf("initial TaskBrief failed: %v", err)
 	}
 
-	briefFile := filepath.Join(runDir, "briefs", "T1.md")
+	briefFile := filepath.Join(runDir, "briefs", "T01.md")
 	info, err := os.Stat(briefFile)
 	if err != nil {
 		t.Fatalf("expected brief file to exist: %v", err)
@@ -557,7 +536,6 @@ func TestTaskBrief_FileSizeLimitAndUTF8(t *testing.T) {
 
 	specPath := filepath.Join("testdata", "spec", "standard_spec.md")
 	_, err = TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-000001",
 		BatchID:   "B1",
 		TaskID:    "T1",
 		TasksPath: largeTasks,
@@ -577,7 +555,6 @@ func TestTaskBrief_FileSizeLimitAndUTF8(t *testing.T) {
 	}
 
 	_, err = TaskBrief(TaskBriefRequest{
-		RunID:     "run-20261113T120000Z-000002",
 		BatchID:   "B1",
 		TaskID:    "T1",
 		TasksPath: invalidUTF8Tasks,

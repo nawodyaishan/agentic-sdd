@@ -231,6 +231,9 @@ func fenceMarker(trimmed string) (byte, int, bool) {
 
 // LoadCheckpoint reads and validates checkpoint.json. A missing file returns an
 // error wrapping fs.ErrNotExist so callers can synthesize a prepared state.
+// A checkpoint is only this directory's observation when its run ID equals the
+// validated owning run identity; a syntactically valid foreign ID is refused
+// with ErrConflict before any caller can consume or mutate from it.
 func LoadCheckpoint(runDir string) (*Checkpoint, error) {
 	data, err := readBoundedRegular(filepath.Join(runDir, checkpointName), maxCheckpointBytes)
 	if err != nil {
@@ -245,6 +248,13 @@ func LoadCheckpoint(runDir string) (*Checkpoint, error) {
 	}
 	if err := ValidateRunID(checkpoint.RunID); err != nil {
 		return nil, err
+	}
+	identity, err := LoadRunIdentity(runDir)
+	if err != nil {
+		return nil, err
+	}
+	if checkpoint.RunID != identity.RunID {
+		return nil, fmt.Errorf("%w: checkpoint run ID does not match run identity", ErrConflict)
 	}
 	if !isKnownState(checkpoint.State) {
 		return nil, fmt.Errorf("%w: checkpoint state is not recognized", ErrUsage)
@@ -386,9 +396,14 @@ func evaluateFreshness(identity RunIdentity, checkpoint *Checkpoint, runDir stri
 			addReason(ReasonStaleLock)
 		}
 	}
-	for _, task := range checkpoint.Tasks {
-		if task.BriefPath != "" && !regularFileExists(task.BriefPath) {
-			addReason(ReasonMissingArtifact)
+	// Persisted briefs are private scratch with registered provenance. Missing,
+	// changed, unregistered or unreadable artifacts are reconciliation evidence;
+	// an unsafe or over-budget layout is reported as drift, never as clean.
+	if briefReasons, briefErr := inspectBriefArtifacts(runDir, checkpoint); briefErr != nil {
+		addReason(ReasonBriefInspectionFailed)
+	} else {
+		for _, reason := range briefReasons {
+			addReason(reason)
 		}
 	}
 	for _, check := range checkpoint.Checks {
@@ -563,7 +578,8 @@ func nextInvestigation(state CheckpointState, reasons []string) string {
 		for _, reason := range reasons {
 			switch reason {
 			case ReasonSpecChanged, ReasonTasksChanged, ReasonBatchChanged,
-				ReasonScopeMismatch, ReasonMissingArtifact, ReasonContradictoryEvidence:
+				ReasonScopeMismatch, ReasonMissingArtifact, ReasonContradictoryEvidence,
+				ReasonBriefDigestMismatch, ReasonUnregisteredBrief, ReasonBriefInspectionFailed:
 				return InvestigateReconcileSource
 			}
 		}

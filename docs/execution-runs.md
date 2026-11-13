@@ -1,6 +1,6 @@
 # Execution runs — task briefs, check evidence and review packages
 
-**Status:** the approved contract for [Feature 016](../specs/016-agent-execution-context-evidence-recovery/spec.md), whose combined approval is recorded once in [spec §14](../specs/016-agent-execution-context-evidence-recovery/spec.md#14-approval). Implementation batches B1–B3 are complete and awaiting human review. This page describes the frozen public contract: it is not a shipped-capability claim, a security certification or an approval.
+**Status:** the approved contract for [Feature 016](../specs/016-agent-execution-context-evidence-recovery/spec.md), whose combined approval is recorded once in [spec §14](../specs/016-agent-execution-context-evidence-recovery/spec.md#14-approval). Implementation batches B1–B3 are complete and awaiting human review. [Feature 017](../specs/017-agent-context-upgrade/spec.md) adds run-bound brief provenance and conservative reuse of schema-v1 runs without changing the other command families; its B1 implementation awaits human review. This page describes the frozen public contract: it is not a shipped-capability claim, a security certification or an approval.
 
 The `run`, `task` and `review` command families give the main agent one private local place for a task brief, truthful check evidence, a review package and a recoverable checkpoint. They are ordinary CLI commands: offline, explicit arguments, no prompt, no model call, no network call, no telemetry, and no change to an existing command's output or exit codes.
 
@@ -78,7 +78,7 @@ Default root: `<repo>/.agentic-sdd/runs`, with a generated `runs/.gitignore` con
     untracked/<path>       verbatim copies or symlink metadata
 ```
 
-Run, check, record and package IDs are path-safe and deterministic in shape (`run-20261113T114500Z-a1b2c3`, `chk-…`, `rec-…`, `pkg-…`). Directories are `0700` and files `0600`; checkpoint writes are atomic, so an interrupted write leaves the previous valid file. One writer at a time per run: concurrent checks on one run fail on the lock instead of interleaving, and a run-ID collision is rejected rather than reused.
+Run, check, record and package IDs are path-safe and deterministic in shape (`run-20261113T114500Z-a1b2c3`, `chk-…`, `rec-…`, `pkg-…`). Directories are `0700` and files `0600`; checkpoint writes are atomic, so an interrupted write leaves the previous valid file. One writer at a time per run: concurrent checks or run-backed brief mutations on one run fail on the lock instead of interleaving, and a run-ID collision is rejected rather than reused.
 
 ## Exit codes
 
@@ -86,7 +86,7 @@ Run, check, record and package IDs are path-safe and deterministic in shape (`ru
 |---|---|
 | `0` | Command completed successfully. For `run status`, the observation was read successfully even when the reported state is `stale` or `blocked` — inspect the state field. For `run check`, the supplied command passed. |
 | `1` | Runtime, I/O, interrupted or failed check. For `run check`, the command failed, was interrupted or exceeded a limit; its own exit code and signal are in the result, not the wrapper's exit code. |
-| `2` | Usage, invalid arguments, ambiguous or missing task, unsafe path, or an unresolved required reference. Text on stderr; no partial JSON object. |
+| `2` | Usage, invalid arguments, ambiguous or missing task, unsafe path, an unresolved required reference, or a conflicting run/checkpoint identity. Text on stderr; no partial JSON object. |
 | `3` | `review package` wrote a partial package. The artifact and omissions are real, and the package must not be called complete. |
 | `124` | `run check` timed out. |
 
@@ -99,10 +99,22 @@ A failed, timed-out or interrupted `run check` and a partial `review package` st
 - `verified-evidence` means a passing check matches the current source and worktree with no contradicting claim or blocker. It is still not human approval.
 - An interrupted `run check` can leave a checkpoint record with `result: running`; `run status` reports `observed-partial` with `interrupted_check`, never a pass.
 - A `run record` entry is a **claim**. A `passed` claim yields `awaiting-verification`; only a fresh check in the current code state, or the parent's own inspection, supports a verified observation.
-- Freshness reasons are explicit: `spec_changed`, `tasks_changed`, `batch_changed`, `head_changed`, `worktree_changed`, `scope_mismatch`, `missing_artifact`, `interrupted_check`, `stale_lock`, `contradictory_evidence`. A checkbox or status-line-only edit is reported as `progress_updated` and does not stale the run.
+- Freshness reasons are explicit: `spec_changed`, `tasks_changed`, `batch_changed`, `head_changed`, `worktree_changed`, `scope_mismatch`, `missing_artifact`, `brief_digest_mismatch`, `unregistered_brief`, `brief_inspection_failed`, `interrupted_check`, `stale_lock`, `contradictory_evidence`. A checkbox or status-line-only edit is reported as `progress_updated` and does not stale the run.
 - `run status` also reports a next permitted investigation — `inspect_changed_paths`, `rerun_authorized_check`, `reconcile_source_change`, `resolve_blocker` or `none`. It never prints “resume”, “start next batch” or “approved”.
 
 After compaction, restart or interruption, read `run status` before acting. A `stale` or `blocked` run stays stopped until the changed source, batch or worktree is reconciled; reconcile, re-observe, then decide with the human. No writer, check, reviewer or next batch resumes automatically because a checkpoint looks nearly done.
+
+## Task briefs: provenance and recovery
+
+A run-backed brief belongs to exactly one run. `task brief` requires that run's validated identity, and a `checkpoint.json` naming a different — even syntactically valid — run ID is a conflict: `run status` and every checkpoint-consuming mutation exit `2` with no status JSON and no changed run content. A foreign checkpoint is preserved for investigation, never presented as this run's normal observation. Direct-scope runs have no task brief.
+
+Creating, replacing or re-registering a run-backed brief is one mutation under the per-run writer lock. On success the checkpoint records the task, the path of the contained `briefs/<task>.md` artifact and its digest, preserving existing task state and check, claim and blocker history. A persisted brief never verifies evidence, clears a failure or becomes approval; a failed checkpoint write is reported as an error rather than success.
+
+`run status` compares every registered brief with the file on disk. A missing file reports `missing_artifact`; different bytes report `brief_digest_mismatch`; a regular file under `briefs/` with no registered provenance reports `unregistered_brief`. An unreadable, symlinked or over-budget `briefs/` directory reports `brief_inspection_failed` instead of a clean observation. All of these are blocking stale reasons with `reconcile_source_change` as the next permitted investigation.
+
+Schema-v1 runs stay readable without migration. A run with no brief artifacts is not invalid for predating provenance. A run holding an unregistered brief is `stale` until someone reconciles it: status never adopts, rewrites or deletes the file. An explicit `task brief` reissue may register that artifact only when the rendered content is byte-identical; different bytes still require `--force`, and `--force` never bypasses a changed source scope.
+
+A brief, check log or record is an observation about local state. It is not a sandbox, not cryptographic authenticity or tamper-proof storage, and it never repairs a damaged run automatically; reconciliation and any replacement stay explicit, human-authorized actions.
 
 ## Review packages and partial reasons
 
