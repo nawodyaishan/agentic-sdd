@@ -23,9 +23,9 @@ const (
 	updateRequestTimeout = appops.UpdateRequestTimeout
 	maxUpdateBodyBytes   = appops.MaxUpdateBodyBytes
 	updateBrewCommand    = "brew update && brew upgrade nawodyaishan/tap/agentic-sdd"
-	updateVerifyCommand  = "agentic-sdd version"
-	updatePreviewCommand = "agentic-sdd preview"
-	updateApplyCommand   = "agentic-sdd apply"
+	updateVerifyCommand  = canonicalCLIName + " version"
+	updatePreviewCommand = canonicalCLIName + " preview"
+	updateApplyCommand   = canonicalCLIName + " apply"
 )
 
 // updateState classifies one bounded update check. The zero value is a

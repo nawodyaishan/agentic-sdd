@@ -13,12 +13,12 @@ import (
 )
 
 func printFleetUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd fleet status --config PATH [--home PATH] [--repo PATH]
-       agentic-sdd fleet plan --config PATH [--output PATH] [--adopt] [--home PATH] [--repo PATH]
-       agentic-sdd fleet apply --plan PATH [--home PATH]
-       agentic-sdd fleet restore --backup ID [--home PATH]
-       agentic-sdd fleet doctor [--opencode-bin PATH] [--config PATH]
-       agentic-sdd help fleet
+	fmt.Fprint(out, `Usage: asdx-core fleet status --config PATH [--home PATH] [--repo PATH]
+       asdx-core fleet plan --config PATH [--output PATH] [--adopt] [--home PATH] [--repo PATH]
+       asdx-core fleet apply --plan PATH [--home PATH]
+       asdx-core fleet restore --backup ID [--home PATH]
+       asdx-core fleet doctor [--opencode-bin PATH] [--config PATH]
+       asdx-core help fleet
 
 Commands:
   status   Show fleet configuration and installed agent status (read-only, offline).
@@ -26,6 +26,8 @@ Commands:
   apply    Safely apply a generated plan under operation lock.
   restore  Restore managed agents from a previous backup (flag form only).
   doctor   Inspect local OpenCode environment and model routes offline.
+
+Legacy note: "agentic-sdd" wraps "asdx-core" during the deprecation window.
 
 Exit Codes:
   0  Success
@@ -35,7 +37,7 @@ Exit Codes:
 }
 
 func printFleetStatusUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd fleet status --config PATH [--home PATH] [--repo PATH]
+	fmt.Fprint(out, `Usage: asdx-core fleet status --config PATH [--home PATH] [--repo PATH]
 
 Show fleet configuration and installed agent status (read-only, offline).
 
@@ -47,7 +49,7 @@ Flags:
 }
 
 func printFleetApplyUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd fleet apply --plan PATH [--home PATH]
+	fmt.Fprint(out, `Usage: asdx-core fleet apply --plan PATH [--home PATH]
 
 Safely apply a generated plan under operation lock.
 
@@ -58,7 +60,7 @@ Flags:
 }
 
 func printFleetRestoreUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd fleet restore --backup ID [--home PATH]
+	fmt.Fprint(out, `Usage: asdx-core fleet restore --backup ID [--home PATH]
 
 Restore managed agents from a previous backup (flag form only).
 
@@ -69,7 +71,7 @@ Flags:
 }
 
 func printFleetDoctorUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd fleet doctor [--opencode-bin PATH] [--config PATH]
+	fmt.Fprint(out, `Usage: asdx-core fleet doctor [--opencode-bin PATH] [--config PATH]
 
 Inspect local OpenCode environment and model routes offline.
 
@@ -110,7 +112,7 @@ func runFleet(args []string, stdout, stderr io.Writer, env *Env) int {
 }
 
 func runFleetStatus(args []string, stdout, stderr io.Writer, env *Env) int {
-	fs := flag.NewFlagSet("fleet status", flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" fleet status", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	var configPath, home, repo string
@@ -228,7 +230,7 @@ func shortDigest(digest string) string {
 }
 
 func runFleetApply(args []string, stdout, stderr io.Writer, env *Env) int {
-	fs := flag.NewFlagSet("fleet apply", flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" fleet apply", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	var planPath, home string
@@ -283,7 +285,7 @@ func runFleetApply(args []string, stdout, stderr io.Writer, env *Env) int {
 }
 
 func runFleetRestore(args []string, stdout, stderr io.Writer, env *Env) int {
-	fs := flag.NewFlagSet("fleet restore", flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" fleet restore", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	var backupID, home string
@@ -300,7 +302,7 @@ func runFleetRestore(args []string, stdout, stderr io.Writer, env *Env) int {
 	}
 
 	if fs.NArg() != 0 {
-		fmt.Fprintf(stderr, "error: usage: agentic-sdd fleet restore --backup ID [--home PATH]\n")
+		fmt.Fprintf(stderr, "error: usage: %s fleet restore --backup ID [--home PATH]\n", canonicalCLIName)
 		return 2
 	}
 
@@ -333,7 +335,7 @@ func runFleetRestore(args []string, stdout, stderr io.Writer, env *Env) int {
 }
 
 func runFleetDoctor(args []string, stdout, stderr io.Writer, env *Env) int {
-	fs := flag.NewFlagSet("fleet doctor", flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" fleet doctor", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	var opencodeBin, configPath string

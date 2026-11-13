@@ -105,7 +105,7 @@ type guideRuntime struct {
 	check     func(string) updateResult
 }
 
-// runGuide implements "agentic-sdd guide": a numbered-prompt wizard over the
+// runGuide implements "asdx-core guide": a numbered-prompt wizard over the
 // existing preview, apply, restore and logs operations. It accepts only
 // --repo and --home and never reads stdin without an interactive terminal.
 // The production wrapper injects build metadata and a network client factory;
@@ -123,7 +123,7 @@ func runGuide(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env
 // runGuideWithRuntime is the testable guide body. It keeps the original
 // runGuide signature at the production seam and never mutates shared state.
 func runGuideWithRuntime(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env, rt guideRuntime) int {
-	fs := flag.NewFlagSet("agentic-sdd guide", flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" guide", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var repo, home string
 	fs.StringVar(&repo, "repo", "", "repository containing skills-files (default: skills embedded in this binary)")
@@ -135,7 +135,7 @@ func runGuideWithRuntime(args []string, stdout, stderr io.Writer, stdin io.Reade
 			return 0
 		}
 		fmt.Fprintln(stderr, "error:", err)
-		env.Hint(stderr, "run agentic-sdd help guide for the accepted flags")
+		env.Hint(stderr, "run "+canonicalCLIName+" help guide for the accepted flags")
 		return 2
 	}
 	if fs.NArg() != 0 {
@@ -145,8 +145,8 @@ func runGuideWithRuntime(args []string, stdout, stderr io.Writer, stdin io.Reade
 
 	// Fail fast and read nothing when stdin is not a terminal (FR-06).
 	if env == nil || !env.Interactive {
-		fmt.Fprintln(stderr, "error: guide requires an interactive terminal; run \"agentic-sdd preview\", \"agentic-sdd apply\", or \"agentic-sdd help guide\"")
-		env.Hint(stderr, "run agentic-sdd preview to inspect planned changes, or agentic-sdd help guide")
+		fmt.Fprintf(stderr, "error: guide requires an interactive terminal; run %q, %q, or %q\n", canonicalCLIName+" preview", canonicalCLIName+" apply", canonicalCLIName+" help guide")
+		env.Hint(stderr, "run "+canonicalCLIName+" preview to inspect planned changes, or "+canonicalCLIName+" help guide")
 		return 2
 	}
 
@@ -379,7 +379,7 @@ func runGuideInstall(repo, home, absHome string, p *prompter, stderr io.Writer, 
 		if logPath := operationLogPath(applyBuf.String()); logPath != "" {
 			fmt.Fprintln(stdout, "Log: "+logPath)
 		}
-		fmt.Fprintln(stdout, "Undo any time: agentic-sdd restore")
+		fmt.Fprintln(stdout, "Undo any time: "+canonicalCLIName+" restore")
 		fmt.Fprintln(stdout)
 		printHeading(stdout, env, "Next, in a project, tell your agent:")
 		for _, prompt := range guideExamplePrompts {
@@ -394,7 +394,7 @@ func runGuideInstall(repo, home, absHome string, p *prompter, stderr io.Writer, 
 	if logPath := operationLogPath(applyBuf.String()); logPath != "" {
 		fmt.Fprintln(stdout, "Log: "+logPath)
 	}
-	fmt.Fprintln(stdout, "Undo any time: agentic-sdd restore")
+	fmt.Fprintln(stdout, "Undo any time: "+canonicalCLIName+" restore")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Next, in a project, tell your agent:")
 	for _, prompt := range guideExamplePrompts {
@@ -519,7 +519,7 @@ func printGuideAbout(out io.Writer) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Agentic SDD installs reusable engineering skills for coding agents.")
 	fmt.Fprintln(out, "It writes into four client directories, backs up anything it replaces,")
-	fmt.Fprintln(out, "and can undo an install with \"agentic-sdd restore\".")
+	fmt.Fprintf(out, "and can undo an install with %q.\n", canonicalCLIName+" restore")
 	fmt.Fprintln(out, "Every action is also a plain command: preview, apply, backups,")
 	fmt.Fprintln(out, "restore, logs. Nothing is written until you confirm.")
 	fmt.Fprintln(out)
@@ -531,7 +531,7 @@ func printGuideAboutTerminal(out io.Writer, env *Env) {
 	fmt.Fprintln(out)
 	printHeading(out, env, "About and getting started")
 	printWrappedProse(out, "", "Agentic SDD installs reusable engineering skills for coding agents.", proseWidth(env))
-	printWrappedProse(out, "", "It writes into four client directories, backs up anything it replaces, and can undo an install with \"agentic-sdd restore\".", proseWidth(env))
+	printWrappedProse(out, "", fmt.Sprintf("It writes into four client directories, backs up anything it replaces, and can undo an install with %q.", canonicalCLIName+" restore"), proseWidth(env))
 	printWrappedProse(out, "", "Installer actions are also plain commands: preview, apply, backups, restore, logs. The update check is guide-only and uses GitHub.", proseWidth(env))
 	printWrappedProse(out, "", "Restoring can replace current files and remove freshly installed items.", proseWidth(env))
 	printWrappedProse(out, "", "Upgrading the CLI does not update installed skills.", proseWidth(env))
@@ -568,7 +568,7 @@ func printGuidePreview(out io.Writer, sum skillsync.PlanSummary) {
 	}
 	fmt.Fprintf(out, "  Total: %d to install, %d to replace.\n", sum.Install, sum.Replace)
 	fmt.Fprintln(out, "  Existing skills are backed up before they are replaced.")
-	fmt.Fprintln(out, "  (Run agentic-sdd preview for the full per-skill list.)")
+	fmt.Fprintf(out, "  (Run %s preview for the full per-skill list.)\n", canonicalCLIName)
 }
 
 func printGuidePreviewTerminal(out io.Writer, env *Env, sum skillsync.PlanSummary) {
@@ -586,7 +586,7 @@ func printGuidePreviewTerminal(out io.Writer, env *Env, sum skillsync.PlanSummar
 		fmt.Fprintf(out, "  Total: %d to install, %d to replace.\n", sum.Install, sum.Replace)
 	}
 	printCautionProse(out, env, "  ", "Existing skills are backed up before they are replaced.", proseWidth(env))
-	printWrappedProse(out, "  ", "(Run agentic-sdd preview for the full per-skill list.)", proseWidth(env))
+	printWrappedProse(out, "  ", fmt.Sprintf("(Run %s preview for the full per-skill list.)", canonicalCLIName), proseWidth(env))
 }
 
 // printWrapped writes text word-wrapped to width columns, prefixing every

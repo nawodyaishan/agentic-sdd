@@ -389,14 +389,14 @@ func printExplorerDetail(out io.Writer, env *Env, item explorerItem) {
 	if item.kind == "profile" {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "Next steps:")
-		fmt.Fprintln(out, "  To install: agentic-sdd apply --with-opencode")
+		fmt.Fprintln(out, "  To install: "+canonicalCLIName+" apply --with-opencode")
 		if card.Example != "" {
 			fmt.Fprintf(out, "  To use in your coding agent: %s\n", card.Example)
 		}
 	} else if item.kind == "skill" {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "Next steps:")
-		fmt.Fprintln(out, "  To install: agentic-sdd apply")
+		fmt.Fprintln(out, "  To install: "+canonicalCLIName+" apply")
 		if card.Example != "" {
 			fmt.Fprintf(out, "  To use in your coding agent: %s\n", card.Example)
 		}

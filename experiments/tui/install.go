@@ -325,6 +325,41 @@ func (m *InstallModel) SetInspectOp(op InspectOp) {
 	}
 }
 
+// ResetJourney explicitly restarts the installation journey at client selection
+// and discards any completed result, preview token, error, notice or staged
+// choices. It refuses to disrupt an actively running write transaction and
+// increments the operation generation so late async previews are discarded.
+func (m *InstallModel) ResetJourney() {
+	if m.step == InstallStepRunning || m.applyLoading {
+		return
+	}
+	m.opID.Generation++
+	m.step = InstallStepClients
+	m.outcome = InstallOutcomeNone
+	m.clientCursor = 0
+	m.selectedClients = make(map[string]bool, len(m.supportedClients))
+	for _, id := range m.supportedClients {
+		m.selectedClients[id] = true
+	}
+	m.withOpenCode = false
+	m.freeFirst = false
+	m.optionsCursor = 0
+	m.confirmNoSelected = true
+	m.scroll = 0
+	m.validationErr = ""
+	m.previewLoading = false
+	m.previewResult = nil
+	m.previewToken = ""
+	m.resetImpactPresentation()
+	m.applyLoading = false
+	m.applyResult = nil
+	m.err = nil
+	m.notice = ""
+	m.logPath = ""
+	m.writeStep = ""
+	m.writeDetail = ""
+}
+
 // invalidateConfirmation clears the preview token and forces a fresh preview
 // when any configuration option, source, or target changes.
 func (m *InstallModel) invalidateConfirmation() {
@@ -1581,7 +1616,7 @@ func (m InstallModel) resultLines(width int) []string {
 
 		nextBody := []string{
 			"Optional next step: run `agentic-sdd-router` in your terminal to start planning your feature or workflow.",
-			"Inspect installed skills with `agentic-sdd preview` or explore via the TUI catalog.",
+			"Inspect installed skills with `asdx-core preview` or explore via the TUI catalog.",
 		}
 		lines = append(lines, Section("Recommended Next Action", nextBody, width)...)
 		lines = append(lines, "")

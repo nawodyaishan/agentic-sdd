@@ -21,8 +21,14 @@ func TestDefaultsAreHonestAndUnverifiable(t *testing.T) {
 	if got := buildinfo.CurrentDistribution(); got != buildinfo.DistributionDev {
 		t.Fatalf("CurrentDistribution default = %q, want %q", got, buildinfo.DistributionDev)
 	}
-	if buildinfo.ProtocolRevision != 1 {
-		t.Fatalf("ProtocolRevision = %d, want 1", buildinfo.ProtocolRevision)
+	if buildinfo.ProtocolRevision != 2 {
+		t.Fatalf("ProtocolRevision = %d, want 2", buildinfo.ProtocolRevision)
+	}
+	if buildinfo.ProductCLI != "asdx-core" {
+		t.Fatalf("ProductCLI = %q, want %q", buildinfo.ProductCLI, "asdx-core")
+	}
+	if buildinfo.ProductCompanion != "asdx" {
+		t.Fatalf("ProductCompanion = %q, want %q", buildinfo.ProductCompanion, "asdx")
 	}
 
 	identity := buildinfo.CurrentIdentity()
@@ -99,23 +105,19 @@ func TestIdentityEqualAndString(t *testing.T) {
 
 func TestDistributionMatrix(t *testing.T) {
 	tests := []struct {
-		marker   buildinfo.Distribution
-		valid    bool
-		homebrew bool
+		marker buildinfo.Distribution
+		valid  bool
 	}{
-		{buildinfo.DistributionDev, true, false},
-		{buildinfo.DistributionGeneric, true, false},
-		{buildinfo.DistributionHomebrew, true, true},
-		{buildinfo.Distribution("unknown"), false, false},
-		{buildinfo.Distribution(""), false, false},
+		{buildinfo.DistributionDev, true},
+		{buildinfo.DistributionGeneric, true},
+		{buildinfo.Distribution("homebrew"), false},
+		{buildinfo.Distribution("unknown"), false},
+		{buildinfo.Distribution(""), false},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.marker), func(t *testing.T) {
 			if got := tt.marker.Valid(); got != tt.valid {
 				t.Fatalf("%q.Valid() = %v, want %v", tt.marker, got, tt.valid)
-			}
-			if got := tt.marker.AllowsInteractiveDefault(); got != tt.homebrew {
-				t.Fatalf("%q.AllowsInteractiveDefault() = %v, want %v", tt.marker, got, tt.homebrew)
 			}
 		})
 	}
@@ -199,7 +201,7 @@ func TestProtocolInfoJSONIsStable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("JSON() error: %v", err)
 	}
-	want := `{"product":"agentic-sdd-tui","protocol_revision":1,"distribution":"dev","revision":"v0.3.0","commit":"abc123","source_digest":"local-sha256:deadbeef"}` + "\n"
+	want := `{"product":"asdx","protocol_revision":2,"distribution":"dev","revision":"v0.3.0","commit":"abc123","source_digest":"local-sha256:deadbeef"}` + "\n"
 	if string(data) != want {
 		t.Fatalf("JSON() = %q, want %q", data, want)
 	}
@@ -214,11 +216,11 @@ func TestProtocolInfoJSONIsStable(t *testing.T) {
 }
 
 func TestParseProtocolInfoRejectsUnknownAndTrailingData(t *testing.T) {
-	valid := `{"product":"agentic-sdd-tui","protocol_revision":1,"distribution":"generic","revision":"v1","commit":"c","source_digest":"d"}`
+	valid := `{"product":"asdx","protocol_revision":2,"distribution":"generic","revision":"v1","commit":"c","source_digest":"d"}`
 	if _, err := buildinfo.ParseProtocolInfo([]byte(valid)); err != nil {
 		t.Fatalf("ParseProtocolInfo(valid) error: %v", err)
 	}
-	unknown := `{"product":"agentic-sdd-tui","protocol_revision":1,"distribution":"generic","revision":"v1","commit":"c","source_digest":"d","token":"secret"}`
+	unknown := `{"product":"asdx","protocol_revision":2,"distribution":"generic","revision":"v1","commit":"c","source_digest":"d","token":"secret"}`
 	if _, err := buildinfo.ParseProtocolInfo([]byte(unknown)); err == nil {
 		t.Fatal("ParseProtocolInfo accepted an unknown field")
 	}
@@ -230,7 +232,7 @@ func TestParseProtocolInfoRejectsUnknownAndTrailingData(t *testing.T) {
 
 func TestVerifyCompanion(t *testing.T) {
 	identity := buildinfo.Identity{Revision: "v0.3.0", Commit: "0123456789abcdef", SourceDigest: "local-sha256:feedface"}
-	parent := buildinfo.NewProtocolInfo(buildinfo.ProductCLI, buildinfo.DistributionHomebrew, identity)
+	parent := buildinfo.NewProtocolInfo(buildinfo.ProductCLI, buildinfo.DistributionGeneric, identity)
 	peer := buildinfo.NewProtocolInfo(buildinfo.ProductCompanion, buildinfo.DistributionGeneric, identity)
 
 	if err := buildinfo.VerifyCompanion(parent, peer); err != nil {

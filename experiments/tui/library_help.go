@@ -154,7 +154,7 @@ func FleetHelpLines() []string {
 		"First use (pick one; nothing is scanned or inferred):",
 		"- Existing file: press s on Overview and type its exact path.",
 		"- Just looking: read this topic and docs/fleet-manager-tui.md; both are read-only.",
-		"- CLI: run agentic-sdd help fleet, then agentic-sdd fleet status --config PATH.",
+		"- CLI: run asdx-core help fleet, then asdx-core fleet status --config PATH.",
 		"",
 		"Everyday flow:",
 		"1. Choose the source. Overview shows the explicit path and read state; empty stays \"(none selected)\".",
@@ -241,11 +241,11 @@ func ParseLogOperationFacts(log LogSummary) LogOperationFacts {
 func ExcludedCommands() []CommandHelp {
 	return []CommandHelp{
 		{
-			Command:     "agentic-sdd opencode ...",
+			Command:     "asdx-core opencode ...",
 			Description: "OpenCode runtime pack activation (experimental · non-executable under release boundaries)",
 		},
 		{
-			Command:     "agentic-sdd native ...",
+			Command:     "asdx-core native ...",
 			Description: "Experimental native engine execution (non-executable · historical research only)",
 		},
 	}
@@ -269,17 +269,17 @@ func TroubleshootingTopics() []TroubleshootingTopic {
 		{
 			Title:    "Backup unreadable, foreign home or corrupt",
 			Advice:   "A backup made for another home directory, or one with invalid JSON manifests, is refused by the restore engine for safety to prevent corrupting local configuration.",
-			Recovery: "Inspect existing backups with 'agentic-sdd backups' via explicit CLI. A fresh install or update creates a new valid backup.",
+			Recovery: "Inspect existing backups with 'asdx-core backups' via explicit CLI. A fresh install or update creates a new valid backup.",
 		},
 		{
 			Title:    "Refused destination (symlink or special file)",
 			Advice:   "If a destination directory contains a symlink or unexpected non-regular file, the installer refuses to write to prevent following unverified links.",
-			Recovery: "Remove or restore the affected path manually, then run 'agentic-sdd preview' to verify clean destination state.",
+			Recovery: "Remove or restore the affected path manually, then run 'asdx-core preview' to verify clean destination state.",
 		},
 		{
 			Title:    "No operation logs found",
 			Advice:   "Operation logs are created automatically when an install or restore write executes. An empty log list is normal for a fresh installation before any changes are written.",
-			Recovery: "Run 'agentic-sdd preview' then confirm an apply to create your first operation log.",
+			Recovery: "Run 'asdx-core preview' then confirm an apply to create your first operation log.",
 		},
 	}
 }

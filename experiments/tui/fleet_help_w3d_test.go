@@ -109,7 +109,7 @@ func TestW3DFleetHelpTopicStatesExactTruths(t *testing.T) {
 		"No automatic adoption",
 		"Nothing is committed, pushed",
 		"docs/fleet-manager-tui.md",
-		"agentic-sdd help fleet",
+		"asdx-core help fleet",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("Fleet Manager help is missing %q:\n%s", want, text)

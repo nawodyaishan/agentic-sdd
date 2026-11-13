@@ -129,7 +129,7 @@ What would you like to do?
 	const about = `
 Agentic SDD installs reusable engineering skills for coding agents.
 It writes into four client directories, backs up anything it replaces,
-and can undo an install with "agentic-sdd restore".
+and can undo an install with "asdx-core restore".
 Every action is also a plain command: preview, apply, backups,
 restore, logs. Nothing is written until you confirm.
 
@@ -328,7 +328,7 @@ func TestGuideBrandingNarrowInstall(t *testing.T) {
 		"5) Check for CLI updates (contacts GitHub)",
 		"6) Explore skills and agent profiles",
 		"Write confirmation defaults to No.",
-		"agentic-sdd preview",
+		"asdx-core preview",
 		"Add the OpenCode orchestration pack",
 		"Install these changes? [y/N/b=change options]",
 	} {

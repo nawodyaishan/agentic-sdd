@@ -519,7 +519,7 @@ func guideApplyCommand(home, repo string, opts skillsync.Options) string {
 }
 
 func guideSelectionCommand(name, home, repo string, opts skillsync.Options) string {
-	cmd := "agentic-sdd " + name
+	cmd := canonicalCLIName + " " + name
 	if opts.WithOpenCode {
 		cmd += " --with-opencode"
 	}
@@ -534,7 +534,7 @@ func guideSelectionCommand(name, home, repo string, opts skillsync.Options) stri
 }
 
 func guideReentryCommand(home, repo string) string {
-	cmd := "agentic-sdd guide --home " + shellQuoteIfNeeded(home)
+	cmd := canonicalCLIName + " guide --home " + shellQuoteIfNeeded(home)
 	if repo != "" {
 		cmd += " --repo " + shellQuoteIfNeeded(repo)
 	}
@@ -542,7 +542,7 @@ func guideReentryCommand(home, repo string) string {
 }
 
 func guideRecoveryCommand(id, home, repo string) string {
-	cmd := "agentic-sdd restore " + id + " --home " + shellQuoteIfNeeded(home)
+	cmd := canonicalCLIName + " restore " + id + " --home " + shellQuoteIfNeeded(home)
 	if repo != "" {
 		cmd += " --repo " + shellQuoteIfNeeded(repo)
 	}

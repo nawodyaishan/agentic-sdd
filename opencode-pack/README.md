@@ -1,6 +1,6 @@
 # OpenCode orchestration pack (optional)
 
-This directory is the optional, opt-in OpenCode pack delivered by the `agentic-sdd` CLI. It is separate from `skills-files/` (the 18 default core skills) and from `integrations/opencode/` (the legacy Feature 005/006/007 experimental harness resources). Nothing here is embedded in the core install and nothing is written until you pass `--with-opencode`.
+This directory is the optional, opt-in OpenCode pack delivered by the `asdx-core` CLI. It is separate from `skills-files/` (the 18 default core skills) and from `integrations/opencode/` (the legacy Feature 005/006/007 experimental harness resources). Nothing here is embedded in the core install and nothing is written until you pass `--with-opencode`.
 
 ## What it contains
 
@@ -44,10 +44,10 @@ opencode-pack/
 ## Install
 
 ```bash
-agentic-sdd preview --with-opencode                       # default: show the plan, write nothing
-agentic-sdd apply   --with-opencode                       # 18 core skills + orchestrate + 14 profiles
-agentic-sdd preview --with-opencode --opencode-free-first  # also plan the 4 Free-first profiles
-agentic-sdd apply   --with-opencode --opencode-free-first  # back up and replace them too
+asdx-core preview --with-opencode                       # default: show the plan, write nothing
+asdx-core apply   --with-opencode                       # 18 core skills + orchestrate + 14 profiles
+asdx-core preview --with-opencode --opencode-free-first  # also plan the 4 Free-first profiles
+asdx-core apply   --with-opencode --opencode-free-first  # back up and replace them too
 ```
 
 - The `agentic-sdd-orchestrate` skill is installed into the four standard client skill directories (`~/.agents/skills`, `~/.codex/skills`, `~/.claude/skills`, `~/.gemini/antigravity-cli/skills`) so sibling links such as `../agentic-sdd-router/references/workflow-policy.md` resolve. It is never duplicated into `~/.config/opencode/skills/`, which would create duplicate skill IDs.
@@ -59,15 +59,15 @@ agentic-sdd apply   --with-opencode --opencode-free-first  # back up and replace
 ## Preview, backup, restore
 
 ```bash
-agentic-sdd                                               # preview of the core install
-agentic-sdd backups                                       # list backups, including opencode-agents files
-agentic-sdd restore                                       # preview the most recent restore
-agentic-sdd restore <BACKUP_ID> --apply                   # restore skills and agent profiles
+asdx-core                                               # preview of the core install
+asdx-core backups                                       # list backups, including opencode-agents files
+asdx-core restore                                       # preview the most recent restore
+asdx-core restore <BACKUP_ID> --apply                   # restore skills and agent profiles
 ```
 
-`apply` is a no-op when installed files already match, so a re-run writes nothing and creates no backup. A later default `agentic-sdd apply` (without `--with-opencode`) leaves installed opt-in files in place. Restoring a backup removes profiles that were freshly installed and restores profiles that were replaced; a tampered backup is refused.
+`apply` is a no-op when installed files already match, so a re-run writes nothing and creates no backup. A later default `asdx-core apply` (without `--with-opencode`) leaves installed opt-in files in place. Restoring a backup removes profiles that were freshly installed and restores profiles that were replaced; a tampered backup is refused.
 
-The CLI does not edit `~/.config/opencode/AGENTS.md`. When `--opencode-free-first` is used and that file exists, `preview` and `apply` print a one-line notice saying so and pointing at `agentic-sdd restore <BACKUP_ID>`.
+The CLI does not edit `~/.config/opencode/AGENTS.md`. When `--opencode-free-first` is used and that file exists, `preview` and `apply` print a one-line notice saying so and pointing at `asdx-core restore <BACKUP_ID>`.
 
 ## Routing and models
 

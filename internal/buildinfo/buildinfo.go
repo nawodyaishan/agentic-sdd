@@ -1,6 +1,6 @@
 // Package buildinfo defines the narrow build-time identity contract shared by
-// the agentic-sdd CLI and its TUI companion, plus the private parent/companion
-// protocol-info handshake built on it.
+// the asdx-core CLI and its asdx TUI companion, plus the private
+// parent/companion protocol-info handshake built on it.
 //
 // The values below are injected with -ldflags at build time (see
 // .goreleaser.yml and Taskfile.experimental.yml). A source build that supplies
@@ -21,50 +21,38 @@ import (
 const (
 	// ProtocolRevision is the parent/companion protocol-info contract revision.
 	// Bump it whenever a field's meaning or the handshake rules change
-	// incompatibly.
-	ProtocolRevision = 1
+	// incompatibly. Revision 2 is the asdx/asdx-core naming contract.
+	ProtocolRevision = 2
 
 	// ProductCLI and ProductCompanion identify the two processes that take part
 	// in the handshake. They are protocol labels, not filesystem paths.
-	ProductCLI       = "agentic-sdd"
-	ProductCompanion = "agentic-sdd-tui"
+	ProductCLI       = "asdx-core"
+	ProductCompanion = "asdx"
 
 	// RebuildPairHint is appended to every identity failure. There is no safe
 	// fallback: a mismatched or unidentifiable pair must be rebuilt together.
-	RebuildPairHint = "rebuild both binaries as a matched pair so they receive the same injected revision, commit and source digest"
+	RebuildPairHint = "rebuild both binaries as a matched pair so they receive the same injected revision, commit and source digest; asdx and asdx-core ship together"
 )
 
 // Distribution is the explicit packaging marker of one artifact. It is
-// provenance, not part of the parent/companion identity match: the Homebrew
-// CLI and the shared companion deliberately carry different markers.
+// provenance, not part of the parent/companion identity match: the CLI and the
+// companion deliberately carry different markers.
 type Distribution string
 
 const (
 	// DistributionDev is the honest default for an uninjected source build.
 	DistributionDev Distribution = "dev"
-	// DistributionGeneric marks prebuilt archives and source-built releases
-	// that keep the historical CLI/default-preview policy.
+	// DistributionGeneric marks prebuilt archives and source-built releases.
 	DistributionGeneric Distribution = "generic"
-	// DistributionHomebrew marks only the Homebrew-based CLI artifact, which
-	// may open the TUI for a zero-argument interactive launch.
-	DistributionHomebrew Distribution = "homebrew"
 )
 
-// Valid reports whether d is one of the three reviewed markers.
+// Valid reports whether d is one of the two reviewed markers.
 func (d Distribution) Valid() bool {
 	switch d {
-	case DistributionDev, DistributionGeneric, DistributionHomebrew:
+	case DistributionDev, DistributionGeneric:
 		return true
 	}
 	return false
-}
-
-// AllowsInteractiveDefault reports whether this distribution may replace a
-// zero-argument interactive invocation with the TUI. Only the explicitly
-// Homebrew-marked CLI opts in; generic archives, source builds and unknown
-// markers keep the historical preview behavior.
-func (d Distribution) AllowsInteractiveDefault() bool {
-	return d == DistributionHomebrew
 }
 
 // FleetCapability is the reviewed build-time capability marker for Fleet

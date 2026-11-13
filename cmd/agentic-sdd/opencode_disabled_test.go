@@ -67,7 +67,7 @@ func TestDefaultHelpAdvertisesOnlySupportedCommands(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		runNonInteractive(strings.Fields(args), &stdout, &stderr)
 		got := strings.ToLower(stdout.String() + stderr.String())
-		if !strings.Contains(got, "usage: agentic-sdd") {
+		if !strings.Contains(got, "usage: asdx-core") {
 			t.Fatalf("%q: no usage text in %q", args, got)
 		}
 		if strings.Contains(got, "opencode") {
@@ -112,7 +112,7 @@ func TestDefaultOpenCodeDenialHasNoSideEffects(t *testing.T) {
 			if !strings.Contains(stderr.String(), "unavailable in this build") {
 				t.Fatalf("diagnostic %q does not say unavailable in this build", stderr.String())
 			}
-			if strings.Contains(stderr.String(), "Usage: agentic-sdd opencode") {
+			if strings.Contains(stderr.String(), "Usage: asdx-core opencode") {
 				t.Fatalf("denial claimed the helper's usage: %q", stderr.String())
 			}
 			if got := snapshotTree(t, home); strings.Join(got, "\n") != strings.Join(beforeHome, "\n") {
@@ -137,7 +137,7 @@ func TestDefaultHelpOpenCodeOnlyExplainsUnavailability(t *testing.T) {
 	if !strings.Contains(out, "unavailable in this build") || !strings.Contains(out, "agentic_sdd_experimental") {
 		t.Fatalf("help opencode does not explain unavailability and the opt-in build: %q", out)
 	}
-	for _, claim := range []string{"candidate --feature", "session run", "evidence snapshot", "config apply", "Usage: agentic-sdd opencode"} {
+	for _, claim := range []string{"candidate --feature", "session run", "evidence snapshot", "config apply", "Usage: asdx-core opencode"} {
 		if strings.Contains(out, claim) {
 			t.Fatalf("help opencode advertises capability %q: %s", claim, out)
 		}

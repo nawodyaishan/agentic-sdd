@@ -1,9 +1,9 @@
-"""Black-box terminal-lifecycle checks for the opt-in nested TUI.
+"""Black-box terminal-lifecycle checks for the canonical ``asdx`` TUI.
 
-Feature 013 / T01 baseline, extended by T10 for host-owned OS signals. This
-harness starts the already-built ``experiments/tui`` binary under a real PTY,
-drives it through its opt-in environment, and observes what the terminal and
-child process actually do:
+Feature 013 / T01 baseline, extended by T10 for host-owned OS signals and
+renamed by Feature 019 B1. This harness starts the already-built
+``experiments/tui`` binary under a real PTY, drives it through its opt-in
+environment, and observes what the terminal and child process actually do:
 
 * a ``q`` quit exits successfully and leaves the alternate screen;
 * the line discipline is restored (canonical input, echo and signals);
@@ -21,7 +21,8 @@ which performs no filesystem work.
 Prerequisites are explicit and never satisfied by skipping:
 
 * POSIX ``pty``/``termios``/``select`` (Linux or macOS);
-* ``AGENTIC_SDD_TUI_TEST_BINARY`` pointing at a built nested TUI binary.
+* ``AGENTIC_SDD_TUI_TEST_BINARY`` pointing at a built ``asdx`` (or
+  ``agentic-sdd-tui``) TUI binary.
 
 Any missing prerequisite raises an actionable ``BLOCKED`` error, so the test
 process exits non-zero instead of reporting a silent all-skipped pass.
@@ -317,7 +318,7 @@ class TerminalLifecycleTest(unittest.TestCase):
         )
 
     def test_quit_restores_terminal_and_leaves_alt_screen(self):
-        with tempfile.TemporaryDirectory(prefix="agentic-sdd-tui-pty-") as home:
+        with tempfile.TemporaryDirectory(prefix="asdx-tui-pty-") as home:
             env = _session_env(home)
             with _PtySession(["--home", home], env) as session:
                 entered = session.pump_until(
@@ -352,7 +353,7 @@ class TerminalLifecycleTest(unittest.TestCase):
         self._assert_terminal_restored(session)
 
     def test_early_error_exits_nonzero_without_touching_terminal(self):
-        with tempfile.TemporaryDirectory(prefix="agentic-sdd-tui-pty-") as home:
+        with tempfile.TemporaryDirectory(prefix="asdx-tui-pty-") as home:
             env = _session_env(home)
             missing_repo = os.path.join(home, "missing-skills-source")
             with _PtySession(
@@ -380,7 +381,7 @@ class TerminalLifecycleTest(unittest.TestCase):
         self._assert_terminal_restored(session)
 
     def test_nonterminal_input_does_not_enter_alternate_screen(self):
-        with tempfile.TemporaryDirectory(prefix="agentic-sdd-tui-pty-") as home:
+        with tempfile.TemporaryDirectory(prefix="asdx-tui-pty-") as home:
             with _PtySession(
                 ["--home", home], _session_env(home), stdin_terminal=False
             ) as session:
@@ -388,10 +389,11 @@ class TerminalLifecycleTest(unittest.TestCase):
         self.assertEqual(session.exit_code, 2, bytes(session.output))
         self.assertNotIn(ALT_SCREEN_ENTER, session.output)
         self.assertIn(b"stdin is not a terminal", session.output)
+        self.assertIn(b"asdx-core preview", session.output)
         self._assert_terminal_restored(session)
 
     def test_forced_interactive_script_mode_does_not_enter_alternate_screen(self):
-        with tempfile.TemporaryDirectory(prefix="agentic-sdd-tui-pty-") as home:
+        with tempfile.TemporaryDirectory(prefix="asdx-tui-pty-") as home:
             env = _session_env(home)
             env[ENV_FORCE_INTERACTIVE] = "1"
             with _PtySession(["--home", home], env) as session:
@@ -399,6 +401,7 @@ class TerminalLifecycleTest(unittest.TestCase):
         self.assertEqual(session.exit_code, 2, bytes(session.output))
         self.assertNotIn(ALT_SCREEN_ENTER, session.output)
         self.assertIn(ENV_FORCE_INTERACTIVE.encode(), session.output)
+        self.assertIn(b"asdx-core preview", session.output)
         self._assert_terminal_restored(session)
 
     # --- Host-owned OS signal policy (T10) ---------------------------------
@@ -431,7 +434,7 @@ class TerminalLifecycleTest(unittest.TestCase):
         self._assert_terminal_restored(session)
 
     def _run_idle_signal_case(self, sig):
-        with tempfile.TemporaryDirectory(prefix="agentic-sdd-tui-pty-") as home:
+        with tempfile.TemporaryDirectory(prefix="asdx-tui-pty-") as home:
             env = _session_env(home)
             with _PtySession(["--home", home], env) as session:
                 entered = session.pump_until(
@@ -447,7 +450,7 @@ class TerminalLifecycleTest(unittest.TestCase):
         self._assert_alt_screen_cycle(session)
 
     def _run_inflight_signal_case(self, sig, repeats=1):
-        with tempfile.TemporaryDirectory(prefix="agentic-sdd-tui-pty-") as home:
+        with tempfile.TemporaryDirectory(prefix="asdx-tui-pty-") as home:
             env = _session_env(home)
             env[ENV_TEST_HOLD_WRITE] = WRITE_HOLD
             with _PtySession(["--home", home], env) as session:

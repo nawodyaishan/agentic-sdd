@@ -18,28 +18,28 @@ A run is bound to an explicit repository root, a feature and batch identity (or 
 
 ```sh
 # Create a private task-run workspace; no model calls, no user-home changes.
-agentic-sdd run init --feature DIR --batch ID [--repo DIR] [--run-root DIR] [--format text|json]
-agentic-sdd run init --direct [--label TEXT] [--repo DIR] [--run-root DIR] [--format text|json]
+asdx-core run init --feature DIR --batch ID [--repo DIR] [--run-root DIR] [--format text|json]
+asdx-core run init --direct [--label TEXT] [--repo DIR] [--run-root DIR] [--format text|json]
 
 # Extract exactly one authorized task into the run.
-agentic-sdd task brief --run RUN_ID --task T01 [--force] [--repo DIR] [--run-root DIR] [--format text|json]
+asdx-core task brief --run RUN_ID --task T01 [--force] [--repo DIR] [--run-root DIR] [--format text|json]
 
 # Execute one already-authorized local check; preserve complete stdout/stderr.
-agentic-sdd run check --run RUN_ID [--task T01] [--timeout DURATION] [--max-output-bytes N] [--repo DIR] [--run-root DIR] [--format text|json] -- COMMAND [ARG...]
+asdx-core run check --run RUN_ID [--task T01] [--timeout DURATION] [--max-output-bytes N] [--repo DIR] [--run-root DIR] [--format text|json] -- COMMAND [ARG...]
 
 # Package actual relevant Git changes and provenance for a bounded review.
-agentic-sdd review package --run RUN_ID --base COMMIT [--head COMMIT] [--max-file-bytes N] [--max-total-bytes N] [--repo DIR] [--run-root DIR] [--format text|json]
+asdx-core review package --run RUN_ID --base COMMIT [--head COMMIT] [--max-file-bytes N] [--max-total-bytes N] [--repo DIR] [--run-root DIR] [--format text|json]
 
 # Read observed run status; never claim approval or completion.
-agentic-sdd run status --run RUN_ID [--repo DIR] [--run-root DIR] [--format text|json]
+asdx-core run status --run RUN_ID [--repo DIR] [--run-root DIR] [--format text|json]
 
 # Attach a caller-supplied result as a CLAIM, not verified truth.
-agentic-sdd run record --run RUN_ID [--task T01] --result FILE|- [--repo DIR] [--run-root DIR] [--format text|json]
+asdx-core run record --run RUN_ID [--task T01] --result FILE|- [--repo DIR] [--run-root DIR] [--format text|json]
 
 # Preview or remove precisely this run's scratch files.
-agentic-sdd run clean --run RUN_ID [--yes] [--repo DIR] [--run-root DIR] [--format text|json]
+asdx-core run clean --run RUN_ID [--yes] [--repo DIR] [--run-root DIR] [--format text|json]
 
-agentic-sdd help run|task|review
+asdx-core help run|task|review
 ```
 
 Defaults and limits fixed by the plan:
@@ -152,4 +152,4 @@ Tracked binary changes keep their binary patch and are flagged `binary: true`. U
 - [Feature 016 specification](../specs/016-agent-execution-context-evidence-recovery/spec.md) — requirements, acceptance criteria and the approval record.
 - [Plan](../specs/016-agent-execution-context-evidence-recovery/plan.md) — workspace, parser, check, package and state-machine design.
 - [Tasks](../specs/016-agent-execution-context-evidence-recovery/tasks.md) — batch ledger and the current authorization.
-- `agentic-sdd help run`, `agentic-sdd help task`, `agentic-sdd help review` — the same contract, one command family at a time.
+- `asdx-core help run`, `asdx-core help task`, `asdx-core help review` — the same contract, one command family at a time.

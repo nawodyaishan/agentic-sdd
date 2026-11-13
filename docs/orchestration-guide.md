@@ -6,16 +6,16 @@ This guide walks through every way to use **Agentic SDD**—from the default 18-
 
 ## 1. Installation & CLI Commands
 
-`agentic-sdd` **previews by default** and never writes to disk unless you run `apply` (or `--apply`).
+`asdx-core` **previews by default** and never writes to disk unless you run `apply` (or `--apply`).
 
 ### Standard install (18 core portable skills)
 
 ```sh
 # 1. Preview what will be installed or replaced across all 4 client directories
-agentic-sdd preview
+asdx-core preview
 
 # 2. Back up any changed existing skills and install the 18 core skills
-agentic-sdd apply
+asdx-core apply
 ```
 
 ### Opt-in OpenCode Orchestration Pack (`--with-opencode`)
@@ -24,10 +24,10 @@ Pass `--with-opencode` to install the 18 core skills **plus** the `agentic-sdd-o
 
 ```sh
 # Preview the core skills + orchestration skill + 14 OpenCode agent profiles
-agentic-sdd preview --with-opencode
+asdx-core preview --with-opencode
 
 # Back up any replaced files and apply
-agentic-sdd apply --with-opencode
+asdx-core apply --with-opencode
 ```
 
 ### Opt-in Free-First Writer/Test Preset (`--opencode-free-first`)
@@ -35,8 +35,8 @@ agentic-sdd apply --with-opencode
 Add `--opencode-free-first` alongside `--with-opencode` to also back up and configure the 4 routine implementation/test profiles (`sdd-implement-1`, `sdd-implement-2`, `sdd-test-implement-1`, `sdd-test-implement-2`) to use the zero-cost OpenCode Console Free ladder (`opencode/deepseek-v4.1-flash-free` → `glm-5.3-flash-free` → `mimo-v2.6-flash-free`) before asking for paid Go approval:
 
 ```sh
-agentic-sdd preview --with-opencode --opencode-free-first
-agentic-sdd apply --with-opencode --opencode-free-first
+asdx-core preview --with-opencode --opencode-free-first
+asdx-core apply --with-opencode --opencode-free-first
 ```
 
 ### Backups, Logs & Restore
@@ -45,19 +45,19 @@ Every `apply` that replaces or installs files creates a timestamped, SHA-256-ver
 
 ```sh
 # List backups newest first
-agentic-sdd backups
+asdx-core backups
 
 # Preview restoring a specific backup ID (or run interactively on a terminal)
-agentic-sdd restore BACKUP_ID
+asdx-core restore BACKUP_ID
 
 # Apply the restore (backs up current state first so even a restore is reversible)
-agentic-sdd restore apply BACKUP_ID
+asdx-core restore apply BACKUP_ID
 
 # Inspect the latest apply or restore operation log
-agentic-sdd logs
+asdx-core logs
 
 # Show OpenCode orchestration flag help
-agentic-sdd help orchestrate
+asdx-core help orchestrate
 ```
 
 ---

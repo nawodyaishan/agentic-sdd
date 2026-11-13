@@ -11,7 +11,7 @@ import (
 )
 
 func printFleetPlanUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd fleet plan --config PATH [--output PATH] [--adopt] [--home PATH] [--repo PATH]
+	fmt.Fprint(out, `Usage: asdx-core fleet plan --config PATH [--output PATH] [--adopt] [--home PATH] [--repo PATH]
 
 Preview changes and generate a deterministic plan.
 
@@ -25,7 +25,7 @@ Flags:
 }
 
 func runFleetPlan(args []string, stdout, stderr io.Writer, env *Env) int {
-	fs := flag.NewFlagSet("fleet plan", flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" fleet plan", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	var configPath, outputPath, home, repo string
@@ -143,6 +143,6 @@ func printPlanSummary(out io.Writer, plan *fleet.Plan, configPath, outputPath st
 	if outputPath != "" {
 		fmt.Fprintf(out, "Plan saved to: %s\n", filepath.Clean(outputPath))
 	} else {
-		fmt.Fprintf(out, "Next: pass --output PATH to save this plan, then run agentic-sdd fleet apply --plan PATH\n")
+		fmt.Fprintf(out, "Next: pass --output PATH to save this plan, then run %s fleet apply --plan PATH\n", canonicalCLIName)
 	}
 }

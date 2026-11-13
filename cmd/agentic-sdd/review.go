@@ -113,11 +113,13 @@ func printReviewPackage(out io.Writer, manifest execution.ReviewManifest) {
 }
 
 func printReviewUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd review package --run ID --base COMMIT [--head COMMIT] [--max-file-bytes N] [--max-total-bytes N] [--repo DIR] [--run-root DIR] [--format text|json]
-       agentic-sdd review help
+	fmt.Fprint(out, `Usage: asdx-core review package --run ID --base COMMIT [--head COMMIT] [--max-file-bytes N] [--max-total-bytes N] [--repo DIR] [--run-root DIR] [--format text|json]
+       asdx-core review help
 
 Packages the actual committed, staged, unstaged and untracked change set with
 provenance and explicit omissions. A partial package exits 3 and never claims
 a complete review, approval, verification or reviewer isolation.
+Legacy note: "agentic-sdd" wraps "asdx-core" during the deprecation window.
+Use "asdx-core help review" for the topic summary.
 `)
 }

@@ -542,7 +542,7 @@ func (a App) helpModalParts(width int) modalParts {
 		"  Tab          Cycle navigation, categories (Explore), and content",
 		"  Shift+Tab    Cycle the same regions in reverse",
 		"  ↑/↓/j/k      Move selection in navigation or catalog list",
-		"  1 - 4        Direct jump to destination (1:Home, 2:Install, 3:Explore, 4:Help)",
+		"  1 - 5        Jump to route (1:Home, 2:Install, 3:Explore, 4:Help, 5:Guide)",
 		"  Enter        Open item or activate highlighted route",
 		"  b / Esc      Back to list or return focus to navigation",
 		"  Home / End   Jump to top or bottom of navigation / catalog",

@@ -10,7 +10,7 @@
 
 Agentic SDD is an open-source toolkit of **18 core engineering skills** plus an **opt-in OpenCode Orchestration Pack (`--with-opencode`)** for coding agents. It gives you a practical way to scope work, plan meaningful changes, delegate bounded tasks to specialized subagents, debug failures, and verify results—with you in charge of the decisions.
 
-Use it with **OpenCode, Codex, Claude Code, or Antigravity CLI**. Explore and install skills through the guided terminal wizard (`agentic-sdd guide`) or the packaged terminal UI (`agentic-sdd tui`), or keep using the explicit `preview`/`apply` commands for scripts and CI. Start with one agent, or opt into multi-model specialist orchestration (`sdd-orchestrator`, OpenAI `gpt-6.1-sol` / `gpt-6.1-terra`, Claude Opus/Sonnet, Gemini Flash, DeepSeek, and Console Free models) when you want it.
+Use it with **OpenCode, Codex, Claude Code, or Antigravity CLI**. Explore and install skills through the guided terminal wizard (`asdx-core guide`) or the packaged terminal UI (`asdx`), or keep using the explicit `preview`/`apply` commands for scripts and CI. Start with one agent, or opt into multi-model specialist orchestration (`sdd-orchestrator`, OpenAI `gpt-6.1-sol` / `gpt-6.1-terra`, Claude Opus/Sonnet, Gemini Flash, DeepSeek, and Console Free models) when you want it.
 
 [Quick start](#quick-start) · [What's new](#whats-new-feature-010013) · [Usage guide](#complete-usage-guide) · [OpenCode orchestration (`--with-opencode`)](#opencode-orchestration-pack---with-opencode) · [Full orchestration docs](docs/orchestration-guide.md) · [Installer reference](docs/installer-reference.md) · [Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)
 
@@ -36,28 +36,28 @@ Agentic SDD helps you bring that judgment into your work with AI:
 
 ```sh
 brew install --cask nawodyaishan/tap/agentic-sdd
-agentic-sdd preview
+asdx-core preview
 ```
 
 Preview shows which skills would be installed or replaced. **It does not write changes.** When you're happy with the plan:
 
 ```sh
-agentic-sdd apply
+asdx-core apply
 ```
 
-In a real interactive terminal, a bare `agentic-sdd` from the Homebrew cask opens the terminal UI instead. `agentic-sdd preview` always keeps the explicit, write-free CLI, so scripts, pipes and `AGENTIC_SDD_FORCE_INTERACTIVE=1` are unaffected.
+In a real interactive terminal, a bare `asdx` opens the terminal UI; `asdx-core preview` always keeps the explicit, write-free CLI, so scripts, pipes and `AGENTIC_SDD_FORCE_INTERACTIVE=1` are unaffected. The legacy `agentic-sdd` name remains a CLI wrapper to `asdx-core` and never becomes the TUI; `agentic-sdd-tui` is the legacy TUI wrapper to `asdx`.
 
 **Install with the OpenCode Orchestration Pack (`--with-opencode`):**
 
 ```sh
 # Preview core skills + agentic-sdd-orchestrate + 14 OpenCode v2 agent profiles
-agentic-sdd preview --with-opencode
+asdx-core preview --with-opencode
 
 # Apply (backs up any existing managed profiles first)
-agentic-sdd apply --with-opencode
+asdx-core apply --with-opencode
 
 # Optional: also configure routine implement/test profiles to try Free models first
-agentic-sdd apply --with-opencode --opencode-free-first
+asdx-core apply --with-opencode --opencode-free-first
 ```
 
 Already installed? Run `brew upgrade nawodyaishan/tap/agentic-sdd`, then preview and apply to update your installed skills and profiles.
@@ -111,9 +111,9 @@ Explore the numbered menu and optional animated intro; enter `q` at the menu to 
 
 For automated container checks instead, run `task docker-guide-e2e`.
 
-### Guided CLI (`agentic-sdd guide`)
+### Guided CLI (`asdx-core guide`)
 
-`agentic-sdd guide` is the zero-dependency, numbered-prompt path through the same installer. It needs an interactive terminal; with piped or `/dev/null` stdin it exits `2` without reading input.
+`asdx-core guide` is the zero-dependency, numbered-prompt path through the same installer. It needs an interactive terminal; with piped or `/dev/null` stdin it exits `2` without reading input.
 
 On terminal stdout it shows:
 
@@ -125,14 +125,14 @@ Every confirmation defaults to **No**; EOF cancels without writing, and `q` exit
 
 Scripted use is unaffected: with non-terminal stdout, the guide and every other command keep their historical plain output and exit codes.
 
-### Terminal UI (`agentic-sdd tui`)
+### Terminal UI (`asdx`)
 
-In a real terminal, `agentic-sdd tui` opens the packaged terminal UI:
+In a real terminal, `asdx` opens the packaged terminal UI:
 
 ```sh
-agentic-sdd tui
-agentic-sdd tui --home ~ --with-opencode=false   # core skills only
-agentic-sdd tui --opencode-free-first            # Free-first profile presets
+asdx
+asdx --home ~ --with-opencode=false   # core skills only
+asdx --opencode-free-first            # Free-first profile presets
 ```
 
 It provides four destinations: **Home** (setup status and next actions), **Install & Manage** (client selection, optional OpenCode pack and Free-first preset, preview, install, backups and restore), **Explore** (searchable catalog of core skills and agent profiles, with purpose, per-destination status and profile routing details) and **Activity & Help** (bounded logs, quick start, shortcuts, commands, troubleshooting, diagnostics and version).
@@ -143,13 +143,13 @@ The TUI never writes before an explicit confirmation (default **No**). During an
 
 The Home screen checks GitHub once per session for a newer CLI release without blocking local work; set `AGENTIC_SDD_NO_UPDATE_CHECK=1` to suppress it, or retry explicitly from the UI. The online guide and author links open a browser only when you choose the action.
 
-The TUI includes the OpenCode profile pack by default; pass `--with-opencode=false` for the core skills only. It needs a real input and output terminal, plus the paired `agentic-sdd-tui` binary next to `agentic-sdd`. The CLI checks the companion's build identity before starting it; a missing, non-executable or mismatched companion is a clear error with rebuild guidance, never a silent switch to another workflow. Pipes, scripts, `AGENTIC_SDD_FORCE_INTERACTIVE=1` and every explicit command or flag keep the standard CLI. `agentic-sdd preview` is always the write-free escape hatch.
+The TUI includes the OpenCode profile pack by default; pass `--with-opencode=false` for the core skills only. It needs a real input and output terminal, plus the paired `asdx` binary next to `asdx-core`; the legacy `agentic-sdd-tui` name is only a compatibility wrapper. The CLI checks the companion's build identity before starting it; a missing, non-executable or mismatched companion is a clear error with rebuild guidance, never a silent switch to another workflow. Pipes, scripts, `AGENTIC_SDD_FORCE_INTERACTIVE=1` and every explicit command or flag keep the standard CLI. `asdx-core preview` is always the write-free escape hatch.
 
 From a source checkout, build a matching local pair (same revision, commit and source-content digest, so the handshake passes without a release tag):
 
 ```sh
 task -t Taskfile.experimental.yml tui:pair
-bin/tui-pair/agentic-sdd tui
+bin/tui-pair/asdx
 ```
 
 The task needs Go 1.26 or newer for the nested TUI module. It prints the injected revision and source digest for both binaries.
@@ -160,7 +160,7 @@ These features added the interactive layers on top of the same preview-first ins
 
 | Feature | What it added |
 |---|---|
-| **010 — Guided CLI & flow tracing** | `agentic-sdd guide`, grouped previews, per-topic help, `hint:` remediation, a non-TTY `restore` fix, and the opt-in `AGENTIC_SDD_TRACE` JSON Lines flow trace. |
+| **010 — Guided CLI & flow tracing** | `asdx-core guide`, grouped previews, per-topic help, `hint:` remediation, a non-TTY `restore` fix, and the opt-in `AGENTIC_SDD_TRACE` JSON Lines flow trace. |
 | **011 — Branded CLI** | ASCII wordmark with tagline, creator, version and documentation URL; context-correct commands; review-with-`b` navigation; aligned change and recovery summaries; menu choice **6** to explore skills and profiles; and an explicit, bounded update check (choice **5**) with copyable Homebrew instructions. |
 | **012 — Readable catalog** | Definition-list wrapping that stays inside narrow widths, role-grouped profile lists with stable numbers, `b`/`B`/`Enter` back navigation, concise safety badges, status labels and next-action hints; plus an [isolated Charm v2 prototype](docs/tui-architecture.md) in `experiments/tui` that leaves the root module dependency-free. |
 | **013 — Unified TUI** | The paired `agentic-sdd-tui` application: Home, Install & Manage, Explore and Activity & Help; searchable catalog; client selection; preview-first install, backup browsing and restore; bounded logs, help, onboarding and diagnostics; a responsive high-contrast theme; once-per-session update check; Homebrew bare-command launch and paired cask packaging. |
@@ -175,22 +175,33 @@ Specs: [010](specs/010-guided-cli-ux/spec.md), [011](specs/011-cli-brand-styling
 
 | Command | What it does |
 |---|---|
-| `agentic-sdd` or `agentic-sdd preview` | Preview installing/updating the 18 core skills across all 4 client directories (no files written). A bare `agentic-sdd` opens the TUI only for the Homebrew package in a real interactive terminal; `preview` always stays on the CLI. |
-| `agentic-sdd apply` | Back up changed existing skills, then install the 18 core skills. |
-| `agentic-sdd preview --with-opencode` | Preview installing the 18 core skills, `agentic-sdd-orchestrate`, and 14 OpenCode v2 agent profiles in `~/.config/opencode/agents/`. |
-| `agentic-sdd apply --with-opencode` | Back up any replaced skills/profiles and install the core skills + OpenCode orchestration pack. |
-| `agentic-sdd apply --with-opencode --opencode-free-first` | Above + back up and preset the 4 routine implement/test profiles (`sdd-implement-1/-2`, `sdd-test-implement-1/-2`) to use the Free-first model ladder. |
-| `agentic-sdd guide` | Interactive numbered-prompt wizard: install/update, restore, view logs, About, explicit update check, and the skills/profiles explorer. Requires a terminal; writes nothing before confirmation. |
-| `agentic-sdd tui` | Open the packaged terminal UI in a real terminal (needs the paired `agentic-sdd-tui` binary). Supports `--home`, `--repo`, `--with-opencode` (default on) and `--opencode-free-first`. |
-| `agentic-sdd backups` | List all saved backups newest first (both skill directories and `opencode-agents` profiles). |
-| `agentic-sdd restore [BACKUP_ID]` | Preview restoring a backup (or select one interactively on a terminal). |
-| `agentic-sdd restore apply [BACKUP_ID]` | Back up current state and restore skills and OpenCode agent profiles from `BACKUP_ID`. |
-| `agentic-sdd logs` | Show the latest `apply` or `restore` log under `~/.agentic-sdd/logs/`. |
-| `agentic-sdd version` | Print version, commit, build date, and Go version. |
-| `agentic-sdd help <topic>` | Show focused help for `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`, `tui`, or `orchestrate`. |
-| `agentic-sdd help orchestrate` | Show usage and flags for the OpenCode orchestration pack. |
+| `asdx-core` or `asdx-core preview` | Preview installing/updating the 18 core skills across all 4 client directories (no files written). `asdx-core` always stays on the CLI; a bare `asdx` opens the TUI. |
+| `asdx-core apply` | Back up changed existing skills, then install the 18 core skills. |
+| `asdx-core preview --with-opencode` | Preview installing the 18 core skills, `agentic-sdd-orchestrate`, and 14 OpenCode v2 agent profiles in `~/.config/opencode/agents/`. |
+| `asdx-core apply --with-opencode` | Back up any replaced skills/profiles and install the core skills + OpenCode orchestration pack. |
+| `asdx-core apply --with-opencode --opencode-free-first` | Above + back up and preset the 4 routine implement/test profiles (`sdd-implement-1/-2`, `sdd-test-implement-1/-2`) to use the Free-first model ladder. |
+| `asdx-core guide` | Interactive numbered-prompt wizard: install/update, restore, view logs, About, explicit update check, and the skills/profiles explorer. Requires a terminal; writes nothing before confirmation. |
+| `asdx` | Open the packaged terminal UI in a real terminal. Supports `--home`, `--repo`, `--with-opencode` (default on) and `--opencode-free-first`; `asdx-core tui` is the explicit compatibility launcher. |
+| `asdx-core backups` | List all saved backups newest first (both skill directories and `opencode-agents` profiles). |
+| `asdx-core restore [BACKUP_ID]` | Preview restoring a backup (or select one interactively on a terminal). |
+| `asdx-core restore apply [BACKUP_ID]` | Back up current state and restore skills and OpenCode agent profiles from `BACKUP_ID`. |
+| `asdx-core logs` | Show the latest `apply` or `restore` log under `~/.agentic-sdd/logs/`. |
+| `asdx-core version` | Print version, commit, build date, and Go version. |
+| `asdx-core help <topic>` | Show focused help for `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`, `tui`, or `orchestrate`. |
+| `asdx-core help orchestrate` | Show usage and flags for the OpenCode orchestration pack. |
 
 All commands accept `--home PATH` (to target an isolated home directory) and `--repo PATH` (to read `skills-files/` and `opencode-pack/` from a local checkout instead of the embedded binary assets).
+
+### Command migration (Feature 019)
+
+| Before | After / behavior |
+|---|---|
+| `agentic-sdd preview\|apply\|guide\|run\|task\|review\|...` | `asdx-core …` (legacy `agentic-sdd` still works as a CLI wrapper) |
+| `agentic-sdd tui` | `asdx` (legacy `agentic-sdd-tui` still works as a TUI wrapper) |
+| `agentic-sdd-tui` | `asdx` |
+| `agentic-sdd-core` | never shipped; use `asdx-core` |
+| `~/.agentic-sdd/`, `AGENTIC_SDD_*` | unchanged |
+| Homebrew cask / GitHub repo name | `agentic-sdd` (retained) |
 
 ### Environment and accessibility switches
 
@@ -288,7 +299,7 @@ Browse the [18 core skills](skills-files/) and the [opt-in OpenCode orchestratio
 | Antigravity CLI | `~/.gemini/antigravity-cli/skills` | Default & `--with-opencode` |
 | OpenCode v2 agent profiles | `~/.config/opencode/agents/*.md` | `--with-opencode` (`--opencode-free-first`) only |
 
-Backups and operation logs live under `~/.agentic-sdd/` (`backups/` and `logs/`). The TUI is distributed as a paired `agentic-sdd-tui` companion binary; the Homebrew cask installs both, and the CLI verifies their build identity at launch.
+Backups and operation logs live under `~/.agentic-sdd/` (`backups/` and `logs/`). The paired archive ships `asdx` (TUI) and `asdx-core` (CLI), plus the legacy `agentic-sdd`/`agentic-sdd-tui` wrappers; the Homebrew cask installs them, and `asdx-core` verifies the `asdx` build identity at launch.
 
 ## Safety model
 
@@ -297,9 +308,9 @@ The installer **previews by default**, backs up existing skills and `.md` agent 
 The guide and TUI are alternate front ends over that same engine. Neither writes before an explicit confirmation (default **No**). During a TUI write, `q`/Esc/navigation cannot abandon the transaction; Ctrl+C requests exit after the operation finishes or rolls back. A missing, mismatched or non-executable TUI companion is an error, never a silent fallback to another write workflow.
 
 ```sh
-agentic-sdd backups                   # list saved installations
-agentic-sdd restore BACKUP_ID         # preview a restore
-agentic-sdd restore apply BACKUP_ID   # restore skills and OpenCode agent profiles
+asdx-core backups                   # list saved installations
+asdx-core restore BACKUP_ID         # preview a restore
+asdx-core restore apply BACKUP_ID   # restore skills and OpenCode agent profiles
 ```
 
 **The workflow is guidance, not an OS security sandbox.** Your agent client's permissions, execution environment, and your review remain essential.

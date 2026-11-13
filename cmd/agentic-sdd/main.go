@@ -8,14 +8,43 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"agentic-sdd/internal/buildinfo"
 	"agentic-sdd/internal/skillsync"
 	"agentic-sdd/internal/version"
 )
 
+// legacyTarget and legacyName are injected only into the legacy compatibility
+// build of this command. The canonical asdx-core build leaves both empty; the
+// release and local pair tasks dual-build the same source and inject:
+//
+//	-X main.legacyTarget=asdx-core -X main.legacyName=agentic-sdd
+//
+// A legacy build never opens the TUI and never falls back to running the CLI in
+// place: it resolves the canonical sibling and replaces itself with it.
+var (
+	legacyTarget string
+	legacyName   string
+)
+
+// legacyDeps carries the process interactions the compatibility wrapper
+// performs. Tests inject fakes so they never replace the test process.
+type legacyDeps struct {
+	executable func() (string, error)
+	exec       func(path string, argv []string) error
+}
+
+func productionLegacyDeps() legacyDeps {
+	return legacyDeps{executable: os.Executable, exec: execLegacyTarget}
+}
+
 func main() {
+	if code, handled := runLegacyCompatibility(productionLegacyDeps(), os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	env := resolveEnv(os.Stdin, os.Stdout, os.Stderr, os.Getenv)
 	if tracePath := strings.TrimSpace(os.Getenv("AGENTIC_SDD_TRACE")); tracePath != "" {
 		tracer, err := openTrace(tracePath)
@@ -26,6 +55,114 @@ func main() {
 		}
 	}
 	os.Exit(runEnv(os.Args[1:], os.Stdout, os.Stderr, os.Stdin, &env))
+}
+
+// runLegacyCompatibility implements the dual-built compatibility name. It
+// reports handled=false for the canonical build so the normal CLI runs
+// unchanged. Only exact top-level help/version are answered locally; every
+// other invocation is replaced by the canonical sibling (after a stderr-only
+// deprecation notice), so subcommand help, JSON commands and exit codes stay
+// byte-identical.
+func runLegacyCompatibility(deps legacyDeps, args []string, stdout, stderr io.Writer) (int, bool) {
+	target := strings.TrimSpace(legacyTarget)
+	if target == "" {
+		return 0, false
+	}
+	name := strings.TrimSpace(legacyName)
+	if name == "" {
+		name = "agentic-sdd"
+	}
+	switch {
+	case isExactTopLevelHelp(args):
+		printLegacyHelp(stdout, name, target)
+		return 0, true
+	case isExactTopLevelVersion(args):
+		printLegacyVersion(stdout, name, target)
+		return 0, true
+	}
+
+	path, err := resolveLegacyTarget(deps.executable, target)
+	if err != nil {
+		fmt.Fprintf(stderr, "error: %s: %v\n", name, err)
+		fmt.Fprintf(stderr, "hint: install %s beside %s, or rebuild the pair together\n", target, name)
+		return 1, true
+	}
+	fmt.Fprintf(stderr, "%s: deprecated compatibility name; running %s\n", name, target)
+	if err := deps.exec(path, append([]string{path}, args...)); err != nil {
+		fmt.Fprintf(stderr, "error: %s: start %s: %v\n", name, target, err)
+		return 1, true
+	}
+	return 0, true
+}
+
+// isExactTopLevelHelp and isExactTopLevelVersion match only the bare query
+// forms. Any extra argument, subcommand or flag combination is forwarded.
+func isExactTopLevelHelp(args []string) bool {
+	return len(args) == 1 && (args[0] == "--help" || args[0] == "-h")
+}
+
+func isExactTopLevelVersion(args []string) bool {
+	return len(args) == 1 && args[0] == "--version"
+}
+
+// resolveLegacyTarget returns the canonical sibling next to the running
+// executable. The running path is fully resolved first (Homebrew installs a
+// symlink), then the target must be a same-directory regular executable. There
+// is no PATH search, shell, package-manager query or working-directory
+// fallback.
+func resolveLegacyTarget(executable func() (string, error), target string) (string, error) {
+	if target == "" || filepath.Base(target) != target || target == "." || target == ".." {
+		return "", fmt.Errorf("the injected legacy target %q is not a bare command name; %s", target, buildinfo.RebuildPairHint)
+	}
+	exe, err := executable()
+	if err != nil {
+		return "", fmt.Errorf("locate the running compatibility binary: %w; %s", err, buildinfo.RebuildPairHint)
+	}
+	if strings.TrimSpace(exe) == "" {
+		return "", fmt.Errorf("the running compatibility binary has no path; %s", buildinfo.RebuildPairHint)
+	}
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		return "", fmt.Errorf("resolve the running compatibility binary: %w; %s", err, buildinfo.RebuildPairHint)
+	}
+	if !filepath.IsAbs(resolved) {
+		return "", fmt.Errorf("the running compatibility binary resolved to a relative path; %s", buildinfo.RebuildPairHint)
+	}
+	candidate := filepath.Join(filepath.Dir(resolved), target)
+	info, err := os.Lstat(candidate)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("%s is not installed beside %s; %s", target, filepath.Base(resolved), buildinfo.RebuildPairHint)
+		}
+		return "", fmt.Errorf("inspect %s: %w; %s", candidate, err, buildinfo.RebuildPairHint)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("refusing the symlinked %s; install the real paired binary; %s", candidate, buildinfo.RebuildPairHint)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%s is not a regular file; %s", candidate, buildinfo.RebuildPairHint)
+	}
+	if info.Mode().Perm()&0o111 == 0 {
+		return "", fmt.Errorf("%s is not executable; %s", candidate, buildinfo.RebuildPairHint)
+	}
+	return candidate, nil
+}
+
+// printLegacyHelp identifies the compatibility name and its canonical target,
+// then prints the canonical grammar. It writes nothing to stderr.
+func printLegacyHelp(out io.Writer, name, target string) {
+	fmt.Fprintf(out, "%s is a deprecated compatibility name for %s.\n", name, target)
+	fmt.Fprintf(out, "Run %s for the canonical command; the commands and flags are identical.\n\n", target)
+	printUsage(out)
+}
+
+// printLegacyVersion identifies the compatibility name and its canonical
+// target while keeping the canonical version fields intact.
+func printLegacyVersion(out io.Writer, name, target string) {
+	fmt.Fprintf(out, "%s %s (legacy compatibility name for %s)\n", name, version.Version, target)
+	fmt.Fprintf(out, "  commit:     %s\n", version.Commit)
+	fmt.Fprintf(out, "  date:       %s\n", version.Date)
+	fmt.Fprintf(out, "  go version: %s\n", version.GoVersion)
 }
 
 // run keeps the original testable seam: it builds a plain, non-terminal Env
@@ -39,15 +176,7 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 	if env == nil {
 		env = &Env{Width: 80}
 	}
-	// The Homebrew-marked artifact opens the TUI for a real interactive
-	// zero-argument launch. The decision is made before dispatch so every
-	// explicit command and flag keeps its own path, and it is traced under the
-	// command it actually runs.
-	homebrewTUILaunch := len(args) == 0 && env.tuiDefaultLaunch()
 	commandForTrace := commandName(args)
-	if homebrewTUILaunch {
-		commandForTrace = "tui"
-	}
 	env.Trace.Event("run.start", "command", commandForTrace, "flags", flagNames(args), "version", version.Version)
 	env.Trace.Event("env.resolved",
 		"interactive", env.Interactive,
@@ -61,9 +190,6 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 		env.Trace.Event("run.end", "exit", exitCode)
 		_ = env.Trace.Close()
 	}()
-	if homebrewTUILaunch {
-		return tuiLaunch(tuiRequest{}, stdin, stdout, stderr, env)
-	}
 	command := "preview"
 	explicitCommand := false
 	if len(args) > 0 {
@@ -73,7 +199,7 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			args = args[1:]
 		case "version":
 			if len(args) > 1 {
-				fmt.Fprintln(stderr, "error: usage: agentic-sdd version")
+				fmt.Fprintf(stderr, "error: usage: %s version\n", buildinfo.ProductCLI)
 				return 2
 			}
 			printVersion(stdout)
@@ -82,7 +208,7 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			return runOpenCode(args[1:], stdout, stderr)
 		case "help":
 			if len(args) > 2 || (len(args) == 2 && !isHelpTopic(args[1])) {
-				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]")
+				fmt.Fprintf(stderr, "error: usage: %s help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]\n", buildinfo.ProductCLI)
 				return 2
 			}
 			if len(args) == 2 && (args[1] == "opencode" || args[1] == "opencode-harness") {
@@ -129,14 +255,14 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 		default:
 			if !strings.HasPrefix(args[0], "-") {
 				fmt.Fprintf(stderr, "error: unknown command %q\n", args[0])
-				env.Hint(stderr, "run agentic-sdd help to see the commands")
+				env.Hint(stderr, fmt.Sprintf("run %s help to see the commands", buildinfo.ProductCLI))
 				printUsage(stderr)
 				return 2
 			}
 		}
 	}
 
-	fs := flag.NewFlagSet("agentic-sdd", flag.ContinueOnError)
+	fs := flag.NewFlagSet(buildinfo.ProductCLI, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var repo, home string
 	var legacyApply, showVersion, withOpenCode, openCodeFreeFirst bool
@@ -152,7 +278,7 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			return 0
 		}
 		fmt.Fprintln(stderr, "error:", err)
-		env.Hint(stderr, "run agentic-sdd help preview for the accepted flags")
+		env.Hint(stderr, fmt.Sprintf("run %s help preview for the accepted flags", buildinfo.ProductCLI))
 		printUsage(stderr)
 		return 2
 	}
@@ -241,7 +367,7 @@ func printPreviewSummary(out io.Writer, env *Env, sum skillsync.PlanSummary, rep
 // formatNextApplyCommand rebuilds the exact apply command for the next step,
 // carrying only the flags the user actually supplied.
 func formatNextApplyCommand(repo, rawHome string, opts skillsync.Options) string {
-	cmd := "agentic-sdd apply"
+	cmd := buildinfo.ProductCLI + " apply"
 	if opts.WithOpenCode {
 		cmd += " --with-opencode"
 	}
@@ -287,7 +413,7 @@ func isHelpTopic(s string) bool {
 }
 
 func printOrchestrateUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd [preview|apply] --with-opencode [--opencode-free-first] [--repo PATH] [--home PATH]
+	fmt.Fprint(out, `Usage: asdx-core [preview|apply] --with-opencode [--opencode-free-first] [--repo PATH] [--home PATH]
 
 OpenCode Orchestration Options:
   --with-opencode        Install the opt-in agentic-sdd-orchestrate skill into client
@@ -307,10 +433,10 @@ func resolveHome(home string) (string, error) {
 	return os.UserHomeDir()
 }
 
-// runBackups implements the read-only "agentic-sdd backups" command, and
-// "agentic-sdd restore list" (an identical listing) delegates to it.
+// runBackups implements the read-only "asdx-core backups" command, and
+// "asdx-core restore list" (an identical listing) delegates to it.
 func runBackups(args []string, stdout, stderr io.Writer, env *Env) int {
-	fs := flag.NewFlagSet("agentic-sdd backups", flag.ContinueOnError)
+	fs := flag.NewFlagSet(buildinfo.ProductCLI+" backups", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var repo, home string
 	fs.StringVar(&repo, "repo", "", "repository containing skills-files (default: skills embedded in this binary)")
@@ -321,7 +447,7 @@ func runBackups(args []string, stdout, stderr io.Writer, env *Env) int {
 			return 0
 		}
 		fmt.Fprintln(stderr, "error:", err)
-		env.Hint(stderr, "run agentic-sdd help backups for the accepted flags")
+		env.Hint(stderr, fmt.Sprintf("run %s help backups for the accepted flags", buildinfo.ProductCLI))
 		return 2
 	}
 	if fs.NArg() != 0 {
@@ -375,7 +501,7 @@ func printBackups(out io.Writer, backups []skillsync.Backup) {
 	}
 }
 
-// runRestore implements every form of the "agentic-sdd restore" command:
+// runRestore implements every form of the "asdx-core restore" command:
 // the sub-word forms ("restore list|preview|apply [ID]") and the bare form
 // ("restore [ID] [--apply]"). "restore list" is identical to "backups".
 func runRestore(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) int {
@@ -390,7 +516,7 @@ func runRestore(args []string, stdout, stderr io.Writer, stdin io.Reader, env *E
 		return runBackups(args, stdout, stderr, env)
 	}
 
-	fs := flag.NewFlagSet("agentic-sdd restore", flag.ContinueOnError)
+	fs := flag.NewFlagSet(buildinfo.ProductCLI+" restore", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var repo, home string
 	var applyFlag bool
@@ -413,7 +539,7 @@ func runRestore(args []string, stdout, stderr io.Writer, stdin io.Reader, env *E
 				return 0
 			}
 			fmt.Fprintln(stderr, "error:", err)
-			env.Hint(stderr, "run agentic-sdd help restore for the accepted flags")
+			env.Hint(stderr, fmt.Sprintf("run %s help restore for the accepted flags", buildinfo.ProductCLI))
 			return 2
 		}
 		rest := fs.Args()
@@ -448,8 +574,8 @@ func runRestore(args []string, stdout, stderr io.Writer, stdin io.Reader, env *E
 	interactivelySelected := false
 	if !haveID {
 		if !env.Interactive {
-			fmt.Fprintln(stderr, `error: restore requires a backup id; run "agentic-sdd backups" to list them`)
-			env.Hint(stderr, "run agentic-sdd backups to list ids, or agentic-sdd guide to pick one")
+			fmt.Fprintf(stderr, "error: restore requires a backup id; run \"%s backups\" to list them\n", buildinfo.ProductCLI)
+			env.Hint(stderr, fmt.Sprintf("run %s backups to list ids, or %s guide to pick one", buildinfo.ProductCLI, buildinfo.ProductCLI))
 			return 2
 		}
 		backups, err := skillsync.ListBackups(repo, home)
@@ -464,7 +590,7 @@ func runRestore(args []string, stdout, stderr io.Writer, stdin io.Reader, env *E
 		id, interactivelySelected = selected, true
 	} else if err := skillsync.ValidateBackupID(id); err != nil {
 		fmt.Fprintln(stderr, "error:", err)
-		env.Hint(stderr, "ids look like 20260101T000000.000000000Z; list them with agentic-sdd backups")
+		env.Hint(stderr, fmt.Sprintf("ids look like 20260101T000000.000000000Z; list them with %s backups", buildinfo.ProductCLI))
 		return 2
 	}
 
@@ -567,20 +693,20 @@ func readLine(r *bufio.Reader) (string, bool) {
 }
 
 func printUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd [preview|apply] [--repo PATH] [--home PATH]
-       agentic-sdd tui [--repo PATH] [--home PATH]
-       agentic-sdd version
-       agentic-sdd backups [--repo PATH] [--home PATH]
-       agentic-sdd logs [--home PATH]
-       agentic-sdd restore [ID] [--apply] [--repo PATH] [--home PATH]
-       agentic-sdd restore list|preview|apply [ID] [--repo PATH] [--home PATH]
-       agentic-sdd guide [--repo PATH] [--home PATH]
-       agentic-sdd fleet status|plan|apply|restore|doctor [--config PATH] [--home PATH]
-       agentic-sdd mcp status|doctor|preview [--config PATH] [--home PATH] [--json]
-       agentic-sdd run init|status|check|record|clean [--run ID] [--repo PATH]
-       agentic-sdd task brief --run ID --task T01 [--repo PATH]
-       agentic-sdd review package --run ID --base COMMIT [--repo PATH]
-       agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]
+	fmt.Fprint(out, `Usage: asdx-core [preview|apply] [--repo PATH] [--home PATH]
+       asdx-core tui [--repo PATH] [--home PATH]
+       asdx-core version
+       asdx-core backups [--repo PATH] [--home PATH]
+       asdx-core logs [--home PATH]
+       asdx-core restore [ID] [--apply] [--repo PATH] [--home PATH]
+       asdx-core restore list|preview|apply [ID] [--repo PATH] [--home PATH]
+       asdx-core guide [--repo PATH] [--home PATH]
+       asdx-core fleet status|plan|apply|restore|doctor [--config PATH] [--home PATH]
+       asdx-core mcp status|doctor|preview [--config PATH] [--home PATH] [--json]
+       asdx-core run init|status|check|record|clean [--run ID] [--repo PATH]
+       asdx-core task brief --run ID --task T01 [--repo PATH]
+       asdx-core review package --run ID --base COMMIT [--repo PATH]
+       asdx-core help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -590,16 +716,16 @@ Commands:
   logs           Show the latest apply or restore log.
   restore        Preview or restore a backup, selected by id or number.
   guide          Interactive step-by-step wizard for terminal users.
-  tui            Open the terminal UI in a real terminal (packaged companion).
+  tui            Open the terminal UI in a real terminal (packaged asdx companion).
   fleet          Manage agent fleet profiles and model overrides.
   mcp            Inspect the default MCP tools read-only (status, doctor, preview).
   run            Create or inspect a private execution run.
   task           Extract one authorized task brief into a run.
   review         Package real Git changes for a bounded review.
 
-With the Homebrew package, a bare "agentic-sdd" in a real interactive terminal
-opens the terminal UI. Any command or flag, a non-terminal stdin or stdout, and
-AGENTIC_SDD_FORCE_INTERACTIVE=1 keep the standard CLI; "agentic-sdd preview"
+A bare "asdx-core" always previews and never opens the terminal UI. Run the
+separate "asdx" command for the terminal UI; "asdx-core tui" is the explicit
+compatibility launcher for that identity-verified sibling. "asdx-core preview"
 always previews without writing.
 
 restore forms:
@@ -622,7 +748,7 @@ Flags:
 }
 
 func printVersion(out io.Writer) {
-	fmt.Fprintf(out, "agentic-sdd %s\n", version.Version)
+	fmt.Fprintf(out, "%s %s\n", buildinfo.ProductCLI, version.Version)
 	fmt.Fprintf(out, "  commit:     %s\n", version.Commit)
 	fmt.Fprintf(out, "  date:       %s\n", version.Date)
 	fmt.Fprintf(out, "  go version: %s\n", version.GoVersion)

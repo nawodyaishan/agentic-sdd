@@ -19,17 +19,16 @@ import (
 	"agentic-sdd/internal/buildinfo"
 )
 
-// This file implements the Feature 013 B6/T14 launcher. Two entry points share
-// one launch path:
+// This file implements the Feature 013 B6/T14 launcher, renamed by Feature 019
+// to the canonical asdx-core/asdx pair. One entry point uses the launch path:
 //
-//   - the explicit "agentic-sdd tui" command;
-//   - the Homebrew-marked artifact's real-interactive zero-argument default.
+//   - the explicit "asdx-core tui" command.
 //
 // Every other invocation keeps its historical command path. The launcher only
-// resolves, verifies and starts the trusted same-install companion
-// "agentic-sdd-tui"; it never searches PATH, never uses a shell, never inspects
-// the environment beyond the documented switches the rest of the CLI already
-// reads, and never falls back to another write workflow.
+// resolves, verifies and starts the trusted same-install companion "asdx"; it
+// never searches PATH, never uses a shell, never inspects the environment
+// beyond the documented switches the rest of the CLI already reads, and never
+// falls back to another write workflow. A bare "asdx-core" always previews.
 
 const (
 	// tuiProtocolTimeout bounds the non-interactive handshake. A companion that
@@ -45,21 +44,13 @@ const (
 	tuiSignalBuffer = 8
 )
 
-// currentDistribution is the link-time packaging marker of this artifact.
-// Tests replace it; production reads the injected value.
-var currentDistribution = buildinfo.CurrentDistribution
-
 // tuiLaunch is the process boundary used by the dispatcher. Tests replace it to
 // observe the dispatch decision without building, verifying or starting a
 // companion process.
 var tuiLaunch = launchTUISession
 
-// tuiRequest is one fully parsed terminal-UI launch request. The zero value is
-// the Homebrew zero-argument default: no flags at all.
+// tuiRequest is one fully parsed terminal-UI launch request.
 type tuiRequest struct {
-	// Explicit reports that the user typed "agentic-sdd tui" instead of relying
-	// on the Homebrew interactive default.
-	Explicit bool
 	// Home and Repo are forwarded unchanged; empty values keep the companion's
 	// own defaults (the current user home and the embedded assets).
 	Home string
@@ -122,31 +113,16 @@ func newTUIRunner(stdin io.Reader, stdout, stderr io.Writer) *tuiRunner {
 	return runner
 }
 
-// launchTUISession is the production entry point shared by the explicit
-// command and the Homebrew default.
+// launchTUISession is the production entry point of "asdx-core tui".
 func launchTUISession(req tuiRequest, stdin io.Reader, stdout, stderr io.Writer, env *Env) int {
 	return launchTUI(newTUIRunner(stdin, stdout, stderr), req, env)
 }
 
-// tuiDefaultLaunch reports whether a zero-argument invocation must open the
-// terminal UI instead of the historical preview. Only the explicitly
-// Homebrew-marked artifact opts in, and only for a real, unforced interactive
-// terminal. Every other bare invocation keeps the pre-feature behavior.
-func (e *Env) tuiDefaultLaunch() bool {
-	if e == nil {
-		return false
-	}
-	if !currentDistribution().AllowsInteractiveDefault() {
-		return false
-	}
-	return e.RealStdinTTY && e.RealStdoutTTY && !e.ForceInteractive
-}
-
-// runTUICommand implements "agentic-sdd tui". It accepts exactly the supported
-// companion options, applies the same real-terminal gates as a direct
-// companion launch, and then runs the verified sibling.
+// runTUICommand implements "asdx-core tui". It accepts exactly the supported
+// companion options, applies the real-terminal gates and then runs the
+// verified sibling.
 func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env *Env) int {
-	fs := flag.NewFlagSet("agentic-sdd tui", flag.ContinueOnError)
+	fs := flag.NewFlagSet(buildinfo.ProductCLI+" tui", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var home, repo, fleetConfig string
 	var withOpenCode, openCodeFreeFirst bool
@@ -163,7 +139,7 @@ func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env
 			return 0
 		}
 		fmt.Fprintln(stderr, "error:", err)
-		env.Hint(stderr, "run agentic-sdd help tui for the accepted flags")
+		env.Hint(stderr, fmt.Sprintf("run %s help tui for the accepted flags", buildinfo.ProductCLI))
 		printUsage(stderr)
 		return 2
 	}
@@ -191,16 +167,15 @@ func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env
 	// screen. A failure is explicit, never a silent preview.
 	if env.ForceInteractive {
 		fmt.Fprintf(stderr, "error: %s=1 keeps scripted runs on the standard CLI\n", "AGENTIC_SDD_FORCE_INTERACTIVE")
-		env.Hint(stderr, "run agentic-sdd preview to use the read-only CLI preview")
+		env.Hint(stderr, fmt.Sprintf("run %s preview to use the read-only CLI preview", buildinfo.ProductCLI))
 		return 2
 	}
 	if !env.RealStdinTTY || !env.RealStdoutTTY {
-		fmt.Fprintln(stderr, "error: agentic-sdd tui needs a real input and output terminal")
-		env.Hint(stderr, "run agentic-sdd preview to use the read-only CLI preview")
+		fmt.Fprintf(stderr, "error: %s tui needs a real input and output terminal\n", buildinfo.ProductCLI)
+		env.Hint(stderr, fmt.Sprintf("run %s preview to use the read-only CLI preview", buildinfo.ProductCLI))
 		return 2
 	}
 	return tuiLaunch(tuiRequest{
-		Explicit:          true,
 		Home:              home,
 		Repo:              repo,
 		WithOpenCode:      withOpenCode,
@@ -213,13 +188,13 @@ func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env
 // printTUIUsage is the explicit command's own flag reference. It is a new
 // help surface, so the historical usage block keeps its shape.
 func printTUIUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd tui [--repo PATH] [--home PATH] [--fleet-config PATH] [--with-opencode[=false]] [--opencode-free-first]
+	fmt.Fprint(out, `Usage: asdx-core tui [--repo PATH] [--home PATH] [--fleet-config PATH] [--with-opencode[=false]] [--opencode-free-first]
 
-Opens the packaged terminal UI from the same installation. It needs a real
-input and output terminal; a pipe, a script, or
+Opens the packaged terminal UI (asdx) from the same installation. It needs a
+real input and output terminal; a pipe, a script, or
 AGENTIC_SDD_FORCE_INTERACTIVE=1 keeps the standard CLI and never opens an
-alternate screen. A missing or mismatched companion is an error, never a
-silent fallback.
+alternate screen. A missing or mismatched sibling is an error, never a silent
+fallback.
 
 Options:
   --home PATH            Home directory whose client folders are inspected.
@@ -270,10 +245,7 @@ func tuiCompanionArgs(req tuiRequest) []string {
 // before or during the launch is reported and returned as a non-zero exit; the
 // parent never substitutes preview or a different write workflow.
 func launchTUI(runner *tuiRunner, req tuiRequest, env *Env) int {
-	source := "homebrew-default"
-	if req.Explicit {
-		source = "explicit"
-	}
+	source := "explicit"
 	if env != nil {
 		env.Trace.Event("tui.dispatch", "source", source, "decision", "launch")
 	}
@@ -327,11 +299,10 @@ func launchTUI(runner *tuiRunner, req tuiRequest, env *Env) int {
 }
 
 // failTUILaunch reports one closed failure with rebuild-pair guidance and the
-// explicit preview escape hatch. It never runs preview, and it always prints
-// the escape hatch because this path replaces the interactive default.
+// explicit preview escape hatch. It never runs preview.
 func failTUILaunch(stderr io.Writer, err error) int {
 	fmt.Fprintf(stderr, "error: terminal UI unavailable: %v\n", err)
-	fmt.Fprintln(stderr, "hint: run agentic-sdd preview to use the standard CLI; nothing was written")
+	fmt.Fprintf(stderr, "hint: run %s preview to use the standard CLI; nothing was written\n", buildinfo.ProductCLI)
 	return 1
 }
 
@@ -343,17 +314,17 @@ func failTUILaunch(stderr io.Writer, err error) int {
 func resolveTUICompanion(executable func() (string, error)) (string, error) {
 	exe, err := executable()
 	if err != nil {
-		return "", fmt.Errorf("locate the running agentic-sdd binary: %w; %s", err, buildinfo.RebuildPairHint)
+		return "", fmt.Errorf("locate the running %s binary: %w; %s", buildinfo.ProductCLI, err, buildinfo.RebuildPairHint)
 	}
 	if strings.TrimSpace(exe) == "" {
-		return "", fmt.Errorf("the running agentic-sdd binary has no path; %s", buildinfo.RebuildPairHint)
+		return "", fmt.Errorf("the running %s binary has no path; %s", buildinfo.ProductCLI, buildinfo.RebuildPairHint)
 	}
 	resolved, err := filepath.EvalSymlinks(exe)
 	if err != nil {
-		return "", fmt.Errorf("resolve the running agentic-sdd binary: %w; %s", err, buildinfo.RebuildPairHint)
+		return "", fmt.Errorf("resolve the running %s binary: %w; %s", buildinfo.ProductCLI, err, buildinfo.RebuildPairHint)
 	}
 	if !filepath.IsAbs(resolved) {
-		return "", fmt.Errorf("the running agentic-sdd binary resolved to a relative path; %s", buildinfo.RebuildPairHint)
+		return "", fmt.Errorf("the running %s binary resolved to a relative path; %s", buildinfo.ProductCLI, buildinfo.RebuildPairHint)
 	}
 	companion := filepath.Join(filepath.Dir(resolved), buildinfo.ProductCompanion)
 	info, err := os.Lstat(companion)

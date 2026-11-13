@@ -27,7 +27,7 @@ Within the authorized batch, the main may diagnose and make a focused correction
 
 ## Checkpoints, stale state and interruption
 
-`agentic-sdd run status` reports observed state, not progress toward approval. Read it before continuing after compaction, restart or interruption.
+`asdx-core run status` reports observed state, not progress toward approval. Read it before continuing after compaction, restart or interruption.
 
 - States are observations: `prepared`, `running`, `observed-partial`, `observed-failed`, `awaiting-verification`, `verified-evidence`, `stale`, `blocked`. None is human approval, and even `verified-evidence` is not acceptance.
 - A `stale` or `blocked` run stays stopped until the changed source, batch or worktree is reconciled. The reported next permitted investigation names an investigation, never a resume.
@@ -52,7 +52,7 @@ Never expose credentials in a retry, and never route a paid lane through an endp
 
 Before retrying any write task that may have been interrupted:
 
-1. Read `agentic-sdd run status` when a run exists; it reports the checkpoint, freshness and blockers but replaces neither this inspection nor a human decision.
+1. Read `asdx-core run status` when a run exists; it reports the checkpoint, freshness and blockers but replaces neither this inspection nor a human decision.
 2. Inspect the child session's recorded tool results to see which writes completed.
 3. Inspect the working tree with `git status --short` and `git diff` — read the actual additions and deletions, not the summary.
 4. Preserve completed work; resume the same child session when the client supports safe continuation.

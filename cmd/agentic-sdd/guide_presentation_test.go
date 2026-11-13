@@ -74,8 +74,8 @@ func TestGuidePresentationEmbeddedPackReview(t *testing.T) {
 		filepath.Join(absHome, ".claude", "skills"),
 		filepath.Join(absHome, ".gemini", "antigravity-cli", "skills"),
 		filepath.Join(absHome, ".config", "opencode", "agents"),
-		"agentic-sdd preview --with-opencode --opencode-free-first",
-		"agentic-sdd apply --with-opencode --opencode-free-first",
+		"asdx-core preview --with-opencode --opencode-free-first",
+		"asdx-core apply --with-opencode --opencode-free-first",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
@@ -133,14 +133,14 @@ func TestGuidePresentationCustomSingleSkill(t *testing.T) {
 		"Codex: " + filepath.Join(absHome, ".codex", "skills"),
 		"Claude Code: " + filepath.Join(absHome, ".claude", "skills"),
 		"Antigravity: " + filepath.Join(absHome, ".gemini", "antigravity-cli", "skills"),
-		"agentic-sdd preview --repo " + shellQuoteIfNeeded(absRepo) + " --home " + shellQuoteIfNeeded(absHome),
-		"agentic-sdd apply --repo " + shellQuoteIfNeeded(absRepo) + " --home " + shellQuoteIfNeeded(absHome),
+		"asdx-core preview --repo " + shellQuoteIfNeeded(absRepo) + " --home " + shellQuoteIfNeeded(absHome),
+		"asdx-core apply --repo " + shellQuoteIfNeeded(absRepo) + " --home " + shellQuoteIfNeeded(absHome),
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "agentic-sdd preview --with-opencode") {
+	if strings.Contains(out, "asdx-core preview --with-opencode") {
 		t.Errorf("core-only preview command carried pack flags:\n%s", out)
 	}
 	if strings.Contains(out, "~/.claude/skills") {
@@ -247,7 +247,7 @@ func TestGuidePresentationReviewBackThenConfirm(t *testing.T) {
 		"Plan a feature:",
 		"Fix an existing bug:",
 		"then choose 6",
-		"agentic-sdd guide --home " + shellQuoteIfNeeded(absHome) + " --repo " + shellQuoteIfNeeded(absRepo),
+		"asdx-core guide --home " + shellQuoteIfNeeded(absHome) + " --repo " + shellQuoteIfNeeded(absRepo),
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("receipt missing %q in:\n%s", want, out)
@@ -272,7 +272,7 @@ func TestGuidePresentationReviewBackThenConfirm(t *testing.T) {
 	if locationLine != "Location: "+filepath.Join(absRepo, "backups", id) {
 		t.Fatalf("snapshot location = %q, want %q", locationLine, "Location: "+filepath.Join(absRepo, "backups", id))
 	}
-	recovery := "agentic-sdd restore " + id + " --home " + shellQuoteIfNeeded(absHome) + " --repo " + shellQuoteIfNeeded(absRepo)
+	recovery := "asdx-core restore " + id + " --home " + shellQuoteIfNeeded(absHome) + " --repo " + shellQuoteIfNeeded(absRepo)
 	if !strings.Contains(out, recovery) {
 		t.Errorf("recovery preview missing %q in:\n%s", recovery, out)
 	}

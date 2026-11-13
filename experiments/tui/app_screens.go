@@ -545,13 +545,13 @@ func (a App) installHubLines(width int) []string {
 
 	b.WriteString(a.theme.Section.Render("Read-only preview commands"))
 	b.WriteString("\n")
-	for _, line := range wrapPath("  Preview core skills: agentic-sdd preview"+repoFlag+homeFlag, width) {
+	for _, line := range wrapPath("  Preview core skills: asdx-core preview"+repoFlag+homeFlag, width) {
 		b.WriteString(a.theme.Accent.Render(line) + "\n")
 	}
-	for _, line := range wrapPath("  Preview with OpenCode pack: agentic-sdd preview --with-opencode"+repoFlag+homeFlag, width) {
+	for _, line := range wrapPath("  Preview with OpenCode pack: asdx-core preview --with-opencode"+repoFlag+homeFlag, width) {
 		b.WriteString(a.theme.Accent.Render(line) + "\n")
 	}
-	for _, line := range wrapPath("  Preview a restore: agentic-sdd restore preview BACKUP_ID"+repoFlag+homeFlag, width) {
+	for _, line := range wrapPath("  Preview a restore: asdx-core restore preview BACKUP_ID"+repoFlag+homeFlag, width) {
 		b.WriteString(a.theme.Accent.Render(line) + "\n")
 	}
 	b.WriteString("\n")
@@ -648,6 +648,11 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if a.installSection == installSectionInstall {
+		// When Install was opened from Guide, Esc or b on the entry step returns
+		// directly to Guide without writing anything.
+		if a.guideReturn && a.install.Step() == InstallStepClients && (key == "esc" || key == "b") {
+			return *a, a.returnToGuide()
+		}
 		// The read-only no-op panel routes Home/Library through the existing
 		// destinations; leaving invalidates the read-only preview so a return
 		// always requires a fresh preview.
@@ -660,8 +665,11 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		// The result screen has no internal back action: Enter or Esc closes
-		// this journey and returns to the hub.
-		if a.install.Step() == InstallStepResult && (key == "esc" || key == "enter") {
+		// this journey and returns to Guide (if opened from Guide) or the hub.
+		if a.install.Step() == InstallStepResult && (key == "esc" || key == "enter" || (a.guideReturn && key == "b")) {
+			if a.guideReturn {
+				return *a, a.returnToGuide()
+			}
 			return *a, a.closeInstallHub("")
 		}
 		// Review, preview, confirmation and result scroll the whole page; the
@@ -682,7 +690,10 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Backups & restore.
-	if a.restore.Stage() == RestoreStageList && key == "esc" {
+	if a.restore.Stage() == RestoreStageList && (key == "esc" || (a.guideReturn && key == "b")) {
+		if a.guideReturn {
+			return *a, a.returnToGuide()
+		}
 		return *a, a.closeInstallHub("")
 	}
 	if a.restore.Stage() != RestoreStageList && isScrollKey(key) {
@@ -946,7 +957,15 @@ func (a *App) handleActivityRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	switch key {
 	case "esc":
+		if a.guideReturn {
+			return *a, a.returnToGuide()
+		}
 		a.focus = FocusNav
+		return *a, nil
+	case "b":
+		if a.guideReturn {
+			return *a, a.returnToGuide()
+		}
 		return *a, nil
 	case "r":
 		cmds := make([]tea.Cmd, 0, 2)
@@ -1044,10 +1063,19 @@ func (a *App) handleOnboardingKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if a.onboarding == nil {
 		return *a, nil
 	}
+	// When Quick start was opened from Guide, pressing b on the first step
+	// returns to Guide while b on later steps steps back inside the tour.
+	if a.guideReturn && key == "b" && a.onboarding.Step() == OnboardingWelcome {
+		a.onboarding = nil
+		a.guideReturn = false
+		a.notice = QuickStartName + " closed. No files were written, nothing was copied, no browser opened and no agent ran."
+		return *a, nil
+	}
 	// The finish step is complete, not cancelled: Esc closes the overlay while
 	// keeping the completed outcome and the visible, copyable prompt.
 	if a.onboarding.Finished() && key == "esc" {
 		a.onboarding = nil
+		a.guideReturn = false
 		a.notice = QuickStartName + " closed. The first router prompt is shown on its last step and after a successful setup; nothing was copied and no agent ran."
 		return *a, nil
 	}
@@ -1059,9 +1087,130 @@ func (a *App) handleOnboardingKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if a.onboarding != nil && a.onboarding.Done() {
 		outcome := a.onboarding.Outcome()
 		a.onboarding = nil
+		a.guideReturn = false
 		a.notice = QuickStartName + " " + outcome.String() + ". No files were written, nothing was copied, no browser opened and no agent ran."
 	}
 	return *a, cmd
+}
+
+// ---------------------------------------------------------------------------
+// Guide destination and return-to-Guide routing
+// ---------------------------------------------------------------------------
+
+func (a App) routeIndex(r Route) int {
+	for i, info := range a.routes {
+		if info.Route == r {
+			return i
+		}
+	}
+	return -1
+}
+
+func (a App) guideRouteLines(width int) []string {
+	return a.guide.Lines(width)
+}
+
+func (a *App) handleGuideRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	width, height := a.childContentWidth(), a.childBodyHeight()
+
+	switch key {
+	case "esc":
+		a.focus = FocusNav
+		return *a, nil
+	case "g":
+		return *a, a.openLinkCmd(LinkReadme)
+	}
+	if action, ok := a.guide.ActionForKey(key); ok {
+		switch action {
+		case GuideActionInstall:
+			return *a, a.openGuideInstall()
+		case GuideActionRestore:
+			return *a, a.openGuideRestore()
+		case GuideActionLogs:
+			return *a, a.openGuideLogs()
+		case GuideActionOnboarding:
+			return *a, a.openGuideOnboarding()
+		case GuideActionAboutUpdate:
+			return *a, a.openGuideAbout()
+		case GuideActionReadme:
+			return *a, a.openLinkCmd(LinkReadme)
+		}
+	}
+	if key == "j" || key == "k" || key == "up" || key == "down" || key == "home" || key == "end" {
+		updated, cmd := a.guide.Update(msg)
+		a.guide = updated
+		return *a, cmd
+	}
+	if isScrollKey(key) {
+		a.scrollChildContent(key, width, height)
+	}
+	return *a, nil
+}
+
+func (a *App) openGuideInstall() tea.Cmd {
+	if idx := a.routeIndex(RouteInstall); idx >= 0 {
+		_, _ = a.switchRoute(idx)
+	}
+	a.install.ResetJourney()
+	a.guideReturn = true
+	return a.openInstallScreen()
+}
+
+func (a *App) openGuideRestore() tea.Cmd {
+	if idx := a.routeIndex(RouteInstall); idx >= 0 {
+		_, _ = a.switchRoute(idx)
+	}
+	cmd := a.openBackupsScreen()
+	a.guideReturn = true
+	return cmd
+}
+
+func (a *App) openGuideLogs() tea.Cmd {
+	a.activity.SelectSection(HelpSectionActivity)
+	a.activity.selectedLog = 0
+	a.activity.logScroll = 0
+	var cmd tea.Cmd
+	if idx := a.routeIndex(RouteActivity); idx >= 0 {
+		_, cmd = a.switchRoute(idx)
+	}
+	a.contentScroll = 0
+	a.guideReturn = true
+	return cmd
+}
+
+func (a *App) openGuideOnboarding() tea.Cmd {
+	cmd := a.openOnboardingCmd()
+	if a.onboarding != nil {
+		a.onboarding.SetTheme(a.theme)
+	}
+	a.guideReturn = true
+	return cmd
+}
+
+func (a *App) openGuideAbout() tea.Cmd {
+	a.activity.SelectSection(HelpSectionAll)
+	var cmd tea.Cmd
+	if idx := a.routeIndex(RouteActivity); idx >= 0 {
+		_, cmd = a.switchRoute(idx)
+	}
+	a.contentScroll = 0
+	a.guideReturn = true
+	return cmd
+}
+
+func (a *App) returnToGuide() tea.Cmd {
+	if a.activeRoute == RouteInstall {
+		a.installSection = installSectionHub
+	}
+	a.onboarding = nil
+	if idx := a.routeIndex(RouteGuide); idx >= 0 {
+		_, cmd := a.switchRoute(idx)
+		a.guideReturn = false
+		return cmd
+	}
+	a.guideReturn = false
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1095,6 +1244,11 @@ func (a App) footerOverride() string {
 		return a.actionsFooter(a.width)
 	case RouteActivity:
 		return a.actionsFooter(a.width)
+	case RouteGuide:
+		if a.focus == FocusContent {
+			return a.actionsFooter(a.width)
+		}
+		return ""
 	default:
 		return ""
 	}

@@ -10,19 +10,19 @@ ENV HOME=/home/coder \
 
 RUN mkdir -p "$HOME/work" "$HOME/.config"
 
-COPY --chown=1000:1000 agentic-sdd /usr/local/bin/agentic-sdd
+COPY --chown=1000:1000 asdx-core /usr/local/bin/asdx-core
 COPY --chown=1000:1000 opencode /usr/local/bin/opencode
 COPY --chown=1000:1000 entrypoint.sh /usr/local/bin/qa-entrypoint
 COPY --chown=1000:1000 identity.txt /etc/sdd-qa-identity
 
-RUN chmod 0755 /usr/local/bin/agentic-sdd /usr/local/bin/opencode /usr/local/bin/qa-entrypoint
+RUN chmod 0755 /usr/local/bin/asdx-core /usr/local/bin/opencode /usr/local/bin/qa-entrypoint
 
 USER 1000:1000
 WORKDIR /home/coder/work
 
 RUN opencode --version \
- && agentic-sdd version \
- && agentic-sdd apply --home "$HOME" \
+ && asdx-core version \
+ && asdx-core apply --home "$HOME" \
  && test "$(find "$HOME/.agents/skills" -name SKILL.md | wc -l)" = 18
 
 ENTRYPOINT ["/usr/local/bin/qa-entrypoint"]

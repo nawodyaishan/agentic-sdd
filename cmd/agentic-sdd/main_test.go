@@ -23,9 +23,9 @@ func TestRunHelpAndUsageErrors(t *testing.T) {
 		name, args, want string
 		code             int
 	}{
-		{"help", "--help", "Usage: agentic-sdd", 0},
+		{"help", "--help", "Usage: asdx-core", 0},
 		{"help command", "help apply", "Commands:", 0},
-		{"command help", "preview --help", "Usage: agentic-sdd", 0},
+		{"command help", "preview --help", "Usage: asdx-core", 0},
 		{"unknown command", "wat", "unknown command", 2},
 		{"extra argument", "preview extra", "unexpected argument", 2},
 		{"unknown flag", "--wat", "flag provided but not defined", 2},
@@ -121,7 +121,7 @@ func TestRunVersion(t *testing.T) {
 			if code != 0 {
 				t.Fatalf("exit code %d; stderr: %s", code, stderr.String())
 			}
-			if !strings.Contains(stdout.String(), "agentic-sdd dev") {
+			if !strings.Contains(stdout.String(), "asdx-core dev") {
 				t.Fatalf("output %q missing default version", stdout.String())
 			}
 		})
@@ -375,7 +375,7 @@ func TestRunRestoreNonInteractiveMissingID(t *testing.T) {
 	repo, home, _ := setupBackupCLI(t)
 	var out, errOut bytes.Buffer
 	code := runNonInteractive([]string{"restore", "--repo", repo, "--home", home}, &out, &errOut)
-	if code != 2 || !strings.Contains(errOut.String(), "agentic-sdd backups") {
+	if code != 2 || !strings.Contains(errOut.String(), "asdx-core backups") {
 		t.Fatalf("exit %d, stderr %s", code, errOut.String())
 	}
 }
@@ -688,21 +688,21 @@ func TestPlainOutputByteIdentity(t *testing.T) {
 
 	t.Run("version", func(t *testing.T) {
 		code, stdout, stderr := invoke(t, "version")
-		want := fmt.Sprintf("agentic-sdd %s\n  commit:     %s\n  date:       %s\n  go version: %s\n",
+		want := fmt.Sprintf("asdx-core %s\n  commit:     %s\n  date:       %s\n  go version: %s\n",
 			version.Version, version.Commit, version.Date, version.GoVersion)
 		check(t, "version", code, 0, stdout, stderr, want, "")
 	})
 
 	t.Run("version extra", func(t *testing.T) {
 		code, stdout, stderr := invoke(t, "version", "extra")
-		check(t, "version extra", code, 2, stdout, stderr, "", "error: usage: agentic-sdd version\n")
+		check(t, "version extra", code, 2, stdout, stderr, "", "error: usage: asdx-core version\n")
 	})
 
 	t.Run("restore without id non-interactive", func(t *testing.T) {
 		repo, home := newFixture(t)
 		code, stdout, stderr := invoke(t, "restore", "--repo", repo, "--home", home)
 		check(t, "restore without id", code, 2, stdout, stderr, "",
-			"error: restore requires a backup id; run \"agentic-sdd backups\" to list them\n")
+			"error: restore requires a backup id; run \"asdx-core backups\" to list them\n")
 	})
 
 	t.Run("restore invalid id", func(t *testing.T) {
@@ -739,4 +739,35 @@ func TestPlainOutputByteIdentity(t *testing.T) {
 		check(t, "unknown command", code, 2, stdout, stderr, "",
 			"error: unknown command \"wat\"\n"+usageBuf.String())
 	})
+}
+
+func TestTopicHelpCanonicalAndMigration(t *testing.T) {
+	topics := []string{"preview", "apply", "backups", "logs", "restore", "guide", "version", "tui", "run", "task", "review"}
+	for _, topic := range topics {
+		t.Run(topic, func(t *testing.T) {
+			var out bytes.Buffer
+			if !printTopicHelp(&out, topic) {
+				t.Fatalf("printTopicHelp(%q) returned false", topic)
+			}
+			got := out.String()
+			for _, want := range []string{"Writes files:", "Example: asdx-core", "Related: asdx-core"} {
+				if !strings.Contains(got, want) {
+					t.Fatalf("topic %s missing %q:\n%s", topic, want, got)
+				}
+			}
+			if strings.Contains(got, "agentic-sdd "+topic) {
+				t.Fatalf("topic %s still uses legacy command in example:\n%s", topic, got)
+			}
+		})
+	}
+	for _, topic := range []string{"preview", "guide", "version", "tui"} {
+		var out bytes.Buffer
+		printTopicHelp(&out, topic)
+		got := out.String()
+		for _, want := range []string{"asdx", "agentic-sdd", "agentic-sdd-tui"} {
+			if !strings.Contains(got, want) {
+				t.Fatalf("user-facing topic %s missing migration term %q:\n%s", topic, want, got)
+			}
+		}
+	}
 }

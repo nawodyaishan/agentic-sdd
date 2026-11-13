@@ -445,6 +445,16 @@ func TestUpdatesPrintNewer(t *testing.T) {
 	if !hasLine("If installed with a package manager, copy and run the update manually:") {
 		t.Errorf("missing exact package-manager update label:\n%s", text)
 	}
+	for _, command := range []string{
+		"brew update && brew upgrade nawodyaishan/tap/agentic-sdd",
+		"asdx-core version",
+		"asdx-core preview",
+		"asdx-core apply",
+	} {
+		if !hasLine(command) {
+			t.Errorf("missing exact canonical/cask command line %q:\n%s", command, text)
+		}
+	}
 	for _, command := range []string{updateBrewCommand, updateVerifyCommand, updatePreviewCommand, updateApplyCommand} {
 		if !hasLine(command) {
 			t.Errorf("missing exact unstyled command line %q:\n%s", command, text)

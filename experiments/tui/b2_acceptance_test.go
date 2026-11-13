@@ -968,7 +968,7 @@ func TestB2DetailShowsCompleteRichFields(t *testing.T) {
 			t.Errorf("the detail card does not show the destination %q:\n%s", client.Client, card)
 		}
 	}
-	if !strings.Contains(card, "agentic-sdd preview") {
+	if !strings.Contains(card, "asdx-core preview") {
 		t.Errorf("the detail card does not offer the next action:\n%s", card)
 	}
 }

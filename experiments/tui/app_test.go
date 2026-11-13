@@ -24,14 +24,15 @@ func TestAppInitialState(t *testing.T) {
 	}
 
 	routes := app.Routes()
-	if len(routes) != 4 {
-		t.Fatalf("len(Routes()) = %d, want 4 destinations", len(routes))
+	if len(routes) != 5 {
+		t.Fatalf("len(Routes()) = %d, want 5 destinations", len(routes))
 	}
 	expectedRoutes := []string{
 		"Home",
 		"Install & Manage",
 		"Explore",
 		"Activity & Help",
+		"Guide",
 	}
 	for i, want := range expectedRoutes {
 		if routes[i].Title != want {
@@ -82,6 +83,12 @@ func TestAppRouteNavigation(t *testing.T) {
 	app = next.(tui.App)
 	if app.ActiveRoute() != tui.RouteActivity {
 		t.Fatalf("after 4 ActiveRoute = %v, want RouteActivity", app.ActiveRoute())
+	}
+
+	next, _ = app.Update(runes("5"))
+	app = next.(tui.App)
+	if app.ActiveRoute() != tui.RouteGuide {
+		t.Fatalf("after 5 ActiveRoute = %v, want RouteGuide", app.ActiveRoute())
 	}
 }
 
@@ -323,7 +330,7 @@ func TestAppInstallHubAndActivityContent(t *testing.T) {
 	next, _ := app.Update(runes("2"))
 	app = next.(tui.App)
 	viewInstall := app.View().Content
-	for _, want := range []string{"Install & Manage", "Install or update", "Backups & restore", "agentic-sdd preview"} {
+	for _, want := range []string{"Install & Manage", "Install or update", "Backups & restore", "asdx-core preview"} {
 		if !strings.Contains(viewInstall, want) {
 			t.Fatalf("Install hub view missing %q:\n%s", want, viewInstall)
 		}
@@ -376,11 +383,11 @@ func TestAppHomeEndNavigation(t *testing.T) {
 	cfg := tui.TUIConfig{Width: 100, Height: 30}
 	app := tui.NewApp(cfg, testCatalog())
 
-	// In Nav: End goes to index 3 (Activity & Help), Home goes to 0 (Home)
+	// In Nav: End goes to index 4 (Guide), Home goes to 0 (Home)
 	next, _ := app.Update(key(tea.KeyEnd))
 	app = next.(tui.App)
-	if app.NavIndex() != 3 {
-		t.Fatalf("after End NavIndex = %d, want 3", app.NavIndex())
+	if app.NavIndex() != 4 {
+		t.Fatalf("after End NavIndex = %d, want 4", app.NavIndex())
 	}
 	next, _ = app.Update(key(tea.KeyHome))
 	app = next.(tui.App)
@@ -411,7 +418,7 @@ func TestTerminalExactBounds(t *testing.T) {
 	cat := testCatalog()
 	widths := []int{40, 60, 79, 80, 109, 110}
 	heights := []int{8, 12, 16, 24, 30}
-	routes := []string{"1", "2", "3", "4"}
+	routes := []string{"1", "2", "3", "4", "5"}
 
 	for _, w := range widths {
 		for _, h := range heights {
@@ -466,7 +473,7 @@ func TestTerminalExactBounds(t *testing.T) {
 
 func TestASCIIAll7Bit(t *testing.T) {
 	cat := testCatalog()
-	routes := []string{"1", "2", "3", "4"}
+	routes := []string{"1", "2", "3", "4", "5"}
 
 	for _, r := range routes {
 		cfg := tui.TUIConfig{Width: 100, Height: 26, ASCII: true, Color: false}
@@ -575,7 +582,7 @@ func TestInstallBackupRootAndHints(t *testing.T) {
 	if !strings.Contains(view, cat.BackupRoot) {
 		t.Fatalf("Install view must show real catalog.BackupRoot %q:\n%s", cat.BackupRoot, view)
 	}
-	if strings.Contains(view, "agentic-sdd restore preview\n") {
+	if strings.Contains(view, "asdx-core restore preview\n") {
 		t.Fatalf("Install view must not give incomplete restore command without backup selection:\n%s", view)
 	}
 	if !strings.Contains(view, "/tmp/custom-repo") {
@@ -743,7 +750,7 @@ func TestScrollableLongContentAndEndMarkers(t *testing.T) {
 
 func TestFooterAlwaysVisibleAtShortHeights(t *testing.T) {
 	cat := testCatalog()
-	routes := []string{"1", "2", "3", "4"}
+	routes := []string{"1", "2", "3", "4", "5"}
 	heights := []int{8, 12}
 
 	for _, h := range heights {

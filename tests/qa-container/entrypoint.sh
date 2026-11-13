@@ -3,12 +3,12 @@
 set -eu
 
 if [ ! -f "$HOME/.agents/skills/agentic-sdd-router/SKILL.md" ]; then
-  agentic-sdd apply --home "$HOME" >/tmp/qa-skills.log 2>&1 ||
+  asdx-core apply --home "$HOME" >/tmp/qa-skills.log 2>&1 ||
     printf 'warning: SDD skill install failed; see /tmp/qa-skills.log\n'
 fi
 
 if [ -d "$HOME/work" ] && [ -w "$HOME/work" ]; then
-  agentic-sdd opencode candidate --feature demo --build-path src \
+  asdx-core opencode candidate --feature demo --build-path src \
     >"$HOME/work/sdd-candidate.jsonc" 2>/dev/null || true
 fi
 

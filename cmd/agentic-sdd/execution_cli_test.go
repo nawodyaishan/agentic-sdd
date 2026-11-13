@@ -336,11 +336,107 @@ func TestExecutionCLIHelpAndFormat(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("help %s exit %d: %s", topic, code, stderr.String())
 		}
-		if !strings.Contains(stdout.String(), "Writes files:") {
-			t.Fatalf("help %s missing writes note:\n%s", topic, stdout.String())
+		got := stdout.String()
+		if !strings.Contains(got, "Writes files:") {
+			t.Fatalf("help %s missing writes note:\n%s", topic, got)
+		}
+		for _, want := range []string{"Example: asdx-core " + topic, "Related: asdx-core help "} {
+			if !strings.Contains(got, want) {
+				t.Fatalf("help %s missing %q:\n%s", topic, want, got)
+			}
+		}
+		if strings.Contains(got, "agentic-sdd "+topic) {
+			t.Fatalf("help %s still uses legacy command in example:\n%s", topic, got)
 		}
 	}
+
+	t.Run("task help and brief help explain Feature 017 contract", func(t *testing.T) {
+		for _, args := range [][]string{{"help", "task"}, {"task", "help"}, {"task", "brief", "--help"}} {
+			var stdout, stderr bytes.Buffer
+			code := runNonInteractive(args, &stdout, &stderr)
+			if code != 0 {
+				t.Fatalf("%v exit %d: %s", args, code, stderr.String())
+			}
+			got := stdout.String()
+			for _, want := range []string{
+				"asdx-core task brief --run ID --task T01 [--force]",
+				"owning run",
+				"checkpoint.json",
+				"digest",
+				"--force",
+				"--direct",
+				"observation",
+				"never",
+				"approval",
+			} {
+				if !strings.Contains(got, want) {
+					t.Fatalf("%v missing %q:\n%s", args, want, got)
+				}
+			}
+		}
+	})
+
+	t.Run("run and review help use asdx-core", func(t *testing.T) {
+		cases := []struct {
+			args []string
+			want []string
+		}{
+			{[]string{"run", "help"}, []string{"Usage: asdx-core run init", "asdx-core run status", "asdx-core run check", `asdx-core help run`, `"agentic-sdd" wraps "asdx-core"`}},
+			{[]string{"run", "init", "--help"}, []string{"Usage: asdx-core run init"}},
+			{[]string{"review", "help"}, []string{"Usage: asdx-core review package", "asdx-core review help", "exits 3", `"agentic-sdd" wraps "asdx-core"`}},
+			{[]string{"review", "package", "--help"}, []string{"Usage: asdx-core review package"}},
+		}
+		for _, tc := range cases {
+			var stdout, stderr bytes.Buffer
+			code := runNonInteractive(tc.args, &stdout, &stderr)
+			if code != 0 {
+				t.Fatalf("%v exit %d: %s", tc.args, code, stderr.String())
+			}
+			got := stdout.String()
+			for _, want := range tc.want {
+				if !strings.Contains(got, want) {
+					t.Fatalf("%v missing %q:\n%s", tc.args, want, got)
+				}
+			}
+			if strings.Contains(got, "Usage: agentic-sdd") {
+				t.Fatalf("%v still prints legacy usage:\n%s", tc.args, got)
+			}
+		}
+	})
+
+	t.Run("flag errors reference asdx-core help", func(t *testing.T) {
+		for _, args := range [][]string{
+			{"task", "brief", "--wat"},
+			{"run", "init", "--wat"},
+			{"review", "package", "--wat"},
+		} {
+			var stdout, stderr bytes.Buffer
+			code := runNonInteractive(args, &stdout, &stderr)
+			if code != 2 {
+				t.Fatalf("%v exit %d, want 2", args, code)
+			}
+			if !strings.Contains(stderr.String(), `note: run "asdx-core help" for the accepted flags`) {
+				t.Fatalf("%v stderr missing asdx-core help note: %q", args, stderr.String())
+			}
+		}
+	})
+
 	dir := executionTestRepo(t)
+	var initOut, initErr bytes.Buffer
+	if code := runNonInteractive([]string{"run", "init", "--repo", dir, "--feature", "feature", "--batch", "B1"}, &initOut, &initErr); code != 0 {
+		t.Fatalf("text run init exit %d: %s", code, initErr.String())
+	}
+	if !strings.Contains(initOut.String(), "next: asdx-core task brief --run ") {
+		t.Fatalf("feature run init next line missing asdx-core:\n%s", initOut.String())
+	}
+	var directOut, directErr bytes.Buffer
+	if code := runNonInteractive([]string{"run", "init", "--repo", dir, "--direct", "--label", "fix"}, &directOut, &directErr); code != 0 {
+		t.Fatalf("direct text run init exit %d: %s", code, directErr.String())
+	}
+	if !strings.Contains(directOut.String(), "next: asdx-core run record --run ") {
+		t.Fatalf("direct run init next line missing asdx-core:\n%s", directOut.String())
+	}
+
 	code, _, errOut := runExecutionCLI(t, dir, "run", "init", "--direct", "--format", "yaml")
 	if code != 2 {
 		t.Fatalf("invalid format exit %d: %s", code, errOut)

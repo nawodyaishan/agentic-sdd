@@ -108,13 +108,26 @@ func (a App) underlyingContextActions() []actionBinding {
 			return a.restoreActions()
 		}
 	case RouteActivity:
-		return []actionBinding{
+		bindings := []actionBinding{
 			{keys: "r", short: "retry", help: "r: retry the update check and refresh the bounded log list", priority: 2},
 			{keys: "d", short: "check", help: "d: disable or enable automatic update checks for this session", priority: 2},
-			{keys: "g", short: "guide", help: "g: open the online guide explicitly", priority: 2},
+			{keys: "g", short: "README", help: "g: open the online guide / README explicitly", priority: 2},
 			{keys: "a", short: "author", help: "a: open the author profile explicitly", priority: 3},
 			{keys: "[ ]", short: "logs", help: "[ / ] (or p / n): show older or newer operation logs", priority: 2},
 			{keys: "j/k", short: "scroll", help: "j/k and PgUp/PgDn: scroll the read-only reference", priority: 3},
+			{keys: "q", short: "quit", help: "q: quit when idle", priority: 1},
+		}
+		if a.guideReturn {
+			bindings = append(bindings, actionBinding{keys: "Esc/b", short: "Guide", help: "Esc or b: return to Guide", priority: 1})
+		}
+		return bindings
+	case RouteGuide:
+		return []actionBinding{
+			{keys: "j/k", short: "select", help: "j/k or arrows: highlight a guided action", priority: 2},
+			{keys: "Enter", short: "open", help: "Enter: open the highlighted destination", priority: 2},
+			{keys: "g", short: "README", help: "g: open the online guide / README explicitly", priority: 2},
+			{keys: "Esc", short: "nav", help: "Esc: return focus to navigation", priority: 1},
+			{keys: "?", short: "help", help: "?: open full contextual help", priority: 3},
 			{keys: "q", short: "quit", help: "q: quit when idle", priority: 1},
 		}
 	}
@@ -142,11 +155,15 @@ func (a App) confirmActions(restore bool) []actionBinding {
 func (a App) installActions() []actionBinding {
 	switch a.install.Step() {
 	case InstallStepClients:
+		cancelAction := actionBinding{keys: "Esc", short: "cancel", help: "Esc: cancel the install journey without writing; q is the root quit key", priority: 1}
+		if a.guideReturn {
+			cancelAction = actionBinding{keys: "Esc/b", short: "Guide", help: "Esc or b: return to Guide without writing; q is the root quit key", priority: 1}
+		}
 		return []actionBinding{
 			{keys: "Space", short: "select", help: "Space: toggle the highlighted client", priority: 2},
 			{keys: "j/k", short: "move", help: "j/k or arrows: move the client selection", priority: 3},
 			{keys: "Enter", short: "next", help: "Enter or right: continue to optional integrations", priority: 2},
-			{keys: "Esc", short: "cancel", help: "Esc: cancel the install journey without writing; q is the root quit key", priority: 1},
+			cancelAction,
 			{keys: "?", short: "help", help: "?: open full contextual help", priority: 3},
 			{keys: "q", short: "quit", help: "q: quit the application when idle; Esc cancels the journey without quitting", priority: 1},
 		}
@@ -204,8 +221,12 @@ func (a App) installActions() []actionBinding {
 	case InstallStepRunning:
 		return nil
 	case InstallStepResult:
+		doneHelp := "Enter or Esc: close the journey and return to the hub"
+		if a.guideReturn {
+			doneHelp = "Enter, Esc or b: close the journey and return to Guide"
+		}
 		return []actionBinding{
-			{keys: "Enter", short: "done", help: "Enter or Esc: close the journey and return to the hub", priority: 2},
+			{keys: "Enter", short: "done", help: doneHelp, priority: 2},
 			{keys: "j/k", short: "scroll", help: "j/k, arrows and PgUp/PgDn: scroll the result", priority: 3},
 			{keys: "r", short: "restart", help: "r: reconfigure from the beginning", priority: 3},
 			{keys: "?", short: "help", help: "?: open full contextual help", priority: 3},
@@ -218,11 +239,15 @@ func (a App) installActions() []actionBinding {
 func (a App) restoreActions() []actionBinding {
 	switch a.restore.Stage() {
 	case RestoreStageList:
+		backAction := actionBinding{keys: "Esc", short: "back", help: "Esc: return to the Install & Manage hub", priority: 1}
+		if a.guideReturn {
+			backAction = actionBinding{keys: "Esc/b", short: "Guide", help: "Esc or b: return to Guide", priority: 1}
+		}
 		return []actionBinding{
 			{keys: "j/k", short: "select", help: "j/k or arrows: move the backup selection", priority: 2},
 			{keys: "Enter", short: "open", help: "Enter: open the backup details (never a restore)", priority: 2},
 			{keys: "r", short: "refresh", help: "r: refresh the read-only backup list", priority: 2},
-			{keys: "Esc", short: "back", help: "Esc: return to the Install & Manage hub", priority: 1},
+			backAction,
 			{keys: "?", short: "help", help: "?: open full contextual help", priority: 3},
 			{keys: "q", short: "quit", help: "q: quit when idle", priority: 1},
 		}
@@ -346,6 +371,15 @@ func (a App) contextHelpLines() []string {
 func (a App) contextHelpTitle() string {
 	if a.write != nil || a.childWritePending() {
 		return ""
+	}
+	if a.activeRoute == RouteGuide {
+		return "This Screen · Guide"
+	}
+	if a.activeRoute == RouteActivity {
+		if a.guideReturn {
+			return "This Screen · Activity & Help (from Guide)"
+		}
+		return "This Screen · Activity & Help"
 	}
 	if a.activeRoute != RouteInstall {
 		return ""

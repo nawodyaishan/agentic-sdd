@@ -127,7 +127,7 @@ func TestFleetDoctorCLIUnavailableLabelIsStillSuccess(t *testing.T) {
 }
 
 func TestFleetDoctorCLIHelpSurface(t *testing.T) {
-	if code, stdout, stderr := runFleetCLI(t, "doctor", "--help"); code != 0 || !strings.Contains(stdout, "Usage: agentic-sdd fleet doctor") {
+	if code, stdout, stderr := runFleetCLI(t, "doctor", "--help"); code != 0 || !strings.Contains(stdout, "Usage: asdx-core fleet doctor") {
 		t.Fatalf("doctor --help: code %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	var out, errOut bytes.Buffer

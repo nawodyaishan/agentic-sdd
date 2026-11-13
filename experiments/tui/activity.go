@@ -175,17 +175,27 @@ type CommandHelp struct {
 	Description string
 }
 
-// SupportedCommands lists the CLI commands available in the agentic-sdd suite.
+// SupportedCommands lists the canonical TUI and CLI commands.
 func SupportedCommands() []CommandHelp {
 	return []CommandHelp{
-		{Command: "agentic-sdd preview", Description: "Inspect pending skill additions, replacements and clients (read-only)"},
-		{Command: "agentic-sdd apply", Description: "Install or update skills into client directories with automatic backup"},
-		{Command: "agentic-sdd backups", Description: "List existing backup timestamps and file manifests"},
-		{Command: "agentic-sdd restore", Description: "Preview or restore skills from an earlier backup"},
-		{Command: "agentic-sdd logs", Description: "Display the latest installation or restore operation log"},
-		{Command: "agentic-sdd version", Description: "Print binary version, commit SHA and build date"},
-		{Command: "agentic-sdd guide", Description: "Run the interactive guided terminal walkthrough"},
-		{Command: "agentic-sdd tui", Description: "Launch this interactive terminal UI experience"},
+		{Command: "asdx", Description: "Launch this interactive terminal UI (canonical TUI entrypoint)"},
+		{Command: "asdx-core preview", Description: "Inspect pending skill additions, replacements and clients (read-only)"},
+		{Command: "asdx-core apply", Description: "Install or update skills into client directories with automatic backup"},
+		{Command: "asdx-core backups", Description: "List existing backup timestamps and file manifests"},
+		{Command: "asdx-core restore", Description: "Preview or restore skills from an earlier backup"},
+		{Command: "asdx-core logs", Description: "Display the latest installation or restore operation log"},
+		{Command: "asdx-core version", Description: "Print binary version, commit SHA and build date"},
+		{Command: "asdx-core guide", Description: "Run the interactive guided terminal walkthrough"},
+		{Command: "asdx-core tui", Description: "Launch sibling asdx after pair identity check (compatibility)"},
+	}
+}
+
+// LegacyMigrationCommands lists the deprecation-window wrappers and preserved state paths.
+func LegacyMigrationCommands() []CommandHelp {
+	return []CommandHelp{
+		{Command: "agentic-sdd ...", Description: "Legacy CLI wrapper -> asdx-core (stderr deprecation; never opens TUI)"},
+		{Command: "agentic-sdd-tui", Description: "Legacy TUI wrapper -> asdx (stderr deprecation)"},
+		{Command: "~/.agentic-sdd/", Description: "Existing backups, logs, manifests and AGENTIC_SDD_* env vars remain unchanged"},
 	}
 }
 
@@ -200,9 +210,10 @@ func NavigationShortcuts() []KeyHelp {
 	return []KeyHelp{
 		{Key: "Tab", Description: "Cycle navigation sidebar, categories (Explore), and content"},
 		{Key: "↑ / ↓ / j / k", Description: "Move cursor across routes or items"},
-		{Key: "1 - 4", Description: "Direct jump to destination (1:Home, 2:Install, 3:Explore, 4:Activity)"},
+		{Key: "1 - 5", Description: "Direct jump to destination (1:Home, 2:Install, 3:Explore, 4:Activity, 5:Guide)"},
 		{Key: "Enter", Description: "Open item / activate selection"},
-		{Key: "b / Esc", Description: "Back to list or return focus to navigation"},
+		{Key: "b / Esc", Description: "Back to list, return to Guide (when opened from Guide), or focus navigation"},
+		{Key: "g", Description: "Open the online guide / README in your browser (Home, Activity, Guide)"},
 		{Key: "/", Description: "Search and filter catalog items"},
 		{Key: "c / [ / ]", Description: "Focus categories / previous / next category"},
 		{Key: "pgup / pgdn", Description: "Scroll content page up / page down"},
@@ -631,7 +642,7 @@ func (m ActivityModel) Lines(width int) []string {
 			logBody = append(logBody,
 				m.theme.Hint.Render("No install or restore logs found yet."),
 				"Logs are created automatically when you run apply or restore.",
-				"Run agentic-sdd preview first to inspect what apply would do.",
+				"Run asdx-core preview first to inspect what apply would do.",
 			)
 		} else {
 			glyphs := GlyphSet(!m.theme.Color)
@@ -702,7 +713,7 @@ func (m ActivityModel) Lines(width int) []string {
 			"",
 			"New here? Start with SDD Router in the Library (press 's' in Explore for details).",
 			"Agent models: open Fleet Manager (Install & Manage, key f) or read the Fleet Manager topic; preview only in this build.",
-			"Command hint: agentic-sdd preview",
+			"Command hint: asdx-core preview",
 		}
 		sections = append(sections, Section(m.theme.Section.Render("Quick Start Guide"), workflowBody, width))
 	}
@@ -719,8 +730,13 @@ func (m ActivityModel) Lines(width int) []string {
 	// Commands
 	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionCommands {
 		var cmdBody []string
-		cmdBody = append(cmdBody, "Supported CLI commands:")
+		cmdBody = append(cmdBody, "Canonical TUI and CLI commands:")
 		for _, cmd := range SupportedCommands() {
+			cmdBody = append(cmdBody, fmt.Sprintf("  %-22s %s", cmd.Command, cmd.Description))
+		}
+		cmdBody = append(cmdBody, "")
+		cmdBody = append(cmdBody, "Legacy migration & state compatibility (deprecation window):")
+		for _, cmd := range LegacyMigrationCommands() {
 			cmdBody = append(cmdBody, fmt.Sprintf("  %-22s %s", cmd.Command, cmd.Description))
 		}
 		cmdBody = append(cmdBody, "")

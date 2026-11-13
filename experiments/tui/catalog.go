@@ -246,11 +246,11 @@ func (i CatalogItem) InstalledClients() int {
 func (i CatalogItem) InstallHint() string {
 	switch {
 	case i.Origin == skillsync.InventoryOriginPreset:
-		return "agentic-sdd preview --with-opencode --opencode-free-first"
+		return "asdx-core preview --with-opencode --opencode-free-first"
 	case i.Origin == skillsync.InventoryOriginPack:
-		return "agentic-sdd preview --with-opencode"
+		return "asdx-core preview --with-opencode"
 	default:
-		return "agentic-sdd preview"
+		return "asdx-core preview"
 	}
 }
 

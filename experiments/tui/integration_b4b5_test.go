@@ -231,7 +231,7 @@ func TestInstallHubNavigation(t *testing.T) {
 
 	app, _ = pressApp(t, app, runes("2"))
 	view := app.View().Content
-	for _, want := range []string{"Install & Manage", "Install or update", "Backups & restore", "agentic-sdd preview", "Backups directory"} {
+	for _, want := range []string{"Install & Manage", "Install or update", "Backups & restore", "asdx-core preview", "Backups directory"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("hub view missing %q:\n%s", want, view)
 		}

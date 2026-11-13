@@ -5,11 +5,12 @@ read-only nested shell/catalog spike as historical evidence below. Feature 013
 B1–B13 are accepted and published. The nested TUI now includes the shared
 `internal/appops` operation host, preview-first install/update, backup/restore,
 activity/help, onboarding, the `agentic-dark` theme and the r6 UX refinements.
-The Homebrew cask installs the paired `agentic-sdd` CLI and `agentic-sdd-tui`
-companion; a Homebrew real-interactive zero-argument invocation opens the TUI,
-while explicit commands, non-TTY/scripted invocation and generic/source builds
-retain the CLI contracts. `agentic-sdd tui` is the explicit entry point, and
-`agentic-sdd-tui` is the trusted sibling. No root `internal/tui` migration is
+The paired archive installs `asdx` (TUI) and `asdx-core` (CLI), plus the
+legacy `agentic-sdd` (CLI wrapper) and `agentic-sdd-tui` (TUI wrapper) names
+for one deprecation window. A bare `asdx` opens the TUI; `asdx-core` keeps the
+explicit, non-TTY and scripting contracts. `asdx-core tui` is the
+identity-verified compatibility launcher. `~/.agentic-sdd/` and
+`AGENTIC_SDD_*` remain unchanged, and no root `internal/tui` migration is
 required.
 
 The `v0.9.0` cask release is published and the tap cask points to `0.9.0`;
@@ -365,7 +366,7 @@ verified fact:
 | B1 (Feature 012) | Stdlib fixes: definition formatting, grouping, copy, navigation, terminal-only messages | separate batch, separate state |
 | B2 (Feature 012) | Nested module, read-only catalog spike, this blueprint, `tui:test` | experimental only |
 | 012 Phase 2 | Toolchain migration per §4, then retain the spike as evidence | superseded for 013: no root migration is required; nested isolation retained |
-| 012 Phase 3 | Promote `experiments/tui` to `internal/tui`, wire `agentic-sdd guide` behind the §3 gate, add Huh v2 forms and backup/log viewers | superseded: no promotion to root `internal/tui`, no `guide`→TUI wiring (`guide` unchanged per D01) |
+| 012 Phase 3 | Promote `experiments/tui` to `internal/tui`, wire `asdx-core guide` behind the §3 gate, add Huh v2 forms and backup/log viewers | superseded: no promotion to root `internal/tui`, no `guide`→TUI wiring (`guide` unchanged per D01) |
 | B1 (Feature 013) | Persistent responsive shell, accessible animated branding; Explore stays usable | accepted by owner |
 | B2 (Feature 013) | Shared metadata/gate coverage, categorized rich catalog, local dashboard, agent routing details, high-contrast shell | completed — accepted by owner 2026-11-10 |
 | B3 (Feature 013) | Controlled operation host: `internal/appops` seam, typed requests/results, structured engine results, explicit client selection | accepted by owner; published |

@@ -216,6 +216,7 @@ func TestGuideExplorerCoreDetailStatusesAndNavigation(t *testing.T) {
 	for _, want := range []string{
 		"agentic-sdd-spec",
 		"Available in selected source",
+		"To install: asdx-core apply",
 		filepath.Join(home, ".agents", "skills", "agentic-sdd-spec"),
 		"matches source",
 		"differs from source",
@@ -280,6 +281,7 @@ func TestGuideExplorerProfilesIncludeBasesAndOptionalPresets(t *testing.T) {
 	}
 	for _, want := range []string{
 		"sdd-implement-1",
+		"To install: asdx-core apply --with-opencode",
 		filepath.Join(home, ".config", "opencode", "agents", "sdd-implement-1.md"),
 		"matches source",
 		"optional preset",
@@ -592,4 +594,3 @@ func TestGuideExplorerDetailBackNavigationAndGroupedHeaders(t *testing.T) {
 		t.Fatalf("detail card missing Next steps:\n%s", out)
 	}
 }
-

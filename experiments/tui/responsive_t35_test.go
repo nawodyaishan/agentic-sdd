@@ -287,6 +287,7 @@ func TestT35BreakpointsAndReviewGeometries(t *testing.T) {
 		{'2', "Install"},
 		{'3', "Explore"},
 		{'4', "Activity"},
+		{'5', "Guide"},
 	}
 
 	for _, g := range geoms {

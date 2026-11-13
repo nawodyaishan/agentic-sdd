@@ -77,12 +77,12 @@ Compatibility checks before switching: Claude is 1,000,000 context / 128,000 out
 ## CLI usage
 
 ```text
-agentic-sdd [preview|apply]                              # 18 core skills only
-agentic-sdd [preview|apply] --with-opencode              # + agentic-sdd-orchestrate, + 12 agent profiles
-agentic-sdd [preview|apply] --with-opencode --opencode-free-first
+asdx-core [preview|apply]                              # 18 core skills only
+asdx-core [preview|apply] --with-opencode              # + agentic-sdd-orchestrate, + 12 agent profiles
+asdx-core [preview|apply] --with-opencode --opencode-free-first
                                                          # + the 4 Free-first writer/test profiles
-agentic-sdd backups                                     # list backups (skills and opencode-agents)
-agentic-sdd restore [ID] [--apply]                      # restore a backup without extra flags
+asdx-core backups                                     # list backups (skills and opencode-agents)
+asdx-core restore [ID] [--apply]                      # restore a backup without extra flags
 ```
 
 `preview` is the default and writes nothing. `--opencode-free-first` without `--with-opencode` exits `2`. `apply` backs up every replaced profile first, keeps unrelated files untouched, and is a no-op when the files already match. Restore accepts backups written with or without `--with-opencode`.

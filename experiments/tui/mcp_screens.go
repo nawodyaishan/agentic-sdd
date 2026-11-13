@@ -484,10 +484,10 @@ func mcpDiagnosticsLines(m MCPModel, width int) []string {
 
 	// Supported CLI Guidance
 	cliGuidance := []string{
-		"  agentic-sdd mcp status     Inspect global MCP configuration and server status",
-		"  agentic-sdd mcp preview    Inspect exact diff and plan digest without writing",
-		"  agentic-sdd mcp doctor     Run local prerequisite diagnostics",
-		"  agentic-sdd mcp restore    Browse and restore managed backups",
+		"  asdx-core mcp status       Inspect global MCP configuration and server status",
+		"  asdx-core mcp preview      Inspect exact diff and plan digest without writing",
+		"  asdx-core mcp doctor       Run local prerequisite diagnostics",
+		"  asdx-core mcp restore      Browse and restore managed backups",
 	}
 	b.WriteString(strings.Join(Section(m.theme.Section.Render("Supported CLI guidance"), cliGuidance, width), "\n"))
 	b.WriteString("\n\n")

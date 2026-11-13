@@ -6,7 +6,7 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 image=${QA_IMAGE:-agentic-sdd-qa:005}
 base=codercom/enterprise-base@sha256:191967da651ec0a567de173ef8a029080da8cd4992de192b65df54ef189be769
-agentic=${AGENTIC_SDD_BINARY:-$root/bin/agentic-sdd}
+agentic=${AGENTIC_SDD_BINARY:-$root/bin/asdx-core}
 opencode=${OPENCODE_BINARY:-$(command -v opencode 2>/dev/null || true)}
 
 die() { printf 'error: %s\n' "$1" >&2; exit 2; }
@@ -18,7 +18,7 @@ docker image inspect "$base" >/dev/null 2>&1 || die "base image is not present l
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/sdd-qa-image.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
-cp "$agentic" "$tmp/agentic-sdd"
+cp "$agentic" "$tmp/asdx-core"
 cp "$opencode" "$tmp/opencode"
 cp "$root/tests/qa-container/Dockerfile" "$tmp/Dockerfile"
 cp "$root/tests/qa-container/entrypoint.sh" "$tmp/entrypoint.sh"

@@ -47,7 +47,7 @@ func TestBrandingSummaryPreview(t *testing.T) {
 		for _, want := range []string{
 			"Summary (preview — nothing was written)",
 			"  Total: 4 to install, 0 to replace (backed up first), 0 up to date — nothing was written.",
-			"  Next: agentic-sdd apply --repo " + repo + " --home " + home,
+			"  Next: asdx-core apply --repo " + repo + " --home " + home,
 		} {
 			if !strings.Contains(got, want) {
 				t.Fatalf("wide preview missing %q:\n%s", want, got)
@@ -111,7 +111,7 @@ func TestBrandingSummaryPreview(t *testing.T) {
 			t.Fatalf("exit %d: %s", code, errOut.String())
 		}
 		got := out.String()
-		want := "  Next: agentic-sdd apply --repo '" + repo + "' --home '" + home + "'"
+		want := "  Next: asdx-core apply --repo '" + repo + "' --home '" + home + "'"
 		if !strings.Contains(got, want+"\n") {
 			t.Fatalf("narrow preview did not keep the complete next command %q:\n%s", want, got)
 		}
@@ -135,7 +135,7 @@ func TestBrandingSummaryApply(t *testing.T) {
 		for _, want := range []string{
 			"\x1b[1mApply complete\x1b[0m",
 			"Installed 4 items (3 new, 1 replaced); backup: ",
-			"  Undo: agentic-sdd restore",
+			"  Undo: asdx-core restore",
 		} {
 			if !strings.Contains(got, want) {
 				t.Fatalf("wide apply summary missing %q:\n%s", want, got)
@@ -154,7 +154,7 @@ func TestBrandingSummaryApply(t *testing.T) {
 			t.Fatalf("summary log path is incomplete: %v", err)
 		}
 		logData := read(t, logPath)
-		if strings.Contains(logData, "Apply complete") || strings.Contains(logData, "Undo: agentic-sdd restore") {
+		if strings.Contains(logData, "Apply complete") || strings.Contains(logData, "Undo: asdx-core restore") {
 			t.Fatalf("log file gained terminal-only summary text:\n%s", logData)
 		}
 	})
@@ -171,7 +171,7 @@ func TestBrandingSummaryApply(t *testing.T) {
 			"Apply complete",
 			"Installed 4 items",
 			"  3 new, 1 replaced",
-			"Undo: agentic-sdd restore",
+			"Undo: asdx-core restore",
 		} {
 			if !strings.Contains(got, want) {
 				t.Fatalf("narrow apply summary missing %q:\n%s", want, got)

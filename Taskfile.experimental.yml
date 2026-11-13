@@ -10,16 +10,17 @@ vars:
   # GoReleaser creates macOS universal binaries internally, so no external lipo
   # executable is required.
   SDD_RELEASE_GORELEASER_VERSION: '{{.SDD_RELEASE_GORELEASER_VERSION | default "v2.14.0"}}'
-  # Local paired build for `agentic-sdd tui`. Both binaries get the same
-  # injected revision/commit/source digest, so the parent/companion handshake
-  # passes without a release tag. The Homebrew marker makes the zero-argument
-  # interactive default testable locally.
+  # Local paired build for the canonical/legacy four-name set. Every binary
+  # gets the same injected revision/commit/source digest, so the parent/
+  # companion handshake passes without a release tag. All four carry the
+  # generic distribution marker: bare-launch behavior no longer depends on a
+  # Homebrew marker, and the legacy names differ only in their injected
+  # legacyTarget/legacyName identity.
   SDD_TUI_PAIR_DIR: '{{.SDD_TUI_PAIR_DIR | default (printf "%s/bin/tui-pair" .ROOT_DIR)}}'
-  SDD_TUI_PAIR_DISTRIBUTION: '{{.SDD_TUI_PAIR_DISTRIBUTION | default "homebrew"}}'
 
 tasks:
   tui:pair:
-    desc: Build a local identity-matched agentic-sdd + agentic-sdd-tui pair for development (no release tag needed)
+    desc: Build a local identity-matched asdx + asdx-core + agentic-sdd + agentic-sdd-tui set for development (no release tag needed)
     dir: '{{.ROOT_DIR}}'
     silent: true
     cmds:
@@ -74,22 +75,31 @@ tasks:
         out="$2"
         mkdir -p "$out"
         out=$(cd "$out" && pwd -P)
-        ldflags=$(printf "%s " \
+        identity=$(printf "%s " \
           "-X agentic-sdd/internal/buildinfo.Revision=$revision" \
           "-X agentic-sdd/internal/buildinfo.Commit=$commit" \
-          "-X agentic-sdd/internal/buildinfo.SourceDigest=local-sha256:$digest")
+          "-X agentic-sdd/internal/buildinfo.SourceDigest=local-sha256:$digest" \
+          "-X agentic-sdd/internal/buildinfo.DistributionMarker=generic")
 
+        # Canonical CLI and its legacy wrapper share ./cmd/agentic-sdd.
         GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= \
-          go build -trimpath -ldflags "$ldflags -X agentic-sdd/internal/buildinfo.DistributionMarker=$3" \
+          go build -trimpath -ldflags "$identity" \
+          -o "$out/asdx-core" ./cmd/agentic-sdd
+        GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= \
+          go build -trimpath -ldflags "$identity -X main.legacyTarget=asdx-core -X main.legacyName=agentic-sdd" \
           -o "$out/agentic-sdd" ./cmd/agentic-sdd
+        # Canonical TUI and its legacy wrapper share the nested companion source.
         (
           cd experiments/tui
           GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= \
-            go build -trimpath -ldflags "$ldflags -X agentic-sdd/internal/buildinfo.DistributionMarker=generic" \
+            go build -trimpath -ldflags "$identity" \
+            -o "$out/asdx" ./cmd/tui-companion
+          GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= \
+            go build -trimpath -ldflags "$identity -X main.legacyTarget=asdx -X main.legacyName=agentic-sdd-tui" \
             -o "$out/agentic-sdd-tui" ./cmd/tui-companion
         )
-        echo "tui:pair: built $out/agentic-sdd ($3) and $out/agentic-sdd-tui with $revision (local-sha256:$digest)"
-        ' sh {{.GOCACHE | shellQuote}} {{.SDD_TUI_PAIR_DIR | shellQuote}} {{.SDD_TUI_PAIR_DISTRIBUTION | shellQuote}}
+        echo "tui:pair: built asdx, asdx-core, agentic-sdd and agentic-sdd-tui in $out with $revision (local-sha256:$digest); all four carry the generic marker"
+        ' sh {{.GOCACHE | shellQuote}} {{.SDD_TUI_PAIR_DIR | shellQuote}}
   opencode-help:
     desc: Show inactive OpenCode helper usage
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off go run -tags agentic_sdd_experimental ./cmd/agentic-sdd opencode --help']
@@ -114,7 +124,7 @@ tasks:
         GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= go test -count=1 ./...
         ' sh {{.GOCACHE | shellQuote}}
   tui:pty-test:
-    desc: Run the opt-in Python stdlib PTY lifecycle and launcher checks against freshly built TUI binaries
+    desc: Run the opt-in Python stdlib PTY lifecycle and launcher checks against the freshly built four-name pair
     deps: [tui:pair]
     dir: '{{.ROOT_DIR}}'
     cmds:
@@ -147,11 +157,8 @@ tasks:
         fi
         work=$(mktemp -d /tmp/opencode/agentic-sdd-tui-pty.XXXXXX) || { echo "tui:pty-test: BLOCKED - cannot create a temporary directory under /tmp/opencode. This is not a pass." >&2; exit 2; }
         trap "rm -rf -- \"$work\"" EXIT INT TERM
-        binary="$work/tui-spike"
-        (
-          cd experiments/tui
-          GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off GOFLAGS= GOPROXY=off go build -o "$binary" ./cmd/tui-spike
-        )
+        binary="$2/asdx"
+        [ -x "$binary" ] || { echo "tui:pty-test: BLOCKED - canonical asdx binary is missing from the pair. This is not a pass." >&2; exit 2; }
         cd "$root"
         TMPDIR="$work" AGENTIC_SDD_TUI_TEST_BINARY="$binary" python3 -B -m unittest discover -s tests/tui -p test_terminal_lifecycle.py
         AGENTIC_SDD_TUI_PAIR_DIR="$2" TMPDIR="$work" python3 -B -m unittest discover -s tests/tui -p test_launcher_lifecycle.py
@@ -343,5 +350,5 @@ tasks:
         GOFLAGS= \
         SDD_SOURCE_DIGEST="local-sha256:$digest" \
         goreleaser release --snapshot --clean
-        echo "release:snapshot: local nonpublishing snapshot complete for $revision; inspect dist/ for the generic and Homebrew pairs, their checksums and the generated cask."
+        echo "release:snapshot: local nonpublishing snapshot complete for $revision; inspect dist/ for the single paired archive containing asdx, asdx-core, agentic-sdd and agentic-sdd-tui, its checksums and the generated cask."
         ' sh {{.GOCACHE | shellQuote}} {{.SDD_RELEASE_GO_PATCH | shellQuote}} {{.SDD_RELEASE_GORELEASER_VERSION | shellQuote}}

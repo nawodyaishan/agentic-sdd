@@ -190,7 +190,7 @@ func inventoryLines(catalog Catalog) []string {
 	if len(catalog.Items) == 0 {
 		lines = append(lines,
 			"No managed skills or profiles found in this home yet.",
-			"Recovery: verify --home and --repo, run agentic-sdd preview to inspect the selected source, then reopen this screen. This read-only view changes no files.",
+			"Recovery: verify --home and --repo, run asdx-core preview to inspect the selected source, then reopen this screen. This read-only view changes no files.",
 		)
 	}
 	return lines

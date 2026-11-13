@@ -206,7 +206,7 @@ func TestB2DetailCardRendersRichSections(t *testing.T) {
 		"Next action:",
 		"Installed (matches source)",
 		"/tmp/claude/router",
-		"agentic-sdd preview",
+		"asdx-core preview",
 	} {
 		if !strings.Contains(card, want) {
 			t.Errorf("DetailCard missing %q:\n%s", want, card)

@@ -1,6 +1,6 @@
 # Guided CLI journeys and flow tracing
 
-This page is the single owner of the `agentic-sdd guide` journey catalog, the
+This page is the single owner of the `asdx-core guide` journey catalog, the
 screen and prompt identifiers, and the `AGENTIC_SDD_TRACE` JSON Lines schema.
 Tests (`tests/guide-e2e-in-container.sh`) and agent context link here instead of
 restating these contracts. Command behavior, flags, and file semantics live in
@@ -22,12 +22,12 @@ the [installer reference](installer-reference.md).
   terminal-guide convenience; there is no top-level update command or
   self-updater, and the fixed GitHub releases URL provides the manual
   alternative. Upgrading the CLI binary does not update installed skill files:
-  run `agentic-sdd preview` afterwards, and apply only after reviewing the
+  run `asdx-core preview` afterwards, and apply only after reviewing the
   preview.
 
 ## Visual presentation, branding, and animation
 
-On terminal stdout, `agentic-sdd guide` adds restrained visual styling:
+On terminal stdout, `asdx-core guide` adds restrained visual styling:
 
 - **Branded introduction:** At startup on terminal stdout, the guide prints:
   - A compact cyan ASCII frame with the legible name `AGENTIC SDD` and a static `UNDERSTAND -> PLAN -> BUILD -> VERIFY` motif.
@@ -63,7 +63,7 @@ On terminal stdout, `agentic-sdd guide` adds restrained visual styling:
   - If a newer release exists, displays copyable package update commands:
     ```sh
     brew update && brew upgrade nawodyaishan/tap/agentic-sdd
-    agentic-sdd version
+    asdx-core version
     ```
     with a release/package-neutral note that package metadata can lag a GitHub release, plus manual installation links to the GitHub releases URL. No clipboard access (OSC 52), shell execution, or automatic upgrades are performed.
 
@@ -226,7 +226,7 @@ Example line (time omitted as tests do):
   symlink or non-regular target is refused.
 - The trace is not the apply log, not a harness receipt, not approval, and not
   evidence of model or client behavior. `~/.agentic-sdd/logs/` and
-  `agentic-sdd logs` are unchanged.
+  `asdx-core logs` are unchanged.
 
 ### Failure isolation
 

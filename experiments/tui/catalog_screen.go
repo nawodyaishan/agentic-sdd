@@ -367,7 +367,7 @@ func (m *CatalogModel) OpenRouterDetails() bool {
 // scripted invocations cannot take over the terminal.
 func (m CatalogModel) View() tea.View {
 	var b strings.Builder
-	b.WriteString(m.theme.Title.Render("agentic-sdd · skills catalog"))
+	b.WriteString(m.theme.Title.Render("asdx · skills catalog"))
 	b.WriteString("\n")
 	b.WriteString(m.theme.Subtitle.Render(fmt.Sprintf(
 		"%d skills · %d profiles · read-only",
@@ -399,7 +399,7 @@ func (m CatalogModel) View() tea.View {
 	}
 	view := tea.NewView(content)
 	view.AltScreen = m.cfg.Interactive
-	view.WindowTitle = "agentic-sdd catalog"
+	view.WindowTitle = "asdx catalog"
 	return view
 }
 

@@ -15,14 +15,14 @@ func TestFleetCLI(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"help fleet", []string{"help", "fleet"}, "Usage: agentic-sdd fleet"},
-		{"fleet help", []string{"fleet", "help"}, "Usage: agentic-sdd fleet"},
-		{"fleet --help", []string{"fleet", "--help"}, "Usage: agentic-sdd fleet"},
-		{"fleet status --help", []string{"fleet", "status", "--help"}, "Usage: agentic-sdd fleet status"},
-		{"fleet plan --help", []string{"fleet", "plan", "--help"}, "Usage: agentic-sdd fleet plan"},
-		{"fleet apply --help", []string{"fleet", "apply", "--help"}, "Usage: agentic-sdd fleet apply"},
-		{"fleet restore --help", []string{"fleet", "restore", "--help"}, "Usage: agentic-sdd fleet restore"},
-		{"fleet doctor --help", []string{"fleet", "doctor", "--help"}, "Usage: agentic-sdd fleet doctor"},
+		{"help fleet", []string{"help", "fleet"}, "Usage: asdx-core fleet"},
+		{"fleet help", []string{"fleet", "help"}, "Usage: asdx-core fleet"},
+		{"fleet --help", []string{"fleet", "--help"}, "Usage: asdx-core fleet"},
+		{"fleet status --help", []string{"fleet", "status", "--help"}, "Usage: asdx-core fleet status"},
+		{"fleet plan --help", []string{"fleet", "plan", "--help"}, "Usage: asdx-core fleet plan"},
+		{"fleet apply --help", []string{"fleet", "apply", "--help"}, "Usage: asdx-core fleet apply"},
+		{"fleet restore --help", []string{"fleet", "restore", "--help"}, "Usage: asdx-core fleet restore"},
+		{"fleet doctor --help", []string{"fleet", "doctor", "--help"}, "Usage: asdx-core fleet doctor"},
 	}
 
 	for _, tc := range helpCases {
@@ -45,13 +45,13 @@ func TestFleetCLI(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"bare fleet", []string{"fleet"}, "Usage: agentic-sdd fleet"},
+		{"bare fleet", []string{"fleet"}, "Usage: asdx-core fleet"},
 		{"unknown sub", []string{"fleet", "bogus"}, "unknown fleet command"},
 		{"status missing config", []string{"fleet", "status"}, "--config is required"},
 		{"plan missing config", []string{"fleet", "plan"}, "--config is required"},
 		{"apply missing plan", []string{"fleet", "apply"}, "--plan is required"},
 		{"restore missing backup", []string{"fleet", "restore"}, "--backup is required"},
-		{"restore positional ID rejected", []string{"fleet", "restore", "20261111-120000"}, "usage: agentic-sdd fleet restore --backup ID"},
+		{"restore positional ID rejected", []string{"fleet", "restore", "20261111-120000"}, "usage: asdx-core fleet restore --backup ID"},
 	}
 
 	for _, tc := range unknownCases {
@@ -134,7 +134,7 @@ func TestFleetCLI(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("version failed code %d: %s", code, regErr.String())
 	}
-	if !strings.Contains(regOut.String(), "agentic-sdd") {
+	if !strings.Contains(regOut.String(), "asdx-core") {
 		t.Fatalf("version output: %s", regOut.String())
 	}
 
@@ -200,7 +200,7 @@ func TestFleetExitCodesTable(t *testing.T) {
 	}{
 		{"status success", []string{"fleet", "status", "--config", validCfg, "--home", home}, 0, "Fleet Status:"},
 		{"plan success", []string{"fleet", "plan", "--config", validCfg, "--home", home}, 0, "Fleet Plan"},
-		{"help success", []string{"fleet", "help"}, 0, "Usage: agentic-sdd fleet"},
+		{"help success", []string{"fleet", "help"}, 0, "Usage: asdx-core fleet"},
 		{"unknown sub exit 2", []string{"fleet", "unknowncmd"}, 2, "unknown fleet command"},
 		{"missing flag exit 2", []string{"fleet", "status"}, 2, "--config is required"},
 		{"invalid json config exit 2", []string{"fleet", "status", "--config", invalidJSONCfg, "--home", home}, 2, "error:"},

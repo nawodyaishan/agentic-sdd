@@ -65,7 +65,7 @@ type Launch struct {
 // program. It returns the command exit code.
 func Run(launch Launch) int {
 	if launch.Program == "" {
-		launch.Program = "agentic-sdd-tui"
+		launch.Program = "asdx"
 	}
 	if launch.Stderr == nil {
 		launch.Stderr = io.Discard
@@ -88,15 +88,15 @@ func Run(launch Launch) int {
 			return 2
 		}
 	} else if launch.Getenv(tui.EnvForceInteractive) == "1" {
-		fmt.Fprintf(launch.Stderr, "%s: %s=1 keeps scripted runs on the standard CLI\n", launch.Program, tui.EnvForceInteractive)
+		fmt.Fprintf(launch.Stderr, "%s: %s=1 keeps scripted runs on the standard CLI; run asdx-core preview for the read-only CLI preview\n", launch.Program, tui.EnvForceInteractive)
 		return 2
 	}
 	if !launch.StdinTTY {
-		fmt.Fprintf(launch.Stderr, "%s: stdin is not a terminal; using the standard CLI\n", launch.Program)
+		fmt.Fprintf(launch.Stderr, "%s: stdin is not a terminal; run asdx-core preview for the read-only CLI preview\n", launch.Program)
 		return 2
 	}
 	if !launch.StdoutTTY {
-		fmt.Fprintf(launch.Stderr, "%s: stdout is not a terminal; using the standard CLI\n", launch.Program)
+		fmt.Fprintf(launch.Stderr, "%s: stdout is not a terminal; run asdx-core preview for the read-only CLI preview\n", launch.Program)
 		return 2
 	}
 

@@ -10,7 +10,7 @@
 #             session (credentials stay in ephemeral /tmp; never mounted)
 #
 #   - no network, no host home, no credentials, no Docker socket;
-#   - a read-only repository and read-only agentic-sdd binary mounted in;
+#   - a read-only repository and read-only asdx-core binary mounted in;
 #   - the host's opencode binary mounted read-only and available by default
 #     (override with OPENCODE_BINARY, disable with NO_OPENCODE=1);
 #   - one explicitly chosen host scratch directory mounted read-write at /work.
@@ -20,7 +20,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-agentic=${AGENTIC_SDD_BINARY:-$root/bin/agentic-sdd}
+agentic=${AGENTIC_SDD_BINARY:-$root/bin/asdx-core}
 opencode=${OPENCODE_BINARY:-}
 if [ -z "$opencode" ] && [ "${NO_OPENCODE:-0}" != "1" ]; then
   opencode=$(command -v opencode 2>/dev/null || true)
@@ -89,7 +89,7 @@ set -- \
   -e XDG_STATE_HOME=/tmp/state -e SDD_ONLINE="$online" \
   --mount "type=bind,src=$workspace,dst=/work" \
   --mount "type=bind,src=$root,dst=/src,readonly" \
-  --mount "type=bind,src=$agentic,dst=/usr/local/bin/agentic-sdd,readonly" \
+  --mount "type=bind,src=$agentic,dst=/usr/local/bin/asdx-core,readonly" \
   --workdir /work
 
 if [ -n "$opencode" ]; then
@@ -129,14 +129,14 @@ exec docker run -it "$@" "$image" sh -c '
     printf "note: opencode is not mounted; set OPENCODE_BINARY to the host binary\n"
   fi
   command -v git >/dev/null 2>&1 || printf "note: git is absent; evidence identity steps are optional (see guide)\n"
-  if command -v agentic-sdd >/dev/null 2>&1; then
-    if agentic-sdd apply --home "$HOME" >/tmp/sdd-skills.log 2>&1; then
+  if command -v asdx-core >/dev/null 2>&1; then
+    if asdx-core apply --home "$HOME" >/tmp/sdd-skills.log 2>&1; then
       count=$(find "$HOME/.agents/skills" -name SKILL.md 2>/dev/null | wc -l | tr -d " ")
       printf "SDD skills: %s installed under ~/.agents/skills (also codex/claude/agy)\n" "$count"
     else
       printf "warning: SDD skill install failed; see /tmp/sdd-skills.log\n"
     fi
-    if agentic-sdd opencode candidate --feature demo --build-path src >/work/sdd-candidate.jsonc 2>/dev/null; then
+    if asdx-core opencode candidate --feature demo --build-path src >/work/sdd-candidate.jsonc 2>/dev/null; then
       printf "Inactive SDD config written to /work/sdd-candidate.jsonc (not activated)\n"
     fi
   fi

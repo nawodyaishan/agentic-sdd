@@ -17,7 +17,7 @@ import (
 )
 
 func runLogs(args []string, stdout, stderr io.Writer, env *Env) int {
-	fs := flag.NewFlagSet("agentic-sdd logs", flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" logs", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var home string
 	fs.StringVar(&home, "home", "", "user home (defaults to os.UserHomeDir)")
@@ -27,7 +27,7 @@ func runLogs(args []string, stdout, stderr io.Writer, env *Env) int {
 			return 0
 		}
 		fmt.Fprintln(stderr, "error:", err)
-		env.Hint(stderr, "run agentic-sdd help logs for the accepted flags")
+		env.Hint(stderr, "run "+canonicalCLIName+" help logs for the accepted flags")
 		return 2
 	}
 	if fs.NArg() != 0 {
@@ -50,7 +50,7 @@ func runLogs(args []string, stdout, stderr io.Writer, env *Env) int {
 		// log path (symlink or non-directory) is a safety error, not a
 		// first-run condition, so it stays bare.
 		if os.IsNotExist(err) || strings.HasPrefix(err.Error(), "no operation logs in ") {
-			env.Hint(stderr, "logs are written by apply and restore; run agentic-sdd preview first to see what apply would do")
+			env.Hint(stderr, "logs are written by apply and restore; run "+canonicalCLIName+" preview first to see what apply would do")
 		}
 		return 1
 	}
@@ -104,7 +104,7 @@ func printApplySummary(out io.Writer, env *Env, sum skillsync.PlanSummary, backu
 		if backupID != "" {
 			fmt.Fprintln(out, "Backup: "+backupID)
 		}
-		fmt.Fprintln(out, "  Undo: agentic-sdd restore")
+		fmt.Fprintln(out, "  Undo: "+canonicalCLIName+" restore")
 		return
 	}
 	line := fmt.Sprintf("%s Installed %d items (%d new, %d replaced)",
@@ -113,7 +113,7 @@ func printApplySummary(out io.Writer, env *Env, sum skillsync.PlanSummary, backu
 		line += "; backup: " + backupID
 	}
 	fmt.Fprintln(out, line)
-	fmt.Fprintln(out, "  Undo: agentic-sdd restore")
+	fmt.Fprintln(out, "  Undo: "+canonicalCLIName+" restore")
 }
 
 // statusPrefix returns the word "ok" with the glyph allowed by the terminal

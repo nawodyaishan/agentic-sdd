@@ -123,9 +123,9 @@ func printRunInit(out io.Writer, identity execution.RunIdentity) {
 	}
 	fmt.Fprintf(out, "run dir: %s\n", identity.RunDir)
 	if identity.Scope.Kind == execution.ScopeFeature {
-		fmt.Fprintf(out, "next: agentic-sdd task brief --run %s --task T01\n", identity.RunID)
+		fmt.Fprintf(out, "next: %s task brief --run %s --task T01\n", canonicalCLIName, identity.RunID)
 	} else {
-		fmt.Fprintf(out, "next: agentic-sdd run record --run %s --result FILE\n", identity.RunID)
+		fmt.Fprintf(out, "next: %s run record --run %s --result FILE\n", canonicalCLIName, identity.RunID)
 	}
 }
 
@@ -462,15 +462,17 @@ func printRunCheck(out io.Writer, record execution.CheckRecord) {
 }
 
 func printRunUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd run init --feature DIR --batch ID [--repo DIR] [--run-root DIR] [--format text|json]
-       agentic-sdd run init --direct [--label TEXT] [--repo DIR] [--run-root DIR] [--format text|json]
-       agentic-sdd run status --run ID [--repo DIR] [--run-root DIR] [--format text|json]
-       agentic-sdd run record --run ID [--task T01] --result FILE|- [--repo DIR] [--run-root DIR] [--format text|json]
-       agentic-sdd run clean --run ID [--yes] [--repo DIR] [--run-root DIR] [--format text|json]
-       agentic-sdd run check --run ID --task T01 [--timeout DURATION] -- COMMAND [ARG...]
+	fmt.Fprint(out, `Usage: asdx-core run init --feature DIR --batch ID [--repo DIR] [--run-root DIR] [--format text|json]
+       asdx-core run init --direct [--label TEXT] [--repo DIR] [--run-root DIR] [--format text|json]
+       asdx-core run status --run ID [--repo DIR] [--run-root DIR] [--format text|json]
+       asdx-core run record --run ID [--task T01] --result FILE|- [--repo DIR] [--run-root DIR] [--format text|json]
+       asdx-core run clean --run ID [--yes] [--repo DIR] [--run-root DIR] [--format text|json]
+       asdx-core run check --run ID [--task T01] [--timeout DURATION] [--max-output-bytes N] [--repo DIR] [--run-root DIR] [--format text|json] -- COMMAND [ARG...]
 
 Creates and inspects a private execution run under .agentic-sdd/runs/<run-id>/.
-A run, checkpoint or check is an observation: it is never approval, batch
-state, verification or a sandbox. Use "agentic-sdd help run" for the contract.
+A run, checkpoint, check or record is an observation: it is never approval,
+batch state, verification or a sandbox.
+Legacy note: "agentic-sdd" wraps "asdx-core" during the deprecation window.
+Use "asdx-core help run" for the contract.
 `)
 }

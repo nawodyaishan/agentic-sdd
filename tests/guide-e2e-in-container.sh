@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-go build -o /tmp/agentic-sdd ./cmd/agentic-sdd
+go build -o /tmp/asdx-core ./cmd/agentic-sdd
 root=$(mktemp -d)
 trap 'rm -rf "$root"' EXIT
 repo=$root/repo
@@ -19,7 +19,7 @@ unset AGENTIC_SDD_ANIMATE
 # J1 - guided fresh install, no pack: menu 1, decline the pack, confirm.
 printf '1\nn\ny\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 NO_COLOR=1 \
   AGENTIC_SDD_TRACE="$root/j1.jsonl" \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home1" > "$root/j1.out"
+  /tmp/asdx-core guide --repo "$repo" --home "$home1" > "$root/j1.out"
 for target in \
   .claude/skills \
   .agents/skills \
@@ -40,7 +40,7 @@ grep -q '"event":"run.end"' "$root/j1.jsonl"
 # J2 - guided install declined: menu 1, decline the pack, decline the install.
 printf '1\nn\nn\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 NO_COLOR=1 \
   AGENTIC_SDD_TRACE="$root/j2.jsonl" \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home2" > "$root/j2.out"
+  /tmp/asdx-core guide --repo "$repo" --home "$home2" > "$root/j2.out"
 test -z "$(find "$home2" -mindepth 1 -print -quit)"
 grep -q '"decision":"no"' "$root/j2.jsonl"
 
@@ -50,7 +50,7 @@ grep -q '"decision":"no"' "$root/j2.jsonl"
 printf 'modified\n' > "$home1/.claude/skills/agentic-sdd-plan/SKILL.md"
 printf '2\n1\ny\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 NO_COLOR=1 \
   AGENTIC_SDD_TRACE="$root/j3.jsonl" \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home1" > "$root/j3.out"
+  /tmp/asdx-core guide --repo "$repo" --home "$home1" > "$root/j3.out"
 for target in \
   .claude/skills \
   .agents/skills \
@@ -62,20 +62,20 @@ grep -q '"op":"restore"' "$root/j3.jsonl"
 
 # J4 - guide and restore without a terminal (forced interaction unset).
 code=0
-/tmp/agentic-sdd guide --repo "$repo" --home "$home2" </dev/null \
+/tmp/asdx-core guide --repo "$repo" --home "$home2" </dev/null \
   > "$root/j4-guide-devnull.out" 2>&1 || code=$?
 test "$code" = 2
 code=0
-printf '' | /tmp/agentic-sdd guide --repo "$repo" --home "$home2" \
+printf '' | /tmp/asdx-core guide --repo "$repo" --home "$home2" \
   > "$root/j4-guide-pipe.out" 2>&1 || code=$?
 test "$code" = 2
 code=0
-/tmp/agentic-sdd restore --repo "$repo" --home "$home1" </dev/null \
+/tmp/asdx-core restore --repo "$repo" --home "$home1" </dev/null \
   > "$root/j4-restore.out" 2>&1 || code=$?
 test "$code" = 2
 
 # J5 - scripted automation output is unchanged (no Next: summary block).
-/tmp/agentic-sdd preview --repo "$repo" --home "$home2" \
+/tmp/asdx-core preview --repo "$repo" --home "$home2" \
   > "$root/j5-preview.txt"
 test "$(tail -n 1 "$root/j5-preview.txt")" = \
   'Preview only. Run with apply (or --apply) to install.'
@@ -87,18 +87,18 @@ fi
 # J6 - color and plain presentation at a forced terminal.
 esc=$(printf '\033')
 env -u NO_COLOR AGENTIC_SDD_FORCE_INTERACTIVE=1 TERM=xterm-256color \
-  /tmp/agentic-sdd preview --repo "$repo" --home "$home2" \
+  /tmp/asdx-core preview --repo "$repo" --home "$home2" \
   > "$root/j6-color.txt"
 grep -q "$esc" "$root/j6-color.txt"
 AGENTIC_SDD_FORCE_INTERACTIVE=1 TERM=xterm-256color NO_COLOR=1 \
-  /tmp/agentic-sdd preview --repo "$repo" --home "$home2" \
+  /tmp/asdx-core preview --repo "$repo" --home "$home2" \
   > "$root/j6-nocolor.txt"
 if grep -q "$esc" "$root/j6-nocolor.txt"; then
   echo 'NO_COLOR output unexpectedly contained an escape sequence' >&2
   exit 1
 fi
 env -u NO_COLOR AGENTIC_SDD_FORCE_INTERACTIVE=1 TERM=dumb \
-  /tmp/agentic-sdd preview --repo "$repo" --home "$home2" \
+  /tmp/asdx-core preview --repo "$repo" --home "$home2" \
   > "$root/j6-dumb.txt"
 if grep -q "$esc" "$root/j6-dumb.txt"; then
   echo 'TERM=dumb output unexpectedly contained an escape sequence' >&2
@@ -109,7 +109,7 @@ fi
 # Entering 4 ("What is this?") and then q proves the branded intro is printed
 # once at startup and not replayed when returning to the menu.
 printf '4\nq\n' | env -u NO_COLOR AGENTIC_SDD_FORCE_INTERACTIVE=1 TERM=xterm-256color COLUMNS=80 \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home2" \
+  /tmp/asdx-core guide --repo "$repo" --home "$home2" \
   > "$root/guide-static-color.out"
 grep -q "$esc" "$root/guide-static-color.out"
 grep -q 'Build software with AI. Stay the engineer.' "$root/guide-static-color.out"
@@ -119,7 +119,7 @@ grep -q 'Docs: https://github.com/nawodyaishan/agentic-sdd#readme' "$root/guide-
 test "$(grep -c 'Build software with AI. Stay the engineer.' "$root/guide-static-color.out")" -eq 1
 
 printf '4\nq\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 TERM=xterm-256color NO_COLOR=1 COLUMNS=80 \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home2" \
+  /tmp/asdx-core guide --repo "$repo" --home "$home2" \
   > "$root/guide-static-nocolor.out"
 if grep -q "$esc" "$root/guide-static-nocolor.out"; then
   echo 'NO_COLOR guide unexpectedly contained an escape sequence' >&2
@@ -133,7 +133,7 @@ test "$(grep -c 'Build software with AI. Stay the engineer.' "$root/guide-static
 
 # Narrow terminal (< 60 columns, e.g. COLUMNS=40): art is omitted, plain text Agentic SDD is used.
 printf 'q\n' | env -u NO_COLOR AGENTIC_SDD_FORCE_INTERACTIVE=1 COLUMNS=40 TERM=xterm-256color \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home2" \
+  /tmp/asdx-core guide --repo "$repo" --home "$home2" \
   > "$root/guide-narrow.out"
 grep -q 'Agentic SDD' "$root/guide-narrow.out"
 grep -Fxq 'Build software with AI. Stay the' "$root/guide-narrow.out"
@@ -149,7 +149,7 @@ grep -q 'Docs: https://github.com/nawodyaishan/agentic-sdd#readme' "$root/guide-
 # Two-pass color sweep: nineteen moving-frame redraws and one settling redraw.
 printf '4\nq\n' | env -u NO_COLOR AGENTIC_SDD_FORCE_INTERACTIVE=1 AGENTIC_SDD_ANIMATE=1 \
   TERM=xterm-256color COLUMNS=80 \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home2" \
+  /tmp/asdx-core guide --repo "$repo" --home "$home2" \
   > "$root/guide-animate.out"
 grep -q "$esc" "$root/guide-animate.out"
 grep -q 'Build software with AI. Stay the engineer.' "$root/guide-animate.out"
@@ -162,7 +162,7 @@ test "$(tr -cd '\015' < "$root/guide-animate.out" | wc -c)" -eq 20
 # Animation suppressed when NO_COLOR=1 even if AGENTIC_SDD_ANIMATE=1 is set.
 printf 'q\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 AGENTIC_SDD_ANIMATE=1 \
   TERM=xterm-256color NO_COLOR=1 \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home2" \
+  /tmp/asdx-core guide --repo "$repo" --home "$home2" \
   > "$root/guide-animate-nocolor.out"
 if grep -q "$esc" "$root/guide-animate-nocolor.out"; then
   echo 'Animated guide with NO_COLOR unexpectedly contained an escape sequence' >&2
@@ -177,7 +177,7 @@ home_update=$root/home-update
 mkdir -p "$home_update"
 printf '5\nq\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 NO_COLOR=1 \
   AGENTIC_SDD_TRACE="$root/j7.jsonl" \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home_update" \
+  /tmp/asdx-core guide --repo "$repo" --home "$home_update" \
   > "$root/j7.out" 2>&1
 grep -q 'Could not check for updates.' "$root/j7.out"
 grep -q 'https://github.com/nawodyaishan/agentic-sdd/releases/latest' "$root/j7.out"
@@ -196,7 +196,7 @@ home_learning=$root/home-learning
 mkdir -p "$home_learning"
 printf '6\n1\n1\n\nb\nb\nq\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 NO_COLOR=1 \
   AGENTIC_SDD_TRACE="$root/j8.jsonl" \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home_learning" > "$root/j8.out"
+  /tmp/asdx-core guide --repo "$repo" --home "$home_learning" > "$root/j8.out"
 grep -q 'agentic-sdd-plan' "$root/j8.out"
 grep -q '"screen":"learn.detail"' "$root/j8.jsonl"
 test -z "$(find "$home_learning" -mindepth 1 -print -quit)"
@@ -210,7 +210,7 @@ home_review=$root/home-review
 mkdir -p "$home_review"
 printf '1\nn\nb\nn\nn\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 NO_COLOR=1 \
   AGENTIC_SDD_TRACE="$root/j9.jsonl" \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home_review" > "$root/j9.out"
+  /tmp/asdx-core guide --repo "$repo" --home "$home_review" > "$root/j9.out"
 grep -q '"choice":"b"' "$root/j9.jsonl"
 test -z "$(find "$home_review" -mindepth 1 -print -quit)"
 if grep -q '"event":"op.result"' "$root/j9.jsonl"; then
@@ -221,14 +221,14 @@ fi
 # J10 - A fixture install shows context-preserving recovery and reentry commands.
 home_context="$root/home with spaces"
 printf '1\nn\ny\n' | AGENTIC_SDD_FORCE_INTERACTIVE=1 NO_COLOR=1 \
-  /tmp/agentic-sdd guide --repo "$repo" --home "$home_context" > "$root/j10.out"
+  /tmp/asdx-core guide --repo "$repo" --home "$home_context" > "$root/j10.out"
 grep -Fq -- "--home '$home_context'" "$root/j10.out"
 grep -Fq -- "--repo $repo" "$root/j10.out"
-grep -Fq 'agentic-sdd restore ' "$root/j10.out"
-grep -Fq 'agentic-sdd guide ' "$root/j10.out"
+grep -Fq 'asdx-core restore ' "$root/j10.out"
+grep -Fq 'asdx-core guide ' "$root/j10.out"
 snapshot=$(find "$repo/backups" -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)
 test -n "$snapshot"
-/tmp/agentic-sdd restore "$(basename "$snapshot")" --repo "$repo" --home "$home_context" > "$root/j10-recovery.out"
+/tmp/asdx-core restore "$(basename "$snapshot")" --repo "$repo" --home "$home_context" > "$root/j10-recovery.out"
 grep -q 'Preview only.' "$root/j10-recovery.out"
 test "$(cat "$home_context/.claude/skills/agentic-sdd-plan/SKILL.md")" = new
 

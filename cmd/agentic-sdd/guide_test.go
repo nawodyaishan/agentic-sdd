@@ -135,7 +135,7 @@ func TestGuideNonInteractiveAndFlags(t *testing.T) {
 		if !strings.Contains(stdout.String(), "guide — interactive step-by-step wizard") {
 			t.Fatalf("missing guide topic help: %q", stdout.String())
 		}
-		if !strings.Contains(stdout.String(), "Usage: agentic-sdd") {
+		if !strings.Contains(stdout.String(), "Usage: asdx-core") {
 			t.Fatalf("missing global usage: %q", stdout.String())
 		}
 	})

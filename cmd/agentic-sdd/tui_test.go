@@ -17,20 +17,11 @@ import (
 	"agentic-sdd/internal/buildinfo"
 )
 
-// This file covers Feature 013 B6/T14: the explicit "agentic-sdd tui" command,
-// the Homebrew real-interactive zero-argument default, the trusted sibling
-// handshake and the parent's child-signal policy. Every process interaction is
-// injected; no test builds, resolves or signals a real companion binary and no
-// test touches the real user home.
-
-// tuiTestDistribution overrides the link-time marker for one test and restores
-// it afterwards.
-func tuiTestDistribution(t *testing.T, distribution buildinfo.Distribution) {
-	t.Helper()
-	original := currentDistribution
-	currentDistribution = func() buildinfo.Distribution { return distribution }
-	t.Cleanup(func() { currentDistribution = original })
-}
+// This file covers Feature 013 B6/T14 and the Feature 019 renames: the explicit
+// "asdx-core tui" command, the trusted sibling handshake with "asdx", the
+// parent's child-signal policy and the dual-built "agentic-sdd" compatibility
+// wrapper. Every process interaction is injected; no test builds, resolves or
+// signals a real companion binary and no test touches the real user home.
 
 // tuiTestFixture creates a tiny source tree and home so preview runs are fast,
 // deterministic and confined to a temporary directory.
@@ -52,7 +43,8 @@ func tuiTestFixture(t *testing.T) (repo, home string) {
 }
 
 // TestTUIDispatchMatrix pins the full dispatch decision: arguments × real
-// terminal facts × distribution marker × forced-interactive mode.
+// terminal facts × forced-interactive mode. A bare invocation always previews;
+// only the explicit "tui" command may launch the sibling.
 func TestTUIDispatchMatrix(t *testing.T) {
 	repo, home := tuiTestFixture(t)
 	// A bare invocation that keeps the historical preview resolves the default
@@ -65,44 +57,36 @@ func TestTUIDispatchMatrix(t *testing.T) {
 	}
 	cases := []struct {
 		name         string
-		distribution buildinfo.Distribution
 		args         []string
 		stdinTTY     bool
 		stdoutTTY    bool
 		force        bool
 		wantLaunch   bool
-		wantExplicit bool
 		wantCode     int
 		wantInStdout string
 		wantInStderr string
 	}{
 		{
-			name:         "homebrew bare interactive launches",
-			distribution: buildinfo.DistributionHomebrew,
+			name:         "bare interactive keeps preview",
 			stdinTTY:     true,
 			stdoutTTY:    true,
-			wantLaunch:   true,
-			wantExplicit: false,
 			wantCode:     0,
-			wantInStdout: "tui-launch",
+			wantInStdout: "Preview only. Run with apply (or --apply) to install.",
 		},
 		{
-			name:         "homebrew bare stdin pipe keeps preview",
-			distribution: buildinfo.DistributionHomebrew,
+			name:         "bare stdin pipe keeps preview",
 			stdoutTTY:    true,
 			wantCode:     0,
 			wantInStdout: "install agents/agentic-sdd-plan",
 		},
 		{
-			name:         "homebrew bare stdout pipe keeps preview",
-			distribution: buildinfo.DistributionHomebrew,
+			name:         "bare stdout pipe keeps preview",
 			stdinTTY:     true,
 			wantCode:     0,
 			wantInStdout: "Preview only. Run with apply (or --apply) to install.",
 		},
 		{
-			name:         "homebrew forced interactive keeps preview",
-			distribution: buildinfo.DistributionHomebrew,
+			name:         "bare forced interactive keeps preview",
 			stdinTTY:     true,
 			stdoutTTY:    true,
 			force:        true,
@@ -110,24 +94,7 @@ func TestTUIDispatchMatrix(t *testing.T) {
 			wantInStdout: "Preview only. Run with apply (or --apply) to install.",
 		},
 		{
-			name:         "generic bare interactive keeps preview",
-			distribution: buildinfo.DistributionGeneric,
-			stdinTTY:     true,
-			stdoutTTY:    true,
-			wantCode:     0,
-			wantInStdout: "Preview only. Run with apply (or --apply) to install.",
-		},
-		{
-			name:         "development bare interactive keeps preview",
-			distribution: buildinfo.DistributionDev,
-			stdinTTY:     true,
-			stdoutTTY:    true,
-			wantCode:     0,
-			wantInStdout: "Preview only. Run with apply (or --apply) to install.",
-		},
-		{
-			name:         "homebrew explicit preview keeps preview",
-			distribution: buildinfo.DistributionHomebrew,
+			name:         "explicit preview keeps preview",
 			args:         []string{"preview"},
 			stdinTTY:     true,
 			stdoutTTY:    true,
@@ -135,48 +102,32 @@ func TestTUIDispatchMatrix(t *testing.T) {
 			wantInStdout: "Preview only. Run with apply (or --apply) to install.",
 		},
 		{
-			name:         "homebrew explicit version keeps version",
-			distribution: buildinfo.DistributionHomebrew,
+			name:         "explicit version keeps version",
 			args:         []string{"--version"},
 			stdinTTY:     true,
 			stdoutTTY:    true,
 			wantCode:     0,
-			wantInStdout: "agentic-sdd",
+			wantInStdout: "asdx-core",
 		},
 		{
-			name:         "homebrew explicit help keeps help",
-			distribution: buildinfo.DistributionHomebrew,
+			name:         "explicit help keeps help",
 			args:         []string{"help"},
 			stdinTTY:     true,
 			stdoutTTY:    true,
 			wantCode:     0,
-			wantInStdout: "Usage: agentic-sdd",
+			wantInStdout: "Usage: asdx-core",
 		},
 		{
-			name:         "explicit tui on development marker launches",
-			distribution: buildinfo.DistributionDev,
+			name:         "explicit tui launches",
 			args:         []string{"tui"},
 			stdinTTY:     true,
 			stdoutTTY:    true,
 			wantLaunch:   true,
-			wantExplicit: true,
-			wantCode:     0,
-			wantInStdout: "tui-launch",
-		},
-		{
-			name:         "explicit tui on generic marker launches",
-			distribution: buildinfo.DistributionGeneric,
-			args:         []string{"tui"},
-			stdinTTY:     true,
-			stdoutTTY:    true,
-			wantLaunch:   true,
-			wantExplicit: true,
 			wantCode:     0,
 			wantInStdout: "tui-launch",
 		},
 		{
 			name:         "explicit tui requires input terminal",
-			distribution: buildinfo.DistributionHomebrew,
 			args:         []string{"tui"},
 			stdoutTTY:    true,
 			wantCode:     2,
@@ -184,7 +135,6 @@ func TestTUIDispatchMatrix(t *testing.T) {
 		},
 		{
 			name:         "explicit tui requires output terminal",
-			distribution: buildinfo.DistributionHomebrew,
 			args:         []string{"tui"},
 			stdinTTY:     true,
 			wantCode:     2,
@@ -192,7 +142,6 @@ func TestTUIDispatchMatrix(t *testing.T) {
 		},
 		{
 			name:         "explicit tui refuses forced-interactive",
-			distribution: buildinfo.DistributionHomebrew,
 			args:         []string{"tui"},
 			stdinTTY:     true,
 			stdoutTTY:    true,
@@ -204,7 +153,6 @@ func TestTUIDispatchMatrix(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tuiTestDistribution(t, tc.distribution)
 			var call launchCall
 			original := tuiLaunch
 			tuiLaunch = func(req tuiRequest, _ io.Reader, stdout io.Writer, _ io.Writer, _ *Env) int {
@@ -239,9 +187,6 @@ func TestTUIDispatchMatrix(t *testing.T) {
 				t.Fatalf("launch called = %v, want %v; stdout %q; stderr %q",
 					call.called, tc.wantLaunch, stdout.String(), stderr.String())
 			}
-			if call.called && call.req.Explicit != tc.wantExplicit {
-				t.Fatalf("launch request Explicit = %v, want %v", call.req.Explicit, tc.wantExplicit)
-			}
 			if !call.called && strings.Contains(stdout.String(), "tui-launch") {
 				t.Fatalf("preview path printed the launch marker: %q", stdout.String())
 			}
@@ -267,7 +212,6 @@ func containsFlag(args []string, name string) bool {
 // TestTUIExplicitRequestForwarding pins the request the explicit command builds
 // for the companion, including which options the user actually supplied.
 func TestTUIExplicitRequestForwarding(t *testing.T) {
-	tuiTestDistribution(t, buildinfo.DistributionHomebrew)
 	cases := []struct {
 		name string
 		args []string
@@ -276,32 +220,32 @@ func TestTUIExplicitRequestForwarding(t *testing.T) {
 		{
 			name: "defaults omit unset options",
 			args: []string{"tui"},
-			want: tuiRequest{Explicit: true, WithOpenCode: true},
+			want: tuiRequest{WithOpenCode: true},
 		},
 		{
 			name: "home and repo forwarded",
 			args: []string{"tui", "--home", "/tmp/example-home", "--repo", "/tmp/example-repo"},
-			want: tuiRequest{Explicit: true, Home: "/tmp/example-home", Repo: "/tmp/example-repo", WithOpenCode: true},
+			want: tuiRequest{Home: "/tmp/example-home", Repo: "/tmp/example-repo", WithOpenCode: true},
 		},
 		{
 			name: "explicit pack off forwarded",
 			args: []string{"tui", "--with-opencode=false"},
-			want: tuiRequest{Explicit: true, WithOpenCode: false, WithOpenCodeSet: true},
+			want: tuiRequest{WithOpenCode: false, WithOpenCodeSet: true},
 		},
 		{
 			name: "free-first forwarded",
 			args: []string{"tui", "--opencode-free-first"},
-			want: tuiRequest{Explicit: true, WithOpenCode: true, OpenCodeFreeFirst: true},
+			want: tuiRequest{WithOpenCode: true, OpenCodeFreeFirst: true},
 		},
 		{
 			name: "explicit fleet config forwarded",
 			args: []string{"tui", "--fleet-config", "/tmp/example-home/fleet.json"},
-			want: tuiRequest{Explicit: true, WithOpenCode: true, FleetConfig: "/tmp/example-home/fleet.json"},
+			want: tuiRequest{WithOpenCode: true, FleetConfig: "/tmp/example-home/fleet.json"},
 		},
 		{
 			name: "whitespace fleet config stays unset",
 			args: []string{"tui", "--fleet-config", "   "},
-			want: tuiRequest{Explicit: true, WithOpenCode: true},
+			want: tuiRequest{WithOpenCode: true},
 		},
 	}
 	for _, tc := range cases {
@@ -363,7 +307,7 @@ func TestTUICommandUsageErrors(t *testing.T) {
 		code int
 		want string
 	}{
-		{"help", []string{"-h"}, 0, "Usage: agentic-sdd tui"},
+		{"help", []string{"-h"}, 0, "Usage: asdx-core tui"},
 		{"long help", []string{"--help"}, 0, "AGENTIC_SDD_FORCE_INTERACTIVE=1"},
 		{"fleet config help", []string{"--help"}, 0, "--fleet-config PATH"},
 		{"unknown flag", []string{"--wat"}, 2, "flag provided but not defined"},
@@ -422,9 +366,9 @@ func writeRegular(t *testing.T, path string, mode os.FileMode) {
 func TestResolveTUICompanion(t *testing.T) {
 	t.Run("regular executable sibling", func(t *testing.T) {
 		dir := t.TempDir()
-		exe := filepath.Join(dir, "agentic-sdd")
+		exe := filepath.Join(dir, "asdx-core")
 		writeRegular(t, exe, 0755)
-		companion := filepath.Join(dir, "agentic-sdd-tui")
+		companion := filepath.Join(dir, "asdx")
 		writeRegular(t, companion, 0755)
 		got, err := resolveTUICompanion(func() (string, error) { return exe, nil })
 		if err != nil {
@@ -438,11 +382,11 @@ func TestResolveTUICompanion(t *testing.T) {
 	t.Run("running executable symlink resolves to the cellar", func(t *testing.T) {
 		root := t.TempDir()
 		cellar := filepath.Join(root, "Cellar", "agentic-sdd", "0.6.0", "bin")
-		exe := filepath.Join(cellar, "agentic-sdd")
+		exe := filepath.Join(cellar, "asdx-core")
 		writeRegular(t, exe, 0755)
-		companion := filepath.Join(cellar, "agentic-sdd-tui")
+		companion := filepath.Join(cellar, "asdx")
 		writeRegular(t, companion, 0755)
-		link := filepath.Join(root, "bin", "agentic-sdd")
+		link := filepath.Join(root, "bin", "asdx-core")
 		if err := os.MkdirAll(filepath.Dir(link), 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -466,7 +410,7 @@ func TestResolveTUICompanion(t *testing.T) {
 		{
 			name: "absent companion",
 			setup: func(t *testing.T, dir string) string {
-				exe := filepath.Join(dir, "agentic-sdd")
+				exe := filepath.Join(dir, "asdx-core")
 				writeRegular(t, exe, 0755)
 				return exe
 			},
@@ -475,9 +419,9 @@ func TestResolveTUICompanion(t *testing.T) {
 		{
 			name: "non-executable companion",
 			setup: func(t *testing.T, dir string) string {
-				exe := filepath.Join(dir, "agentic-sdd")
+				exe := filepath.Join(dir, "asdx-core")
 				writeRegular(t, exe, 0755)
-				writeRegular(t, filepath.Join(dir, "agentic-sdd-tui"), 0644)
+				writeRegular(t, filepath.Join(dir, "asdx"), 0644)
 				return exe
 			},
 			want: "is not executable",
@@ -485,11 +429,11 @@ func TestResolveTUICompanion(t *testing.T) {
 		{
 			name: "symlinked companion",
 			setup: func(t *testing.T, dir string) string {
-				exe := filepath.Join(dir, "agentic-sdd")
+				exe := filepath.Join(dir, "asdx-core")
 				writeRegular(t, exe, 0755)
 				target := filepath.Join(dir, "elsewhere-tui")
 				writeRegular(t, target, 0755)
-				if err := os.Symlink(target, filepath.Join(dir, "agentic-sdd-tui")); err != nil {
+				if err := os.Symlink(target, filepath.Join(dir, "asdx")); err != nil {
 					t.Skipf("symlinks unavailable: %v", err)
 				}
 				return exe
@@ -499,9 +443,9 @@ func TestResolveTUICompanion(t *testing.T) {
 		{
 			name: "companion is a directory",
 			setup: func(t *testing.T, dir string) string {
-				exe := filepath.Join(dir, "agentic-sdd")
+				exe := filepath.Join(dir, "asdx-core")
 				writeRegular(t, exe, 0755)
-				if err := os.Mkdir(filepath.Join(dir, "agentic-sdd-tui"), 0755); err != nil {
+				if err := os.Mkdir(filepath.Join(dir, "asdx"), 0755); err != nil {
 					t.Fatal(err)
 				}
 				return exe
@@ -511,9 +455,9 @@ func TestResolveTUICompanion(t *testing.T) {
 		{
 			name: "companion is a named pipe",
 			setup: func(t *testing.T, dir string) string {
-				exe := filepath.Join(dir, "agentic-sdd")
+				exe := filepath.Join(dir, "asdx-core")
 				writeRegular(t, exe, 0755)
-				if err := syscall.Mkfifo(filepath.Join(dir, "agentic-sdd-tui"), 0755); err != nil {
+				if err := syscall.Mkfifo(filepath.Join(dir, "asdx"), 0755); err != nil {
 					t.Skipf("named pipes unavailable: %v", err)
 				}
 				return exe
@@ -539,7 +483,7 @@ func TestResolveTUICompanion(t *testing.T) {
 	})
 
 	t.Run("relative executable path", func(t *testing.T) {
-		if _, err := resolveTUICompanion(func() (string, error) { return "agentic-sdd", nil }); err == nil {
+		if _, err := resolveTUICompanion(func() (string, error) { return "asdx-core", nil }); err == nil {
 			t.Fatal("resolve accepted a relative path")
 		}
 	})
@@ -557,7 +501,7 @@ func writeCompanionScript(t *testing.T, body string) string {
 	if _, err := os.Stat("/bin/sh"); err != nil {
 		t.Skip("/bin/sh is unavailable")
 	}
-	path := filepath.Join(t.TempDir(), "agentic-sdd-tui")
+	path := filepath.Join(t.TempDir(), "asdx")
 	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -602,7 +546,7 @@ func TestQueryTUICompanionProtocol(t *testing.T) {
 	})
 
 	t.Run("unknown field", func(t *testing.T) {
-		path := writeCompanionScript(t, `echo '{"product":"agentic-sdd-tui","surprise":1}'`+"\n")
+		path := writeCompanionScript(t, `echo '{"product":"asdx","surprise":1}'`+"\n")
 		if _, err := queryTUICompanionProtocol(path); err == nil || !strings.Contains(err.Error(), "unknown field") {
 			t.Fatalf("error = %v, want an unknown-field failure", err)
 		}
@@ -681,9 +625,9 @@ type fakeTUIRunner struct {
 func newFakeTUIRunner(t *testing.T, child *fakeTUIProcess, peer buildinfo.ProtocolInfo) *fakeTUIRunner {
 	t.Helper()
 	dir := t.TempDir()
-	exe := filepath.Join(dir, "agentic-sdd")
+	exe := filepath.Join(dir, "asdx-core")
 	writeRegular(t, exe, 0755)
-	writeRegular(t, filepath.Join(dir, "agentic-sdd-tui"), 0755)
+	writeRegular(t, filepath.Join(dir, "asdx"), 0755)
 
 	fake := &fakeTUIRunner{
 		exe:     exe,
@@ -694,7 +638,7 @@ func newFakeTUIRunner(t *testing.T, child *fakeTUIProcess, peer buildinfo.Protoc
 		executable: func() (string, error) { return fake.exe, nil },
 		query:      func(string) (buildinfo.ProtocolInfo, error) { return peer, nil },
 		parentInfo: func() buildinfo.ProtocolInfo {
-			return buildinfo.NewProtocolInfo(buildinfo.ProductCLI, buildinfo.DistributionHomebrew, tuiTestIdentity())
+			return buildinfo.NewProtocolInfo(buildinfo.ProductCLI, buildinfo.DistributionGeneric, tuiTestIdentity())
 		},
 		notify: func(c chan<- os.Signal, _ ...os.Signal) { fake.deliver = c },
 		stop:   func(chan<- os.Signal) { close(fake.stopped) },
@@ -736,42 +680,42 @@ func TestLaunchTUIHandshake(t *testing.T) {
 	}{
 		{
 			name:       "matched pair starts",
-			parentDist: buildinfo.DistributionHomebrew,
+			parentDist: buildinfo.DistributionGeneric,
 			parentID:   validIdentity,
 			peer:       validPeer,
 			wantStart:  true,
 		},
 		{
 			name:        "wrong product fails closed",
-			parentDist:  buildinfo.DistributionHomebrew,
+			parentDist:  buildinfo.DistributionGeneric,
 			parentID:    validIdentity,
 			peer:        buildinfo.NewProtocolInfo(buildinfo.ProductCLI, buildinfo.DistributionGeneric, validIdentity),
 			wantInError: "reported product",
 		},
 		{
 			name:        "protocol revision mismatch fails closed",
-			parentDist:  buildinfo.DistributionHomebrew,
+			parentDist:  buildinfo.DistributionGeneric,
 			parentID:    validIdentity,
 			peer:        func() buildinfo.ProtocolInfo { p := validPeer; p.ProtocolRevision++; return p }(),
 			wantInError: "protocol revision",
 		},
 		{
 			name:        "uninjected parent identity fails closed",
-			parentDist:  buildinfo.DistributionHomebrew,
+			parentDist:  buildinfo.DistributionGeneric,
 			parentID:    buildinfo.Identity{},
 			peer:        validPeer,
 			wantInError: "cannot verify the companion",
 		},
 		{
 			name:        "uninjected companion identity fails closed",
-			parentDist:  buildinfo.DistributionHomebrew,
+			parentDist:  buildinfo.DistributionGeneric,
 			parentID:    validIdentity,
 			peer:        buildinfo.NewProtocolInfo(buildinfo.ProductCompanion, buildinfo.DistributionGeneric, buildinfo.Identity{}),
 			wantInError: "companion identity is not verifiable",
 		},
 		{
 			name:        "mismatched identity fails closed",
-			parentDist:  buildinfo.DistributionHomebrew,
+			parentDist:  buildinfo.DistributionGeneric,
 			parentID:    validIdentity,
 			peer:        buildinfo.NewProtocolInfo(buildinfo.ProductCompanion, buildinfo.DistributionGeneric, buildinfo.Identity{Revision: "v0.0.1", Commit: "c", SourceDigest: "d"}),
 			wantInError: "does not match this CLI",
@@ -785,7 +729,7 @@ func TestLaunchTUIHandshake(t *testing.T) {
 		},
 		{
 			name:        "unknown companion marker fails closed",
-			parentDist:  buildinfo.DistributionHomebrew,
+			parentDist:  buildinfo.DistributionGeneric,
 			parentID:    validIdentity,
 			peer:        buildinfo.NewProtocolInfo(buildinfo.ProductCompanion, buildinfo.Distribution("mystery"), validIdentity),
 			wantInError: "unknown distribution marker",
@@ -804,7 +748,7 @@ func TestLaunchTUIHandshake(t *testing.T) {
 
 			var stdout, stderr bytes.Buffer
 			fake.runner.stdout, fake.runner.stderr = &stdout, &stderr
-			code := launchTUI(fake.runner, tuiRequest{Explicit: true}, &Env{Width: 80})
+			code := launchTUI(fake.runner, tuiRequest{}, &Env{Width: 80})
 			started := true
 			select {
 			case <-fake.started:
@@ -849,7 +793,7 @@ func TestLaunchTUIPropagatesExitCodeAndForwardsArguments(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	fake.runner.stdout, fake.runner.stderr = &stdout, &stderr
-	req := tuiRequest{Explicit: true, Home: "/tmp/home", Repo: "/tmp/repo", WithOpenCode: false, WithOpenCodeSet: true, OpenCodeFreeFirst: true}
+	req := tuiRequest{Home: "/tmp/home", Repo: "/tmp/repo", WithOpenCode: false, WithOpenCodeSet: true, OpenCodeFreeFirst: true}
 	code := launchTUI(fake.runner, req, &Env{Width: 80})
 	if code != 7 {
 		t.Fatalf("exit %d, want the child's 7; stderr %q", code, stderr.String())
@@ -871,7 +815,7 @@ func TestLaunchTUIRelaysHandledSignals(t *testing.T) {
 	fake := newFakeTUIRunner(t, child, peer)
 
 	done := make(chan int, 1)
-	go func() { done <- launchTUI(fake.runner, tuiRequest{Explicit: true}, &Env{Width: 80}) }()
+	go func() { done <- launchTUI(fake.runner, tuiRequest{}, &Env{Width: 80}) }()
 
 	<-fake.started
 	for _, sig := range []os.Signal{syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP} {
@@ -907,7 +851,7 @@ func TestLaunchTUIQueuesSignalBeforeChildStarts(t *testing.T) {
 		return child, nil
 	}
 	done := make(chan int, 1)
-	go func() { done <- launchTUI(fake.runner, tuiRequest{Explicit: true}, &Env{Width: 80}) }()
+	go func() { done <- launchTUI(fake.runner, tuiRequest{}, &Env{Width: 80}) }()
 	if got := fake.waitForSignal(t, child); got != syscall.SIGTERM {
 		t.Fatalf("child received %v, want SIGTERM", got)
 	}
@@ -926,7 +870,7 @@ func TestLaunchTUIReprocessFailureFailsClosed(t *testing.T) {
 	}
 	var stdout, stderr bytes.Buffer
 	fake.runner.stdout, fake.runner.stderr = &stdout, &stderr
-	if code := launchTUI(fake.runner, tuiRequest{Explicit: true}, &Env{Width: 80}); code != 1 {
+	if code := launchTUI(fake.runner, tuiRequest{}, &Env{Width: 80}); code != 1 {
 		t.Fatalf("exit %d, want 1", code)
 	}
 	if !strings.Contains(stderr.String(), "exec format error") {
@@ -939,7 +883,7 @@ func TestLaunchTUIReprocessFailureFailsClosed(t *testing.T) {
 // turns into preview.
 func TestLaunchTUIFailsClosedWithoutCompanion(t *testing.T) {
 	dir := t.TempDir()
-	exe := filepath.Join(dir, "agentic-sdd")
+	exe := filepath.Join(dir, "asdx-core")
 	writeRegular(t, exe, 0755)
 	runner := &tuiRunner{
 		executable: func() (string, error) { return exe, nil },
@@ -948,7 +892,7 @@ func TestLaunchTUIFailsClosedWithoutCompanion(t *testing.T) {
 		notify:     func(chan<- os.Signal, ...os.Signal) {},
 		stop:       func(chan<- os.Signal) {},
 		parentInfo: func() buildinfo.ProtocolInfo {
-			return buildinfo.NewProtocolInfo(buildinfo.ProductCLI, buildinfo.DistributionHomebrew, tuiTestIdentity())
+			return buildinfo.NewProtocolInfo(buildinfo.ProductCLI, buildinfo.DistributionGeneric, tuiTestIdentity())
 		},
 		stdin:  strings.NewReader(""),
 		stdout: &bytes.Buffer{},
@@ -962,7 +906,7 @@ func TestLaunchTUIFailsClosedWithoutCompanion(t *testing.T) {
 	if !strings.Contains(stderr.String(), "is not installed beside") {
 		t.Fatalf("stderr %q does not name the missing companion", stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "run agentic-sdd preview") {
+	if !strings.Contains(stderr.String(), "run asdx-core preview") {
 		t.Fatalf("stderr %q does not suggest the explicit preview", stderr.String())
 	}
 	if stdout.String() != "" {
@@ -995,7 +939,7 @@ func TestLaunchTUITraceRecordsDecision(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[1]), &result); err != nil {
 		t.Fatalf("decode result event: %v", err)
 	}
-	if dispatch["event"] != "tui.dispatch" || dispatch["source"] != "homebrew-default" {
+	if dispatch["event"] != "tui.dispatch" || dispatch["source"] != "explicit" {
 		t.Fatalf("dispatch event = %v", dispatch)
 	}
 	if result["event"] != "tui.result" || result["exit"] != float64(0) {
@@ -1006,14 +950,16 @@ func TestLaunchTUITraceRecordsDecision(t *testing.T) {
 	}
 }
 
-// TestRunStartTraceNamesTUI proves the Homebrew default is traced under the
-// command it actually runs.
-func TestRunStartTraceNamesTUI(t *testing.T) {
-	tuiTestDistribution(t, buildinfo.DistributionHomebrew)
+// TestRunStartTraceNamesBarePreview proves a bare asdx-core invocation is
+// traced as the preview it actually runs, never as a TUI launch.
+func TestRunStartTraceNamesBarePreview(t *testing.T) {
 	_, home := tuiTestFixture(t)
 	t.Setenv("HOME", home)
 	original := tuiLaunch
-	tuiLaunch = func(tuiRequest, io.Reader, io.Writer, io.Writer, *Env) int { return 0 }
+	tuiLaunch = func(tuiRequest, io.Reader, io.Writer, io.Writer, *Env) int {
+		t.Fatal("bare asdx-core launched the TUI")
+		return 1
+	}
 	t.Cleanup(func() { tuiLaunch = original })
 
 	var trace bytes.Buffer
@@ -1027,7 +973,259 @@ func TestRunStartTraceNamesTUI(t *testing.T) {
 	if err := json.Unmarshal([]byte(first), &event); err != nil {
 		t.Fatalf("decode trace: %v", err)
 	}
-	if event["event"] != "run.start" || event["command"] != "tui" {
-		t.Fatalf("run.start = %v, want command tui", event)
+	if event["event"] != "run.start" || event["command"] != "preview" {
+		t.Fatalf("run.start = %v, want command preview", event)
 	}
+}
+
+// --- Legacy compatibility wrapper (dual-build mode) ----------------------
+
+// withLegacyBuild injects the legacy build values for one test.
+func withLegacyBuild(t *testing.T, target, name string) {
+	t.Helper()
+	originalTarget, originalName := legacyTarget, legacyName
+	legacyTarget, legacyName = target, name
+	t.Cleanup(func() { legacyTarget, legacyName = originalTarget, originalName })
+}
+
+// fakeLegacyDeps records the executable lookup and the replacement call
+// without ever starting or replacing a process.
+type fakeLegacyDeps struct {
+	executable string
+	execErr    error
+
+	execPath string
+	execArgv []string
+	execCall int
+}
+
+func (f *fakeLegacyDeps) deps() legacyDeps {
+	return legacyDeps{
+		executable: func() (string, error) { return f.executable, nil },
+		exec: func(path string, argv []string) error {
+			f.execCall++
+			f.execPath, f.execArgv = path, argv
+			return f.execErr
+		},
+	}
+}
+
+// legacyFixture creates the running compatibility name beside its canonical
+// target and returns the running path.
+func legacyFixture(t *testing.T, target string) string {
+	t.Helper()
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "agentic-sdd")
+	writeRegular(t, exe, 0755)
+	writeRegular(t, filepath.Join(dir, target), 0755)
+	return exe
+}
+
+func TestCanonicalBuildHasNoLegacyIdentity(t *testing.T) {
+	if legacyTarget != "" || legacyName != "" {
+		t.Fatalf("canonical build has legacy identity %q/%q", legacyTarget, legacyName)
+	}
+	fake := &fakeLegacyDeps{executable: "/does/not/matter"}
+	var stdout, stderr bytes.Buffer
+	code, handled := runLegacyCompatibility(fake.deps(), []string{"preview"}, &stdout, &stderr)
+	if handled || code != 0 {
+		t.Fatalf("canonical build reported handled=%v code=%d", handled, code)
+	}
+	if fake.execCall != 0 {
+		t.Fatal("canonical build performed a legacy replacement")
+	}
+}
+
+func TestLegacyExactTopLevelQueriesIdentifyBothNames(t *testing.T) {
+	withLegacyBuild(t, "asdx-core", "agentic-sdd")
+	fake := &fakeLegacyDeps{executable: "/does/not/matter"}
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"long help", []string{"--help"}, []string{"agentic-sdd", "asdx-core", "deprecated", "Usage: asdx-core"}},
+		{"short help", []string{"-h"}, []string{"agentic-sdd", "asdx-core", "deprecated", "Usage: asdx-core"}},
+		{"version", []string{"--version"}, []string{"agentic-sdd", "asdx-core", "legacy compatibility name"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code, handled := runLegacyCompatibility(fake.deps(), tc.args, &stdout, &stderr)
+			if !handled || code != 0 {
+				t.Fatalf("handled=%v code=%d, want true/0", handled, code)
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(stdout.String(), want) {
+					t.Fatalf("stdout %q does not contain %q", stdout.String(), want)
+				}
+			}
+			if stderr.Len() != 0 {
+				t.Fatalf("stderr = %q, want empty", stderr.String())
+			}
+			if fake.execCall != 0 {
+				t.Fatal("an exact top-level query replaced the process")
+			}
+		})
+	}
+}
+
+func TestLegacyForwardsEveryOtherInvocation(t *testing.T) {
+	withLegacyBuild(t, "asdx-core", "agentic-sdd")
+	cases := [][]string{
+		nil,
+		{"preview", "--home", "/tmp/home"},
+		{"help", "task"},
+		{"task", "help"},
+		{"mcp", "status", "--json"},
+		{"--", "version"},
+		{"version"},
+	}
+	for _, args := range cases {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			exe := legacyFixture(t, "asdx-core")
+			fake := &fakeLegacyDeps{executable: exe}
+			var stdout, stderr bytes.Buffer
+			code, handled := runLegacyCompatibility(fake.deps(), args, &stdout, &stderr)
+			if !handled || code != 0 {
+				t.Fatalf("handled=%v code=%d, want true/0; stderr %q", handled, code, stderr.String())
+			}
+			if fake.execCall != 1 {
+				t.Fatalf("exec calls = %d, want 1", fake.execCall)
+			}
+			wantPath := filepath.Join(filepath.Dir(exe), "asdx-core")
+			if fake.execPath != wantPath {
+				t.Fatalf("exec path = %q, want %q", fake.execPath, wantPath)
+			}
+			wantArgv := append([]string{wantPath}, args...)
+			if !reflect.DeepEqual(fake.execArgv, wantArgv) {
+				t.Fatalf("exec argv = %v, want %v", fake.execArgv, wantArgv)
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+			want := "agentic-sdd: deprecated compatibility name; running asdx-core\n"
+			if stderr.String() != want {
+				t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+			}
+		})
+	}
+}
+
+func TestLegacyResolvesSymlinkedInstallation(t *testing.T) {
+	withLegacyBuild(t, "asdx-core", "agentic-sdd")
+	root := t.TempDir()
+	cellar := filepath.Join(root, "Cellar", "agentic-sdd", "0.6.0", "bin")
+	exe := filepath.Join(cellar, "agentic-sdd")
+	writeRegular(t, exe, 0755)
+	writeRegular(t, filepath.Join(cellar, "asdx-core"), 0755)
+	link := filepath.Join(root, "bin", "agentic-sdd")
+	if err := os.MkdirAll(filepath.Dir(link), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(exe, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	fake := &fakeLegacyDeps{executable: link}
+	var stdout, stderr bytes.Buffer
+	if code, handled := runLegacyCompatibility(fake.deps(), []string{"preview"}, &stdout, &stderr); !handled || code != 0 {
+		t.Fatalf("handled=%v code=%d; stderr %q", handled, code, stderr.String())
+	}
+	if want := filepath.Join(cellar, "asdx-core"); fake.execPath != want {
+		t.Fatalf("exec path = %q, want the resolved cellar sibling %q", fake.execPath, want)
+	}
+}
+
+func TestLegacyMissingOrInvalidTargetFailsClosed(t *testing.T) {
+	withLegacyBuild(t, "asdx-core", "agentic-sdd")
+
+	t.Run("absent", func(t *testing.T) {
+		dir := t.TempDir()
+		exe := filepath.Join(dir, "agentic-sdd")
+		writeRegular(t, exe, 0755)
+		fake := &fakeLegacyDeps{executable: exe}
+		var stdout, stderr bytes.Buffer
+		code, handled := runLegacyCompatibility(fake.deps(), []string{"preview"}, &stdout, &stderr)
+		if !handled || code != 1 {
+			t.Fatalf("handled=%v code=%d, want true/1", handled, code)
+		}
+		if fake.execCall != 0 {
+			t.Fatal("a missing target was still executed")
+		}
+		if !strings.Contains(stderr.String(), "is not installed beside") {
+			t.Fatalf("stderr %q does not name the missing target", stderr.String())
+		}
+		if !strings.Contains(stderr.String(), buildinfo.RebuildPairHint) {
+			t.Fatalf("stderr %q is missing rebuild guidance", stderr.String())
+		}
+	})
+
+	t.Run("non-executable", func(t *testing.T) {
+		dir := t.TempDir()
+		exe := filepath.Join(dir, "agentic-sdd")
+		writeRegular(t, exe, 0755)
+		writeRegular(t, filepath.Join(dir, "asdx-core"), 0644)
+		fake := &fakeLegacyDeps{executable: exe}
+		var stdout, stderr bytes.Buffer
+		if code, handled := runLegacyCompatibility(fake.deps(), []string{"preview"}, &stdout, &stderr); !handled || code != 1 {
+			t.Fatalf("handled=%v code=%d, want true/1", handled, code)
+		}
+		if fake.execCall != 0 {
+			t.Fatal("a non-executable target was executed")
+		}
+		if !strings.Contains(stderr.String(), "is not executable") {
+			t.Fatalf("stderr %q does not name the non-executable target", stderr.String())
+		}
+	})
+
+	t.Run("symlinked target", func(t *testing.T) {
+		dir := t.TempDir()
+		exe := filepath.Join(dir, "agentic-sdd")
+		writeRegular(t, exe, 0755)
+		writeRegular(t, filepath.Join(dir, "real-core"), 0755)
+		if err := os.Symlink(filepath.Join(dir, "real-core"), filepath.Join(dir, "asdx-core")); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		fake := &fakeLegacyDeps{executable: exe}
+		var stdout, stderr bytes.Buffer
+		if code, handled := runLegacyCompatibility(fake.deps(), []string{"preview"}, &stdout, &stderr); !handled || code != 1 {
+			t.Fatalf("handled=%v code=%d, want true/1", handled, code)
+		}
+		if !strings.Contains(stderr.String(), "refusing the symlinked") {
+			t.Fatalf("stderr %q does not refuse the symlink", stderr.String())
+		}
+	})
+
+	t.Run("no PATH search", func(t *testing.T) {
+		dir := t.TempDir()
+		exe := filepath.Join(dir, "agentic-sdd")
+		writeRegular(t, exe, 0755)
+		pathDir := t.TempDir()
+		writeRegular(t, filepath.Join(pathDir, "asdx-core"), 0755)
+		t.Setenv("PATH", pathDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+		fake := &fakeLegacyDeps{executable: exe}
+		var stdout, stderr bytes.Buffer
+		if code, handled := runLegacyCompatibility(fake.deps(), []string{"preview"}, &stdout, &stderr); !handled || code != 1 {
+			t.Fatalf("handled=%v code=%d, want true/1", handled, code)
+		}
+		if fake.execCall != 0 {
+			t.Fatal("a PATH target was executed")
+		}
+		if !strings.Contains(stderr.String(), "is not installed beside") {
+			t.Fatalf("stderr %q used a PATH fallback", stderr.String())
+		}
+	})
+
+	t.Run("exec failure", func(t *testing.T) {
+		exe := legacyFixture(t, "asdx-core")
+		fake := &fakeLegacyDeps{executable: exe, execErr: errors.New("exec format error")}
+		var stdout, stderr bytes.Buffer
+		if code, handled := runLegacyCompatibility(fake.deps(), []string{"preview"}, &stdout, &stderr); !handled || code != 1 {
+			t.Fatalf("handled=%v code=%d, want true/1", handled, code)
+		}
+		if !strings.Contains(stderr.String(), "exec format error") {
+			t.Fatalf("stderr %q does not carry the replacement failure", stderr.String())
+		}
+	})
 }

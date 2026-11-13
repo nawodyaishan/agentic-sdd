@@ -7,7 +7,7 @@ intelligence), **Context7** (hosted library documentation) and **Exa**
 
 * the terminal UI: **Install & Manage → MCP Tools** (or press `t` from the
   Install & Manage hub);
-* the CLI: `agentic-sdd mcp status|doctor|preview|apply|restore|help`.
+* the CLI: `asdx-core mcp status|doctor|preview|apply|restore|help`.
 
 Both read the same facts and both refuse the same unsafe operations. Nothing
 here contacts a model, reads a provider credential, or changes which agent
@@ -24,13 +24,13 @@ snippet rather than reserialized.
 ## The beginner journey
 
 1. **Discover.** Open Install & Manage → MCP Tools, or run
-   `agentic-sdd mcp status`. You see the three servers, whether each is
+   `asdx-core mcp status`. You see the three servers, whether each is
    configured, what is missing, and the next safe action. Nothing is written.
 2. **Select.** In the TUI, press `s` on the Overview to pick servers.
    Context7 asks for OAuth (recommended, explicitly accepted) or an API key;
    Exa asks you to acknowledge its keyless rate limits and privacy terms, or
    to choose OAuth/API key instead.
-3. **Preview.** Press `v` (or run `agentic-sdd mcp preview`). You see the
+3. **Preview.** Press `v` (or run `asdx-core mcp preview`). You see the
    exact target file and digest, which entries would be added, changed, left
    alone or refused as conflicts, and what backup and restore would cover.
    Previewing writes nothing.
@@ -44,16 +44,16 @@ snippet rather than reserialized.
 ## CLI equivalents
 
 ```sh
-agentic-sdd mcp status                              # read-only overview (default; bare `mcp` also works)
-agentic-sdd mcp doctor                              # offline prerequisite diagnostics, no execution
-agentic-sdd mcp preview --servers codegraph,exa     # read-only plan; nothing is written
-agentic-sdd mcp preview --servers context7 --auth context7=oauth
-agentic-sdd mcp preview --servers exa --auth exa=keyless
-agentic-sdd mcp apply --expect-config SHA256        # write the reviewed preview (digest required)
-agentic-sdd mcp restore list                        # list managed backups
-agentic-sdd mcp restore preview ID                  # preview one managed backup
-agentic-sdd mcp restore apply ID --expect-config SHA256
-agentic-sdd mcp help                                # this reference
+asdx-core mcp status                              # read-only overview (default; bare `mcp` also works)
+asdx-core mcp doctor                              # offline prerequisite diagnostics, no execution
+asdx-core mcp preview --servers codegraph,exa     # read-only plan; nothing is written
+asdx-core mcp preview --servers context7 --auth context7=oauth
+asdx-core mcp preview --servers exa --auth exa=keyless
+asdx-core mcp apply --expect-config SHA256        # write the reviewed preview (digest required)
+asdx-core mcp restore list                        # list managed backups
+asdx-core mcp restore preview ID                  # preview one managed backup
+asdx-core mcp restore apply ID --expect-config SHA256
+asdx-core mcp help                                # this reference
 ```
 
 Useful flags: `--home PATH` (inspect an isolated home instead of your own),

@@ -22,7 +22,7 @@ type executionCommonFlags struct {
 }
 
 func newExecutionFlagSet(name string, common *executionCommonFlags) *flag.FlagSet {
-	fs := flag.NewFlagSet("agentic-sdd "+name, flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" "+name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&common.repo, "repo", "", "repository path (default: current working tree)")
 	fs.StringVar(&common.runRoot, "run-root", "", "private execution run root")
@@ -39,7 +39,7 @@ func parseExecutionFlags(fs *flag.FlagSet, args []string, usage func(io.Writer),
 			return false, 0
 		}
 		fmt.Fprintln(stderr, "error:", err)
-		fmt.Fprintln(stderr, "note: run \"agentic-sdd help\" for the accepted flags")
+		fmt.Fprintf(stderr, "note: run %q for the accepted flags\n", canonicalCLIName+" help")
 		return false, 2
 	}
 	if fs.NArg() != 0 {

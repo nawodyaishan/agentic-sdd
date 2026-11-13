@@ -1,6 +1,6 @@
 # Installer reference
 
-The `agentic-sdd` CLI installs the portable skill toolkit. It does not run your coding agent. For installation and your first task, start with the [README](../README.md#quick-start).
+The `asdx-core` CLI installs the portable skill toolkit. It does not run your coding agent. For installation and your first task, start with the [README](../README.md#quick-start).
 
 ## Commands
 
@@ -16,19 +16,19 @@ the latest published version rather than claiming an upgrade is available.
 
 | Command | Behavior |
 |---|---|
-| `agentic-sdd` or `agentic-sdd preview` | Show planned installs, replacements, and unchanged skills without writing. |
-| `agentic-sdd apply` | Back up existing skills that need replacement, stage copies, and install. Identical skill content is a no-op. |
-| `agentic-sdd version` | Show version, commit, build date, and Go version. `--version` also works. |
-| `agentic-sdd logs` | Show the latest apply or restore log and its path. |
-| `agentic-sdd backups` | List backups newest first, including their ID, operation, source, and contents. |
-| `agentic-sdd restore BACKUP_ID` | Preview what restoring the selected backup would change. |
-| `agentic-sdd restore apply BACKUP_ID` | Back up the affected current skills, then restore the selected backup. |
-| `agentic-sdd guide` | Interactive numbered-prompt wizard to preview, install, restore, or inspect skills on a terminal. Accepts only `--home` and `--repo`. |
-| `agentic-sdd help <topic>` | Show focused help for `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, or `version`, followed by the global usage block. |
-| `agentic-sdd help orchestrate` | Show usage for opt-in OpenCode orchestration options. |
-| `agentic-sdd --help` | Show commands, flags, and defaults. |
+| `asdx-core` or `asdx-core preview` | Show planned installs, replacements, and unchanged skills without writing. |
+| `asdx-core apply` | Back up existing skills that need replacement, stage copies, and install. Identical skill content is a no-op. |
+| `asdx-core version` | Show version, commit, build date, and Go version. `--version` also works. |
+| `asdx-core logs` | Show the latest apply or restore log and its path. |
+| `asdx-core backups` | List backups newest first, including their ID, operation, source, and contents. |
+| `asdx-core restore BACKUP_ID` | Preview what restoring the selected backup would change. |
+| `asdx-core restore apply BACKUP_ID` | Back up the affected current skills, then restore the selected backup. |
+| `asdx-core guide` | Interactive numbered-prompt wizard to preview, install, restore, or inspect skills on a terminal. Accepts only `--home` and `--repo`. |
+| `asdx-core help <topic>` | Show focused help for `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, or `version`, followed by the global usage block. |
+| `asdx-core help orchestrate` | Show usage for opt-in OpenCode orchestration options. |
+| `asdx-core --help` | Show commands, flags, and defaults. |
 
-`restore preview BACKUP_ID` is another preview form; `restore BACKUP_ID --apply` is another writing form. With no backup ID on a terminal, restore lists available backups and offers interactive selection. Writing through interactive selection asks for confirmation. `agentic-sdd guide` offers the same preview-first steps as numbered prompts; its journeys, screen/prompt identifiers, and trace schema are catalogued in [Guided CLI journeys](guide-flows.md). Installer operations (`preview`, `apply`, `backups`, `restore`, `logs`) retain their command-line equivalents; checking for updates is offered as a terminal-guide convenience with manual update instructions and no top-level update command or self-updater. Upgrading the CLI binary does not update installed skill files: run `agentic-sdd preview` afterwards, and apply only after separately reviewing the preview.
+`restore preview BACKUP_ID` is another preview form; `restore BACKUP_ID --apply` is another writing form. With no backup ID on a terminal, restore lists available backups and offers interactive selection. Writing through interactive selection asks for confirmation. `asdx-core guide` offers the same preview-first steps as numbered prompts; its journeys, screen/prompt identifiers, and trace schema are catalogued in [Guided CLI journeys](guide-flows.md). Installer operations (`preview`, `apply`, `backups`, `restore`, `logs`) retain their command-line equivalents; checking for updates is offered as a terminal-guide convenience with manual update instructions and no top-level update command or self-updater. Upgrading the CLI binary does not update installed skill files: run `asdx-core preview` afterwards, and apply only after separately reviewing the preview.
 
 ## Flags
 
@@ -52,7 +52,7 @@ See [journeys and navigation](guide-flows.md#expanded-terminal-review-and-learni
 Put flags after the command, for example:
 
 ```sh
-agentic-sdd preview --home /path/to/disposable-home
+asdx-core preview --home /path/to/disposable-home
 ```
 
 | Flag | Meaning |
@@ -100,7 +100,7 @@ Backups can contain private previous skill content. Repository-local `backups/` 
 
 ## Logs and exit codes
 
-Apply and writing restore operations create private timestamped text logs under `<home>/.agentic-sdd/logs/`, including actions, results, and errors. This location uses the home directory even when `--repo` selects a checkout backup root. Preview writes no log. `agentic-sdd logs --home PATH` reads the latest log for the selected home.
+Apply and writing restore operations create private timestamped text logs under `<home>/.agentic-sdd/logs/`, including actions, results, and errors. This location uses the home directory even when `--repo` selects a checkout backup root. Preview writes no log. `asdx-core logs --home PATH` reads the latest log for the selected home.
 
 - **0:** successful command, preview, or completed cancellation.
 - **2:** usage error, invalid flags/arguments/backup ID syntax, or an unavailable experimental command.
@@ -112,15 +112,15 @@ Errors go to stderr; action output goes to stdout. A preview listing replacement
 
 When a stream is a terminal, `preview` and `apply` add a grouped per-client summary with counts and the exact next command, and selected errors add a `hint:` line on stderr. When a stream is not a terminal, its output stays byte-identical to earlier releases, so scripts and CI see no change. `guide` requires an interactive stdin and exits `2` without reading or writing anything when it does not have one.
 
-- **Guide entry and branding:** On terminal stdout, `guide` renders a compact cyan ASCII wordmark, the one-line vision (`Build software with AI. Stay the engineer.`), creator credit (`by nawodyaishan`), installed version (`Version: <version>` from build metadata; e.g. `dev`), and full documentation URL (`Docs: https://github.com/nawodyaishan/agentic-sdd#readme`). The URL is selectable and clickable in terminals supporting URL auto-linking; `agentic-sdd` never automatically launches a browser or emits OSC 8 sequences. The branded entry is shown once per guide session, not on menu returns. Non-terminal stdout (piped) preserves the plain unbranded transcript and original 4-choice menu.
+- **Guide entry and branding:** On terminal stdout, `guide` renders a compact cyan ASCII wordmark, the one-line vision (`Build software with AI. Stay the engineer.`), creator credit (`by nawodyaishan`), installed version (`Version: <version>` from build metadata; e.g. `dev`), and full documentation URL (`Docs: https://github.com/nawodyaishan/agentic-sdd#readme`). The URL is selectable and clickable in terminals supporting URL auto-linking; `asdx-core` never automatically launches a browser or emits OSC 8 sequences. The branded entry is shown once per guide session, not on menu returns. Non-terminal stdout (piped) preserves the plain unbranded transcript and original 4-choice menu.
 - **Narrow terminals (`COLUMNS < 60`):** Below 60 columns, the ASCII art is omitted in favor of a compact plain text title (`Agentic SDD`), and summary counts are presented as stacked labeled lines rather than aligned rows. Guide-owned prose wraps to `min(72, Env.Width)`. Indivisible paths, commands, and update instructions are never truncated.
 - **Color:** ANSI styling is used only when stdout is a terminal, `NO_COLOR` is unset or empty, and `TERM` is not `dumb`. Status is always a word (`ok`, `error`), never color alone.
 - **`TERM=dumb`:** Disables color and selects ASCII-only glyphs. Static ASCII branding remains readable without ANSI escapes.
 - **`COLUMNS`:** A positive integer sets the width; otherwise it is `80`. Guide-owned text lines are fixed at 72 columns or fewer on standard terminals.
 - **Optional animation (`AGENTIC_SDD_ANIMATE=1`):** Presentation is static by default with zero delay. Exact `1` opts in to a two-pass highlight sweep across the cyan ASCII name (twenty 75 ms frames, 1.5 seconds planned delay). Only that fixed-width line is redrawn using carriage returns, then it settles to static cyan before any prompt. It requires interactive stdin, terminal stdout, color enabled, non-dumb terminal, and width >= 60. Any other value, `NO_COLOR`, `TERM=dumb`, narrow terminal, or non-terminal stdout suppresses animation and redraws. Every frame resets styling before waiting; no cursor hiding/positioning escape, alternate screen, erasure, screen clear, looping or prompt redraw is used.
-- **CLI update check (menu choice 5):** On terminal stdout, choice `5` performs a single, bounded, read-only HTTPS request to `https://api.github.com/repos/nawodyaishan/agentic-sdd/releases/latest`. It enforces a 5-second timeout, 64 KiB response limit, and redirect rejection. No background polling, telemetry, token lookup, or binary downloads occur. Offline or upon error, it reports a generic message (`Could not check for updates.`) with the releases URL, returning to the menu without changing installer state. If a newer stable release is confirmed, it displays fixed copyable package update commands (`brew update && brew upgrade nawodyaishan/tap/agentic-sdd` followed by `agentic-sdd version`) with release/package-neutral wording, and directs manual installations to the releases URL. There is no automatic self-update, clipboard manipulation, or shell execution.
-- **`/dev/null`:** terminal detection is stdlib-only and treats a character device as a terminal unless it is the null device. `restore` without an ID and a non-terminal stdin (including `/dev/null`) therefore exits `2` with `restore requires a backup id; run "agentic-sdd backups" to list them`, as documented above. Residual limitation: other character devices, for example `/dev/zero`, still pass as terminals because an exact check would need a terminal ioctl and a new dependency.
-- **Help:** help text is never styled. `agentic-sdd help <topic>` prints topic-specific text before the unchanged global usage block. The usage-error string for an unknown `help` topic is deliberately preserved byte-for-byte.
+- **CLI update check (menu choice 5):** On terminal stdout, choice `5` performs a single, bounded, read-only HTTPS request to `https://api.github.com/repos/nawodyaishan/agentic-sdd/releases/latest`. It enforces a 5-second timeout, 64 KiB response limit, and redirect rejection. No background polling, telemetry, token lookup, or binary downloads occur. Offline or upon error, it reports a generic message (`Could not check for updates.`) with the releases URL, returning to the menu without changing installer state. If a newer stable release is confirmed, it displays fixed copyable package update commands (`brew update && brew upgrade nawodyaishan/tap/agentic-sdd` followed by `asdx-core version`) with release/package-neutral wording, and directs manual installations to the releases URL. There is no automatic self-update, clipboard manipulation, or shell execution.
+- **`/dev/null`:** terminal detection is stdlib-only and treats a character device as a terminal unless it is the null device. `restore` without an ID and a non-terminal stdin (including `/dev/null`) therefore exits `2` with `restore requires a backup id; run "asdx-core backups" to list them`, as documented above. Residual limitation: other character devices, for example `/dev/zero`, still pass as terminals because an exact check would need a terminal ioctl and a new dependency.
+- **Help:** help text is never styled. `asdx-core help <topic>` prints topic-specific text before the unchanged global usage block. The usage-error string for an unknown `help` topic is deliberately preserved byte-for-byte.
 
 Environment variables:
 

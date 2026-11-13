@@ -57,7 +57,7 @@ func TestTerminalSummaryAndColor(t *testing.T) {
 			"Preview only. Run with apply (or --apply) to install.",
 			"Summary (preview — nothing was written)",
 			"  Total: 4 to install, 0 to replace (backed up first), 0 up to date — nothing was written.",
-			"  Next: agentic-sdd apply --repo " + repo + " --home " + home,
+			"  Next: asdx-core apply --repo " + repo + " --home " + home,
 		}
 		for _, want := range wants {
 			if !strings.Contains(got, want) {
@@ -98,10 +98,10 @@ func TestTerminalSummaryAndColor(t *testing.T) {
 			opts    skillsync.Options
 			want    string
 		}{
-			{"home omitted", "/tmp/skills", "", skillsync.Options{}, "agentic-sdd apply --repo /tmp/skills"},
-			{"no flags", "", "", skillsync.Options{}, "agentic-sdd apply"},
-			{"opencode pack", "", "", skillsync.Options{WithOpenCode: true, OpenCodeFreeFirst: true}, "agentic-sdd apply --with-opencode --opencode-free-first"},
-			{"unsafe values quoted", "/tmp/my skills", "/tmp/home dir", skillsync.Options{}, "agentic-sdd apply --repo '/tmp/my skills' --home '/tmp/home dir'"},
+			{"home omitted", "/tmp/skills", "", skillsync.Options{}, "asdx-core apply --repo /tmp/skills"},
+			{"no flags", "", "", skillsync.Options{}, "asdx-core apply"},
+			{"opencode pack", "", "", skillsync.Options{WithOpenCode: true, OpenCodeFreeFirst: true}, "asdx-core apply --with-opencode --opencode-free-first"},
+			{"unsafe values quoted", "/tmp/my skills", "/tmp/home dir", skillsync.Options{}, "asdx-core apply --repo '/tmp/my skills' --home '/tmp/home dir'"},
 		}
 		for _, tc := range cases {
 			if got := formatNextApplyCommand(tc.repo, tc.rawHome, tc.opts); got != tc.want {
@@ -120,7 +120,7 @@ func TestTerminalSummaryAndColor(t *testing.T) {
 		got := out.String()
 		for _, want := range []string{
 			"Installed 4 items (3 new, 1 replaced); backup: ",
-			"  Undo: agentic-sdd restore",
+			"  Undo: asdx-core restore",
 		} {
 			if !strings.Contains(got, want) {
 				t.Fatalf("apply output missing %q:\n%s", want, got)
@@ -134,7 +134,7 @@ func TestTerminalSummaryAndColor(t *testing.T) {
 			t.Fatalf("expected one apply log, got %v, %v", entries, err)
 		}
 		logData := read(t, filepath.Join(logsDir(home), entries[0].Name()))
-		if strings.Contains(logData, "Undo: agentic-sdd restore") || strings.Contains(logData, "Summary (apply") {
+		if strings.Contains(logData, "Undo: asdx-core restore") || strings.Contains(logData, "Summary (apply") {
 			t.Fatalf("log file contains terminal-only summary text:\n%s", logData)
 		}
 		if !strings.Contains(logData, "Result: success") {
@@ -155,7 +155,7 @@ func TestHelpTopics(t *testing.T) {
 			t.Fatalf("help %s exited %d: %s", topic, code, errOut.String())
 		}
 		got := out.String()
-		usageIdx := strings.Index(got, "Usage: agentic-sdd")
+		usageIdx := strings.Index(got, "Usage: asdx-core")
 		if usageIdx < 0 {
 			t.Fatalf("help %s output missing global usage:\n%s", topic, got)
 		}
@@ -185,7 +185,7 @@ func TestHelpTopics(t *testing.T) {
 	if code := runNonInteractive([]string{"help", "unknown"}, &out, &errOut); code != 2 {
 		t.Fatalf("help unknown exited %d, want 2; stdout %q", code, out.String())
 	}
-	wantErr := "error: usage: agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]\n"
+	wantErr := "error: usage: asdx-core help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]\n"
 	if errOut.String() != wantErr {
 		t.Fatalf("help unknown stderr = %q, want %q", errOut.String(), wantErr)
 	}
@@ -206,39 +206,39 @@ func TestErrorHintsTerminalOnly(t *testing.T) {
 		{
 			"restore without id",
 			func(repo, home string) []string { return []string{"restore", "--repo", repo, "--home", home} },
-			"run agentic-sdd backups to list ids, or agentic-sdd guide to pick one",
+			"run asdx-core backups to list ids, or asdx-core guide to pick one",
 		},
 		{
 			"unknown command",
 			func(string, string) []string { return []string{"wat"} },
-			"run agentic-sdd help to see the commands",
+			"run asdx-core help to see the commands",
 		},
 		{
 			"top-level flag error",
 			func(string, string) []string { return []string{"--wat"} },
-			"run agentic-sdd help preview for the accepted flags",
+			"run asdx-core help preview for the accepted flags",
 		},
 		{
 			"backups flag error",
 			func(string, string) []string { return []string{"backups", "--wat"} },
-			"run agentic-sdd help backups for the accepted flags",
+			"run asdx-core help backups for the accepted flags",
 		},
 		{
 			"restore flag error",
 			func(string, string) []string { return []string{"restore", "--wat"} },
-			"run agentic-sdd help restore for the accepted flags",
+			"run asdx-core help restore for the accepted flags",
 		},
 		{
 			"logs flag error",
 			func(string, string) []string { return []string{"logs", "--wat"} },
-			"run agentic-sdd help logs for the accepted flags",
+			"run asdx-core help logs for the accepted flags",
 		},
 		{
 			"invalid backup id",
 			func(repo, home string) []string {
 				return []string{"restore", "notanid", "--repo", repo, "--home", home}
 			},
-			"ids look like 20260101T000000.000000000Z; list them with agentic-sdd backups",
+			"ids look like 20260101T000000.000000000Z; list them with asdx-core backups",
 		},
 		{
 			"free-first without with-opencode",
@@ -248,7 +248,7 @@ func TestErrorHintsTerminalOnly(t *testing.T) {
 		{
 			"logs without a log directory",
 			func(_, home string) []string { return []string{"logs", "--home", home} },
-			"logs are written by apply and restore; run agentic-sdd preview first to see what apply would do",
+			"logs are written by apply and restore; run asdx-core preview first to see what apply would do",
 		},
 	}
 	for _, tc := range cases {

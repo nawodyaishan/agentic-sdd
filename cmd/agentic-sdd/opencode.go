@@ -18,18 +18,18 @@ import (
 )
 
 func printOpenCodeUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd opencode candidate --feature SLUG --build-path DIR
-       agentic-sdd opencode preflight --config FILE [--observation FILE]
-       agentic-sdd opencode config [preview] --workspace DIR --candidate FILE
-       agentic-sdd opencode config apply --workspace DIR --candidate FILE --backup-root DIR --expect-original DIGEST_OR_absent --expect-candidate DIGEST
-       agentic-sdd opencode config rollback --workspace DIR --backup DIR
-       agentic-sdd opencode session [prepare] --workspace DIR --executable PATH [--model M] [--mode M]
-       agentic-sdd opencode session run --workspace DIR --executable PATH --prompt TEXT [--model M] [--mode M] [--deadline SECS] [--launch FILE]
-       agentic-sdd opencode session pending --file FILE
-       agentic-sdd opencode evidence snapshot --workspace DIR --scope PATH [--scope PATH]
-       agentic-sdd opencode evidence validate --receipt FILE --workspace DIR --identity FILE --contract FILE --result FILE --evidence-root DIR [--authorization REF] [--log-digest PATH=DIGEST] [--observation POINTER=JSON] [--paid-authorized]
-       agentic-sdd opencode evidence export --receipt FILE --workspace DIR --output FILE [--redactions FILE]
-       agentic-sdd opencode evidence receipt --context FILE --result FILE [--observation FILE] [--pending-dir DIR]
+	fmt.Fprint(out, `Usage: asdx-core opencode candidate --feature SLUG --build-path DIR
+       asdx-core opencode preflight --config FILE [--observation FILE]
+       asdx-core opencode config [preview] --workspace DIR --candidate FILE
+       asdx-core opencode config apply --workspace DIR --candidate FILE --backup-root DIR --expect-original DIGEST_OR_absent --expect-candidate DIGEST
+       asdx-core opencode config rollback --workspace DIR --backup DIR
+       asdx-core opencode session [prepare] --workspace DIR --executable PATH [--model M] [--mode M]
+       asdx-core opencode session run --workspace DIR --executable PATH --prompt TEXT [--model M] [--mode M] [--deadline SECS] [--launch FILE]
+       asdx-core opencode session pending --file FILE
+       asdx-core opencode evidence snapshot --workspace DIR --scope PATH [--scope PATH]
+       asdx-core opencode evidence validate --receipt FILE --workspace DIR --identity FILE --contract FILE --result FILE --evidence-root DIR [--authorization REF] [--log-digest PATH=DIGEST] [--observation POINTER=JSON] [--paid-authorized]
+       asdx-core opencode evidence export --receipt FILE --workspace DIR --output FILE [--redactions FILE]
+       asdx-core opencode evidence receipt --context FILE --result FILE [--observation FILE] [--pending-dir DIR]
 
 Candidate writes inactive JSON to stdout only. Review/save it outside project and
 active discovery. Empty --feature produces direct-fix grants without feature docs.
@@ -86,7 +86,7 @@ func runOpenCode(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "error: unknown or unavailable opencode operation")
 		return 2
 	}
-	fs := flag.NewFlagSet("opencode "+op, flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" opencode "+op, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	values := map[string]*string{}
 	for name := range allowed[op] {
@@ -97,7 +97,7 @@ func runOpenCode(args []string, stdout, stderr io.Writer) int {
 			printOpenCodeUsage(stdout)
 			return 0
 		}
-		fmt.Fprintln(stderr, "error: invalid opencode flags; use opencode --help")
+		fmt.Fprintf(stderr, "error: invalid opencode flags; use %s opencode --help\n", canonicalCLIName)
 		return 2
 	}
 	if fs.NArg() != 0 {
@@ -194,7 +194,7 @@ func runEvidenceCmd(args []string, stdout, stderr io.Writer) int {
 }
 
 func newEvidenceFlags(name string) *flag.FlagSet {
-	fs := flag.NewFlagSet("opencode evidence "+name, flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" opencode evidence "+name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	return fs
 }
@@ -216,7 +216,7 @@ func parseEvidenceFlags(fs *flag.FlagSet, args []string, stdout, stderr io.Write
 			printOpenCodeUsage(stdout)
 			return false
 		}
-		fmt.Fprintln(stderr, "error: invalid opencode evidence flags; use opencode --help")
+		fmt.Fprintf(stderr, "error: invalid opencode evidence flags; use %s opencode --help\n", canonicalCLIName)
 		return false
 	}
 	if fs.NArg() != 0 {
@@ -446,7 +446,7 @@ func runSessionCmd(args []string, stdout, stderr io.Writer) int {
 		"run":     {"workspace": true, "executable": true, "model": true, "mode": true, "prompt": true, "deadline": true, "launch": true},
 		"pending": {"file": true},
 	}
-	fs := flag.NewFlagSet("opencode session "+sub, flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" opencode session "+sub, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	values := map[string]*string{}
 	for name := range allowed[sub] {
@@ -457,7 +457,7 @@ func runSessionCmd(args []string, stdout, stderr io.Writer) int {
 			printOpenCodeUsage(stdout)
 			return 0
 		}
-		fmt.Fprintln(stderr, "error: invalid opencode session flags; use opencode --help")
+		fmt.Fprintf(stderr, "error: invalid opencode session flags; use %s opencode --help\n", canonicalCLIName)
 		return 2
 	}
 	if fs.NArg() != 0 {

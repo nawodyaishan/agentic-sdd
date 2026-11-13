@@ -21,6 +21,7 @@ const (
 	RouteInstall
 	RouteExplore
 	RouteActivity
+	RouteGuide
 )
 
 // Focus indicates whether keyboard input targets the navigation sidebar or
@@ -49,7 +50,7 @@ type BrandTickMsg struct{}
 type appStartMsg struct{}
 
 // App is the root Bubble Tea model for the Feature 013 unified TUI shell.
-// It manages navigation across the four primary destinations, responsive
+// It manages navigation across the five primary destinations, responsive
 // cell-aware layout breakpoints, session-level motion and symbol settings,
 // the single-write operation host and the exit-after-completion policy, and
 // delegates to screen components.
@@ -66,7 +67,7 @@ type App struct {
 	ascii            bool
 	helpOpen         bool
 	contentScroll    int
-	routeScroll      [4]int
+	routeScroll      map[Route]int
 	detailScroll     int
 	helpScroll       int
 	catalogModel     CatalogModel
@@ -114,6 +115,12 @@ type App struct {
 	// state.
 	activity  ActivityModel
 	updateMgr *UpdateCheckManager
+
+	// Guide is the presentation-only fifth destination; guideReturn tracks
+	// whether a child screen or onboarding tour was opened from Guide so
+	// Esc/b returns to Guide until ordinary navigation clears it.
+	guide       GuideModel
+	guideReturn bool
 
 	// onboarding is the skippable tour while it is open; opener is the
 	// injected explicit-only platform opener.
@@ -274,6 +281,14 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 			ASCII:       "4",
 			Description: "Guides, logs & reference",
 		},
+		{
+			Route:       RouteGuide,
+			Key:         "5",
+			Title:       "Guide",
+			Icon:        "5",
+			ASCII:       "5",
+			Description: "Step-by-step setup & recovery",
+		},
 	}
 
 	updateMgr := NewUpdateCheckManager()
@@ -305,6 +320,7 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 		brandState:   brandState,
 		motion:       motion,
 		ascii:        ascii,
+		routeScroll:  make(map[Route]int),
 		catalogModel: catModel,
 		width:        cfg.Width,
 		height:       cfg.Height,
@@ -322,6 +338,7 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 			LogDir:        homeLogDir(logHome),
 			UpdateManager: updateMgr,
 		}),
+		guide:         NewGuideModel(cfg),
 		updateMgr:     updateMgr,
 		opener:        NewOpener(),
 		catalogLoader: LoadCatalog,
@@ -347,6 +364,7 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 	// home and performs no read until the panel runs an explicit request.
 	app.fleet.SetDoctor(AppOpsFleetDoctor{})
 	app.activity.SetSize(app.childContentWidth(), app.childBodyHeight())
+	app.guide.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.applyTheme(theme)
 	return app
 }
@@ -360,6 +378,7 @@ func (a *App) applyTheme(theme Theme) {
 	a.fleet.SetTheme(theme)
 	a.mcp.SetTheme(theme)
 	a.activity.SetTheme(theme)
+	a.guide.SetTheme(theme)
 	a.catalogModel.SetTheme(theme)
 	if a.onboarding != nil {
 		a.onboarding.SetTheme(theme)
@@ -499,6 +518,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.fleet.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.mcp.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.activity.SetSize(a.childContentWidth(), a.childBodyHeight())
+		a.guide.SetSize(a.childContentWidth(), a.childBodyHeight())
 		if a.onboarding != nil {
 			a.onboarding.SetSize(a.childContentWidth(), a.childBodyHeight())
 		}
@@ -713,7 +733,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Filter text input precedence: Explore's search input must consume all
-	// printable characters (including q, j, k, m, u, 1-4).
+	// printable characters (including q, j, k, m, u, 1-5).
 	if a.activeRoute == RouteExplore && a.catalogModel.IsFiltering() {
 		var cmd tea.Cmd
 		updated, cmd := a.catalogModel.Update(msg)
@@ -788,7 +808,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Fleet Manager owns a few printable keys that collide with global shell
 	// toggles. Route them to the Fleet model before the global switch so the
 	// deployment review, model picker and view tabs are reachable. Route jumps
-	// (1-4), quit, help and Tab keep their global meaning.
+	// (1-5), quit, help and Tab keep their global meaning.
 	if a.activeRoute == RouteInstall && a.installSection == installSectionFleet && !a.fleet.IsInputFocused() {
 		switch key {
 		case "c", "C":
@@ -860,6 +880,8 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a.switchRoute(2)
 	case "4":
 		return a.switchRoute(3)
+	case "5":
+		return a.switchRoute(4)
 	case "pgdown", "pagedown", "ctrl+d":
 		if a.activeRoute == RouteExplore {
 			a.detailScroll += 4
@@ -934,6 +956,11 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "a":
 			return *a, a.openLinkCmd(LinkAuthor)
 		}
+	}
+
+	// Guide keeps g for the explicit online README from either focus pane.
+	if a.activeRoute == RouteGuide && key == "g" {
+		return *a, a.openLinkCmd(LinkReadme)
 	}
 
 	// The hub's explicit shortcuts work from navigation focus too.
@@ -1042,6 +1069,9 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case RouteActivity:
 		return a.handleActivityRouteKey(msg)
+
+	case RouteGuide:
+		return a.handleGuideRouteKey(msg)
 	}
 
 	return *a, nil
@@ -1251,6 +1281,8 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 	if index < 0 || index >= len(a.routes) {
 		return *a, nil
 	}
+	// Ordinary route navigation clears any pending return-to-Guide origin.
+	a.guideReturn = false
 	// A zero-change preview is read-only and never grants consent. Leaving the
 	// install preview discards it, so returning later needs a fresh preview.
 	if a.activeRoute == RouteInstall && a.routes[index].Route != RouteInstall &&
@@ -1258,6 +1290,9 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 		a.install.invalidateConfirmation()
 	}
 	a.navIndex = index
+	if a.routeScroll == nil {
+		a.routeScroll = make(map[Route]int)
+	}
 	a.routeScroll[a.activeRoute] = a.contentScroll
 	a.activeRoute = a.routes[index].Route
 	a.focus = FocusContent
@@ -1286,15 +1321,22 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 		a.fleet.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.mcp.SetSize(a.childContentWidth(), a.childBodyHeight())
 	}
+	if a.activeRoute == RouteGuide {
+		a.guide.SetSize(a.childContentWidth(), a.childBodyHeight())
+	}
 	if len(cmds) == 0 {
 		return *a, nil
 	}
 	return *a, tea.Batch(cmds...)
 }
 
-// OpenRecovery navigates directly to the recovery (backups) screen without creating a fifth route.
+// OpenRecovery navigates directly to the recovery (backups) screen.
 func (a *App) OpenRecovery() tea.Cmd {
+	a.guideReturn = false
 	a.navIndex = 1
+	if a.routeScroll == nil {
+		a.routeScroll = make(map[Route]int)
+	}
 	a.routeScroll[a.activeRoute] = a.contentScroll
 	a.activeRoute = RouteInstall
 	a.focus = FocusContent
@@ -1423,6 +1465,10 @@ func (a App) getContentLines(width int) []string {
 			lines = a.installRouteLines(width)
 		case RouteActivity:
 			lines = a.activityRouteLines(width)
+		case RouteGuide:
+			lines = a.guideRouteLines(width)
+		default:
+			lines = a.homeLines(width)
 		}
 	}
 

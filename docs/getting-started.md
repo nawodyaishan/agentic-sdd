@@ -7,13 +7,13 @@ do not authorize work in this checkout.
 
 ## First five minutes: preview, then stop
 
-With the CLI already installed, run `agentic-sdd version` and
-`agentic-sdd preview`. Preview reads the selected installation but does not
+With the CLI already installed, run `asdx-core version` and
+`asdx-core preview`. Preview reads the selected installation but does not
 install skills or create an apply log. Review the destinations and proposed changes.
 See the [support matrix](../README.md#support-and-release-scope) for platforms,
 published artifacts and exclusions; installation is not cross-client certification.
 
-On an interactive terminal, `agentic-sdd guide` walks through the same
+On an interactive terminal, `asdx-core guide` walks through the same
 preview-first flow step by step with numbered prompts; see
 [guided CLI journeys](guide-flows.md) for its screens, journeys, and optional
 flow trace.

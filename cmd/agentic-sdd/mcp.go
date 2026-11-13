@@ -49,19 +49,19 @@ var (
 )
 
 func printMCPUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd mcp [status] [--home PATH] [--config PATH] [--project PATH] [--json]
-       agentic-sdd mcp doctor [--home PATH] [--config PATH] [--project PATH]
+	fmt.Fprint(out, `Usage: asdx-core mcp [status] [--home PATH] [--config PATH] [--project PATH] [--json]
+       asdx-core mcp doctor [--home PATH] [--config PATH] [--project PATH]
                               [--opencode-bin PATH] [--codegraph-bin PATH] [--json]
-       agentic-sdd mcp preview [--servers NAME,...] [--auth SERVER=MODE]
+       asdx-core mcp preview [--servers NAME,...] [--auth SERVER=MODE]
                                [--home PATH] [--config PATH] [--json]
-       agentic-sdd mcp apply --expect-config SHA256 [--opencode-bin PATH]
+       asdx-core mcp apply --expect-config SHA256 [--opencode-bin PATH]
                              [--servers NAME,...] [--auth SERVER=MODE]
                              [--home PATH] [--config PATH] [--json]
-       agentic-sdd mcp restore list [--home PATH] [--json]
-       agentic-sdd mcp restore preview ID [--home PATH] [--config PATH] [--json]
-       agentic-sdd mcp restore apply ID --expect-config SHA256
+       asdx-core mcp restore list [--home PATH] [--json]
+       asdx-core mcp restore preview ID [--home PATH] [--config PATH] [--json]
+       asdx-core mcp restore apply ID --expect-config SHA256
                                   [--home PATH] [--config PATH] [--json]
-       agentic-sdd mcp help
+       asdx-core mcp help
 
 Commands:
   status   Report the OpenCode MCP configuration target and the three default
@@ -76,6 +76,8 @@ Commands:
   restore  list, preview or apply an entry-level restore of managed entries
            only. Whole-file restore is not part of this build.
   help     Show this help.
+
+Legacy note: "agentic-sdd" wraps "asdx-core" during the deprecation window.
 
 Scope of this build (MCP-A + MCP-B):
   MCP-A status, offline doctor and preview stay read-only. MCP-B adds apply and
@@ -105,7 +107,7 @@ Exit Codes:
 }
 
 func printMCPStatusUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd mcp [status] [--home PATH] [--config PATH] [--project PATH] [--json]
+	fmt.Fprint(out, `Usage: asdx-core mcp [status] [--home PATH] [--config PATH] [--project PATH] [--json]
 
 Report the OpenCode MCP configuration target and the three default servers
 (read-only, offline).
@@ -119,7 +121,7 @@ Flags:
 }
 
 func printMCPDoctorUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd mcp doctor [--home PATH] [--config PATH] [--project PATH]
+	fmt.Fprint(out, `Usage: asdx-core mcp doctor [--home PATH] [--config PATH] [--project PATH]
                        [--opencode-bin PATH] [--codegraph-bin PATH] [--json]
 
 Offline diagnostics for the OpenCode MCP configuration and prerequisites.
@@ -138,7 +140,7 @@ Flags:
 }
 
 func printMCPPreviewUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd mcp preview [--servers NAME,...] [--auth SERVER=MODE]
+	fmt.Fprint(out, `Usage: asdx-core mcp preview [--servers NAME,...] [--auth SERVER=MODE]
                               [--home PATH] [--config PATH] [--json]
 
 Print the structured MCP configuration plan: the exact target, base and plan
@@ -195,7 +197,7 @@ type mcpFlags struct {
 }
 
 func newMCPFlagSet(name string, common *mcpFlags) *flag.FlagSet {
-	fs := flag.NewFlagSet("agentic-sdd mcp "+name, flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" mcp "+name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&common.home, "home", "", "user home directory")
 	fs.StringVar(&common.config, "config", "", "OpenCode configuration file to inspect")
@@ -213,7 +215,7 @@ func parseMCPFlags(fs *flag.FlagSet, args []string, usage func(io.Writer), stdou
 			return false, 0
 		}
 		fmt.Fprintln(stderr, "error:", err)
-		fmt.Fprintln(stderr, "note: run \"agentic-sdd mcp help\" for the accepted flags")
+		fmt.Fprintf(stderr, "note: run %q for the accepted flags\n", canonicalCLIName+" mcp help")
 		return false, 2
 	}
 	if fs.NArg() != 0 {
@@ -309,7 +311,7 @@ func runMCPDoctor(args []string, stdout, stderr io.Writer, env *Env) int {
 		}
 	})
 	if deferred != "" {
-		fmt.Fprintf(stderr, "error: agentic-sdd mcp doctor %s is not available in this build; network and connection checks are deferred out of MCP-A\n", deferred)
+		fmt.Fprintf(stderr, "error: %s mcp doctor %s is not available in this build; network and connection checks are deferred out of MCP-A\n", canonicalCLIName, deferred)
 		fmt.Fprintln(stderr, "note: ordinary doctor is offline and executes no binary")
 		printMCPDoctorUsage(stderr)
 		return 2

@@ -43,11 +43,11 @@ func runFleetDoctorReport(configPath, opencodeBin string, stdout, stderr io.Writ
 // envHintDoctor keeps the validation error actionable without echoing config
 // content (NFR-08). It is a plain line so non-TTY output stays deterministic.
 func envHintDoctor(stderr io.Writer) {
-	fmt.Fprintln(stderr, "note: fleet doctor reads only the --config file you passed; see agentic-sdd help fleet")
+	fmt.Fprintln(stderr, "note: fleet doctor reads only the --config file you passed; see asdx-core help fleet")
 }
 
 func printFleetDoctorReport(out io.Writer, rep fleet.DoctorReport) {
-	fmt.Fprintln(out, "fleet doctor — offline diagnostics (agentic-sdd performs no network or model calls)")
+	fmt.Fprintln(out, "fleet doctor — offline diagnostics (asdx-core performs no network or model calls)")
 	if rep.Offline {
 		fmt.Fprintln(out, `mode: offline default — no local tool was inspected; every label is "not checked (offline)"`)
 	} else {

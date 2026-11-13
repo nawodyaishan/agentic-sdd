@@ -1,11 +1,11 @@
 # Fleet Manager in the terminal UI
 
 The Fleet Manager is the agent-profile surface inside the packaged terminal UI
-(`agentic-sdd tui`). It shows the instances configured in one personal
+(`asdx`). It shows the instances configured in one personal
 `fleet.json`, stages model changes, previews the managed OpenCode agent files
 that would change, and lists managed backups for restore.
 
-It is a UI over the same rules as the `agentic-sdd fleet` CLI. It reads no
+It is a UI over the same rules as the `asdx-core fleet` CLI. It reads no
 credentials, invokes no model, makes no provider or network call, and makes no
 authentication, entitlement or runtime claim. Nothing here is a screenshot or a
 recorded run: the wording below describes behavior and keys in the current
@@ -21,7 +21,7 @@ capability that this build does not ship.
 inheritance is a CLI/editor operation in v1 (L-03); the in-app picker accepts
 exact replacement model values, but removing an override key requires editing
 `fleet.json` directly. Also note that `--fleet-config PATH` can preselect the
-source at launch (`agentic-sdd tui --fleet-config PATH`) without manual path entry.
+source at launch (`asdx --fleet-config PATH`) without manual path entry.
 
 ## Where it lives
 
@@ -48,8 +48,8 @@ clones a repository or contacts a Git host.
    a non-regular file or an unsupported path is refused rather than followed.
 2. **Just look.** Read the **Fleet Manager** topic in Activity & Help, or this
    guide. Both are read-only and create nothing.
-3. **Prefer the CLI.** Run `agentic-sdd help fleet`, then
-   `agentic-sdd fleet status --config PATH` to inspect the same source without
+3. **Prefer the CLI.** Run `asdx-core help fleet`, then
+   `asdx-core fleet status --config PATH` to inspect the same source without
    the UI.
 
 The selected source is a session choice. It is not written to a preference file,
@@ -114,12 +114,12 @@ and the next session starts with no source until you choose one again.
 ## CLI equivalents and further reading
 
 ```sh
-agentic-sdd fleet status  --config PATH   # read-only source and instance state
-agentic-sdd fleet plan    --config PATH   # preview the managed-file changes
-agentic-sdd fleet apply   --plan PATH     # apply a reviewed plan (separate authorization)
-agentic-sdd fleet restore --backup ID     # preview a managed-backup restore
-agentic-sdd fleet doctor  --config PATH   # opt-in local-only model-route diagnostics
-agentic-sdd help fleet                    # the CLI reference for these commands
+asdx-core fleet status  --config PATH   # read-only source and instance state
+asdx-core fleet plan    --config PATH   # preview the managed-file changes
+asdx-core fleet apply   --plan PATH     # apply a reviewed plan (separate authorization)
+asdx-core fleet restore --backup ID     # preview a managed-backup restore
+asdx-core fleet doctor  --config PATH   # opt-in local-only model-route diagnostics
+asdx-core help fleet                    # the CLI reference for these commands
 ```
 
 - [Fleet profiles worked guide](../specs/014-agent-fleet-model-overrides/fleet-worked-guide.md)

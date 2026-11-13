@@ -549,7 +549,7 @@ func TestMCPWriteApplyStaleDigestRefused(t *testing.T) {
 	}
 	for _, want := range []string{
 		"error: stale plan: --expect-config sha256:stale0000 does not match the current configuration digest " + mcpWriteBaseDigest,
-		"nothing was written; run \"agentic-sdd mcp preview\" and apply the digest it prints",
+		"nothing was written; run \"asdx-core mcp preview\" and apply the digest it prints",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("stderr %q does not contain %q", stderr, want)
@@ -778,7 +778,7 @@ func TestMCPWriteApplyEngineFailures(t *testing.T) {
 			name:     "stale after preview",
 			applyErr: fmt.Errorf("%w: the target changed", skillsync.ErrMCPStale),
 			code:     1,
-			wantErr:  []string{"MCP configuration changed since preview", "run \"agentic-sdd mcp preview\" again and review the new digest"},
+			wantErr:  []string{"MCP configuration changed since preview", "run \"asdx-core mcp preview\" again and review the new digest"},
 		},
 		{
 			name:     "needs a fresh preview",
@@ -802,7 +802,7 @@ func TestMCPWriteApplyEngineFailures(t *testing.T) {
 			name:     "runtime failure",
 			applyErr: errors.New("disk full"),
 			code:     1,
-			wantErr:  []string{"error: disk full", "re-run \"agentic-sdd mcp preview\" before retrying"},
+			wantErr:  []string{"error: disk full", "re-run \"asdx-core mcp preview\" before retrying"},
 		},
 		{
 			name:    "unsafe target before planning",
@@ -902,13 +902,13 @@ func TestMCPWriteUsageErrors(t *testing.T) {
 			name:    "apply unknown flag",
 			args:    []string{"mcp", "apply", "--bogus"},
 			code:    2,
-			wantErr: []string{"flag provided but not defined: -bogus", `run "agentic-sdd mcp help"`},
+			wantErr: []string{"flag provided but not defined: -bogus", `run "asdx-core mcp help"`},
 		},
 		{
 			name:    "apply help",
 			args:    []string{"mcp", "apply", "--help"},
 			code:    0,
-			wantOut: []string{"Usage: agentic-sdd mcp apply", "--expect-config SHA256"},
+			wantOut: []string{"Usage: asdx-core mcp apply", "--expect-config SHA256"},
 		},
 		{
 			name:    "apply empty server list",
@@ -926,13 +926,13 @@ func TestMCPWriteUsageErrors(t *testing.T) {
 			name:    "restore unknown subcommand",
 			args:    []string{"mcp", "restore", "bogus"},
 			code:    2,
-			wantErr: []string{`error: unknown mcp restore command "bogus"`, "Usage: agentic-sdd mcp restore"},
+			wantErr: []string{`error: unknown mcp restore command "bogus"`, "Usage: asdx-core mcp restore"},
 		},
 		{
 			name:    "restore help",
 			args:    []string{"mcp", "restore", "help"},
 			code:    0,
-			wantOut: []string{"Usage: agentic-sdd mcp restore", "restore apply ID --expect-config"},
+			wantOut: []string{"Usage: asdx-core mcp restore", "restore apply ID --expect-config"},
 		},
 		{
 			name:    "restore preview without id",
@@ -1254,7 +1254,7 @@ func TestMCPWriteRestoreApplyStaleDigest(t *testing.T) {
 	}
 	for _, want := range []string{
 		"error: stale restore: --expect-config sha256:stale0000 does not match the current configuration digest " + mcpWriteBaseDigest,
-		"run \"agentic-sdd mcp restore preview\" again and review the new digest",
+		"run \"asdx-core mcp restore preview\" again and review the new digest",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("stderr %q does not contain %q", stderr, want)

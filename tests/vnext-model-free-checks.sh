@@ -11,12 +11,12 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 REPO=${REPO_ROOT:-$(CDPATH= cd -- "$script_dir/.." && pwd -P)}
 if [ -n "${AGENTIC_SDD:-}" ]; then
   CLI=$AGENTIC_SDD
-elif [ -x "$REPO/bin/agentic-sdd" ]; then
-  CLI=$REPO/bin/agentic-sdd
-elif command -v agentic-sdd >/dev/null 2>&1; then
-  CLI=agentic-sdd
+elif [ -x "$REPO/bin/asdx-core" ]; then
+  CLI=$REPO/bin/asdx-core
+elif command -v asdx-core >/dev/null 2>&1; then
+  CLI=asdx-core
 else
-  printf 'FAIL setup: no agentic-sdd binary; run task build\n'
+  printf 'FAIL setup: no asdx-core binary; run task build\n'
   exit 1
 fi
 base=$(mktemp -d "${TMPDIR:-/tmp}/sdd-qa.XXXXXX") || { printf 'FAIL setup: cannot create temp dir\n'; exit 1; }
@@ -39,7 +39,7 @@ mkdir -p "$W" || { printf 'FAIL setup: cannot create %s\n' "$W"; exit 1; }
 if "$CLI" version >/tmp/qa-version 2>&1; then
   ok cli-version
 else
-  bad cli-version "agentic-sdd version failed"
+  bad cli-version "asdx-core version failed"
 fi
 
 # 2. OpenCode availability (mounted read-only by the recipe)

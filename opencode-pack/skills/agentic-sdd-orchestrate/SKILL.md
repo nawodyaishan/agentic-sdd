@@ -31,7 +31,7 @@ Never delegate merely because another agent exists or a free model is offered. P
 
 ## 4. Execution context commands
 
-The `agentic-sdd` CLI can prepare and record execution context locally. It calls no model, approves nothing and is not a sandbox; read the exact flags with `agentic-sdd help run`, `help task` and `help review`.
+The `asdx-core` CLI can prepare and record execution context locally. It calls no model, approves nothing and is not a sandbox; read the exact flags with `asdx-core help run`, `help task` and `help review`.
 
 | Command | Use when | What it leaves behind |
 |---|---|---|

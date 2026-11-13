@@ -204,7 +204,7 @@ type mcpWriteFlags struct {
 }
 
 func newMCPWriteFlagSet(name string, common *mcpFlags) *flag.FlagSet {
-	fs := flag.NewFlagSet("agentic-sdd mcp "+name, flag.ContinueOnError)
+	fs := flag.NewFlagSet(canonicalCLIName+" mcp "+name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&common.home, "home", "", "user home directory")
 	fs.StringVar(&common.config, "config", "", "OpenCode configuration file to inspect")
@@ -224,7 +224,7 @@ func parseMCPWriteArgs(fs *flag.FlagSet, args []string, usage func(io.Writer), a
 				return "", 0, false
 			}
 			fmt.Fprintln(stderr, "error:", err)
-			fmt.Fprintln(stderr, "note: run \"agentic-sdd mcp help\" for the accepted flags")
+			fmt.Fprintf(stderr, "note: run %q for the accepted flags\n", canonicalCLIName+" mcp help")
 			return "", 2, false
 		}
 		rest := fs.Args()
@@ -277,7 +277,7 @@ func mcpWriteErrorCode(err error) int {
 func mcpWriteFailureNote(stderr io.Writer, err error) {
 	switch {
 	case errors.Is(err, appops.ErrNeedsPreview), errors.Is(err, skillsync.ErrMCPStale):
-		fmt.Fprintln(stderr, "note: nothing was written; run \"agentic-sdd mcp preview\" again and review the new digest")
+		fmt.Fprintf(stderr, "note: nothing was written; run %q again and review the new digest\n", canonicalCLIName+" mcp preview")
 	case errors.Is(err, skillsync.ErrMCPConflict):
 		fmt.Fprintln(stderr, "note: nothing was overwritten; v1 has no replace or adopt option")
 	case errors.Is(err, skillsync.ErrMCPUnsafeTarget):
@@ -285,9 +285,9 @@ func mcpWriteFailureNote(stderr io.Writer, err error) {
 	case errors.Is(err, skillsync.ErrMCPUnsupported):
 		fmt.Fprintln(stderr, "note: nothing was written; this build refuses edits it cannot prove safe")
 	case errors.Is(err, skillsync.ErrMCPUsage):
-		fmt.Fprintln(stderr, "note: correct the request and run \"agentic-sdd mcp help\" for the accepted values")
+		fmt.Fprintf(stderr, "note: correct the request and run %q for the accepted values\n", canonicalCLIName+" mcp help")
 	default:
-		fmt.Fprintln(stderr, "note: re-run \"agentic-sdd mcp preview\" before retrying")
+		fmt.Fprintf(stderr, "note: re-run %q before retrying\n", canonicalCLIName+" mcp preview")
 	}
 }
 
@@ -307,7 +307,7 @@ func runMCPApply(args []string, stdout, stderr io.Writer, env *Env) int {
 	}
 	if strings.TrimSpace(flags.expectConfig) == "" {
 		fmt.Fprintln(stderr, "error: mcp apply requires --expect-config with the base digest preview printed")
-		fmt.Fprintln(stderr, "note: run \"agentic-sdd mcp preview\" first; an empty or missing digest never applies")
+		fmt.Fprintf(stderr, "note: run %q first; an empty or missing digest never applies\n", canonicalCLIName+" mcp preview")
 		return 2
 	}
 	selected, code := splitOptionalServers(flags.servers, stderr)
@@ -376,12 +376,12 @@ func refuseUnapplicablePlan(stderr io.Writer, plan skillsync.MCPPlan, expect str
 	}
 	if strings.TrimSpace(plan.TargetPath) == "" || strings.TrimSpace(plan.BaseDigest) == "" {
 		fmt.Fprintln(stderr, "error: mcp apply refused: no existing global OpenCode configuration target")
-		fmt.Fprintln(stderr, "note: v1 never creates a configuration; add the snippet from \"agentic-sdd mcp preview\" manually, then preview again")
+		fmt.Fprintf(stderr, "note: v1 never creates a configuration; add the snippet from %q manually, then preview again\n", canonicalCLIName+" mcp preview")
 		return 1
 	}
 	if expect != plan.BaseDigest {
 		fmt.Fprintf(stderr, "error: stale plan: --expect-config %s does not match the current configuration digest %s\n", expect, plan.BaseDigest)
-		fmt.Fprintln(stderr, "note: nothing was written; run \"agentic-sdd mcp preview\" and apply the digest it prints")
+		fmt.Fprintf(stderr, "note: nothing was written; run %q and apply the digest it prints\n", canonicalCLIName+" mcp preview")
 		return 1
 	}
 	return 0
@@ -453,7 +453,7 @@ func runMCPRestorePreviewCommand(args []string, stdout, stderr io.Writer, env *E
 	}
 	if id == "" {
 		fmt.Fprintln(stderr, "error: mcp restore preview requires a backup id")
-		fmt.Fprintln(stderr, "note: list them with \"agentic-sdd mcp restore list\"")
+		fmt.Fprintf(stderr, "note: list them with %q\n", canonicalCLIName+" mcp restore list")
 		return 2
 	}
 
@@ -499,12 +499,12 @@ func runMCPRestoreApply(args []string, stdout, stderr io.Writer, env *Env) int {
 	}
 	if id == "" {
 		fmt.Fprintln(stderr, "error: mcp restore apply requires a backup id")
-		fmt.Fprintln(stderr, "note: list them with \"agentic-sdd mcp restore list\"")
+		fmt.Fprintf(stderr, "note: list them with %q\n", canonicalCLIName+" mcp restore list")
 		return 2
 	}
 	if strings.TrimSpace(flags.expectConfig) == "" {
 		fmt.Fprintln(stderr, "error: mcp restore apply requires --expect-config with the digest restore preview printed")
-		fmt.Fprintln(stderr, "note: run \"agentic-sdd mcp restore preview\" first; a missing digest never restores")
+		fmt.Fprintf(stderr, "note: run %q first; a missing digest never restores\n", canonicalCLIName+" mcp restore preview")
 		return 2
 	}
 
@@ -578,12 +578,12 @@ func refuseUnapplicableRestore(stderr io.Writer, preview skillsync.MCPRestorePre
 	}
 	if strings.TrimSpace(preview.TargetPath) == "" || strings.TrimSpace(preview.BaseDigest) == "" {
 		fmt.Fprintln(stderr, "error: mcp restore apply refused: the recorded target is not an existing OpenCode configuration")
-		fmt.Fprintln(stderr, "note: v1 never re-creates a missing configuration; review \"agentic-sdd mcp status\" first")
+		fmt.Fprintf(stderr, "note: v1 never re-creates a missing configuration; review %q first\n", canonicalCLIName+" mcp status")
 		return 1
 	}
 	if expect != preview.BaseDigest {
 		fmt.Fprintf(stderr, "error: stale restore: --expect-config %s does not match the current configuration digest %s\n", expect, preview.BaseDigest)
-		fmt.Fprintln(stderr, "note: nothing was written; run \"agentic-sdd mcp restore preview\" again and review the new digest")
+		fmt.Fprintf(stderr, "note: nothing was written; run %q again and review the new digest\n", canonicalCLIName+" mcp restore preview")
 		return 1
 	}
 	return 0
@@ -616,7 +616,7 @@ func confirmMCPRestore(stdout io.Writer, env *Env, preview skillsync.MCPRestoreP
 // --- usage ----------------------------------------------------------------
 
 func printMCPApplyUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd mcp apply --expect-config SHA256 [--opencode-bin PATH]
+	fmt.Fprint(out, `Usage: asdx-core mcp apply --expect-config SHA256 [--opencode-bin PATH]
                              [--servers NAME,...] [--auth SERVER=MODE]
                              [--home PATH] [--config PATH] [--json]
 
@@ -642,9 +642,9 @@ Exit codes: 2 usage or validation, 1 stale/conflict/unsupported/runtime,
 }
 
 func printMCPRestoreUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd mcp restore list [--home PATH] [--json]
-       agentic-sdd mcp restore preview ID [--home PATH] [--config PATH] [--json]
-       agentic-sdd mcp restore apply ID --expect-config SHA256
+	fmt.Fprint(out, `Usage: asdx-core mcp restore list [--home PATH] [--json]
+       asdx-core mcp restore preview ID [--home PATH] [--config PATH] [--json]
+       asdx-core mcp restore apply ID --expect-config SHA256
                                   [--home PATH] [--config PATH] [--json]
 
 Restore only the managed MCP entries recorded in this tool's ownership manifest.

@@ -273,14 +273,22 @@ func TestActivity_VersionAndHelpMetadata(t *testing.T) {
 	}
 
 	// Commands
+	if !strings.Contains(joined, "asdx") {
+		t.Errorf("Missing canonical TUI command asdx")
+	}
 	for _, cmd := range []string{"preview", "apply", "backups", "restore", "logs", "version", "guide", "tui"} {
-		if !strings.Contains(joined, "agentic-sdd "+cmd) {
+		if !strings.Contains(joined, "asdx-core "+cmd) {
 			t.Errorf("Missing CLI command reference for %s", cmd)
+		}
+	}
+	for _, legacy := range []string{"agentic-sdd ...", "agentic-sdd-tui", "~/.agentic-sdd/"} {
+		if !strings.Contains(joined, legacy) {
+			t.Errorf("Missing legacy migration reference %q", legacy)
 		}
 	}
 
 	// Shortcuts
-	for _, key := range []string{"Tab", "1 - 4", "Enter", "b / Esc", "/", "r", "q / Ctrl+C"} {
+	for _, key := range []string{"Tab", "1 - 5", "Enter", "b / Esc", "g", "/", "r", "q / Ctrl+C"} {
 		if !strings.Contains(joined, key) {
 			t.Errorf("Missing navigation shortcut %s", key)
 		}

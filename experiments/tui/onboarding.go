@@ -46,7 +46,7 @@ func PostSetupBody() []string {
 		"",
 		"Next steps:",
 		"1. Paste the prompt into the agent client of your choice when you are ready.",
-		"2. Inspect installed skills again any time with `agentic-sdd preview` (read-only).",
+		"2. Inspect installed skills again any time with `asdx-core preview` (read-only).",
 		"3. Re-open this " + QuickStartName + " from Home with o; nothing is saved between sessions.",
 		"",
 		"Nothing is copied automatically, and no agent, client, clipboard or browser is started.",
@@ -436,7 +436,7 @@ func (m OnboardingModel) Lines(width int) []string {
 		lines = append(lines, m.section("You're ready",
 			QuickStartName+" complete. Copy the first prompt below into your agent of choice.\n"+
 				"Nothing is copied automatically and no agent is started. Select the text and copy it yourself.\n"+
-				"Next steps: inspect installed skills with `agentic-sdd preview`, then run `agentic-sdd-router` when you are ready.\n"+
+				"Next steps: inspect installed skills with `asdx-core preview`, then run `agentic-sdd-router` when you are ready.\n"+
 				"Re-open this "+QuickStartName+" any time from Home with o; nothing is saved between sessions.", width)...)
 		lines = append(lines, "")
 		lines = append(lines, styledParagraph("First prompt:", width, 0, theme.Section.Render)...)

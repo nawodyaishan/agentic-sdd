@@ -209,9 +209,9 @@ func TestStatusBadgeAndHints(t *testing.T) {
 	}
 
 	for origin, want := range map[string]string{
-		skillsync.InventoryOriginCore:   "agentic-sdd preview",
-		skillsync.InventoryOriginPack:   "agentic-sdd preview --with-opencode",
-		skillsync.InventoryOriginPreset: "agentic-sdd preview --with-opencode --opencode-free-first",
+		skillsync.InventoryOriginCore:   "asdx-core preview",
+		skillsync.InventoryOriginPack:   "asdx-core preview --with-opencode",
+		skillsync.InventoryOriginPreset: "asdx-core preview --with-opencode --opencode-free-first",
 	} {
 		if got := (tui.CatalogItem{Origin: origin}).InstallHint(); got != want {
 			t.Errorf("InstallHint(%q) = %q, want %q", origin, got, want)
@@ -270,7 +270,7 @@ func TestCatalogModelNavigation(t *testing.T) {
 		"claude",
 		"Template available (not installed)",
 		"Next action",
-		"agentic-sdd preview",
+		"asdx-core preview",
 		"b / esc back",
 	} {
 		if !strings.Contains(detail, want) {

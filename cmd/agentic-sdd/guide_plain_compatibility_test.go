@@ -25,7 +25,7 @@ What would you like to do?
 	const about = `
 Agentic SDD installs reusable engineering skills for coding agents.
 It writes into four client directories, backs up anything it replaces,
-and can undo an install with "agentic-sdd restore".
+and can undo an install with "asdx-core restore".
 Every action is also a plain command: preview, apply, backups,
 restore, logs. Nothing is written until you confirm.
 

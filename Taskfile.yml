@@ -98,8 +98,8 @@ tasks:
       - GOOS=darwin GOARCH=amd64 go build -trimpath -o bin/sdd-check_darwin_amd64 ./cmd/sdd-check
       - GOOS=darwin GOARCH=arm64 go build -trimpath -o bin/sdd-check_darwin_arm64 ./cmd/sdd-check
   build:
-    desc: Build the CLI for the current platform
-    cmds: [go build -trimpath -o bin/agentic-sdd ./cmd/agentic-sdd]
+    desc: Build the canonical CLI (asdx-core) for the current platform
+    cmds: [go build -trimpath -o bin/asdx-core ./cmd/agentic-sdd]
   verify:
     desc: Run required checks with external evidence
     cmds:

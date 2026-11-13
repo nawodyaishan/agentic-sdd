@@ -239,10 +239,19 @@ func (a App) bodyBudget() int {
 	return h
 }
 
+func (a App) routeTitle(r Route) string {
+	for _, info := range a.routes {
+		if info.Route == r {
+			return info.Title
+		}
+	}
+	return "Home"
+}
+
 // breadcrumbSegments derives the hierarchical navigation breadcrumb for the current screen and stage.
 func (a App) breadcrumbSegments() []string {
 	if a.helpOpen {
-		return []string{a.routes[a.activeRoute].Title, "Help"}
+		return []string{a.routeTitle(a.activeRoute), "Help"}
 	}
 	switch a.activeRoute {
 	case RouteHome:
@@ -293,8 +302,13 @@ func (a App) breadcrumbSegments() []string {
 		return []string{"Explore"}
 	case RouteActivity:
 		return []string{"Activity & Help"}
+	case RouteGuide:
+		if a.onboarding != nil {
+			return []string{"Guide", "Onboarding"}
+		}
+		return []string{"Guide"}
 	default:
-		return []string{a.routes[a.activeRoute].Title}
+		return []string{a.routeTitle(a.activeRoute)}
 	}
 }
 
@@ -521,7 +535,7 @@ func (a App) headerRowCount() int {
 
 func (a App) compactNavigation() string {
 	glyphs := GlyphSet(a.ascii)
-	labels := []string{"1 Home", "2 Install", "3 Explore", "4 Help"}
+	labels := []string{"1 Home", "2 Install", "3 Explore", "4 Help", "5 Guide"}
 	rendered := make([]string, len(labels))
 	for i, label := range labels {
 		if i == a.navIndex {
@@ -545,7 +559,7 @@ func (a App) compactNavigation() string {
 
 func (a App) sidebarNavigation(width int) []string {
 	glyphs := GlyphSet(a.ascii)
-	labels := []string{"1 Home", "2 Install", "3 Explore", "4 Help"}
+	labels := []string{"1 Home", "2 Install", "3 Explore", "4 Help", "5 Guide"}
 	rows := make([]string, len(labels))
 	for i, label := range labels {
 		if i == a.navIndex {
@@ -700,6 +714,7 @@ func (a App) displayCopy() App {
 	a.inventoryErr = escapeData(a.inventoryErr)
 	a.install.cfg.ASCII = true
 	a.restore.cfg.ASCII = true
+	a.guide.cfg.ASCII = true
 	a.catalogModel.cfg.ASCII = true
 	a.catalogModel.catalog.Notices = append([]string(nil), a.catalogModel.catalog.Notices...)
 	for i := range a.catalogModel.catalog.Notices {

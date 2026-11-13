@@ -85,11 +85,28 @@ func runTaskBrief(args []string, stdout, stderr io.Writer) int {
 }
 
 func printTaskUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd task brief --run ID --task T01 [--force] [--repo DIR] [--run-root DIR] [--format text|json]
-       agentic-sdd task help
+	fmt.Fprint(out, `Usage: asdx-core task brief --run ID --task T01 [--force] [--repo DIR] [--run-root DIR] [--format text|json]
+       asdx-core task help
 
-Extracts exactly one task section from the run's canonical tasks.md, with its
-acceptance references and source digests, into briefs/<task>.md. It fails
-closed on a missing, duplicate or ambiguous task and invents no requirement.
+Extracts exactly one task section from the owning run's canonical tasks.md,
+with its acceptance references and source digests, into briefs/<task>.md under
+the per-run writer lock. It fails closed on a missing, duplicate or ambiguous
+task and invents no requirement.
+
+Rules and recovery (Feature 017):
+- Owning run required: the target run must exist and its checkpoint must match
+  that run ID and source scope (a foreign checkpoint conflicts, exit 2).
+- Direct-scope refusal: runs created with --direct do not support task briefs
+  and fail closed (exit 2).
+- Brief registration and digest recovery: creation records the brief path and
+  digest in checkpoint.json while preserving existing task state and check,
+  claim and blocker history. Re-issuing task brief registers a byte-identical
+  unregistered brief after source/run validation; differing bytes require
+  --force (--force never bypasses a changed source scope).
+- Observation only: a brief, check or record is an observation, never human
+  approval, verification or batch completion.
+
+Legacy note: "agentic-sdd" wraps "asdx-core" during the deprecation window.
+Use "asdx-core help task" for the topic summary.
 `)
 }
