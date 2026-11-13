@@ -40,6 +40,10 @@ specifications, evidence and handovers continue to work.
   orchestration pack (`opencode-pack/`), delegation skill, and model routing.
 - [Public support and release scope](../README.md#support-and-release-scope) —
   portable skills, installer, source-only checks and unsupported native experiments.
+- [Snap and Ubuntu release report](snap-ubuntu-release-report.md) — research on
+  whether `agentic-sdd` can ship as a Snap (strict, `personal-files` or classic)
+  and why a `.deb` plus Linux tarball is the recommended Ubuntu channel. It is a
+  report, not a release decision or approval.
 - [Feature 008 approval](../specs/008-core-release-quality/spec.md#approval),
   [batch continuation](../specs/008-core-release-quality/tasks.md#continuation-record),
   and [working release inventory](../specs/008-core-release-quality/release-readiness.md) —
