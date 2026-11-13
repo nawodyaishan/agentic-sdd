@@ -1,7 +1,7 @@
-# Feature 015 — Tasks (r1 approved 2026-11-12; MCP amendment pending approval)
+# Feature 015 — Tasks (r1 approved 2026-11-12; MCP-A–D implemented, awaiting review)
 
-**Parents:** [`spec.md`](spec.md) (draft r1; MCP amendment r1 pending) + [`plan.md`](plan.md) (draft r1; §8 MCP amendment pending).
-**Approval:** Combined spec/plan/tasks **approved by owner on 2026-11-12**: “3 docs approved / update task batches docs in a way to use maximum parallel implement sub agents using free models deepseek high gemini flash / and start the work”. Wave 1 lanes W1-A, W1-B and W1-C are authorized. B4 design is approved but its source-write implementation remains separately gated. No real-home, private-Git, model/network, package-install, release or 014-gate override is authorized. **MCP-A (T26–T30) was implemented 2026-11-12 and is `awaiting human review`.** **MCP-B–MCP-D are authorized 2026-11-12 for parallel implementation**, including MCP-B's write surface against isolated temporary-home fixtures only. No real-home MCP configuration write, network/OAuth, package installation, real-home change or release is authorized.
+**Parents:** [`spec.md`](spec.md) (r1; MCP amendment approved) + [`plan.md`](plan.md) (r1; §8 MCP amendment approved).
+**Approval:** Combined spec/plan/tasks **approved by owner on 2026-11-12**: “3 docs approved / update task batches docs in a way to use maximum parallel implement sub agents using free models deepseek high gemini flash / and start the work”. Wave 1 lanes W1-A, W1-B and W1-C are authorized. B4 design is approved but its source-write implementation remains separately gated. No real-home, private-Git, model/network, package-install, release or 014-gate override is authorized. **MCP-A–MCP-D were implemented 2026-11-12 and are `awaiting human review`.** MCP-B's write surface was exercised only against isolated temporary-home fixtures. No real-home MCP configuration write, network/OAuth, package installation, real-home change or release is authorized.
 **Baseline:** Wave 3 commit `74f568b`; MCP amendment reconciled at `4c2b9bd` (clean tree); Feature 013 accepted/published `v0.8.0`; Feature 014 implemented scope awaiting human/Opus acceptance, batch ledger unchanged; 014 FR-15 adoption deferred; Fleet live capability default `preview`.
 **Execution rule:** one explicitly authorized wave at a time; lanes inside a wave run in parallel only with the file ownership below. Each wave ends `awaiting human review` with a report; the next wave starts only after integration and review.
 **Boundary:** offline isolated-home fixtures only (`t.TempDir`, `GOPROXY=off`, `GOWORK=off`, `GOTOOLCHAIN=local`). No real `~/.config/opencode`, private Git, model call, network, paid inference, trusted-CI adoption, tag, cask/tap push or release. A skip/blocked check is never `pass`.
@@ -223,18 +223,18 @@ Full packet: [`w3-acceptance.md`](w3-acceptance.md).
 
 ---
 
-## MCP integration amendment workstreams (pending approval — not authorized)
+## MCP integration amendment workstreams (implemented — awaiting human review)
 
-> **Status:** the independent reviewer recommends **MCP-A only** now; MCP-B–MCP-D are deferred and no task below is authorized. They do not extend Waves 1–3, do not repurpose B4, and do not authorize code, config writes, package installation, network, OAuth, model calls, real-home changes, commit, tag or release. MCP-A may be developed/tested separately after amendment approval; MCP-B requires a **separate pre-start MCP write-surface authorization**; MCP-C depends on A (and B for write screens); MCP-D depends on A–C. Feature 014 acceptance, Wave 3 review, B4, Fleet live and release remain separate gates.
+> **Status:** MCP-A–MCP-D are implemented and **awaiting human review**. MCP-B's write surface was exercised only against isolated temporary-home fixtures; MCP-C is the TUI fourth child; MCP-D is PTY/docs/evidence. T46 owner walkthrough/macOS remains pending. Feature 014 acceptance, Wave 3 review, B4, Fleet live and release remain separate gates.
 
 ### MCP workstream ledger
 
 | Workstream | Scope | Tasks | Depends on | Owner checkpoint | State |
 |---|---|---|---|---|---|
-| **MCP-A — Read-only foundation** | Metadata, target/config detection, offline status/doctor, read-only static preview, state vocabulary, CLI `status`/`doctor`/`preview` | T26–T30 | **Authorized 2026-11-12**; no write authorization | CP-A after T30 | `awaiting human review — integration green` |
-| **MCP-B — Safe configuration management** | Structured preview/digest, JSONC byte-range merge, ownership manifest, backup, transactional apply/restore, runtime evidence, cross-process lock, failure tests | T31–T37 | **Authorized 2026-11-12**; explicit MCP write-surface authorization recorded | CP-B after T37 | `authorized — parallel implementation` |
-| **MCP-C — TUI experience** | Hub child, Overview, selection, preview, confirmation, diagnostics/recovery, single-write host | T38–T42 | **Authorized 2026-11-12**; MCP-B interfaces | CP-C after T42 | `authorized — parallel implementation` |
-| **MCP-D — Verification and closeout** | Root/nested gates, PTY/headless, offline/temp-home evidence, docs/onboarding, acceptance packet | T43–T46 | **Authorized 2026-11-12**; MCP-A–C | CP-D after T46 | `authorized — parallel implementation` |
+| **MCP-A — Read-only foundation** | Metadata, target/config detection, offline status/doctor, read-only static preview, state vocabulary, CLI `status`/`doctor`/`preview` | T26–T30 | **Implemented 2026-11-12**; no write authorization | CP-A after T30 | `awaiting human review — integration green` |
+| **MCP-B — Safe configuration management** | Structured preview/digest, JSONC refusal/manual snippet, ownership manifest, backup, transactional apply/restore, runtime evidence, cross-process lock, failure tests | T31–T37 | **Implemented 2026-11-12**; explicit MCP write-surface authorization recorded | CP-B after T37 | `awaiting human review — integration green` |
+| **MCP-C — TUI experience** | Hub child, Overview, selection, preview, confirmation, diagnostics/recovery, single-write host | T38–T42 | **Implemented 2026-11-12**; MCP-B interfaces | CP-C after T42 | `awaiting human review — integration green` |
+| **MCP-D — Verification and closeout** | Root/nested gates, PTY/headless, offline/temp-home evidence, docs/onboarding, acceptance packet | T43–T46 | **Implemented 2026-11-12**; owner walkthrough pending | CP-D after T46 | `awaiting human review — PTY/docs green; owner walkthrough pending` |
 
 **Prerequisites and boundaries:** P0 is the default entry point; P1 is opt-in and never implied by `--with-opencode`, an agent pack or opening Fleet Manager; P2 installation is deferred. Global OpenCode configuration is the only v1 target. No `fleet.json` extension, no second permission/fallback registry, no `AGENTS.md` rewrite, no vendor installer and no plaintext credentials. Tests use temporary homes, fake `codegraph`/`opencode` executables and no network/model/package calls.
 
@@ -283,31 +283,32 @@ Full packet: [`w3-acceptance.md`](w3-acceptance.md).
 
 ### MCP-B — Safe configuration management
 
-- [ ] **T31 — Structured `mcp preview` plan/digest/token (`not_started — pending approval`).**
+- [x] **T31 — Structured `mcp preview` plan/digest/token.**
   - Add `internal/skillsync/mcp_config.go` JSON-only structured preview: target/base/plan digest, add/change/leave/conflict/no-op, selected names, auth implications, prereqs, backup/restore effect. Missing target is `not configured` plus a manual snippet, never creation. No write; the token/apply path is added after T33.
   - **Accept:** AC-59, AC-60, AC-63, AC-67; exact target/digest in output.
   - **Verify:** `go test ./internal/skillsync -run 'TestMCPPreview'`.
-- [ ] **T32 — JSONC conservative editor and manual-snippet refusal (`not_started — pending approval`).**
+- [x] **T32 — JSONC conservative editor and manual-snippet refusal.**
   - Add a stdlib scanner/editor that preserves comments/key order/unrelated formatting where ownership of every touched comment/delimiter is proven; byte-range transformation plus atomic replacement only. Refuse otherwise with an exact copyable snippet. Detect duplicate keys, wrong schema, invalid entries, unsupported structural edits, and comment/delimiter ambiguity.
+  - **Implemented:** the refusal/manual-snippet branch is implemented and tested; a lossless JSONC editor is **not** implemented. This satisfies AC-62's refusal branch, not a claim that JSONC apply is writable.
   - **Accept:** AC-61, AC-62, AC-64; no JSON reserialization of `.jsonc`; missing target is not created; structural/comment fixtures pass.
   - **Verify:** `go test ./internal/skillsync -run 'TestMCPJSONC'`; golden comment/format fixtures.
-- [ ] **T33 — Appops MCP preview/apply/restore contract (`not_started — pending approval`).**
+- [x] **T33 — Appops MCP preview/apply/restore contract.**
   - Add `internal/appops/mcp.go` immutable requests/results, `appops-mcp-preview-v1` token, `ErrNeedsPreview`/`ErrStaleConfig`/`ErrMCPConflict`/`ErrMCPUnsafeTarget`/`ErrMCPUnsupported`, stateless reads and write revalidation. No adopt/replace field.
   - **Accept:** AC-52, AC-63, AC-69; token covers target/format/base/plan/selected/entry/auth/runtime evidence/tool version and binds the shared-lock revalidation.
   - **Verify:** `go test ./internal/appops -run 'TestMCP(Preview|Apply|Restore|Token)'`.
-- [ ] **T34 — Transactional `mcp apply` (`not_started — pending approval`).**
+- [x] **T34 — Transactional `mcp apply`.**
   - Add `internal/skillsync/mcp_transaction.go`: shared engine lock covering target + ownership manifest, bounded `opencode --version` evidence (`--opencode-bin` or one resolved executable), durable transaction intent, private backup `<home>/.agentic-sdd/mcp/backups/<stamp>/` (`0700`/`0600`) containing only managed-entry text/range plus metadata, separate ownership manifest, same-directory temp/fsync/rename/fsync-dir, digest CAS, no-op, structural rollback. Refuse literal credentials in managed entries, non-atomic filesystems/unsafe targets.
   - **Accept:** AC-59, AC-60, AC-63, AC-65, AC-66, AC-67; backup/mode/digest/lock/runtime assertions; missing target refused, no creation.
   - **Verify:** `go test ./internal/skillsync -run 'TestMCPApply'`; injected failure tests.
-- [ ] **T35 — Managed restore and ownership (`not_started — pending approval`).**
+- [x] **T35 — Managed restore and ownership.**
   - Add restore list/preview/apply: only managed names, entry-level comparison from managed-entry snapshots, preserve later user edits/unrelated fields, conflict/refusal, exact recovery evidence. Whole-file restore is not part of v1; structural ambiguity refuses with a manual snippet/diff.
   - **Accept:** AC-65, AC-66, AC-68; scenario 42; container/comment/delimiter structural fixtures.
   - **Verify:** `go test ./internal/skillsync -run 'TestMCPRestore'`.
-- [ ] **T36 — Failure-path and negative matrix (`not_started — pending approval`).**
+- [x] **T36 — Failure-path and negative matrix.**
   - Cover malformed JSON, invalid entries, overlapping names, wrong schema, missing binary, disabled server, partial write, stale plan, unsupported runtime, JSONC, symlink/traversal, user-edit restore, cross-process competing writers, and structural recovery at each intent phase. Assert exact bytes/rollback evidence and no false success.
   - **Accept:** AC-59–AC-68, AC-73; negative rows 31–46 plus lock/structural fixtures.
   - **Verify:** `go test ./internal/skillsync ./internal/appops -run 'TestMCP'`.
-- [ ] **T37 — CLI `mcp preview|apply|restore` (`not_started — pending approval`).**
+- [x] **T37 — CLI `mcp preview|apply|restore`.**
   - Add parser/renderers, `--expect-config` empty=2/mismatch=1, explicit-path runtime probe, `--json`, `restore list|preview|apply`, no-TTY script behavior. Existing CLI output unchanged; no `--with-mcp`.
   - **Accept:** AC-53, AC-63, AC-65, AC-68, AC-72; exit/golden tests.
   - **Verify:** `go test ./cmd/agentic-sdd -run 'TestMCP(Preview|Apply|Restore)'`.
@@ -315,23 +316,23 @@ Full packet: [`w3-acceptance.md`](w3-acceptance.md).
 
 ### MCP-C — TUI experience
 
-- [ ] **T38 — Install & Manage hub fourth child and MCP Overview (`not_started — pending approval`).**
+- [x] **T38 — Install & Manage hub fourth child and MCP Overview.**
   - Add `installSectionMCP`, `installHubEntries` fourth entry (`t`; `m` is the global motion toggle and is not used), all `len(entries)` wrap/bounds, Enter/`t` dispatch, breadcrumb/Home/Esc, lazy status load. Overview renders three rows with required fields.
   - **Accept:** AC-51, AC-54, AC-70; hub/Fleet regression tests.
   - **Verify:** `task -t Taskfile.experimental.yml tui:test`.
-- [ ] **T39 — Server selection and preview (`not_started — pending approval`).**
+- [x] **T39 — Server selection and preview.**
   - Add `experiments/tui/mcp.go`/`mcp_screens.go`/`mcp_adapter.go`: checkbox selection, Context7 OAuth/API-key choice, Exa keyless acknowledgement/OAuth/API-key choice, prerequisite warnings, exact target/digest, diff, conflicts, backup/restore effect, scroll/filter, narrow layout.
   - **Accept:** AC-51, AC-59, AC-60, AC-62, AC-70; no filesystem/network in adapter.
   - **Verify:** nested MCP headless tests; responsive 110/80/60 and 8/10/16.
-- [ ] **T40 — Confirmation and single-write host (`not_started — pending approval`).**
+- [x] **T40 — Confirmation and single-write host.**
   - Add `WriteMCPApply`/`WriteMCPRestore`, `MCPWriteRequest`, validation, `home()`/`source()`/`Command`, one slot, pairwise busy refusal vs install/restore/fleet apply/restore (and the source-save seam when enabled). `OpsHost` is process-local; the engine lock covers CLI/TUI concurrency. Confirmation is inline/default-No/focus-trapped; result is real only.
   - **Accept:** AC-65, AC-67, AC-69, AC-71; no optimistic success.
   - **Verify:** `cd experiments/tui && go test ./... -run 'TestOpsHostMCP|TestMCPConfirm'`.
-- [ ] **T41 — Diagnostics and recovery (`not_started — pending approval`).**
+- [x] **T41 — Diagnostics and recovery.**
   - Add contextual diagnostics (CodeGraph missing/index; Context7 auth pending; Exa rate limit; schema mismatch; unmanaged conflict; JSONC; stale plan; failed/rollback) and Recovery backup list/preview/restore. Connection state is `not tested` with CLI guidance; **no active TUI connection test in v1**.
   - **Accept:** AC-56, AC-57, AC-58, AC-66, AC-68, AC-75.
   - **Verify:** nested diagnostics/recovery tests; no-network assertion.
-- [ ] **T42 — Responsive, focus, resize and noninteractive TUI evidence (`not_started — pending approval`).**
+- [x] **T42 — Responsive, focus, resize and noninteractive TUI evidence.**
   - Preserve focus/scroll/selection/view across overlays/back; resize cannot confirm; plain/ASCII/reduced-motion; noninteractive launch keeps CLI semantics; no fifth route. Add the MCP PTY scenario under `tests/tui` and its explicit `Taskfile.experimental.yml` wiring (no default gate change).
   - **Accept:** AC-54, AC-70, AC-71, AC-72; PTY evidence where available.
   - **Verify:** `task -t Taskfile.experimental.yml tui:test`; the new MCP PTY task; `git diff --check`.
@@ -339,23 +340,38 @@ Full packet: [`w3-acceptance.md`](w3-acceptance.md).
 
 ### MCP-D — Verification and closeout
 
-- [ ] **T43 — Root, nested and gate verification (`not_started — pending approval`).**
+- [x] **T43 — Root, nested and gate verification.**
   - Run 10-package core tests/vet, nested tests/vet, golden/CLI/TUI suites, PTY MCP scenarios, `git diff --check`; prove no new root `require`, no new package, no gate skip; 013/014/009 regressions.
   - **Accept:** AC-52, AC-53, AC-54, AC-69, AC-73, AC-74.
   - **Verify:** `task test`, `task vet`, nested `go test`/`go vet`, `tui:test`, `tui:pty-test`, the MCP PTY scenario added by T42, `git diff --check`.
-- [ ] **T44 — Offline/no-network/temp-home evidence and negative matrix (`not_started — pending approval`).**
+- [x] **T44 — Offline/no-network/temp-home evidence and negative matrix.**
   - Record fixture identities, fake binaries, no real home/private Git, no network/model/OAuth/package install; map negative rows 31–46; label static/local/runtime evidence. `--network`/`--connect` remain deferred and `not_run`.
   - **Accept:** AC-52, AC-56–AC-68, AC-73, AC-75.
   - **Verify:** test report with Pass/Fail/Blocked/Not run; `mcp doctor --network`/`--connect` explicitly `not_run`.
-- [ ] **T45 — Documentation and onboarding (`not_started — pending approval`).**
+- [x] **T45 — Documentation and onboarding.**
   - Help topic, MCP Overview copy, beginner journey (discover → select → preview → confirm → restore), manual JSONC snippet, CodeGraph prerequisite/index guidance, Context7/Exa auth/privacy/rate-limit notes, no private paths/secrets, explicit P2 deferral. README/docs only after implementation evidence.
   - **Accept:** AC-51, AC-56, AC-58, AC-75; copy review.
   - **Verify:** help/text fixtures; docs review; no product claim beyond evidence.
-- [ ] **T46 — Paired artifact, macOS where supported, owner walkthrough and packet (`not_started — pending approval`).**
+- [ ] **T46 — Paired artifact, macOS where supported, owner walkthrough and packet.**
   - Paired candidate build/identity, temporary-home owner journey, diagnostics/conflict/restore, platform limitations, completion packet with go/no-go and next human action. No release/tag/cask/tap/real-home.
   - **Accept:** AC-54, AC-70, AC-71, AC-74; whole-amendment evidence.
   - **Verify:** `task -t Taskfile.experimental.yml tui:pair`; manual owner review; `not_run` where unsupported.
   - **Checkpoint CP-D:** owner acceptance and separate release disposition.
+
+### MCP-B/C/D evidence (2026-11-12)
+
+| Lane | Delivered | Verification |
+|---|---|---|
+| **DeepSeek V4.1 Flash high — B engine** | `internal/skillsync/mcp_config.go`, `mcp_transaction.go`, `mcp_plan_types.go`, config/transaction tests; exact-byte JSON plan, V1/JSONC refusal, ownership manifest, entry backups, cross-process lock, runtime probe, apply/restore, transaction intent. | `go test ./internal/skillsync` pass; `-race` pass; `go vet`; injected failure/lock/restore tests. |
+| **Gemini 3.8 Flash High — B appops** | `internal/appops/mcp_write.go`: plan/apply/restore tokens, immutable requests, clone, list, sentinel preservation. | 21 tests pass; full appops pass. |
+| **DeepSeek V4.1 Flash free — B CLI** | `cmd/agentic-sdd/mcp_write.go`: preview/apply/restore, digest/token checks, default-No confirmation, JSON/text, exit codes. | 26 tests pass; fixed a real default-No restore-write defect; full cmd pass. |
+| **Gemini 3.8 Flash High — C TUI** | `experiments/tui/mcp.go`, screens, adapter, app/hub/ops-host wiring, Exa acknowledgement, diagnostics/recovery, help/onboarding. | 14 MCP/TUI tests pass; full nested `tui:test` pass; `tui:mcp-pty` 3/3. |
+| **Muse Spark 1.3 Contributor — D** | `tests/tui/test_mcp_lifecycle.py`, `tui:mcp-pty`, `docs/mcp-tools.md`, README pointer. | PTY 3/3 after fixture/assertion fixes; docs reviewed. |
+| **Parent integration** | Fixed TUI syntax/imports, production appops planner (no fabricated plans), hub/help/activity wiring, backup-root visibility, space key, stale PTY assertions, fleet PTY marker, failure-path overclaims. | `task test`, `task vet`, `tui:test`, `tui:mcp-pty` 3/3, `tui:fleet-pty` 4/4, `tui:pty-test` 10+13, `tui:pair`, `git diff --check`. |
+
+**MCP-B/C/D files:** `internal/skillsync/{mcp_config,mcp_transaction,mcp_plan_types}.go` + tests, `internal/appops/mcp_write.go` + tests, `cmd/agentic-sdd/{mcp,mcp_write}.go` + tests, `experiments/tui/{mcp,mcp_screens,mcp_adapter,mcp_test}.go`, app/hub/ops-host/help/activity edits, `tests/tui/test_mcp_lifecycle.py`, `docs/mcp-tools.md`, README, `Taskfile.experimental.yml`.
+
+**Coverage note:** JSONC apply is deliberately refused with a manual snippet; the lossless byte-range JSONC editor is not implemented. This satisfies AC-62's refusal branch, not a claim that JSONC is writable. `mcp doctor --network`/`--connect` remain deferred/`not_run`. T46's owner walkthrough and macOS check remain pending; paired artifact built but not a release claim.
 
 ### Deferred MCP capabilities (not tasks in this amendment)
 

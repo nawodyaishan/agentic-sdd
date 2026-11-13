@@ -1,7 +1,7 @@
 # Feature 015 — Plan (draft r1, 2026-11-11)
 
-**Parent spec:** [`spec.md`](spec.md) (draft r1, 2026-11-11; MCP amendment r1, 2026-11-12, **pending approval**).
-**Status:** APPROVED r1 (2026-11-12) — combined spec/plan/tasks approval recorded in [spec §Approval](spec.md#approval). Wave 1 (W1-A/W1-B/W1-C) authorized; B4 source-write separately gated. **MCP-A (T26–T30) is implemented and awaiting human review; MCP-B–MCP-D are authorized for parallel implementation.** §8 is the design reference for B–D; real-home apply, network/OAuth, package install and release remain unauthorized. **No real-home, private-Git, model/network, package-install or release operation is authorized.**
+**Parent spec:** [`spec.md`](spec.md) (r1, 2026-11-11; MCP amendment approved and implemented, awaiting human review).
+**Status:** APPROVED r1 (2026-11-12) — combined spec/plan/tasks approval recorded in [spec §Approval](spec.md#approval). Wave 1 (W1-A/W1-B/W1-C) authorized; B4 source-write separately gated. **MCP-A–MCP-D are implemented and awaiting human review; T46 owner walkthrough/macOS remains pending.** §8 is the design reference; MCP-B was exercised only against temporary-home fixtures. Real-home apply, network/OAuth, package install and release remain unauthorized. **No real-home, private-Git, model/network, package-install or release operation is authorized.**
 **Target:** Root Go 1.23 stdlib for shared operations; nested `experiments/tui` Go 1.26 / pinned Charm v2 for UI. No real-home, private-Git, model, network, package-install or release operation.
 **Baseline:** MCP amendment reconciled at `4c2b9bd` (clean tree; parent `74f568b` Wave 3); Feature 013 accepted/published (`v0.8.0`); Feature 014 implemented scope **awaiting human/Opus acceptance**; batch ledger unchanged; B4 not authorized; Fleet live capability default `preview`.
 **Inputs:** the two advisory documents in this directory, `docs/mcp-default-integration-study.md`, `docs/codegraph.md`, and the verification in spec §2/§16.
@@ -230,9 +230,9 @@ Status records design coverage only, not implementation, acceptance or authoriza
 
 B1–B3 and B5 can be developed and verified against fixtures while 014 awaits its verdict, but a supported build must not enable production apply/restore until 014's human review/Opus/trusted-base/runtime/release gates are satisfied. B4 introduces a new write surface and is not covered by 014's approval. MCP-B (§8) introduces another separate write surface and is not covered by B4, 014 or the r1 approval. The final report states **preview-only** or **no-go** where appropriate; no tag, cask, tap or real-home operation is authorized by this plan.
 
-## 8. MCP integration amendment (proposed 2026-11-12 — pending approval)
+## 8. MCP integration amendment (implemented; awaiting human review)
 
-> **Status:** proposal only. This section does not authorize implementation, a new package, a new dependency, a configuration write, a network call, package installation, OAuth login, a real-home change, a commit, a tag or a release. MCP-A–MCP-D in `tasks.md` are `not_started — pending approval`. MCP-B additionally requires a separate MCP write-surface decision; it is not B4.
+> **Status:** MCP-A–MCP-D are implemented and integration-green; the batch is awaiting human review. The MCP-B write surface was exercised only against isolated temporary-home fixtures. No real-home MCP configuration write, network/OAuth call, package installation, commit, tag or release is authorized. MCP-B is not B4.
 
 ### 8.1 Reconciliation and scope freeze
 
@@ -518,8 +518,8 @@ Verification must show zero-write reads, digest revalidation, exact backup/rollb
 | Workstream | Tasks | Depends on | Owner checkpoint | State |
 |---|---|---|---|---|
 | **MCP-A** | T26–T30 | **Implemented 2026-11-12**; no write authorization | CP-A: review read-only status/doctor/read-only preview/CLI evidence; confirm no writes/network | `awaiting human review — integration green` |
-| **MCP-B** | T31–T37 | MCP-A + explicit MCP write-surface authorization | CP-B: review preview/digest/backup/rollback/restore/lock/runtime evidence | `authorized — parallel implementation` |
-| **MCP-C** | T38–T42 | MCP-A; MCP-B interfaces | CP-C: review TUI navigation/preview/confirm/diagnostics/single-slot evidence | `authorized — parallel implementation` |
-| **MCP-D** | T43–T46 | MCP-A–C | CP-D: owner walkthrough and final acceptance packet; release disposition separate | `authorized — parallel implementation` |
+| **MCP-B** | T31–T37 | MCP-A + explicit MCP write-surface authorization | CP-B: review preview/digest/backup/rollback/restore/lock/runtime evidence | `awaiting human review — integration green` |
+| **MCP-C** | T38–T42 | MCP-A; MCP-B interfaces | CP-C: review TUI navigation/preview/confirm/diagnostics/single-slot evidence | `awaiting human review — integration green` |
+| **MCP-D** | T43–T46 | MCP-A–C | CP-D: owner walkthrough and final acceptance packet; release disposition separate | `awaiting human review — PTY/docs green; owner walkthrough pending` |
 
 MCP-A can be developed and tested independently of the optional write surface. Deterministic UI/config tests do not require live remote connections, OAuth, package installation or a real OpenCode home. MCP-B must not start from the r1 or MCP-A approval alone; the owner must record a **pre-start** write-surface authorization, and CP-B evidence acceptance is a later, separate step. MCP-C's read-only screens may start after MCP-A, but its apply/restore controls remain disabled until MCP-B is integrated. MCP-D reports network/package/real-home checks as `not_run` unless separately authorized.

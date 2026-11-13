@@ -637,7 +637,7 @@ class FleetLifecycleTest(unittest.TestCase):
             mark = session.mark()
             session.send(b"\x1b")
             returned = session.pump_until(
-                lambda out: b"Destinations" in out[mark:], KEY_TIMEOUT
+                lambda out: b"Install & Manage" in out[mark:], KEY_TIMEOUT
             )
             self.assertTrue(
                 returned,

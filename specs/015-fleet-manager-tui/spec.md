@@ -1,7 +1,7 @@
 # Feature 015 — Fleet Manager TUI
 
 **Status:** APPROVED r1 (2026-11-12) — combined spec/plan/tasks approval in `## Approval`; Wave 1 authorized; B4 source-write remains separately gated.
-**Amendment status:** **MCP Integration Amendment r1 (2026-11-12) — MCP-A IMPLEMENTED; MCP-B–MCP-D AUTHORIZED.** The owner accepted the reviewer recommendations, authorized and completed MCP-A (T26–T30), then explicitly authorized **MCP-B, MCP-C and MCP-D** for parallel implementation. MCP-B's configuration write surface is authorized for development and fixture tests only. No package installation, network/OAuth call, real-home change, real-home apply or release is authorized.
+**Amendment status:** **MCP Integration Amendment r1 (2026-11-12) — MCP-A–MCP-D IMPLEMENTED; AWAITING HUMAN REVIEW.** MCP-A (T26–T30) was completed first; the owner then authorized **MCP-B, MCP-C and MCP-D**, which are now implemented and integration-green. MCP-B's configuration write surface was exercised only against temporary-home fixtures. T46 (owner walkthrough/macOS) remains pending. No package installation, network/OAuth call, real-home change, real-home apply or release is authorized.
 **Location:** `specs/015-fleet-manager-tui/spec.md` (this directory; input drafts retained beside it).
 **Prepared:** 2026-11-11; MCP amendment prepared 2026-11-12.
 **Depends on:** Feature 013 Unified TUI Experience (accepted, published `v0.8.0`), Feature 014 Agent Fleet Model Overrides (implemented scope **awaiting human/Opus acceptance**; batch ledger unchanged), Feature 009 OpenCode orchestration (accepted behavior and permissions), `internal/appops` (Feature 013 shared operation seam).
@@ -549,7 +549,7 @@ Gemini provisional code/architecture reviews and the verification review identif
 
 ### MCP Integration Amendment — APPROVED THROUGH MCP-D (2026-11-12)
 
-**State:** **APPROVED — MCP-A implemented; MCP-B–MCP-D authorized for parallel implementation.** This is the amendment approval record for §16, FR-23–FR-31, NFR-13–NFR-17 and AC-51–AC-75.
+**State:** **APPROVED — MCP-A–MCP-D implemented; awaiting human review.** This is the amendment approval record for §16, FR-23–FR-31, NFR-13–NFR-17 and AC-51–AC-75.
 
 **Approval evidence:**
 1. Owner message on 2026-11-12: “accpted all” followed by “Start implementation parally using sub agents of 9r gemini flash , deepseek free , mimo free , deepseek high”. This authorized the reviewer-recommended **MCP-A (T26–T30)** scope.
@@ -564,7 +564,7 @@ Gemini provisional code/architecture reviews and the verification review identif
 
 **What this approval still does not do:** It does not accept Feature 014, accept Wave 3, authorize B4, enable `FleetCapability=live`, authorize a real-home write, install CodeGraph/Context7/Exa/Node/npm, start OAuth/login, invoke a model, or authorize a tag/cask/tap/release.
 
-**Next action:** commit the current MCP-A work, then implement MCP-B–MCP-D in parallel with disjoint file ownership; return each integrated batch for human review. No real-home apply or release.
+**Next action:** human review of the integrated MCP-A–D evidence and CP-B/CP-C/CP-D. No real-home apply or release. T46 owner walkthrough/macOS remains `not_run`.
 
 ## 15. Provenance
 
@@ -585,8 +585,8 @@ The binding staging is:
 
 | Phase | Scope | Authorization |
 |---|---|---|
-| **P0 — Read-only foundation** | Detect and report the three servers; shared state vocabulary; offline `status`/`doctor`; a read-only `preview` that shows the current recipe/static comparison and writes nothing, with **no apply token**. This is the default entry point. | **Recommended: MCP-A only.** No write authorization. |
-| **P1 — Opt-in configuration and restoration** | Explicit server selection, exact preview, separate default-No confirmation, digest-checked apply, private backup/ownership manifest, managed restore. Global OpenCode configuration only. | Proposed MCP-B/MCP-C, with a **separate MCP write-surface decision**. |
+| **P0 — Read-only foundation** | Detect and report the three servers; shared state vocabulary; offline `status`/`doctor`; a read-only `preview` that shows the current recipe/static comparison and writes nothing, with **no apply token**. This is the default entry point. | MCP-A, authorized and implemented. No write authorization. |
+| **P1 — Opt-in configuration and restoration** | Explicit server selection, exact preview, separate default-No confirmation, digest-checked apply, private backup/ownership manifest, managed restore. Global OpenCode configuration only. | MCP-B/MCP-C, authorized and implemented; write surface exercised on fixtures only. |
 | **P2 — Missing-software installation** | Package managers, vendor installers, Node/npm, OAuth login, automatic CodeGraph init. | **Deferred.** Not part of this amendment. A future feature must provide version pinning, explicit argv review, consent, timeout and supply-chain controls. |
 
 `agentic-sdd opencode launch --free` is likewise deferred to a separate optional capability. It is not bundled into MCP configuration work.
@@ -601,7 +601,7 @@ Reconciled state:
 - Feature 014 remains **awaiting its human/Opus acceptance**; its batch ledger is unchanged. This amendment does not accept, reopen or apply Feature 014.
 - B4 Fleet native source save remains **not authorized** (`T14`–`T17` unchecked). MCP work does not repurpose B4 or its reserved IDs.
 - Fleet live apply/restore remains gated by the reviewed `FleetCapability` build value, default `preview`. MCP work does not change it.
-- No new implementation batch is authorized. MCP-A–MCP-D are **pending approval**.
+- MCP-A–MCP-D are **implemented and awaiting human review**; no further MCP batch is authorized without a new decision.
 - `docs/mcp-default-integration-study.md` recommends a broader P2 installation and an OpenCode launcher. This amendment **narrows** that study: P0 first, P1 opt-in, P2 and the launcher deferred.
 
 ### 16.3 Ownership and configuration precedence
@@ -794,9 +794,9 @@ agentic-sdd mcp help
 | Workstream | Scope | Depends on | State |
 |---|---|---|---|
 | **MCP-A — Read-only foundation** | Metadata; target detection; offline status/doctor; read-only preview (no token); state vocabulary; CLI `status`/`doctor`/`preview`; compatibility tests | Amendment approval; no write authorization | `implemented — awaiting human review` |
-| **MCP-B — Safe configuration management** | Structured preview/digest; JSONC byte-range merge; ownership manifest; backup; transactional apply/restore; runtime evidence; cross-process lock; failure tests | MCP-A + explicit MCP write-surface authorization | `authorized — parallel implementation` |
-| **MCP-C — TUI experience** | Hub child; Overview; selection; preview; confirmation; diagnostics; recovery; single-write host | MCP-A; MCP-B interfaces | `authorized — parallel implementation` |
-| **MCP-D — Verification and closeout** | Root/nested gates; PTY/headless; no-network/temp-home evidence; docs/onboarding; acceptance packet | MCP-A–C; owner review | `authorized — parallel implementation` |
+| **MCP-B — Safe configuration management** | Structured preview/digest; JSONC refusal/manual snippet; ownership manifest; backup; transactional apply/restore; runtime evidence; cross-process lock; failure tests | MCP-A + explicit MCP write-surface authorization | `implemented — awaiting human review` |
+| **MCP-C — TUI experience** | Hub child; Overview; selection; preview; confirmation; diagnostics; recovery; single-write host | MCP-A; MCP-B interfaces | `implemented — awaiting human review` |
+| **MCP-D — Verification and closeout** | Root/nested gates; PTY/headless; no-network/temp-home evidence; docs/onboarding; acceptance packet | MCP-A–C; owner review | `awaiting human review — owner walkthrough pending` |
 
 Prerequisites and release gates:
 
@@ -809,7 +809,7 @@ Prerequisites and release gates:
 
 **Independent review (OpenAI GPT-6.1 Sol, 2026-11-12): verdict “Needs changes.”** Its blocking findings and decision recommendations were reconciled into this amendment: offline-doctor consistency, a distinct P0 preview without a token, apply-time runtime evidence, cross-process locking, structural recovery, conflict/create deferral, and corrected reuse claims. The review is advisory and is not human approval.
 
-These are **recommendations, not approvals**; the owner may reject or amend any of them.
+The table records the reviewer’s **original** recommendation (A-only). The owner subsequently authorized MCP-B–MCP-D, which are now implemented; the later authorization is recorded under `## Approval`. The recommendations below remain the design baseline for the implemented behavior.
 
 | # | Issue | Recommended decision | Guardrail |
 |---|---|---|---|
