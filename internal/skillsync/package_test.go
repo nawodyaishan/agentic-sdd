@@ -61,6 +61,27 @@ func TestIndependentReviewReferenceIsPackaged(t *testing.T) {
 	}
 }
 
+func TestResearchSearchWorkflowReferenceIsPackaged(t *testing.T) {
+	const reference = "agentic-sdd-research-spec/references/search-mcp-workflow.md"
+	for _, repo := range []string{"", filepath.Join("..", "..")} {
+		source, err := sourceFS(repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := fs.Stat(source, reference)
+		if err != nil || !info.Mode().IsRegular() {
+			t.Fatalf("%q: packaged search-MCP workflow reference missing: %v", repo, err)
+		}
+		data, err := fs.ReadFile(source, "agentic-sdd-research-spec/SKILL.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(data, []byte("references/search-mcp-workflow.md")) {
+			t.Fatalf("%q: research skill does not point to the search-MCP workflow reference", repo)
+		}
+	}
+}
+
 func checkPackageLinks(t *testing.T, source fs.FS) {
 	t.Helper()
 	links := regexp.MustCompile(`\]\(([^)]+)\)`)

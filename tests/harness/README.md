@@ -47,6 +47,26 @@ must be detected. These are **static text/fixture checks**, not model behavior o
 runtime enforcement. No client, provider, container, network or subprocess is launched.
 Do not substitute blanket discovery or import deprecated integration suites.
 
+## Feature 018 research workflow static checks
+
+Run `python3 -B -m unittest discover -s tests/harness -p test_research_workflow.py`
+with Python 3's standard library. This explicit selection reads the canonical
+research skill, its `references/search-mcp-workflow.md`, the five stage skills, the
+router research-routing policy, the optional librarian body and
+`research-workflow-scenarios.json`. It checks required clauses, relative link
+integrity, the evidence-handoff fields, in-memory clause mutations that remove or
+soften required behavior, and declarative R0–R3 / version-mismatch /
+unavailable-tool / privacy fixtures.
+
+These are **static instruction and declarative fixture checks**: `agent_observation`
+stays `not_run` for every case. They do not exercise runtime model or MCP behavior,
+live retrieval, redaction, skill triggering, provider permissions, spend or MCP
+configuration, and no model, provider credential, network or subprocess is used.
+The suite is selected explicitly by file pattern, not by broad `tests/harness/`
+discovery and not through `harness/checks.json`; do not add these cases to
+`core-workflow-scenarios.json` or count a passing static check as runtime research
+evidence.
+
 ## Historical comparison fixtures
 
 `scenarios.json` freezes model-behavior prompts, source revisions, exact one-match mutations and independent expected outcomes. Apply mutations **only in disposable isolated copies**, after verifying the base revision and match count. Never edit the live repository to construct a fixture. Later B2 observations and the spend-incident correction live in `harness/baseline.md`; B3 adds no model requests.

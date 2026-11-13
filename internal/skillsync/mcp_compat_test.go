@@ -86,11 +86,20 @@ func mcpCompatReadConfig(t *testing.T, home, file string) []byte {
 	return data
 }
 
-// mcpCompatAssertNoMCPState fails if any path component below home contains
-// "mcp", which covers <home>/.agentic-sdd/mcp (manifest/backups) and any other
-// MCP artifact a sync run might create.
+// mcpCompatAssertNoMCPState fails if an MCP-named path outside the managed
+// client skill roots appears below home, which covers <home>/.agentic-sdd/mcp
+// (manifest/backups) and any other MCP artifact a sync run might create.
 func mcpCompatAssertNoMCPState(t *testing.T, home, phase string) {
 	t.Helper()
+	// Installed portable skills are not MCP state. Feature 018 ships a
+	// legitimate search-mcp-workflow.md reference under each client's skills
+	// root. The seeded config and .agentic-sdd/mcp assertions below still
+	// cover the MCP contract.
+	skillRoots := make(map[string]bool)
+	for _, target := range clientTargets(home) {
+		skillRoots[filepath.Clean(target.path)] = true
+	}
+	skillRoots[filepath.Join(home, ".config", "opencode", "skills")] = true
 	err := filepath.WalkDir(home, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -101,6 +110,9 @@ func mcpCompatAssertNoMCPState(t *testing.T, home, phase string) {
 		}
 		if rel == "." {
 			return nil
+		}
+		if skillRoots[filepath.Clean(path)] {
+			return filepath.SkipDir
 		}
 		name := strings.ToLower(filepath.Base(rel))
 		if strings.Contains(name, "mcp") {
