@@ -70,22 +70,39 @@ Earlier releases used a Homebrew formula with the same name. The cask ships with
 </details>
 
 <details>
-<summary><strong>Linux or a source checkout</strong></summary>
+<summary><strong>Linux and source checkouts</strong></summary>
 
-With Go 1.23 or newer installed:
+Linux has no prebuilt package yet; the release pipeline currently publishes the macOS paired archive and Homebrew cask. Build the canonical CLI from source with Go 1.23 or newer:
 
 ```sh
 git clone https://github.com/nawodyaishan/agentic-sdd.git
 cd agentic-sdd
-go run ./cmd/agentic-sdd preview
-go run ./cmd/agentic-sdd apply
 
-# Or with the OpenCode orchestration pack:
-go run ./cmd/agentic-sdd preview --with-opencode
-go run ./cmd/agentic-sdd apply --with-opencode
+# With Task (recommended): build bin/asdx-core
+task build
+bin/asdx-core preview
+bin/asdx-core apply
+
+# Or without Task:
+go build -trimpath -o bin/asdx-core ./cmd/agentic-sdd
+bin/asdx-core preview
+bin/asdx-core apply
+
+# With the OpenCode orchestration pack:
+bin/asdx-core preview --with-opencode
+bin/asdx-core apply --with-opencode
 ```
 
-To try a read-only preview with a disposable home first, pass `--home /tmp/test-home` or follow the [first-five-minutes guide](docs/getting-started.md#first-five-minutes-preview-then-stop).
+The CLI writes to your real home by default, as it does on macOS. To try a read-only preview first, pass `--home /tmp/test-home` or follow the [first-five-minutes guide](docs/getting-started.md#first-five-minutes-preview-then-stop).
+
+For the paired TUI + CLI, with Go 1.26 or newer and Task installed:
+
+```sh
+task -t Taskfile.experimental.yml tui:pair
+bin/tui-pair/asdx
+```
+
+`tui:pair` builds identity-matched `asdx`, `asdx-core`, `agentic-sdd`, and `agentic-sdd-tui` binaries. The canonical CLI is `asdx-core`; a bare `asdx` opens the TUI.
 
 </details>
 
