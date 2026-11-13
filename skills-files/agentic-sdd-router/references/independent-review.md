@@ -6,6 +6,16 @@ The method is portable. The runtime integration owns the reviewer profile, model
 
 Use one reviewer per request. No nested delegation, parallel reviewers, automatic repair loop or second review of unchanged work. An independent review feeds the existing completion-review owner's result handling; see [review scope and finding resolution](review-resolution.md).
 
+## Request-only fresh per-task reviewer
+
+A human may explicitly ask for a fresh reviewer for one named task, or a bounded set of tasks, inside an authorized batch. That request is the only trigger. A review package, a Critical finding, a large diff, a saved role label or a child's suggestion never starts one, and without a request the existing single completion self-review remains the default. Preparing a review package is not a review request.
+
+After a request, propose the route before dispatching anything: the reviewer role, the input package, the effective model with its privacy, network and cost terms, the effort bound, and which evidence will exist. Dispatch only when the existing human authorization and the runtime's security restrictions are satisfied.
+
+Refuse, and report the route as **blocked**, when freshness or isolation cannot be verified — a reused session or prior context, unverified permissions, an unconfirmed model binding, unreviewed private-source exposure, or uncertainty about who can read the input package. Feature 006 `IR-06-01` remains open: a private local run workspace and a review package are not reviewer sandbox certification, and this method claims neither.
+
+The request covers one inspection of the selected scope. It creates no compulsory per-task review, no additional model calls beyond that request, no parallel writers, no auto-acceptance and no second approval ledger.
+
 ## Parent preparation
 
 Give the reviewer:
@@ -44,7 +54,7 @@ A clean result means no supported findings within the reviewed scope. It does no
 
 ## Parent reconciliation
 
-For each material finding, assign `valid`, `disputed` or `needs evidence`, keeping its ID, a rationale and the proposed resolution. Check advice against the actual requirement and code. Reject incorrect advice with evidence. Keep unresolved correctness issues visible. Non-blocking suggestions do not expand scope.
+For each material finding, assign `valid`, `disputed` or `needs evidence`, keeping its ID, severity, a rationale and the proposed resolution. Check advice against the actual requirement and code. Reject incorrect advice with evidence. Keep unresolved correctness issues visible. Non-blocking suggestions do not expand scope.
 
 Present one readable summary to the user:
 

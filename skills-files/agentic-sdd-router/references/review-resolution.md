@@ -17,11 +17,23 @@ Cover two dimensions in the existing review, not two separate approval gates:
 - **Requirements:** missing, extra, misunderstood or unverified behavior.
 - **Engineering:** correctness, compatibility, failure handling, meaningful tests and relevant maintainability/operational risk.
 
-Return `Ready`, `Needs changes` or `Blocked`. Label same-agent review **self-review**, not independent review. Unknown evidence stays unknown. A failed integration or unresolved consequential finding cannot become Ready because local checks passed or the agent stopped. Ready does not mean merged, published or deployed.
+Return `Ready`, `Needs changes` or `Blocked`. Label same-agent review **self-review**, not independent review. Unknown evidence stays unknown. A failed integration or unresolved consequential finding cannot become Ready because local checks passed or the agent stopped. `Ready` also requires no unresolved Critical finding and an authorized disposition for every Important one ([severity](#severity)). Ready does not mean merged, published or deployed.
+
+## Severity
+
+Severity is a second dimension of a finding and answers a different question from its disposition: disposition says whether the finding is true, severity says what leaving it open costs. Record both independently — a confirmed finding can be Minor, and a disputed finding can be Critical if it turns out true.
+
+| Severity | Meaning | Consequence |
+| --- | --- | --- |
+| **Critical** | Security, data-loss or functional failure; the authorized outcome is not delivered. | Blocks acceptance until it is resolved or explicitly addressed by an authorized scope decision recorded in the canonical documents. |
+| **Important** | Material requirement, correctness or robustness gap that does not yet break the outcome. | Resolve within the authorized scope before completion, or document an authorized, scoped disposition for accepting the gap. |
+| **Minor** | Cosmetic, preference or low-impact hygiene with no hidden requirement or safety consequence. | Report as deferred and non-blocking; it does not expand scope. |
+
+Severity ranks attention; it grants nothing. It never bypasses a spec-mandated check, never upgrades `needs evidence` to a pass, and never adds a second approval gate or an extra mandatory review. Do not lower a severity to reach `Ready`: only evidence, a correction, or an authorized disposition changes a finding's effect.
 
 ## Findings and corrections
 
-Give each material finding a stable ID, location, impact and evidence. Use `valid`, `disputed` or `needs evidence` for its disposition, then state its resolution or next action in the existing finding/task context:
+Give each material finding a stable ID, location, impact, severity and evidence. Use `valid`, `disputed` or `needs evidence` for its disposition, then state its resolution or next action in the existing finding/task context:
 
 - Correct a valid in-scope defect only when fixes are authorized. Retain the finding ID and show the new evidence.
 - Check incorrect advice against the actual requirement/code and reject or qualify it with evidence. A confident reviewer is not a source of truth.

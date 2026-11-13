@@ -14,6 +14,14 @@ The brief tells a child exactly what to do, where the boundary is, and how its w
 
 Add only what the child cannot look up for itself: the objective in one or two sentences, the relevant source pointers, the existing convention to follow, and the return format expected. Do not paste the whole conversation, the full spec, or unrelated files.
 
+## Exact packet, not a transcript
+
+When the task came from a generated brief, pass that artifact rather than your own retelling: run ID, task ID, brief path and digest, and the source path and line range the brief was extracted from. The child names the brief it worked from in its return, so the parent can show exactly which task text it saw.
+
+Add the artifact references the child may use — check log paths, review package manifest and patch paths, and the one or two source files that actually matter — with a short accurate excerpt where a pointer alone is not enough.
+
+A generated brief restates an authorized scope; it does not create one. If the brief digest no longer matches the canonical task, or the brief names a different batch, that is a stop condition, not a detail to smooth over. A full transcript or a duplicated log is not a brief: it hides the one requirement the child must follow and makes any claim about what it was told unverifiable.
+
 ## Child return schema
 
 A child reports in this shape so the parent can reconcile instead of trusting prose.

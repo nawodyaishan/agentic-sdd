@@ -27,9 +27,28 @@ Never delegate merely because another agent exists or a free model is offered. P
 2. State the child role, objective, why a child is useful, scope and exclusions, expected evidence, and the permissions involved.
 3. Check the **effective** model, context and modality limits, privacy and network eligibility, allowance or charges, tool permissions, and whether a partial task already exists.
 4. Require the corresponding explicit authorization for writers, side-effecting tests, paid or cross-lane model selection, external research, image disclosure and independent review.
-5. Issue the brief defined in [the dispatch contract](references/dispatch-contract.md): a small self-contained packet built from source links and precise file or revision identifiers, not a full conversation transcript.
+5. Issue the brief defined in [the dispatch contract](references/dispatch-contract.md): a small self-contained packet built from source links and precise file or revision identifiers, or from a generated `task brief` with its digest, not a full conversation transcript.
 
-## 4. During delegated work
+## 4. Execution context commands
+
+The `agentic-sdd` CLI can prepare and record execution context locally. It calls no model, approves nothing and is not a sandbox; read the exact flags with `agentic-sdd help run`, `help task` and `help review`.
+
+| Command | Use when | What it leaves behind |
+|---|---|---|
+| `run init` | An authorized batch or direct fix needs one private place for briefs, check evidence and a checkpoint. | Run identity and a checkpoint under `.agentic-sdd/runs/<run-id>/`. No gate, no approval. |
+| `task brief` | A bounded task goes to a child, or you need the exact task text with its acceptance references. | One brief for one exact task; it fails closed on a missing, duplicate or ambiguous ID. |
+| `run check` | A check must be preserved truthfully — full logs, exit code, timeout, interruption. | Private full logs plus a compact excerpt; the wrapper's exit code is not the command's exit code. |
+| `review package` | A review needs the actual committed, staged, unstaged and untracked change set with provenance. | A manifest and patch under the run; `partial` when content was omitted, with each reason named. |
+| `run status` | Context was compacted, a session restarted, or you need the observed state before continuing. | Nothing new; it reports state, freshness and the next permitted investigation. |
+
+Use your own read, diff and test tools when a single command already answers the question, when no run exists and no evidence must persist, or when the work is one read or edit.
+
+- Hand a child the exact brief and artifact references — run ID, task ID, brief path and digest, log and package paths — never the conversation, the full specification or a transcript.
+- A run, checkpoint or package is observation. `tasks.md` and `spec.md` §Approval remain the only authority, and `run init` is not permission to implement.
+- `run check` executes only a command the human or authorized orchestrator supplied, with its real permissions and side effects. It is not a sandbox and does not itself authorize running tests.
+- After compaction or interruption, read `run status` first. A `stale` or `blocked` observation stops the work until it is reconciled; never resume a writer, command or reviewer because a checkpoint looks nearly done.
+
+## 5. During delegated work
 
 - A child follows its **own** effective permission rules; prompt constraints are not an OS sandbox.
 - A child may return `needs_input` to the parent but never bypasses the parent to obtain human authority.
@@ -37,7 +56,7 @@ Never delegate merely because another agent exists or a free model is offered. P
 - Use [failure and reconciliation](references/failure-and-reconciliation.md) for model errors, partial writes, contradictory evidence or unclear permissions. Fallback is manual by default; a written ladder is not an automatic failover engine.
 - When direct tools suffice, use them. Keep full private evidence for long logs and pass only accurate excerpts and references.
 
-## 5. When the child finishes
+## 6. When the child finishes
 
 1. Treat child output as a **claim**. Independently inspect the relevant source and diff, exit codes, failure paths and fresh evidence.
 2. Compare the actual work with the approved scope and the brief; mark missing or unsupported claims as unknown or blocked.
@@ -45,7 +64,7 @@ Never delegate merely because another agent exists or a free model is offered. P
 4. Report **one concise human-facing result**: what changed, what was actually verified, what failed, observed agent and model identities, usage and cost where known, risks, and the single next action the human may authorize.
 5. Stop at the existing human review boundary. A model's `Ready` verdict is not approval, and completion review is a single pass, not a second implementation.
 
-## 6. Never assume
+## 7. Never assume
 
 - That the latest default model is the model running in this session.
 - That free models guarantee privacy, zero cost to the workflow, or enough output capacity.
