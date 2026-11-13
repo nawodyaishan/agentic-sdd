@@ -72,14 +72,33 @@ Earlier releases used a Homebrew formula with the same name. The cask ships with
 <details>
 <summary><strong>Linux and source checkouts</strong></summary>
 
-Linux has no prebuilt package yet; the release pipeline currently publishes the macOS paired archive and Homebrew cask. Build the canonical CLI from source with Go 1.23 or newer:
+Linux has no prebuilt package yet; the release pipeline currently publishes the macOS paired archive and Homebrew cask. The main Linux entrypoint is the TUI (`asdx`), built from source together with the paired CLI.
+
+**Main flow: build and run the TUI**
+
+With Go 1.26 or newer and Task installed:
 
 ```sh
 git clone https://github.com/nawodyaishan/agentic-sdd.git
 cd agentic-sdd
+task -t Taskfile.experimental.yml tui:pair
+bin/tui-pair/asdx
+```
 
-# With Task (recommended): build bin/asdx-core
-task build
+`tui:pair` builds identity-matched `asdx` (TUI), `asdx-core` (CLI), and the legacy `agentic-sdd` and `agentic-sdd-tui` wrappers. A bare `asdx` opens the terminal UI; it previews before writing and keeps the explicit CLI available as `bin/tui-pair/asdx-core`.
+
+To try it without touching your real agent directories, pass a disposable home:
+
+```sh
+bin/tui-pair/asdx --home /tmp/test-home
+```
+
+**CLI-only or automation**
+
+For scripts and CI, build only the canonical CLI with Go 1.23 or newer:
+
+```sh
+task build                 # -> bin/asdx-core
 bin/asdx-core preview
 bin/asdx-core apply
 
@@ -88,21 +107,12 @@ go build -trimpath -o bin/asdx-core ./cmd/agentic-sdd
 bin/asdx-core preview
 bin/asdx-core apply
 
-# With the OpenCode orchestration pack:
+# OpenCode orchestration pack:
 bin/asdx-core preview --with-opencode
 bin/asdx-core apply --with-opencode
 ```
 
 The CLI writes to your real home by default, as it does on macOS. To try a read-only preview first, pass `--home /tmp/test-home` or follow the [first-five-minutes guide](docs/getting-started.md#first-five-minutes-preview-then-stop).
-
-For the paired TUI + CLI, with Go 1.26 or newer and Task installed:
-
-```sh
-task -t Taskfile.experimental.yml tui:pair
-bin/tui-pair/asdx
-```
-
-`tui:pair` builds identity-matched `asdx`, `asdx-core`, `agentic-sdd`, and `agentic-sdd-tui` binaries. The canonical CLI is `asdx-core`; a bare `asdx` opens the TUI.
 
 </details>
 
