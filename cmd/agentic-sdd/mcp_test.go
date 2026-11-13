@@ -41,6 +41,9 @@ type mcpStub struct {
 	doctorErr  error
 	previewRes appops.MCPPreviewResult
 	previewErr error
+	plan       *skillsync.MCPPlan
+	planToken  string
+	planErr    error
 
 	// requestErr, when set, makes every request constructor fail, so the CLI's
 	// validation-to-exit-2 mapping is testable without a bad real config.
@@ -51,9 +54,11 @@ func (s *mcpStub) install(t *testing.T) {
 	t.Helper()
 	prevStatusReq, prevDoctorReq, prevPreviewReq := mcpNewStatusRequest, mcpNewDoctorRequest, mcpNewPreviewRequest
 	prevStatus, prevDoctor, prevPreview := mcpStatusReport, mcpDoctorReport, mcpPreviewReport
+	prevPlanPreview := mcpPlanPreview
 	t.Cleanup(func() {
 		mcpNewStatusRequest, mcpNewDoctorRequest, mcpNewPreviewRequest = prevStatusReq, prevDoctorReq, prevPreviewReq
 		mcpStatusReport, mcpDoctorReport, mcpPreviewReport = prevStatus, prevDoctor, prevPreview
+		mcpPlanPreview = prevPlanPreview
 	})
 
 	mcpNewStatusRequest = func(home, config, project string) (appops.MCPStatusRequest, error) {
@@ -86,6 +91,13 @@ func (s *mcpStub) install(t *testing.T) {
 	mcpPreviewReport = func(appops.MCPPreviewRequest) (appops.MCPPreviewResult, error) {
 		return s.previewRes, s.previewErr
 	}
+	mcpPlanPreview = func(home, config string, servers []string, auth map[string]string) (*skillsync.MCPPlan, string, error) {
+		s.calls = append(s.calls, mcpCall{home: home, config: config, servers: append([]string(nil), servers...)})
+		if s.requestErr != nil {
+			return nil, "", s.requestErr
+		}
+		return s.plan, s.planToken, s.planErr
+	}
 }
 
 func installMCPStub(t *testing.T) *mcpStub {
@@ -94,6 +106,8 @@ func installMCPStub(t *testing.T) *mcpStub {
 		statusRes:  appops.MCPStatusResult{Status: mcpFixtureStatus()},
 		doctorRes:  appops.MCPDoctorResult{Status: mcpFixtureStatus(), Checks: mcpFixtureChecks(), NotChecked: []string{"remote connectivity", "authentication"}},
 		previewRes: appops.MCPPreviewResult{Preview: mcpFixturePreview()},
+		plan:       mcpFixturePlan(),
+		planToken:  "token-abc123",
 	}
 	stub.install(t)
 	return stub
@@ -178,6 +192,37 @@ func mcpFixturePreview() *skillsync.MCPPreview {
 	}
 }
 
+func mcpFixturePlan() *skillsync.MCPPlan {
+	return &skillsync.MCPPlan{
+		TargetPath:      "/tmp/home/.config/opencode/opencode.json",
+		Format:          "json",
+		Schema:          "v2",
+		BaseDigest:      "sha256:abc123",
+		PlanDigest:      "sha256:plan123",
+		Selected:        []string{"codegraph", "context7", "exa"},
+		AuthChoices:     map[string]string{"context7": "oauth", "exa": "keyless"},
+		RuntimeVersion:  "not-checked",
+		RuntimeEvidence: "not-checked",
+		NotChecked:      []string{"remote connectivity", "authentication"},
+		Entries: []skillsync.MCPPlanEntry{
+			{
+				Name:    "codegraph",
+				Op:      "add",
+				Reason:  "server is missing from the configuration",
+				NewText: "{\n  \"type\": \"local\",\n  \"command\": [\"codegraph\", \"serve\", \"--mcp\"]\n}",
+				NewHash: "hash-codegraph",
+			},
+			{
+				Name:    "context7",
+				Op:      "leave",
+				Reason:  "already configured and unchanged",
+				OldHash: "hash-context7",
+				NewHash: "hash-context7",
+			},
+		},
+	}
+}
+
 // runMCPCommand dispatches through the full CLI entry point with empty,
 // non-terminal stdin, so dispatch wiring in main.go is covered too.
 func runMCPCommand(args ...string) (code int, stdout, stderr string) {
@@ -236,19 +281,19 @@ func TestMCPDispatch(t *testing.T) {
 			name:    "preview",
 			args:    []string{"mcp", "preview"},
 			code:    0,
-			wantOut: []string{"MCP preview", "Preview only. No apply in this build."},
+			wantOut: []string{"MCP preview — structured plan", "Preview only. No write."},
 		},
 		{
 			name:    "preview json",
 			args:    []string{"mcp", "preview", "--json"},
 			code:    0,
-			wantOut: []string{`"command": "preview"`, `"preview_only": true`},
+			wantOut: []string{`"command": "preview"`, `"preview_only": true`, `"token": "token-abc123"`},
 		},
 		{
 			name:    "help",
 			args:    []string{"mcp", "help"},
 			code:    0,
-			wantOut: []string{"Usage: agentic-sdd mcp", "MCP-A", "not authorized"},
+			wantOut: []string{"Usage: agentic-sdd mcp", "MCP-A + MCP-B", "apply"},
 		},
 		{
 			name:    "help flag",
@@ -266,19 +311,19 @@ func TestMCPDispatch(t *testing.T) {
 			name:    "unknown subcommand",
 			args:    []string{"mcp", "bogus"},
 			code:    2,
-			wantErr: []string{"error: unknown mcp command \"bogus\"", "this build implements only status, doctor, preview and help"},
+			wantErr: []string{"error: unknown mcp command \"bogus\"", "status, doctor, preview, apply, restore and help"},
 		},
 		{
-			name:    "apply is rejected",
-			args:    []string{"mcp", "apply", "--expect-config", "sha256:abc"},
+			name:    "apply requires expect config",
+			args:    []string{"mcp", "apply"},
 			code:    2,
-			wantErr: []string{"agentic-sdd mcp apply is not available in this build", "MCP-B", "not authorized"},
+			wantErr: []string{"mcp apply requires --expect-config"},
 		},
 		{
-			name:    "restore is rejected",
-			args:    []string{"mcp", "restore", "list"},
+			name:    "restore requires subcommand",
+			args:    []string{"mcp", "restore"},
 			code:    2,
-			wantErr: []string{"agentic-sdd mcp restore is not available in this build", "MCP-B"},
+			wantErr: []string{"mcp restore requires a subcommand"},
 		},
 		{
 			name:    "doctor network rejected",
@@ -496,26 +541,25 @@ func TestMCPPreviewText(t *testing.T) {
 		t.Fatalf("exit %d; stderr %q", code, stderr)
 	}
 	for _, want := range []string{
-		"MCP preview — read-only static comparison (no network, no writes)",
+		"MCP preview — structured plan (read-only, no network, no writes)",
 		"Target:      /tmp/home/.config/opencode/opencode.json",
 		"Format:      json",
 		"Base digest: sha256:abc123",
+		"Plan digest: sha256:plan123",
 		"Selected:    codegraph, context7, exa",
+		"Auth:        context7=oauth, exa=keyless",
 		"Entries (2):",
 		"add",
 		"leave",
-		"      recipe:",
-		"        \"type\": \"local\",",
-		"        \"command\": [\"codegraph\", \"serve\", \"--mcp\"]",
-		"Conflicts:   project config overrides context7",
-		"Preview only. No apply in this build.",
+		"planned:",
+		"\"type\": \"local\"",
+		"\"codegraph\"",
+		"Token:       token-abc123",
+		"Preview only. No write.",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout does not contain %q:\n%s", want, stdout)
 		}
-	}
-	if strings.Contains(stdout, "apply token") || strings.Contains(stdout, "--expect-config") {
-		t.Fatalf("preview must not advertise an apply token:\n%s", stdout)
 	}
 }
 
@@ -528,7 +572,7 @@ func TestMCPPreviewJSON(t *testing.T) {
 	}
 	doc := decodeMCPJSON(t, stdout)
 	assertMCPLowerKeys(t, doc)
-	for _, key := range []string{"command", "mode", "home", "target", "format", "base_digest", "selected", "entries", "conflicts", "no_op", "not_checked", "preview_only"} {
+	for _, key := range []string{"command", "mode", "home", "target", "format", "schema", "base_digest", "plan_digest", "selected", "auth", "entries", "conflicts", "no_op", "runtime_version", "runtime_evidence", "not_checked", "token", "preview_only", "write"} {
 		if _, ok := doc[key]; !ok {
 			t.Fatalf("preview JSON missing key %q: %s", key, stdout)
 		}
@@ -548,6 +592,7 @@ func TestMCPEngineError(t *testing.T) {
 	stub.statusErr = errors.New("engine unavailable")
 	stub.doctorErr = errors.New("engine unavailable")
 	stub.previewErr = errors.New("engine unavailable")
+	stub.planErr = errors.New("engine unavailable")
 
 	for _, args := range [][]string{
 		{"mcp", "status"},
@@ -582,13 +627,13 @@ func TestMCPMissingReportIsAnError(t *testing.T) {
 
 func TestMCPRequestValidationError(t *testing.T) {
 	stub := installMCPStub(t)
-	stub.requestErr = errors.New("unknown server \"bogus\"")
+	stub.requestErr = skillsync.ErrMCPUsage
 
 	code, stdout, stderr := runMCPCommand("mcp", "preview", "--servers", "bogus", "--home", "/tmp/home")
 	if code != 2 {
 		t.Fatalf("exit %d, want 2; stdout %q; stderr %q", code, stdout, stderr)
 	}
-	if !strings.Contains(stderr, `error: unknown server "bogus"`) {
+	if !strings.Contains(stderr, "MCP usage error") {
 		t.Fatalf("stderr = %q, want request validation error", stderr)
 	}
 	if stdout != "" {
@@ -737,7 +782,7 @@ func TestMCPHelpAndExistingCommands(t *testing.T) {
 			name:    "help mcp",
 			args:    []string{"help", "mcp"},
 			code:    0,
-			wantOut: []string{"Usage: agentic-sdd mcp", "MCP-A is read-only", "mcp apply", "not authorized"},
+			wantOut: []string{"Usage: agentic-sdd mcp", "MCP-A + MCP-B", "mcp apply", "restore"},
 		},
 		{
 			name:    "help lists mcp and fleet",

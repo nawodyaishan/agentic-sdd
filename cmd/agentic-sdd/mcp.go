@@ -1,23 +1,25 @@
 package main
 
-// Feature 015 MCP-A / T29 — `agentic-sdd mcp` read-only CLI.
+// Feature 015 MCP-A / T29 and MCP-B / T37 — `agentic-sdd mcp` CLI.
 //
 // MCP-A is the read-only foundation of the MCP amendment (spec §16): `status`,
-// offline `doctor`, a read-only static `preview` and `help`. Nothing here
-// writes a file, starts a process, opens a socket, runs a model or touches a
-// credential. The write surface (`mcp apply`, `mcp restore`) belongs to MCP-B
-// and is deliberately unreachable in this build, while `doctor --network` and
-// `doctor --connect` are deferred out of MCP-A entirely.
+// offline `doctor`, `preview` and `help`. MCP-B adds the write surface —
+// a structured preview with a digest-bound token, `apply` and `restore` — which
+// lives in mcp_write.go. No command here opens a socket, runs an
+// OAuth flow, installs a package, runs a model or prints a credential, and
+// `doctor --network`/`doctor --connect` remain deferred out of both.
 //
 // The parser owns dispatch, flags, exit codes and rendering only. Detection,
-// state projection and diagnostics stay in internal/skillsync and
-// internal/appops, reached through the immutable MCP requests those packages
-// expose, so the CLI and the future TUI share one engine path.
+// state projection, planning, the transaction, the backup and the ownership
+// manifest stay in internal/skillsync and internal/appops, reached through the
+// immutable MCP requests those packages expose, so the CLI and the TUI share
+// one engine path.
 //
 // Exit codes follow 014/015: 2 usage/flag/unknown subcommand (including a
-// deferred or unauthorized command), 1 an unexpected engine or I/O error, and
-// 0 whenever a report is produced — including a degraded or not-configured
-// one, because that IS the honest answer.
+// deferred command), 1 an unexpected engine or I/O error — and, for the write
+// surface, a stale plan, conflict, unsupported runtime or rollback — and 0
+// whenever a report is produced, including a degraded or not-configured one,
+// because that IS the honest answer.
 
 import (
 	"encoding/json"
@@ -50,7 +52,15 @@ func printMCPUsage(out io.Writer) {
 	fmt.Fprint(out, `Usage: agentic-sdd mcp [status] [--home PATH] [--config PATH] [--project PATH] [--json]
        agentic-sdd mcp doctor [--home PATH] [--config PATH] [--project PATH]
                               [--opencode-bin PATH] [--codegraph-bin PATH] [--json]
-       agentic-sdd mcp preview [--servers NAME,...] [--home PATH] [--config PATH] [--json]
+       agentic-sdd mcp preview [--servers NAME,...] [--auth SERVER=MODE]
+                               [--home PATH] [--config PATH] [--json]
+       agentic-sdd mcp apply --expect-config SHA256 [--opencode-bin PATH]
+                             [--servers NAME,...] [--auth SERVER=MODE]
+                             [--home PATH] [--config PATH] [--json]
+       agentic-sdd mcp restore list [--home PATH] [--json]
+       agentic-sdd mcp restore preview ID [--home PATH] [--config PATH] [--json]
+       agentic-sdd mcp restore apply ID --expect-config SHA256
+                                  [--home PATH] [--config PATH] [--json]
        agentic-sdd mcp help
 
 Commands:
@@ -58,29 +68,39 @@ Commands:
            servers: CodeGraph (local), Context7 and Exa (remote). Default when
            no subcommand is given.
   doctor   Offline diagnostics for the same configuration and prerequisites.
-  preview  Print the read-only static recipe comparison for selected servers.
+  preview  Print the structured configuration plan: target, base and plan
+           digest, one entry per selected server, conflicts and a token.
+           Nothing is written.
+  apply    Write the selected managed entries when the current digest equals
+           --expect-config and the local runtime probe succeeds.
+  restore  list, preview or apply an entry-level restore of managed entries
+           only. Whole-file restore is not part of this build.
   help     Show this help.
 
-Scope of this build (MCP-A):
-  MCP-A is read-only. "mcp apply", "mcp restore" and every configuration write
-  are unavailable because MCP-B (the MCP write surface) is not authorized.
-  "doctor --network" and "doctor --connect" are deferred out of MCP-A.
-  No network call, OAuth flow, package installation, model call or file write
-  is performed by any MCP-A command.
+Scope of this build (MCP-A + MCP-B):
+  MCP-A status, offline doctor and preview stay read-only. MCP-B adds apply and
+  restore for the existing global OpenCode configuration only; a missing
+  configuration is never created and there is no replace or force option.
+  "doctor --network" and "doctor --connect" remain deferred and are rejected.
+  No command performs a network call, OAuth flow, package installation or
+  model call. A plaintext API key or token is never written; managed remote
+  entries use {env:NAME} placeholders and OpenCode owns OAuth credentials.
 
 Flags:
   --home PATH           User home directory (defaults to your home).
   --config PATH         Explicit OpenCode configuration file to inspect.
-  --project PATH        Project path used for prerequisite checks.
-  --servers NAME,...    Servers to compare in preview (default: all defaults).
-  --opencode-bin PATH   Local OpenCode binary to look up (doctor only).
+  --project PATH        Project path used for prerequisite checks (status/doctor).
+  --servers NAME,...    Servers to configure (default: all default servers).
+  --auth SERVER=MODE    context7=oauth|api-key; exa=keyless|oauth|api-key.
+  --expect-config SHA256  Base digest the reviewed preview printed (apply/restore).
+  --opencode-bin PATH   Local OpenCode binary (doctor lookup; apply runtime probe).
   --codegraph-bin PATH  Local CodeGraph binary to look up (doctor only).
   --json                Emit stable, script-compatible JSON instead of text.
 
 Exit Codes:
-  0  Success, including a degraded or not-configured report
-  1  Unexpected engine or I/O error
-  2  Usage error, flag error, unknown subcommand, or an unavailable command
+  0  Success, a produced report, or a real no-op
+  1  Stale plan, conflict, unsupported runtime, rollback or engine/I/O error
+  2  Usage error, flag error, validation, unsafe target or unknown subcommand
 `)
 }
 
@@ -118,13 +138,16 @@ Flags:
 }
 
 func printMCPPreviewUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: agentic-sdd mcp preview [--servers NAME,...] [--home PATH] [--config PATH] [--json]
+	fmt.Fprint(out, `Usage: agentic-sdd mcp preview [--servers NAME,...] [--auth SERVER=MODE]
+                              [--home PATH] [--config PATH] [--json]
 
-Print the read-only static recipe comparison. Nothing is written and no apply
-token exists in this build.
+Print the structured MCP configuration plan: the exact target, base and plan
+digest, the entries to add, change, leave or disable, conflicts, and the token
+that binds an apply to this state. Nothing is written and no binary runs.
 
 Flags:
-  --servers NAME,...  Servers to compare (default: all default servers).
+  --servers NAME,...  Servers to configure (default: all default servers).
+  --auth SERVER=MODE  context7=oauth|api-key; exa=keyless|oauth|api-key.
   --home PATH         User home directory (defaults to your home).
   --config PATH       Explicit OpenCode configuration file to inspect.
   --json              Emit stable JSON instead of text.
@@ -147,25 +170,18 @@ func runMCP(args []string, stdout, stderr io.Writer, env *Env) int {
 		return runMCPDoctor(subArgs, stdout, stderr, env)
 	case "preview":
 		return runMCPPreview(subArgs, stdout, stderr, env)
-	case "apply", "restore":
-		return rejectMCPWriteCommand(sub, stderr)
+	case "apply":
+		return runMCPApply(subArgs, stdout, stderr, env)
+	case "restore":
+		return runMCPRestore(subArgs, stdout, stderr, env)
 	}
 	if strings.HasPrefix(sub, "-") {
-		// "mcp --home PATH" is still the read-only status command, so a flag in
-		// the subcommand position is never an unknown command.
+		// "mcp --home PATH" is still the status command, so a flag in the
+		// subcommand position is never an unknown command.
 		return runMCPStatus(args, stdout, stderr, env)
 	}
 	fmt.Fprintf(stderr, "error: unknown mcp command %q\n", sub)
-	fmt.Fprintln(stderr, "note: this build implements only status, doctor, preview and help")
-	printMCPUsage(stderr)
-	return 2
-}
-
-// rejectMCPWriteCommand refuses the MCP-B write surface instead of pretending
-// the command does not exist, so a person learns why and what is available.
-func rejectMCPWriteCommand(sub string, stderr io.Writer) int {
-	fmt.Fprintf(stderr, "error: agentic-sdd mcp %s is not available in this build; MCP-B (the MCP write surface) is not authorized\n", sub)
-	fmt.Fprintln(stderr, "note: this build implements only status, doctor, preview and help; no MCP configuration is ever written")
+	fmt.Fprintln(stderr, "note: this build implements status, doctor, preview, apply, restore and help")
 	printMCPUsage(stderr)
 	return 2
 }
@@ -327,21 +343,18 @@ func runMCPDoctor(args []string, stdout, stderr io.Writer, env *Env) int {
 }
 
 func runMCPPreview(args []string, stdout, stderr io.Writer, env *Env) int {
-	var flags mcpFlags
-	var servers string
-	fs := newMCPFlagSet("preview", &flags)
-	fs.StringVar(&servers, "servers", "", "comma-separated servers to compare")
+	var flags mcpWriteFlags
+	fs := newMCPWriteFlagSet("preview", &flags.mcpFlags)
+	fs.StringVar(&flags.servers, "servers", "", "servers to configure")
+	fs.Var(&flags.auth, "auth", "authentication choice for one server")
 
-	ok, code := parseMCPFlags(fs, args, printMCPPreviewUsage, stdout, stderr)
+	_, code, ok := parseMCPWriteArgs(fs, args, printMCPPreviewUsage, false, stdout, stderr)
 	if !ok {
 		return code
 	}
-
-	selected := splitMCPServers(servers)
-	if strings.TrimSpace(servers) != "" && len(selected) == 0 {
-		fmt.Fprintln(stderr, "error: --servers requires at least one server name")
-		fmt.Fprintln(stderr, "note: names are codegraph, context7 and exa")
-		return 2
+	selected, code := splitOptionalServers(flags.servers, stderr)
+	if code != 0 {
+		return code
 	}
 
 	home, code := resolveMCPHome(flags.home, stderr)
@@ -349,25 +362,30 @@ func runMCPPreview(args []string, stdout, stderr io.Writer, env *Env) int {
 		return code
 	}
 
-	req, err := mcpNewPreviewRequest(home, flags.config, selected)
+	plan, token, err := mcpPlanPreview(home, flags.config, selected, flags.auth.Map())
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
-		return 2
+		mcpWriteFailureNote(stderr, err)
+		return mcpWriteErrorCode(err)
 	}
-	res, err := mcpPreviewReport(req)
-	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
-		return mcpErrorCode(err)
-	}
-	if res.Preview == nil {
-		fmt.Fprintln(stderr, "error: mcp preview returned no report")
+	if plan == nil {
+		fmt.Fprintln(stderr, "error: mcp preview returned no plan")
 		return 1
 	}
 
 	if flags.json {
-		return writeMCPPreviewJSON(stdout, stderr, *res.Preview)
+		if code := writeMCPPlanJSON(stdout, stderr, home, *plan, token); code != 0 {
+			return code
+		}
+	} else {
+		printMCPPlan(stdout, home, *plan, token)
 	}
-	printMCPPreview(stdout, *res.Preview)
+	// A conflicted plan is reported in full, but the exit code says the plan is
+	// not applicable, so a script never treats it as a green preview.
+	if len(plan.Conflicts) > 0 {
+		fmt.Fprintln(stderr, "error: the plan reports a conflict; apply would refuse until it is resolved")
+		return 1
+	}
 	return 0
 }
 
@@ -494,65 +512,6 @@ func printMCPDoctor(out io.Writer, st skillsync.MCPStatus, checks []appops.MCPDo
 	fmt.Fprintln(out, "Offline only; remote connectivity, authentication and runtime version were not checked.")
 }
 
-func printMCPPreview(out io.Writer, pv skillsync.MCPPreview) {
-	fmt.Fprintln(out, "MCP preview — read-only static comparison (no network, no writes)")
-	fmt.Fprintf(out, "  Home:        %s\n", mcpText(pv.Home))
-	if pv.TargetPath == "" {
-		if len(pv.Conflicts) > 0 {
-			fmt.Fprintln(out, "  Target:      not selected (resolve the conflicts below; no file was changed)")
-		} else {
-			fmt.Fprintln(out, "  Target:      not configured (no global OpenCode configuration found)")
-		}
-	} else if pv.BaseDigest == "" {
-		fmt.Fprintf(out, "  Proposed:    %s (not created by this command)\n", pv.TargetPath)
-	} else {
-		fmt.Fprintf(out, "  Target:      %s\n", pv.TargetPath)
-	}
-	fmt.Fprintf(out, "  Format:      %s\n", mcpText(pv.Format))
-	fmt.Fprintf(out, "  Base digest: %s\n", mcpText(pv.BaseDigest))
-	fmt.Fprintf(out, "  Selected:    %s\n", joinOrNone(pv.Selected))
-	if pv.NoOp {
-		fmt.Fprintln(out, "  Result:      no change (the current configuration already matches)")
-	} else {
-		fmt.Fprintln(out, "  Result:      change (nothing is written by this command)")
-	}
-
-	fmt.Fprintf(out, "  Entries (%d):\n", len(pv.Entries))
-	if len(pv.Entries) == 0 {
-		fmt.Fprintln(out, "    none")
-	}
-	for _, entry := range pv.Entries {
-		fmt.Fprintf(out, "    %-10s %-9s %s\n", mcpText(entry.Name), mcpText(entry.Op), mcpText(entry.Reason))
-		printMCPRecipe(out, entry.Recipe)
-	}
-	fmt.Fprintf(out, "  Conflicts:   %s\n", joinOrNone(pv.Conflicts))
-	fmt.Fprintf(out, "  Not checked: %s\n", strings.Join(mcpNotChecked(pv.NotChecked), ", "))
-	fmt.Fprintln(out, "Preview only. No apply in this build.")
-}
-
-// printMCPRecipe renders one entry's proposed snippet. A single-line recipe
-// stays on the label line; a multi-line snippet is indented as a block so it
-// remains copyable.
-func printMCPRecipe(out io.Writer, recipe string) {
-	var lines []string
-	for _, line := range strings.Split(strings.TrimRight(recipe, "\n"), "\n") {
-		if strings.TrimSpace(line) != "" {
-			lines = append(lines, line)
-		}
-	}
-	switch len(lines) {
-	case 0:
-		return
-	case 1:
-		fmt.Fprintf(out, "      recipe: %s\n", lines[0])
-	default:
-		fmt.Fprintln(out, "      recipe:")
-		for _, line := range lines {
-			fmt.Fprintf(out, "        %s\n", line)
-		}
-	}
-}
-
 // --- JSON rendering -------------------------------------------------------
 
 type mcpJSONConfig struct {
@@ -602,28 +561,6 @@ type mcpJSONDoctorCheck struct {
 	Name   string `json:"name"`
 	State  string `json:"state"`
 	Detail string `json:"detail"`
-}
-
-type mcpJSONPreview struct {
-	Command     string                `json:"command"`
-	Mode        string                `json:"mode"`
-	Home        string                `json:"home"`
-	Target      string                `json:"target"`
-	Format      string                `json:"format"`
-	BaseDigest  string                `json:"base_digest"`
-	Selected    []string              `json:"selected"`
-	Entries     []mcpJSONPreviewEntry `json:"entries"`
-	Conflicts   []string              `json:"conflicts"`
-	NoOp        bool                  `json:"no_op"`
-	NotChecked  []string              `json:"not_checked"`
-	PreviewOnly bool                  `json:"preview_only"`
-}
-
-type mcpJSONPreviewEntry struct {
-	Name   string `json:"name"`
-	Op     string `json:"op"`
-	Reason string `json:"reason"`
-	Recipe string `json:"recipe"`
 }
 
 func mcpJSONStatusOf(command string, st skillsync.MCPStatus) mcpJSONStatus {
@@ -688,36 +625,6 @@ func writeMCPDoctorJSON(stdout, stderr io.Writer, st skillsync.MCPStatus, checks
 			Name:   check.Name,
 			State:  check.State,
 			Detail: check.Detail,
-		})
-	}
-	if err := writeMCPJSON(stdout, payload); err != nil {
-		fmt.Fprintln(stderr, "error:", err)
-		return 1
-	}
-	return 0
-}
-
-func writeMCPPreviewJSON(stdout, stderr io.Writer, pv skillsync.MCPPreview) int {
-	payload := mcpJSONPreview{
-		Command:     "preview",
-		Mode:        "read-only",
-		Home:        pv.Home,
-		Target:      pv.TargetPath,
-		Format:      pv.Format,
-		BaseDigest:  pv.BaseDigest,
-		Selected:    append([]string{}, pv.Selected...),
-		Entries:     make([]mcpJSONPreviewEntry, 0, len(pv.Entries)),
-		Conflicts:   append([]string{}, pv.Conflicts...),
-		NoOp:        pv.NoOp,
-		NotChecked:  mcpNotChecked(pv.NotChecked),
-		PreviewOnly: true,
-	}
-	for _, entry := range pv.Entries {
-		payload.Entries = append(payload.Entries, mcpJSONPreviewEntry{
-			Name:   entry.Name,
-			Op:     entry.Op,
-			Reason: entry.Reason,
-			Recipe: entry.Recipe,
 		})
 	}
 	if err := writeMCPJSON(stdout, payload); err != nil {
