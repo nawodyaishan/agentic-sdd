@@ -40,6 +40,9 @@ specifications, evidence and handovers continue to work.
   orchestration pack (`opencode-pack/`), delegation skill, and model routing.
 - [Public support and release scope](../README.md#support-and-release-scope) —
   portable skills, installer, source-only checks and unsupported native experiments.
+- [Test case inventory](testing/test-cases-report.md) — every declared Go and
+  Python test plus the container drivers, organized by scope, type and feature;
+  an inventory, not a test run.
 - [Snap and Ubuntu release report](snap-ubuntu-release-report.md) — research on
   whether `agentic-sdd` can ship as a Snap (strict, `personal-files` or classic)
   and why a `.deb` plus Linux tarball is the recommended Ubuntu channel. It is a
