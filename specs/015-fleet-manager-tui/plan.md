@@ -1,7 +1,7 @@
 # Feature 015 — Plan (draft r1, 2026-11-11)
 
 **Parent spec:** [`spec.md`](spec.md) (r1, 2026-11-11; MCP amendment approved and implemented, awaiting human review).
-**Status:** APPROVED r1 (2026-11-12) — combined spec/plan/tasks approval recorded in [spec §Approval](spec.md#approval). Wave 1 (W1-A/W1-B/W1-C) authorized; B4 source-write separately gated. **MCP-A–MCP-D are implemented and awaiting human review; T46 owner walkthrough/macOS remains pending.** §8 is the design reference; MCP-B was exercised only against temporary-home fixtures. Real-home apply, network/OAuth, package install and release remain unauthorized. **No real-home, private-Git, model/network, package-install or release operation is authorized.**
+**Status:** APPROVED r1 (2026-11-12) — combined spec/plan/tasks approval recorded in [spec §Approval](spec.md#approval). Wave 1 (W1-A/W1-B/W1-C) authorized; B4 source-write separately gated. **MCP-A–MCP-D are implemented and implementation-accepted; `v0.9.0` release is authorized; T46 owner walkthrough/macOS remains pending.** §8 is the design reference; MCP-B was exercised only against temporary-home fixtures. Real-home apply, network/OAuth, package install and release remain unauthorized. **No real-home, private-Git, model/network, package-install or release operation is authorized.**
 **Target:** Root Go 1.23 stdlib for shared operations; nested `experiments/tui` Go 1.26 / pinned Charm v2 for UI. No real-home, private-Git, model, network, package-install or release operation.
 **Baseline:** MCP amendment reconciled at `4c2b9bd` (clean tree; parent `74f568b` Wave 3); Feature 013 accepted/published (`v0.8.0`); Feature 014 implemented scope **awaiting human/Opus acceptance**; batch ledger unchanged; B4 not authorized; Fleet live capability default `preview`.
 **Inputs:** the two advisory documents in this directory, `docs/mcp-default-integration-study.md`, `docs/codegraph.md`, and the verification in spec §2/§16.
@@ -517,9 +517,9 @@ Verification must show zero-write reads, digest revalidation, exact backup/rollb
 
 | Workstream | Tasks | Depends on | Owner checkpoint | State |
 |---|---|---|---|---|
-| **MCP-A** | T26–T30 | **Implemented 2026-11-12**; no write authorization | CP-A: review read-only status/doctor/read-only preview/CLI evidence; confirm no writes/network | `awaiting human review — integration green` |
-| **MCP-B** | T31–T37 | MCP-A + explicit MCP write-surface authorization | CP-B: review preview/digest/backup/rollback/restore/lock/runtime evidence | `awaiting human review — integration green` |
-| **MCP-C** | T38–T42 | MCP-A; MCP-B interfaces | CP-C: review TUI navigation/preview/confirm/diagnostics/single-slot evidence | `awaiting human review — integration green` |
-| **MCP-D** | T43–T46 | MCP-A–C | CP-D: owner walkthrough and final acceptance packet; release disposition separate | `awaiting human review — PTY/docs green; owner walkthrough pending` |
+| **MCP-A** | T26–T30 | **Implemented 2026-11-12**; no write authorization | CP-A: review read-only status/doctor/read-only preview/CLI evidence; confirm no writes/network | `accepted — v0.9.0 release authorized` |
+| **MCP-B** | T31–T37 | MCP-A + explicit MCP write-surface authorization | CP-B: review preview/digest/backup/rollback/restore/lock/runtime evidence | `accepted — v0.9.0 release authorized` |
+| **MCP-C** | T38–T42 | MCP-A; MCP-B interfaces | CP-C: review TUI navigation/preview/confirm/diagnostics/single-slot evidence | `accepted — v0.9.0 release authorized` |
+| **MCP-D** | T43–T46 | MCP-A–C | CP-D: owner walkthrough and final acceptance packet; release disposition separate | `accepted — v0.9.0 release authorized; T46 walkthrough pending` |
 
 MCP-A can be developed and tested independently of the optional write surface. Deterministic UI/config tests do not require live remote connections, OAuth, package installation or a real OpenCode home. MCP-B must not start from the r1 or MCP-A approval alone; the owner must record a **pre-start** write-surface authorization, and CP-B evidence acceptance is a later, separate step. MCP-C's read-only screens may start after MCP-A, but its apply/restore controls remain disabled until MCP-B is integrated. MCP-D reports network/package/real-home checks as `not_run` unless separately authorized.

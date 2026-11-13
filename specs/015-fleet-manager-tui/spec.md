@@ -549,7 +549,9 @@ Gemini provisional code/architecture reviews and the verification review identif
 
 ### MCP Integration Amendment — APPROVED THROUGH MCP-D (2026-11-12)
 
-**State:** **APPROVED — MCP-A–MCP-D implemented; awaiting human review.** This is the amendment approval record for §16, FR-23–FR-31, NFR-13–NFR-17 and AC-51–AC-75.
+**State:** **APPROVED — MCP-A–MCP-D implemented; implementation accepted; `v0.9.0` release authorized.** This is the amendment approval record for §16, FR-23–FR-31, NFR-13–NFR-17 and AC-51–AC-75.
+
+**Implementation acceptance and release authorization (2026-11-13):** Owner message: “spec implementation approved , commit and push , and add new tag and release and check for ci releases to pass and clean handover dir”. This accepts the integrated MCP-A–D implementation, authorizes committing/pushing the current tree, creating the next annotated tag (`v0.9.0`), publishing the matching GitHub release and letting the release workflow publish the Homebrew cask, monitoring CI/release results, and folding/removing obsolete handovers. It does **not** accept Feature 014, accept Wave 3, authorize B4, enable `FleetCapability=live`, authorize a real-home apply, install packages, or authorize any unrelated live operation.
 
 **Approval evidence:**
 1. Owner message on 2026-11-12: “accpted all” followed by “Start implementation parally using sub agents of 9r gemini flash , deepseek free , mimo free , deepseek high”. This authorized the reviewer-recommended **MCP-A (T26–T30)** scope.
@@ -564,7 +566,7 @@ Gemini provisional code/architecture reviews and the verification review identif
 
 **What this approval still does not do:** It does not accept Feature 014, accept Wave 3, authorize B4, enable `FleetCapability=live`, authorize a real-home write, install CodeGraph/Context7/Exa/Node/npm, start OAuth/login, invoke a model, or authorize a tag/cask/tap/release.
 
-**Next action:** human review of the integrated MCP-A–D evidence and CP-B/CP-C/CP-D. No real-home apply or release. T46 owner walkthrough/macOS remains `not_run`.
+**Next action:** monitor the `v0.9.0` tag-triggered release workflow and record its outcome. T46 owner walkthrough/macOS remains `not_run`; no real-home apply. Feature 014, Wave 3, B4 and Fleet live remain separate gates.
 
 ## 15. Provenance
 
