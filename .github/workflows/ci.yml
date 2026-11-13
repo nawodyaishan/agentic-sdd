@@ -3,12 +3,21 @@ name: CI
 on:
   push:
     branches: ["main"]
+    # Docs/spec-only changes do not exercise the trusted candidate gate.
+    # Product content (skills-files/, opencode-pack/, README.md, workflows,
+    # Taskfile, harness, tests and Go code) still triggers it.
+    paths-ignore:
+      - "docs/**"
+      - "specs/**"
   # Workflow/bootstrap are loaded from the base, never the PR's workflow.
   # Candidate programs execute ONLY in the isolated gate below: no host Task,
   # setup hooks, credentials, shared cache, Docker socket or host home.
   pull_request_target:
     branches: ["main"]
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - "docs/**"
+      - "specs/**"
 
 permissions:
   contents: read
