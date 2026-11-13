@@ -40,6 +40,8 @@ const (
 	installSectionBackups
 	// installSectionFleet is the FleetModel read-only fleet manager.
 	installSectionFleet
+	// installSectionMCP is the MCP Tools read-only/opt-in screen.
+	installSectionMCP
 )
 
 // Default read-only operation endpoints, shown as copyable commands. They are
@@ -238,6 +240,12 @@ func (a *App) startInventoryRefresh() tea.Cmd {
 		// Source save changes only the personal source; the Fleet model
 		// refreshes status itself and the installed inventory is unchanged.
 		return nil
+	case WriteMCPApply, WriteMCPRestore:
+		// MCP writes change only the global OpenCode config; refresh the MCP
+		// projection, not the installed skill catalog.
+		m, cmd := a.mcp.Reload()
+		a.mcp = m
+		return cmd
 	default:
 		return nil
 	}
@@ -453,6 +461,12 @@ var installHubEntries = []installHubEntry{
 		desc:    "Inspect agent instances, models, enablement and drift without modifying files.",
 		section: installSectionFleet,
 	},
+	{
+		key:     "t",
+		title:   "MCP Tools",
+		desc:    "Inspect CodeGraph, Context7 and Exa; preview a configuration and restore managed backups.",
+		section: installSectionMCP,
+	},
 }
 
 // installRouteLines renders the hub or the active child screen at width.
@@ -464,6 +478,8 @@ func (a App) installRouteLines(width int) []string {
 		return a.restore.Lines(width)
 	case installSectionFleet:
 		return a.fleet.Lines(width)
+	case installSectionMCP:
+		return a.mcp.Lines(width)
 	default:
 		return a.installHubLines(width)
 	}
@@ -477,7 +493,7 @@ func (a App) installHubLines(width int) []string {
 
 	b.WriteString(a.theme.Title.Render("Install & Manage"))
 	b.WriteString("\n")
-	b.WriteString(a.theme.Subtitle.Render("Preview-first install and update, plus backup recovery and fleet status"))
+	b.WriteString(a.theme.Subtitle.Render("Preview-first install and update, plus backup recovery, fleet status and MCP tools"))
 	b.WriteString("\n\n")
 
 	entries := installHubEntries
@@ -516,6 +532,17 @@ func (a App) installHubLines(width int) []string {
 		homeFlag = " --home " + quoteHintPath(a.cfg.Home)
 	}
 
+	b.WriteString(a.theme.Section.Render("Backups"))
+	b.WriteString("\n")
+	backupRoot := a.catalog.BackupRoot
+	if backupRoot == "" {
+		backupRoot = restoreBackupRoot(a.catalog.Repo, a.catalog.Home)
+	}
+	for _, line := range wrapPath("  Backups directory: "+backupRoot, width) {
+		b.WriteString(a.theme.Accent.Render(line) + "\n")
+	}
+	b.WriteString("\n")
+
 	b.WriteString(a.theme.Section.Render("Read-only preview commands"))
 	b.WriteString("\n")
 	for _, line := range wrapPath("  Preview core skills: agentic-sdd preview"+repoFlag+homeFlag, width) {
@@ -528,18 +555,7 @@ func (a App) installHubLines(width int) []string {
 		b.WriteString(a.theme.Accent.Render(line) + "\n")
 	}
 	b.WriteString("\n")
-
-	b.WriteString(a.theme.Section.Render("Backups"))
-	b.WriteString("\n")
-	backupRoot := a.catalog.BackupRoot
-	if backupRoot == "" {
-		backupRoot = restoreBackupRoot(a.catalog.Repo, a.catalog.Home)
-	}
-	for _, line := range wrapPath("  Backups directory: "+backupRoot, width) {
-		b.WriteString(a.theme.Accent.Render(line) + "\n")
-	}
-	b.WriteString("\n")
-	b.WriteString(a.theme.Hint.Render("hub controls: j/k select · i install · b backups · f fleet · Enter open · Esc navigation"))
+	b.WriteString(a.theme.Hint.Render("hub controls: j/k select · i install · b backups · f fleet · t MCP tools · Enter open · Esc navigation"))
 
 	return strings.Split(b.String(), "\n")
 }
@@ -566,6 +582,8 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return *a, a.openBackupsScreen()
 		case "f":
 			return *a, a.openFleetScreen()
+		case "t":
+			return *a, a.openMCPScreen()
 		case "enter":
 			if a.installHubIndex >= 0 && a.installHubIndex < n {
 				switch installHubEntries[a.installHubIndex].section {
@@ -575,6 +593,8 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					return *a, a.openBackupsScreen()
 				case installSectionFleet:
 					return *a, a.openFleetScreen()
+				case installSectionMCP:
+					return *a, a.openMCPScreen()
 				}
 			}
 			return *a, a.openInstallScreen()
@@ -602,6 +622,26 @@ func (a *App) handleInstallRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		updated, cmd := a.fleet.Update(msg)
 		a.fleet = updated
 		if a.fleet.ActiveView() != prev {
+			a.contentScroll = 0
+		}
+		return *a, cmd
+	}
+
+	if a.installSection == installSectionMCP {
+		if a.mcp.WantsHome(key) {
+			return a.switchRoute(0)
+		}
+		if a.mcp.WantsClose(key) {
+			return *a, a.closeInstallHub("")
+		}
+		if isScrollKey(key) && a.mcp.ShouldScrollBody(key) {
+			a.scrollChildContent(key, width, height)
+			return *a, nil
+		}
+		prev := a.mcp.ActiveView()
+		updated, cmd := a.mcp.Update(msg)
+		a.mcp = updated
+		if a.mcp.ActiveView() != prev {
 			a.contentScroll = 0
 		}
 		return *a, cmd
@@ -761,6 +801,16 @@ func (a *App) openFleetScreen() tea.Cmd {
 	return cmd
 }
 
+// openMCPScreen activates MCP Tools and starts one lazy read-only status load.
+func (a *App) openMCPScreen() tea.Cmd {
+	a.installSection = installSectionMCP
+	a.contentScroll = 0
+	a.mcp.SetSize(a.childContentWidth(), a.childBodyHeight())
+	m, cmd := a.mcp.EnsureLoaded()
+	a.mcp = m
+	return cmd
+}
+
 // closeInstallHub returns to the destination hub. The optional notice is shown
 // by the hub's parent notice section.
 func (a *App) closeInstallHub(notice string) tea.Cmd {
@@ -803,7 +853,7 @@ func (a App) backupDetailsActive() bool {
 // whose StartWriteMsg may not have reached the root model yet. Navigation and
 // quit keys are ignored in that window, exactly like an accepted write.
 func (a App) childWritePending() bool {
-	return a.install.Step() == InstallStepRunning || a.restore.Busy() || a.fleet.WritePending()
+	return a.install.Step() == InstallStepRunning || a.restore.Busy() || a.fleet.WritePending() || a.mcp.WritePending()
 }
 
 // pinnedContentLines is the concise install-preview summary the viewport keeps

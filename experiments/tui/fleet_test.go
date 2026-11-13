@@ -171,7 +171,7 @@ func fleetKey(t *testing.T, app App, key string) App {
 // Tests
 // ---------------------------------------------------------------------------
 
-func TestInstallHubThreeEntriesAndWrap(t *testing.T) {
+func TestInstallHubFourEntriesAndWrap(t *testing.T) {
 	cfg := TUIConfig{Width: 100, Height: 30, Color: false}
 	reader := &trackingFleetReader{customRes: testFleetStatusView()}
 	app := NewAppWithScreens(cfg, testFleetCatalog(), AppOptions{}, AppScreenOptions{FleetReader: reader})
@@ -188,7 +188,7 @@ func TestInstallHubThreeEntriesAndWrap(t *testing.T) {
 		t.Fatalf("initial hubIndex = %d, want 0", app.installHubIndex)
 	}
 
-	// 2. Wrap forward across all 3 entries: 0 -> 1 -> 2 -> 0
+	// 2. Wrap forward across all 4 entries: 0 -> 1 -> 2 -> 3 -> 0
 	app = fleetKey(t, app, "j")
 	if app.installHubIndex != 1 {
 		t.Fatalf("after j, hubIndex = %d, want 1", app.installHubIndex)
@@ -198,18 +198,26 @@ func TestInstallHubThreeEntriesAndWrap(t *testing.T) {
 		t.Fatalf("after down, hubIndex = %d, want 2", app.installHubIndex)
 	}
 	app = fleetKey(t, app, "j")
+	if app.installHubIndex != 3 {
+		t.Fatalf("after j, hubIndex = %d, want 3", app.installHubIndex)
+	}
+	app = fleetKey(t, app, "j")
 	if app.installHubIndex != 0 {
 		t.Fatalf("after wrap j, hubIndex = %d, want 0", app.installHubIndex)
 	}
 
-	// 3. Wrap backward: 0 -> 2 -> 1 -> 0
+	// 3. Wrap backward: 0 -> 3 -> 2 -> 1 -> 0
 	app = fleetKey(t, app, "k")
-	if app.installHubIndex != 2 {
-		t.Fatalf("after backward k, hubIndex = %d, want 2", app.installHubIndex)
+	if app.installHubIndex != 3 {
+		t.Fatalf("after backward k, hubIndex = %d, want 3", app.installHubIndex)
 	}
 	app = fleetKey(t, app, "up")
+	if app.installHubIndex != 2 {
+		t.Fatalf("after backward up, hubIndex = %d, want 2", app.installHubIndex)
+	}
+	app = fleetKey(t, app, "k")
 	if app.installHubIndex != 1 {
-		t.Fatalf("after backward up, hubIndex = %d, want 1", app.installHubIndex)
+		t.Fatalf("after backward k, hubIndex = %d, want 1", app.installHubIndex)
 	}
 	app = fleetKey(t, app, "k")
 	if app.installHubIndex != 0 {

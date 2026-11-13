@@ -57,6 +57,10 @@ var ErrWriteInvalid = errors.New("write request is invalid")
 // engine, so the operation can never look like a successful write.
 var ErrFleetUnavailable = errors.New("fleet write seam is not wired in this build")
 
+// ErrMCPUnavailable reports an MCP write whose engine seam is not wired in
+// this build. It is always a refusal.
+var ErrMCPUnavailable = errors.New("mcp write seam is not wired in this build")
+
 // WriteKind identifies which engine operation a write transaction runs.
 type WriteKind int
 
@@ -72,6 +76,10 @@ const (
 	WriteFleetRestore
 	// WriteSourceSave saves the personal fleet source file.
 	WriteSourceSave
+	// WriteMCPApply runs one revalidated MCP configuration apply.
+	WriteMCPApply
+	// WriteMCPRestore restores one managed MCP backup.
+	WriteMCPRestore
 )
 
 // String returns the engine-style verb for display and log headers.
@@ -87,6 +95,10 @@ func (k WriteKind) String() string {
 		return "fleet-restore"
 	case WriteSourceSave:
 		return "save-config"
+	case WriteMCPApply:
+		return "mcp-apply"
+	case WriteMCPRestore:
+		return "mcp-restore"
 	default:
 		return "unknown"
 	}
@@ -97,6 +109,17 @@ func (k WriteKind) String() string {
 func (k WriteKind) isFleet() bool {
 	switch k {
 	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
+		return true
+	default:
+		return false
+	}
+}
+
+// isMCP reports whether the kind is one of the MCP write kinds. All of them
+// carry their payload in WriteRequest.MCP and resolve their own home.
+func (k WriteKind) isMCP() bool {
+	switch k {
+	case WriteMCPApply, WriteMCPRestore:
 		return true
 	default:
 		return false
@@ -131,6 +154,32 @@ type FleetWriteRequest struct {
 	Source     string
 }
 
+// MCPWriteRequest is one confirmed MCP configuration write. It is TUI-local:
+// it carries only resolved identities obtained from the shared seam.
+//
+//   - Home is the resolved home used for the private operation log and backups.
+//   - ConfigPath is the target OpenCode configuration file path.
+//   - PlanID identifies the in-memory plan an MCP apply was confirmed against.
+//   - Plan is the in-memory plan payload for the engine seam.
+//   - BackupID identifies the managed MCP backup to restore.
+//   - Token is the preview token the apply/restore seam revalidates.
+//   - ExpectDigest is the base digest expected before mutation.
+//   - OpenCodeBin is the optional local OpenCode executable probe path.
+//   - Label is a short human-readable description of the confirmed change set.
+//   - Source is the display label; empty falls back to "mcp:<ConfigPath>".
+type MCPWriteRequest struct {
+	Home         string
+	ConfigPath   string
+	PlanID       string
+	Plan         *skillsync.MCPPlan
+	BackupID     string
+	Token        string
+	ExpectDigest string
+	OpenCodeBin  string
+	Label        string
+	Source       string
+}
+
 // WriteRequest is one approved write transaction. It is constructed from the
 // immutable appops request types, so the destination, selection and engine
 // options cannot change after confirmation. Token is the preview token the
@@ -142,9 +191,11 @@ type WriteRequest struct {
 	// Fleet carries the payload for WriteFleetApply, WriteFleetRestore and
 	// WriteSourceSave. It must stay zero for install and restore.
 	Fleet FleetWriteRequest
+	// MCP carries the payload for WriteMCPApply and WriteMCPRestore.
+	MCP   MCPWriteRequest
 	Token string
 	// Command is the transcript header, for example "apply --with-opencode".
-	// For fleet kinds the header is derived and this must be empty or match it.
+	// For fleet and mcp kinds the header is derived and this must be empty or match it.
 	Command string
 	// Label is a short human-readable description of the confirmed change set.
 	Label string
@@ -159,6 +210,8 @@ func (r WriteRequest) home() string {
 		return r.Restore.Home()
 	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
 		return r.Fleet.Home
+	case WriteMCPApply, WriteMCPRestore:
+		return r.MCP.Home
 	default:
 		return ""
 	}
@@ -169,13 +222,19 @@ func (r WriteRequest) token() string {
 	if r.Kind.isFleet() {
 		return r.Fleet.Token
 	}
+	if r.Kind.isMCP() {
+		return r.MCP.Token
+	}
 	return r.Token
 }
 
-// command returns the transcript command header. Fleet headers are derived so
+// command returns the transcript command header. Fleet and MCP headers are derived so
 // they cannot drift from the confirmed identity.
 func (r WriteRequest) command() string {
 	if cmd := r.fleetCommand(); cmd != "" {
+		return cmd
+	}
+	if cmd := r.mcpCommand(); cmd != "" {
 		return cmd
 	}
 	if r.Command != "" {
@@ -205,8 +264,27 @@ func (r WriteRequest) fleetCommand() string {
 	}
 }
 
-// source returns the transcript source identity, or "embedded". Fleet writes
-// always report the selected personal source and its path, never "embedded".
+// mcpCommand returns the exact mcp command header for the request kind, or
+// "" for a non-mcp kind.
+func (r WriteRequest) mcpCommand() string {
+	switch r.Kind {
+	case WriteMCPApply:
+		if r.MCP.ConfigPath != "" {
+			return "mcp apply --config " + r.MCP.ConfigPath
+		}
+		return "mcp apply"
+	case WriteMCPRestore:
+		if r.MCP.BackupID != "" {
+			return "mcp restore " + r.MCP.BackupID
+		}
+		return "mcp restore"
+	default:
+		return ""
+	}
+}
+
+// source returns the transcript source identity, or "embedded". Fleet and MCP writes
+// always report their selected source and path, never "embedded".
 func (r WriteRequest) source() string {
 	switch r.Kind {
 	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
@@ -214,6 +292,14 @@ func (r WriteRequest) source() string {
 			return r.Fleet.Source
 		}
 		return r.Fleet.ConfigPath
+	case WriteMCPApply, WriteMCPRestore:
+		if r.MCP.Source != "" {
+			return r.MCP.Source
+		}
+		if r.MCP.ConfigPath != "" {
+			return "mcp:" + r.MCP.ConfigPath
+		}
+		return "mcp"
 	}
 	var repo string
 	switch r.Kind {
@@ -477,6 +563,9 @@ type RestoreApplier func(req appops.RestoreRequest, token string, out io.Writer)
 // and one structured result; the seam itself decides which engine call runs.
 type FleetWriter func(req FleetWriteRequest, token string, out io.Writer) (appops.ApplyResult, error)
 
+// MCPWriter runs one revalidated MCP write against the shared seam.
+type MCPWriter func(req MCPWriteRequest, token string, out io.Writer) (appops.ApplyResult, error)
+
 // WriteLog is one write transcript destination. Flush must persist buffered
 // data; Close must always run, including after a failed write.
 type WriteLog interface {
@@ -505,6 +594,10 @@ type OpsHostOptions struct {
 	ApplyFleetRestore FleetWriter
 	// SaveFleetSource saves the personal fleet source file.
 	SaveFleetSource FleetWriter
+	// ApplyMCP runs one revalidated MCP configuration apply.
+	ApplyMCP MCPWriter
+	// ApplyMCPRestore runs one revalidated managed MCP backup restore.
+	ApplyMCPRestore MCPWriter
 	OpenLog         WriteLogFactory
 	Now             func() time.Time
 }
@@ -523,6 +616,8 @@ type OpsHost struct {
 	applyFleet        FleetWriter
 	applyFleetRestore FleetWriter
 	saveFleetSource   FleetWriter
+	applyMCP          MCPWriter
+	applyMCPRestore   MCPWriter
 	openLog           WriteLogFactory
 	now               func() time.Time
 	progressSink      func(tea.Msg)
@@ -539,6 +634,8 @@ func NewOpsHost(opts OpsHostOptions) *OpsHost {
 		applyFleet:        opts.ApplyFleet,
 		applyFleetRestore: opts.ApplyFleetRestore,
 		saveFleetSource:   opts.SaveFleetSource,
+		applyMCP:          opts.ApplyMCP,
+		applyMCPRestore:   opts.ApplyMCPRestore,
 		openLog:           opts.OpenLog,
 		now:               opts.Now,
 	}
@@ -553,6 +650,12 @@ func NewOpsHost(opts OpsHostOptions) *OpsHost {
 	}
 	if host.applyFleetRestore == nil {
 		host.applyFleetRestore = appOpsFleetRestore
+	}
+	if host.applyMCP == nil {
+		host.applyMCP = appOpsMCPApply
+	}
+	if host.applyMCPRestore == nil {
+		host.applyMCPRestore = appOpsMCPRestore
 	}
 	if host.openLog == nil {
 		host.openLog = openFileWriteLog
@@ -584,6 +687,68 @@ func appOpsFleetRestore(req FleetWriteRequest, token string, out io.Writer) (app
 		return appops.ApplyResult{Operation: skillsync.OperationRestore, Outcome: skillsync.OutcomeFailed}, err
 	}
 	return appops.ApplyFleetRestore(request, token, out)
+}
+
+// appOpsMCPApply is the production MCP apply seam. It rebuilds the shared
+// immutable request from the confirmed plan and resolved home, then lets
+// appops revalidate the token and digest before writing.
+func appOpsMCPApply(req MCPWriteRequest, token string, out io.Writer) (appops.ApplyResult, error) {
+	request, err := appops.NewMCPApplyRequest(
+		req.Home, req.ConfigPath, req.Plan, token, req.ExpectDigest, req.OpenCodeBin,
+	)
+	if err != nil {
+		return appops.ApplyResult{Operation: skillsync.OperationApply, Outcome: skillsync.OutcomeFailed}, err
+	}
+	res, err := appops.MCPApply(request)
+	base := appops.ApplyResult{Operation: skillsync.OperationApply, Outcome: skillsync.OutcomeFailed}
+	if err != nil {
+		return base, err
+	}
+	if res.Result == nil {
+		return base, fmt.Errorf("mcp apply returned no result")
+	}
+	base.Outcome = skillsync.OutcomeApplied
+	if res.Result.NoOp {
+		base.Outcome = skillsync.OutcomeNoChange
+	}
+	base.BackupID = res.Result.BackupID
+	base.BackupPath = res.Result.BackupPath
+	base.SourceDigest = res.Result.InstalledDigest
+	base.Rollback = res.Result.Rollback
+	for _, name := range res.Result.Applied {
+		base.Applied = append(base.Applied, skillsync.ResultChange{ID: name, Kind: "mcp", Action: skillsync.ChangeReplace})
+	}
+	return base, nil
+}
+
+// appOpsMCPRestore is the production managed-backup restore seam.
+func appOpsMCPRestore(req MCPWriteRequest, token string, out io.Writer) (appops.ApplyResult, error) {
+	request, err := appops.NewMCPRestoreRequest(
+		req.Home, req.ConfigPath, req.BackupID, token, req.ExpectDigest,
+	)
+	if err != nil {
+		return appops.ApplyResult{Operation: skillsync.OperationRestore, Outcome: skillsync.OutcomeFailed}, err
+	}
+	res, err := appops.MCPRestore(request)
+	base := appops.ApplyResult{Operation: skillsync.OperationRestore, Outcome: skillsync.OutcomeFailed}
+	if err != nil {
+		return base, err
+	}
+	if res.Result == nil {
+		return base, fmt.Errorf("mcp restore returned no result")
+	}
+	base.Outcome = skillsync.OutcomeApplied
+	if res.Result.NoOp {
+		base.Outcome = skillsync.OutcomeNoChange
+	}
+	base.BackupID = res.Result.BackupID
+	base.BackupPath = res.Result.BackupPath
+	base.SourceDigest = res.Result.InstalledDigest
+	base.Rollback = res.Result.Rollback
+	for _, name := range res.Result.Applied {
+		base.Applied = append(base.Applied, skillsync.ResultChange{ID: name, Kind: "mcp", Action: skillsync.ChangeReplace})
+	}
+	return base, nil
 }
 
 // SetProgressSink routes progress messages to the running program, usually
@@ -652,6 +817,8 @@ func (h *OpsHost) BeginWrite(req WriteRequest) (WriteStartedMsg, tea.Cmd, error)
 		applyFleet:        h.applyFleet,
 		applyFleetRestore: h.applyFleetRestore,
 		saveFleetSource:   h.saveFleetSource,
+		applyMCP:          h.applyMCP,
+		applyMCPRestore:   h.applyMCPRestore,
 		openLog:           h.openLog,
 		now:               h.now,
 	}
@@ -697,13 +864,24 @@ func (h *OpsHost) Completed() (appops.OperationID, bool) {
 func (r WriteRequest) validate() error {
 	switch r.Kind {
 	case WriteInstall, WriteRestore:
+		if r.Fleet != (FleetWriteRequest{}) {
+			return fmt.Errorf("%w: %s does not take a fleet payload", ErrWriteInvalid, r.Kind)
+		}
+		if r.MCP != (MCPWriteRequest{}) {
+			return fmt.Errorf("%w: %s does not take an mcp payload", ErrWriteInvalid, r.Kind)
+		}
 	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
+		if r.MCP != (MCPWriteRequest{}) {
+			return fmt.Errorf("%w: %s does not take an mcp payload", ErrWriteInvalid, r.Kind)
+		}
 		return r.validateFleet()
+	case WriteMCPApply, WriteMCPRestore:
+		if r.Fleet != (FleetWriteRequest{}) {
+			return fmt.Errorf("%w: %s does not take a fleet payload", ErrWriteInvalid, r.Kind)
+		}
+		return r.validateMCP()
 	default:
 		return fmt.Errorf("%w: unknown operation kind", ErrWriteInvalid)
-	}
-	if r.Fleet != (FleetWriteRequest{}) {
-		return fmt.Errorf("%w: %s does not take a fleet payload", ErrWriteInvalid, r.Kind)
 	}
 	if r.Token == "" {
 		return fmt.Errorf("%w: a preview token is required", ErrWriteInvalid)
@@ -759,6 +937,44 @@ func (r WriteRequest) validateFleet() error {
 	return nil
 }
 
+// validateMCP rejects an MCP request whose kind, identity or token does not
+// match its payload.
+func (r WriteRequest) validateMCP() error {
+	mcp := r.MCP
+	if mcp.Token == "" {
+		return fmt.Errorf("%w: %s requires the resolved preview token", ErrWriteInvalid, r.Kind)
+	}
+	if r.Token != "" && r.Token != mcp.Token {
+		return fmt.Errorf("%w: %s preview token does not match the mcp request", ErrWriteInvalid, r.Kind)
+	}
+	if mcp.Home == "" {
+		return fmt.Errorf("%w: %s requires a resolved home", ErrWriteInvalid, r.Kind)
+	}
+	switch r.Kind {
+	case WriteMCPApply:
+		if mcp.ConfigPath == "" {
+			return fmt.Errorf("%w: %s requires the mcp config path", ErrWriteInvalid, r.Kind)
+		}
+		if mcp.BackupID != "" {
+			return fmt.Errorf("%w: %s does not take a backup identity", ErrWriteInvalid, r.Kind)
+		}
+		if mcp.PlanID == "" && mcp.Plan == nil {
+			return fmt.Errorf("%w: %s requires the plan identity", ErrWriteInvalid, r.Kind)
+		}
+	case WriteMCPRestore:
+		if mcp.PlanID != "" || mcp.Plan != nil {
+			return fmt.Errorf("%w: %s does not take a plan identity", ErrWriteInvalid, r.Kind)
+		}
+		if mcp.BackupID == "" {
+			return fmt.Errorf("%w: %s requires the backup identity", ErrWriteInvalid, r.Kind)
+		}
+	}
+	if want := r.mcpCommand(); r.Command != "" && r.Command != want {
+		return fmt.Errorf("%w: %s command header must be %q", ErrWriteInvalid, r.Kind, want)
+	}
+	return nil
+}
+
 // writeSeams is the immutable set of engine seams one claimed write captured.
 // Passing it by value keeps the command independent of later host changes.
 type writeSeams struct {
@@ -767,6 +983,8 @@ type writeSeams struct {
 	applyFleet        FleetWriter
 	applyFleetRestore FleetWriter
 	saveFleetSource   FleetWriter
+	applyMCP          MCPWriter
+	applyMCPRestore   MCPWriter
 	openLog           WriteLogFactory
 	now               func() time.Time
 }
@@ -786,6 +1004,19 @@ func (s writeSeams) fleetWriter(kind WriteKind) FleetWriter {
 	}
 }
 
+// mcpWriter returns the seam for one MCP kind, or nil when this build has
+// no wiring for it.
+func (s writeSeams) mcpWriter(kind WriteKind) MCPWriter {
+	switch kind {
+	case WriteMCPApply:
+		return s.applyMCP
+	case WriteMCPRestore:
+		return s.applyMCPRestore
+	default:
+		return nil
+	}
+}
+
 // run executes one claimed write. It is called from a tea.Cmd goroutine only.
 func (h *OpsHost) run(req WriteRequest, id appops.OperationID, home string, seams writeSeams) WriteResultMsg {
 	result := WriteResultMsg{ID: id, Kind: req.Kind, Label: req.Label, FinishedAt: seams.now()}
@@ -798,6 +1029,16 @@ func (h *OpsHost) run(req WriteRequest, id appops.OperationID, home string, seam
 		fleetWriter = seams.fleetWriter(req.Kind)
 		if fleetWriter == nil {
 			result.Err = fmt.Errorf("%w: %s", ErrFleetUnavailable, req.Kind)
+			result.FinishedAt = seams.now()
+			return result
+		}
+	}
+
+	var mcpWriter MCPWriter
+	if req.Kind.isMCP() {
+		mcpWriter = seams.mcpWriter(req.Kind)
+		if mcpWriter == nil {
+			result.Err = fmt.Errorf("%w: %s", ErrMCPUnavailable, req.Kind)
 			result.FinishedAt = seams.now()
 			return result
 		}
@@ -824,6 +1065,8 @@ func (h *OpsHost) run(req WriteRequest, id appops.OperationID, home string, seam
 		result.Result, result.Err = seams.applyRestore(req.Restore, req.Token, log)
 	case WriteFleetApply, WriteFleetRestore, WriteSourceSave:
 		result.Result, result.Err = fleetWriter(req.Fleet, req.token(), log)
+	case WriteMCPApply, WriteMCPRestore:
+		result.Result, result.Err = mcpWriter(req.MCP, req.token(), log)
 	}
 	result.FinishedAt = seams.now()
 

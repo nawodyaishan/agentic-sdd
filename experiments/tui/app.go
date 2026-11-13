@@ -103,6 +103,7 @@ type App struct {
 	install         InstallModel
 	restore         RestoreModel
 	fleet           FleetModel
+	mcp             MCPModel
 	fleetReader     FleetReader
 	fleetEditor     FleetEditor
 	fleetPlanner    FleetPlanner
@@ -223,6 +224,9 @@ func NewAppWithScreens(cfg TUIConfig, catalog Catalog, opts AppOptions, screens 
 	if screens.FleetDoctor != nil {
 		app.fleet.SetDoctor(screens.FleetDoctor)
 	}
+	app.mcp = NewMCPModel(app.cfg, nil)
+	app.mcp.SetSize(app.childContentWidth(), app.childBodyHeight())
+	app.mcp.SetTheme(app.theme)
 	return app
 }
 
@@ -337,6 +341,8 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 	app.install.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.restore.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.fleet.SetSize(app.childContentWidth(), app.childBodyHeight())
+	app.mcp = NewMCPModel(cfg, nil)
+	app.mcp.SetSize(app.childContentWidth(), app.childBodyHeight())
 	// The diagnostics adapter inspects only a path the user types; it needs no
 	// home and performs no read until the panel runs an explicit request.
 	app.fleet.SetDoctor(AppOpsFleetDoctor{})
@@ -352,6 +358,7 @@ func (a *App) applyTheme(theme Theme) {
 	a.install.SetTheme(theme)
 	a.restore.SetTheme(theme)
 	a.fleet.SetTheme(theme)
+	a.mcp.SetTheme(theme)
 	a.activity.SetTheme(theme)
 	a.catalogModel.SetTheme(theme)
 	if a.onboarding != nil {
@@ -490,6 +497,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.install.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.restore.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.fleet.SetSize(a.childContentWidth(), a.childBodyHeight())
+		a.mcp.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.activity.SetSize(a.childContentWidth(), a.childBodyHeight())
 		if a.onboarding != nil {
 			a.onboarding.SetSize(a.childContentWidth(), a.childBodyHeight())
@@ -669,6 +677,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.fleet = updated
 		return a, cmd
 
+	case MCPStatusMsg, MCPPlanPreviewMsg, MCPDoctorMsg, MCPBackupListMsg, MCPRestorePreviewMsg:
+		updated, cmd := a.mcp.Update(msg)
+		a.mcp = updated
+		return a, cmd
+
 	case tea.KeyPressMsg:
 		a.clampScrollOffsets()
 		return a.handleKey(msg)
@@ -710,6 +723,9 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return *a, cmd
 	}
 	if a.activeRoute == RouteInstall && a.installSection == installSectionFleet && a.fleet.IsInputFocused() {
+		return a.handleInstallRouteKey(msg)
+	}
+	if a.activeRoute == RouteInstall && a.installSection == installSectionMCP && a.mcp.IsInputFocused() {
 		return a.handleInstallRouteKey(msg)
 	}
 
@@ -1143,6 +1159,10 @@ func (a *App) routeWriteMsg(kind WriteKind, msg tea.Msg) tea.Cmd {
 		updated, cmd := a.fleet.Update(msg)
 		a.fleet = updated
 		return cmd
+	case WriteMCPApply, WriteMCPRestore:
+		updated, cmd := a.mcp.Update(msg)
+		a.mcp = updated
+		return cmd
 	default:
 		return nil
 	}
@@ -1264,6 +1284,7 @@ func (a *App) switchRoute(index int) (tea.Model, tea.Cmd) {
 		a.install.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.restore.SetSize(a.childContentWidth(), a.childBodyHeight())
 		a.fleet.SetSize(a.childContentWidth(), a.childBodyHeight())
+		a.mcp.SetSize(a.childContentWidth(), a.childBodyHeight())
 	}
 	if len(cmds) == 0 {
 		return *a, nil

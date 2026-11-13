@@ -5,29 +5,25 @@ import (
 	"testing"
 )
 
-// Feature 015 / MCP-A / T30 — AC-54.
+// Feature 015 / MCP-C / T38 — AC-54.
 //
-// The MCP amendment is staged: MCP-C (the TUI hub child) is deferred, so the
-// Install & Manage hub still has exactly three children — Install, Backups and
-// Fleet Manager. This file is the MCP-A regression guard: the entry list and
-// its keys stay stable, and Fleet Manager stays reachable from the hub by
-// cursor plus Enter and by the `f` shortcut. When MCP-C lands, it adds the
-// fourth child and updates this test deliberately.
+// The Install & Manage hub has four children — Install, Backups, Fleet Manager
+// and MCP Tools. The first three keep their keys and indices; MCP Tools is the
+// deliberate fourth child reached by `t` and Enter. This test also keeps Fleet
+// Manager reachable by cursor plus Enter and by the `f` shortcut.
 //
 // The tests are offline and deterministic: they use the existing fake fleet
 // reader seam, temporary-free in-memory catalogs and no filesystem, network or
 // model calls.
 
-// TestMCPAHubRegressionEntries asserts the MCP-A hub contract: three entries
-// with the keys i, b, f in order, bound to the install, backups and fleet
-// sections, and no MCP entry of any kind.
+// TestMCPAHubRegressionEntries asserts the four-entry hub contract.
 func TestMCPAHubRegressionEntries(t *testing.T) {
-	if len(installHubEntries) != 3 {
-		t.Fatalf("len(installHubEntries) = %d, want 3 (MCP-C adds the fourth child later)", len(installHubEntries))
+	if len(installHubEntries) != 4 {
+		t.Fatalf("len(installHubEntries) = %d, want 4", len(installHubEntries))
 	}
 
-	wantKeys := []string{"i", "b", "f"}
-	wantSections := []installSection{installSectionInstall, installSectionBackups, installSectionFleet}
+	wantKeys := []string{"i", "b", "f", "t"}
+	wantSections := []installSection{installSectionInstall, installSectionBackups, installSectionFleet, installSectionMCP}
 	for i, entry := range installHubEntries {
 		if entry.key != wantKeys[i] {
 			t.Errorf("installHubEntries[%d].key = %q, want %q", i, entry.key, wantKeys[i])
@@ -40,12 +36,8 @@ func TestMCPAHubRegressionEntries(t *testing.T) {
 		}
 	}
 
-	// No MCP hub entry exists in MCP-A; MCP-C owns the future fourth child.
-	for i, entry := range installHubEntries {
-		blob := strings.ToLower(entry.key + " " + entry.title + " " + entry.desc)
-		if strings.Contains(blob, "mcp") {
-			t.Errorf("installHubEntries[%d] (%q) mentions MCP; MCP-C is deferred out of MCP-A", i, entry.title)
-		}
+	if got := strings.ToLower(installHubEntries[3].title); !strings.Contains(got, "mcp") {
+		t.Errorf("fourth hub entry title = %q, want MCP Tools", installHubEntries[3].title)
 	}
 }
 
@@ -84,15 +76,23 @@ func TestMCPAHubRegressionFleetCursorAndKeys(t *testing.T) {
 		if app.installHubIndex != 2 {
 			t.Fatalf("after j, installHubIndex = %d, want 2 (Fleet)", app.installHubIndex)
 		}
+		app = fleetKey(t, app, "j")
+		if app.installHubIndex != 3 {
+			t.Fatalf("after j, installHubIndex = %d, want 3 (MCP Tools)", app.installHubIndex)
+		}
 		// Bounds: forward past the last entry wraps to the first.
 		app = fleetKey(t, app, "j")
 		if app.installHubIndex != 0 {
 			t.Fatalf("after wrap j, installHubIndex = %d, want 0", app.installHubIndex)
 		}
-		// Bounds: backward past the first entry wraps to Fleet at index 2.
+		// Bounds: backward past the first entry wraps to MCP Tools at index 3.
+		app = fleetKey(t, app, "k")
+		if app.installHubIndex != 3 {
+			t.Fatalf("after wrap k, installHubIndex = %d, want 3 (MCP Tools)", app.installHubIndex)
+		}
 		app = fleetKey(t, app, "k")
 		if app.installHubIndex != 2 {
-			t.Fatalf("after wrap k, installHubIndex = %d, want 2 (Fleet)", app.installHubIndex)
+			t.Fatalf("after k, installHubIndex = %d, want 2 (Fleet)", app.installHubIndex)
 		}
 		// Enter on the Fleet row opens the Fleet section.
 		app = fleetKey(t, app, "enter")
@@ -101,11 +101,15 @@ func TestMCPAHubRegressionFleetCursorAndKeys(t *testing.T) {
 		}
 	})
 
-	t.Run("k from the top reaches fleet then enter opens it", func(t *testing.T) {
+	t.Run("k wraps to MCP then Fleet, then enter opens Fleet", func(t *testing.T) {
 		app := newMCPAHubApp(t)
 		app = fleetKey(t, app, "k")
+		if app.installHubIndex != 3 {
+			t.Fatalf("after k, installHubIndex = %d, want 3 (MCP Tools)", app.installHubIndex)
+		}
+		app = fleetKey(t, app, "k")
 		if app.installHubIndex != 2 {
-			t.Fatalf("after k, installHubIndex = %d, want 2 (Fleet)", app.installHubIndex)
+			t.Fatalf("after second k, installHubIndex = %d, want 2 (Fleet)", app.installHubIndex)
 		}
 		app = fleetKey(t, app, "enter")
 		if app.installSection != installSectionFleet {

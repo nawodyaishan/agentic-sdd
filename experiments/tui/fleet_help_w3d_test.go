@@ -52,20 +52,27 @@ func TestW3DFleetHelpTopicIsListed(t *testing.T) {
 	}
 
 	sections := AllHelpSections()
-	if len(sections) != len(previous)+1 {
-		t.Fatalf("help sections = %d, want %d", len(sections), len(previous)+1)
+	if len(sections) != len(previous)+2 {
+		t.Fatalf("help sections = %d, want %d", len(sections), len(previous)+2)
 	}
 	for i, want := range previous {
 		if sections[i].Section != want.section || sections[i].Key != want.key {
 			t.Fatalf("help section %d changed to %+v, want section %v key %q", i, sections[i], want.section, want.key)
 		}
 	}
-	fleet := sections[len(sections)-1]
+	fleet := sections[len(sections)-2]
 	if fleet.Section != HelpSectionFleet {
-		t.Fatalf("last help section = %+v, want HelpSectionFleet", fleet)
+		t.Fatalf("fleet help section = %+v, want HelpSectionFleet", fleet)
 	}
 	if fleet.Key != "9" || fleet.Title != "Fleet Manager" {
 		t.Fatalf("fleet help metadata = %+v, want key 9 and title Fleet Manager", fleet)
+	}
+	mcp := sections[len(sections)-1]
+	if mcp.Section != HelpSectionMCP {
+		t.Fatalf("last help section = %+v, want HelpSectionMCP", mcp)
+	}
+	if mcp.Key != "10" || mcp.Title != "MCP Tools" {
+		t.Fatalf("mcp help metadata = %+v, want key 10 and title MCP Tools", mcp)
 	}
 }
 

@@ -801,6 +801,14 @@ func (m ActivityModel) Lines(width int) []string {
 	if m.activeSection == HelpSectionFleet {
 		sections = append(sections, Section(m.theme.Section.Render("Fleet Manager"), FleetHelpLines(), width))
 	}
+	if m.activeSection == HelpSectionAll {
+		sections = append(sections, Section(m.theme.Section.Render("MCP Tools"), []string{
+			"See the MCP Tools topic (10) for status, diagnostics, preview, default-No apply/restore and offline prerequisites.",
+		}, width))
+	}
+	if m.activeSection == HelpSectionMCP {
+		sections = append(sections, Section(m.theme.Section.Render("MCP Tools"), MCPHelpLines(), width))
+	}
 
 	// Flatten all sections with blank separators
 	var lines []string

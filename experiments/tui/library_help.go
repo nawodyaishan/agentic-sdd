@@ -85,6 +85,7 @@ const (
 	HelpSectionAbout
 	HelpSectionPreferences
 	HelpSectionFleet
+	HelpSectionMCP
 )
 
 // HelpSectionInfo holds display metadata for one help section tab.
@@ -107,6 +108,36 @@ func AllHelpSections() []HelpSectionInfo {
 		{Section: HelpSectionAbout, Key: "7", Title: "About"},
 		{Section: HelpSectionPreferences, Key: "8", Title: "Preferences"},
 		{Section: HelpSectionFleet, Key: "9", Title: "Fleet Manager"},
+		{Section: HelpSectionMCP, Key: "10", Title: "MCP Tools"},
+	}
+}
+
+// MCPHelpLines returns the MCP Tools help/quick-start topic as unwrapped prose lines.
+// It states only behavior this build implements: discovering MCP tools (key t in Install
+// & Manage), status/doctor/preview, default-No apply and restore, A/B capability gates,
+// offline operation with no network, and prerequisites for CodeGraph, Context7, and Exa.
+func MCPHelpLines() []string {
+	return []string{
+		"MCP Tools manages configuration for the three canonical Model Context Protocol servers: CodeGraph, Context7, and Exa.",
+		"",
+		"Discovery & Navigation:",
+		"- In Install & Manage (2), press t or navigate to MCP Tools and press Enter.",
+		"- Esc returns to the hub from Overview. Navigation preserves draft state across subviews.",
+		"",
+		"Everyday flow:",
+		"1. Overview shows the status of CodeGraph, Context7, and Exa without running network requests.",
+		"2. Select servers (s or Enter on Overview) to pick servers and choose authentication modes.",
+		"3. Preview configuration (v) displays exact JSON/JSONC diffs, targets, base digests, and conflicts before any change.",
+		"4. Confirm changes with default-No. Applying a configuration requires explicit 'y' confirmation; Enter or Esc cancels.",
+		"5. Diagnostics (d) inspects offline prerequisites and OpenCode configuration without active network checks.",
+		"6. Recovery (r or e) lists managed MCP backups and previews restore before confirmed application.",
+		"",
+		"Safety & Boundaries:",
+		"- Offline only: no model inference, remote MCP network calls, or OAuth flows run from the TUI.",
+		"- Prerequisite checks: CodeGraph requires the local codegraph CLI; Context7 requires an auth mode choice; Exa keyless requires rate-limit acknowledgement.",
+		"- Default-No confirmation: apply and restore always default to No to prevent accidental writes.",
+		"- Gated capabilities: MCP-A provides read-only status, doctor, and static preview; MCP-B adds structured plan preview, transactional apply, and managed restore.",
+		"- Single-slot write host: MCP writes are mutually exclusive with install, restore, and fleet writes.",
 	}
 }
 
