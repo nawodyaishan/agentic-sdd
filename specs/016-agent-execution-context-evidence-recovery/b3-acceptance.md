@@ -1,8 +1,8 @@
 # Feature 016 — B3 acceptance evidence (2026-11-13)
 
-**Status:** Implementation complete for B1–B3; **awaiting human review**. This is not feature acceptance, a release verdict, a security certification, or a reviewer-isolation claim.
-**Baseline:** commit `a8f1c1c` plus the reviewed Feature 016 working-tree changes. No commit, tag, push, or release was performed.
-**Approval:** combined spec/plan/tasks approval is recorded in [spec §14](spec.md#14-approval). The owner authorized B1–B3 and the dependency-safe parallel waves in [tasks.md](tasks.md#parallel-execution-authorization-2026-11-13).
+**Status:** Implementation complete for B1–B3; **v0.10.0 released** by owner instruction on 2026-11-13. This is not feature acceptance, a security certification, or a reviewer-isolation claim.
+**Baseline:** commit `403301f` (the three feature commits); tag `v0.10.0`. No commit, tag, push, or release was performed outside the owner-authorized release described below.
+**Approval:** combined spec/plan/tasks approval is recorded in [spec §14](spec.md#14-approval). The owner authorized B1–B3, the dependency-safe parallel waves, and the v0.10.0 release.
 
 ## Commands run and exits
 
@@ -19,6 +19,20 @@ All Go commands use the repository's sanitized environment (`GOTOOLCHAIN=local`,
 | `python3 -B -m unittest tests.harness.test_appops_core_selection tests.harness.test_supported_core_go tests.harness.test_taskfile` | 0 | 28 tests pass, including 11-package parity. |
 | `PYTHONPATH=tests/harness python3 -B -m unittest tests.harness.test_trusted_ci` | 0 | 14 tests pass. |
 | Disposable-repo CLI smoke | 0 | `run init` → `task brief` → `run check` → `run record` → `run status` → `run clean`; `git status` stayed clean; the default run root was Git-invisible. |
+
+## Release evidence — v0.10.0
+
+| Item | Result |
+|---|---|
+| Commits | `37285e8` feat(execution), `927a4fe` docs(skills), `403301f` docs(016) |
+| Tag | `v0.10.0` (annotated), created and pushed by owner instruction |
+| Release workflow | [run 43394146060](https://github.com/nawodyaishan/agentic-sdd/actions/runs/43394146060) — **success** in 2m9s |
+| Release page | https://github.com/nawodyaishan/agentic-sdd/releases/tag/v0.10.0 |
+| Assets | `agentic-sdd_0.10.0_darwin_all_generic.tar.gz`, `agentic-sdd_0.10.0_darwin_all_homebrew.tar.gz`, `checksums.txt` |
+| Homebrew cask | `nawodyaishan/homebrew-tap` `Casks/agentic-sdd.rb` version `0.10.0` |
+| Non-blocking CI annotations | Node.js 20 deprecation for `actions/checkout@v4`/`actions/setup-go@v5`; `ubuntu-latest` migration notice |
+
+The release workflow ran `task verify`, validated the Homebrew tap token, and completed GoReleaser. Release publication is not implementation acceptance; human acceptance remains a separate decision.
 
 ## Acceptance criteria
 
