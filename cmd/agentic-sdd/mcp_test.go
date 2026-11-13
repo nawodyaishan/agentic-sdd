@@ -788,7 +788,7 @@ func TestMCPHelpAndExistingCommands(t *testing.T) {
 			name:    "help lists mcp and fleet",
 			args:    []string{"help"},
 			code:    0,
-			wantOut: []string{"agentic-sdd mcp status|doctor|preview", "agentic-sdd fleet status|plan|apply|restore|doctor", "agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp]"},
+			wantOut: []string{"agentic-sdd mcp status|doctor|preview", "agentic-sdd fleet status|plan|apply|restore|doctor", "agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]"},
 		},
 		{
 			name:    "help fleet unchanged",

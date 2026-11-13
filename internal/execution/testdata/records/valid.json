@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "result": "passed",
+  "summary": "The focused package tests passed.",
+  "changedPaths": [
+    "internal/execution/record.go"
+  ],
+  "checks": [
+    {
+      "command": "go test ./internal/execution",
+      "exitCode": 0,
+      "logPath": "checks/chk-test/stdout.log"
+    }
+  ],
+  "agent": {
+    "role": "implementer",
+    "model": "reported-model"
+  },
+  "unknowns": [
+    "token usage"
+  ]
+}

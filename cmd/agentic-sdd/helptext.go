@@ -87,6 +87,36 @@ Example: agentic-sdd tui --home ~
 Related: agentic-sdd help preview
 
 `,
+	"run": `run — private execution workspace and check evidence
+
+Creates and inspects one private run under .agentic-sdd/runs/<run-id>/:
+init, status, check, record and clean. It never approves work, calls a model
+or acts as a sandbox; a passing check is evidence, not acceptance.
+Writes files: yes (its own run scratch only; clean without --yes is a preview)
+Example: agentic-sdd run init --feature specs/016-agent-execution-context-evidence-recovery --batch B3
+Related: agentic-sdd help task
+
+`,
+	"task": `task — extract one authorized task into a run
+
+Copies exactly one task section, with its acceptance references and source
+digests, into the run as a brief for a bounded child. It fails closed on a
+missing, duplicate or ambiguous task ID and invents no requirement.
+Writes files: yes (briefs/<task>.md inside the run)
+Example: agentic-sdd task brief --run run-20261113T114500Z-a1b2c3 --task T14
+Related: agentic-sdd help run
+
+`,
+	"review": `review — package actual Git changes for a bounded review
+
+Writes a manifest and patch covering committed, staged, unstaged and untracked
+changes, with binary, sensitive and oversized content handled explicitly. An
+incomplete package exits 3 and names every omission; it never claims a review.
+Writes files: yes (review/<package-id>/ inside the run)
+Example: agentic-sdd review package --run run-20261113T114500Z-a1b2c3 --base a8f1c1c
+Related: agentic-sdd help run
+
+`,
 }
 
 // printTopicHelp writes the topic-specific block for topic and reports

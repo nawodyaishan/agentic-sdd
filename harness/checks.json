@@ -19,14 +19,14 @@
       "id": "vet", "cwd": ".", "scopes": ["baseline", "focused", "required"],
       "prerequisites": ["go"], "timeout_seconds": 180,
       "effects": {"writes": ["Go build/module cache"], "network": "Possible toolchain/module retrieval unless disabled"},
-      "steps": [{"argv": ["go", "vet", ".", "./internal/version", "./internal/skillsync", "./internal/harnesscheck", "./internal/harnessevidence", "./internal/appops", "./internal/buildinfo", "./internal/fleet", "./cmd/agentic-sdd", "./cmd/sdd-check"], "env": {}}],
+      "steps": [{"argv": ["go", "vet", ".", "./internal/version", "./internal/skillsync", "./internal/harnesscheck", "./internal/harnessevidence", "./internal/appops", "./internal/buildinfo", "./internal/fleet", "./internal/execution", "./cmd/agentic-sdd", "./cmd/sdd-check"], "env": {}}],
       "local_recipe": ["task", "vet"], "expected_exit": 0, "evidence": "vet.log"
     },
     {
       "id": "test", "cwd": ".", "scopes": ["baseline", "focused", "required"],
       "prerequisites": ["go"], "timeout_seconds": 180,
       "effects": {"writes": ["Go cache", "temporary test homes", "arbitrary effects from executed candidate code: requires isolation"], "network": "Possible dependency retrieval or candidate test access unless isolated"},
-      "steps": [{"argv": ["go", "test", ".", "./internal/version", "./internal/skillsync", "./internal/harnesscheck", "./internal/harnessevidence", "./internal/appops", "./internal/buildinfo", "./internal/fleet", "./cmd/agentic-sdd", "./cmd/sdd-check"], "env": {}}],
+      "steps": [{"argv": ["go", "test", ".", "./internal/version", "./internal/skillsync", "./internal/harnesscheck", "./internal/harnessevidence", "./internal/appops", "./internal/buildinfo", "./internal/fleet", "./internal/execution", "./cmd/agentic-sdd", "./cmd/sdd-check"], "env": {}}],
       "local_recipe": ["task", "test"], "expected_exit": 0, "evidence": "test.log"
     },
     {

@@ -313,6 +313,7 @@ agentic-sdd restore apply BACKUP_ID   # restore skills and OpenCode agent profil
 - **[TUI architecture](docs/tui-architecture.md)** — packaged companion design, experimental nested module, and toolchain migration blueprint.
 - **[Fleet Manager (terminal UI)](docs/fleet-manager-tui.md)** — explicit local `fleet.json` source, staged model changes, source save pending separate approval, preview-only deployment and managed-backup restore.
 - **[MCP Tools (CodeGraph, Context7, Exa)](docs/mcp-tools.md)** — read-only status/doctor/preview, digest-checked apply, managed restore, and offline guarantees.
+- **[Execution runs](docs/execution-runs.md)** — the approved `run`, `task` and `review` contract: private task briefs, truthful check evidence, review packages, and `.agentic-sdd/runs/` scratch that is observation, never approval (Feature 016; implementation complete, awaiting human review).
 - **[OpenCode pack reference](opencode-pack/README.md)** & **[Model routing policy](opencode-pack/routing.md)** — specialist profiles, permissions, and fallback ladders.
 - **[Product vision](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md)** — why the project exists and where it is headed.
 - **[Documentation index](docs/README.md)** & **[Contributing](CONTRIBUTING.md)**.

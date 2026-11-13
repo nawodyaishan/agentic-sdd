@@ -42,13 +42,13 @@ tasks:
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd logs']
   test:
     desc: Run Go tests
-    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go test . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./internal/buildinfo ./internal/fleet ./cmd/agentic-sdd ./cmd/sdd-check']
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go test . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./internal/buildinfo ./internal/fleet ./internal/execution ./cmd/agentic-sdd ./cmd/sdd-check']
   test-core:
     desc: Run supported-core Go tests only (compatible alias for the core gate)
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} sh tests/supported-core-go.sh test']
   vet:
     desc: Run Go static analysis
-    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go vet . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./internal/buildinfo ./internal/fleet ./cmd/agentic-sdd ./cmd/sdd-check']
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go vet . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./internal/buildinfo ./internal/fleet ./internal/execution ./cmd/agentic-sdd ./cmd/sdd-check']
   vet-core:
     desc: Run supported-core Go vet only (compatible alias for the core gate)
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} sh tests/supported-core-go.sh vet']

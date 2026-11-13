@@ -26,7 +26,7 @@ This gives a one-command experience when the owner asks for it, while preserving
 | MCP references | Profiles allow `codegraph_*`, `context7_*` and `exa_*`; docs describe them. That is permission to use a server, not proof that one is configured. |
 | Config transaction precedent | The build-tagged `agentic-sdd opencode config` path has digest pinning, backup, atomic write and rollback, but it replaces a project config and is excluded from the core gate. It is a useful transaction model, not a reusable MCP merge. |
 | Backup/restore | Manifest formats 1–3 cover skill trees and `opencode-agents/*.md`; there is no config-file backup/restore path. |
-| Isolation | `--home` relocates destinations; tests use temporary homes. The 10-package core gate and offline isolation are binding. |
+| Isolation | `--home` relocates destinations; tests use temporary homes. The supported-core gate and offline isolation are binding. |
 
 **Conclusion:** installation is greenfield for MCP. The installer has no concept of a server manifest, a config merge, a binary check or a missing-piece installer.
 
@@ -233,7 +233,7 @@ Treat the Context7 header/endpoint and Exa tool list as verified-at-implementati
 
 ## 11. Testing and gates
 
-Keep the **10-package core gate**. Put detection/merge/transaction code in existing `internal/skillsync` and CLI code in `cmd/agentic-sdd`; do not create a new package or import the build-tagged `internal/opencodeadapter` into the core path. Embed the manifest with the existing root `go:embed`.
+Keep the **supported-core gate**. Put detection/merge/transaction code in existing `internal/skillsync` and CLI code in `cmd/agentic-sdd`; do not create a new package or import the build-tagged `internal/opencodeadapter` into the core path. Embed the manifest with the existing root `go:embed`.
 
 Tests:
 

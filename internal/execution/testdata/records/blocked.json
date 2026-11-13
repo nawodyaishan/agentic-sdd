@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "result": "blocked",
+  "summary": "The workspace is not writable.",
+  "blockers": [
+    {
+      "kind": "permission",
+      "detail": "write access denied by the environment"
+    }
+  ]
+}

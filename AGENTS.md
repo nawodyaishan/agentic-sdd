@@ -53,6 +53,7 @@ continuity and troubleshooting procedure.
 - `internal/skillsync/sync_test.go`, `manifest_test.go`, `restore_test.go`: isolated-home tests; never write to real user skill directories in tests.
 - `internal/skillsync/source.go`: `fs.FS`-based source resolution (embedded `skills-files/` by default, `--repo` on disk otherwise).
 - `internal/fleet/`: Feature 014 offline fleet core (stdlib only) — `fleet.go`/`parse.go` strict personal config, `resolve.go` source resolution, `render.go` deterministic rendering, `plan.go` plan identity and lock, `manifest.go` fleet provenance sidecar, and `doctor.go` opt-in local-only model-route diagnostics.
+- `internal/execution/`: Feature 016 typed execution service (stdlib only) — repository identity, private workspace and locks, checkpoint state/freshness, task-brief extraction, strict record ingestion, check evidence, and review-package assembly; rendering and flag parsing stay in `cmd/agentic-sdd` and it must not import CLI or UI packages.
 - `internal/version/version.go`: build-time version metadata, injected via `-ldflags` at release build time; `dev`/`none`/`unknown` defaults for local builds.
 - `skillsfiles.go`: root-level `go:embed all:skills-files`, so an installed binary (e.g. via Homebrew) needs no repository checkout.
 
@@ -65,6 +66,10 @@ Keep client destinations and skill selection together in `internal/skillsync`. P
 - Keep unrelated skills untouched and reject symlinks or special files in managed skill trees.
 - Preserve the no-op behavior: identical skills should not be replaced or backed up again.
 - Update README commands and the Taskfile whenever the CLI path or flags change.
+
+## Execution run artifacts
+
+`.agentic-sdd/runs/` is private execution scratch written by the `run`, `task` and `review` commands (Feature 016): a self-ignoring tree that keeps `git status` clean without editing the root `.gitignore`. Keep it out of Git, backups and any upload; remove a run with `run clean`. A run, checkpoint, check log or review package is an observation, never approval, batch state, verification, reviewer isolation or a sandbox. `spec.md` §Approval and `tasks.md` stay authoritative. See [docs/execution-runs.md](docs/execution-runs.md).
 
 ## Verification
 
@@ -99,7 +104,7 @@ Temporary fence for Feature 008 test and validation selection. It applies until 
 
 - **Do not select** excluded or blocked feature parts in any test or validation run: Feature 005 blocked native ACP, admission, online and runtime-certification experiments; Feature 006 native, profile, dispatch, pilot and C2-mitigation work; Feature 007 historical migration, adoption and old-base transition exercises. Their records stay historical evidence, not work queues.
 - **Do keep selecting** the maintained supported core: shipped portable skill assets, package/installer distribution and integrity checks, check-runner and evidence/receipt checks, the current `Taskfile.yml` commands, and the trusted-CI checks.
-- Default `task test`, `task vet`, Lefthook pre-commit hooks, and `harness/checks.json` now select the 10 supported-core packages (`.`, `./internal/version`, `./internal/skillsync`, `./internal/harnesscheck`, `./internal/harnessevidence`, `./internal/appops`, `./internal/buildinfo`, `./internal/fleet`, `./cmd/agentic-sdd`, `./cmd/sdd-check`) with sanitized environment settings, while `Taskfile.experimental.yml` holds separated opt-in experimental tasks. Never add a skip, filter, tolerance or exclusion to make an aggregate suite pass. When an aggregate suite would include excluded validations, run the explicitly named core selection for scoped evidence and report the required aggregate as `not_run` or `blocked` with its reason; a gate conflict stops for a human decision rather than weakening the gate.
+- Default `task test`, `task vet`, Lefthook pre-commit hooks, and `harness/checks.json` now select the 11 supported-core packages (`.`, `./internal/version`, `./internal/skillsync`, `./internal/harnesscheck`, `./internal/harnessevidence`, `./internal/appops`, `./internal/buildinfo`, `./internal/fleet`, `./internal/execution`, `./cmd/agentic-sdd`, `./cmd/sdd-check`) with sanitized environment settings, while `Taskfile.experimental.yml` holds separated opt-in experimental tasks. Never add a skip, filter, tolerance or exclusion to make an aggregate suite pass. When an aggregate suite would include excluded validations, run the explicitly named core selection for scoped evidence and report the required aggregate as `not_run` or `blocked` with its reason; a gate conflict stops for a human decision rather than weakening the gate.
 - `excluded` and `not_run` are not `pass`. Claim no model, native, online or external-evaluation behavior, and never write to a real user home.
 - Select Python checks explicitly by file pattern (for example `python3 -B -m unittest discover -s tests/harness -p test_core_workflow.py`); broad discovery across `tests/harness/` is not an approved selection.
 - A preserved or committed 005/006/007 work-in-progress change stays out of scope: being committed is not evidence and does not re-enable that work.

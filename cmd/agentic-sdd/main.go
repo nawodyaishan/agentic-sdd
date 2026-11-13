@@ -82,7 +82,7 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			return runOpenCode(args[1:], stdout, stderr)
 		case "help":
 			if len(args) > 2 || (len(args) == 2 && !isHelpTopic(args[1])) {
-				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|logs|restore|tui]")
+				fmt.Fprintln(stderr, "error: usage: agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]")
 				return 2
 			}
 			if len(args) == 2 && (args[1] == "opencode" || args[1] == "opencode-harness") {
@@ -120,6 +120,12 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 			return runFleet(args[1:], stdout, stderr, env)
 		case "mcp":
 			return runMCP(args[1:], stdout, stderr, env)
+		case "run":
+			return runRun(args[1:], stdout, stderr, stdin, env)
+		case "task":
+			return runTaskCommand(args[1:], stdout, stderr, stdin, env)
+		case "review":
+			return runReview(args[1:], stdout, stderr)
 		default:
 			if !strings.HasPrefix(args[0], "-") {
 				fmt.Fprintf(stderr, "error: unknown command %q\n", args[0])
@@ -274,7 +280,7 @@ func shellQuoteIfNeeded(s string) string {
 
 func isHelpTopic(s string) bool {
 	switch s {
-	case "preview", "apply", "backups", "logs", "restore", "guide", "version", "tui", "opencode", "opencode-harness", "orchestrate", "fleet", "mcp":
+	case "preview", "apply", "backups", "logs", "restore", "guide", "version", "tui", "opencode", "opencode-harness", "orchestrate", "fleet", "mcp", "run", "task", "review":
 		return true
 	}
 	return false
@@ -571,7 +577,10 @@ func printUsage(out io.Writer) {
        agentic-sdd guide [--repo PATH] [--home PATH]
        agentic-sdd fleet status|plan|apply|restore|doctor [--config PATH] [--home PATH]
        agentic-sdd mcp status|doctor|preview [--config PATH] [--home PATH] [--json]
-       agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp]
+       agentic-sdd run init|status|check|record|clean [--run ID] [--repo PATH]
+       agentic-sdd task brief --run ID --task T01 [--repo PATH]
+       agentic-sdd review package --run ID --base COMMIT [--repo PATH]
+       agentic-sdd help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -584,6 +593,9 @@ Commands:
   tui            Open the terminal UI in a real terminal (packaged companion).
   fleet          Manage agent fleet profiles and model overrides.
   mcp            Inspect the default MCP tools read-only (status, doctor, preview).
+  run            Create or inspect a private execution run.
+  task           Extract one authorized task brief into a run.
+  review         Package real Git changes for a bounded review.
 
 With the Homebrew package, a bare "agentic-sdd" in a real interactive terminal
 opens the terminal UI. Any command or flag, a non-terminal stdin or stdout, and

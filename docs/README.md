@@ -21,6 +21,10 @@ specifications, evidence and handovers continue to work.
   specialist subagents, MCP tools (`codegraph`, `context7`, `exa`), and backup/restore.
 - [Installer reference](installer-reference.md) — commands, flags, backups,
   restore, file permissions, and logs.
+- [Execution runs](execution-runs.md) — the approved Feature 016 `run`, `task`
+  and `review` contract: private task briefs, truthful check evidence, review
+  packages, and `.agentic-sdd/runs/` scratch that is observation, never approval,
+  verification, reviewer isolation or a sandbox (implementation complete, awaiting human review).
 - [CodeGraph setup and continuous sync](codegraph.md) — local index bootstrap,
   MCP/CLI fallback, sync checks and troubleshooting; never committed.
 - [Default MCP integration study](mcp-default-integration-study.md) — CodeGraph,

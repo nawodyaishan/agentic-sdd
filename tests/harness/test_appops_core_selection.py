@@ -2,7 +2,8 @@
 
 Feature 013 B2/T04 with D03 permission added `internal/appops`; B14/T41 with D07
 authorization adds `internal/buildinfo`; Feature 014 B5/T10 (approved 2026-11-11)
-adds `internal/fleet`. Each joins every maintained
+adds `internal/fleet`; Feature 016 B1/T07 (approved 2026-11-13)
+adds `internal/execution`. Each joins every maintained
 supported-core selector without removing existing coverage or enabling excluded
 005/006/007 selections. These checks read selector text only; they never build Go
 and never require a package to exist in this checkout, so a missing package
@@ -13,7 +14,7 @@ Selection guardrails asserted here:
 - the shell script's required-directory loop lists each added package;
 - the pre-existing seven packages stay selected;
 - no `./...` aggregate, experimental build tag or excluded package is selected;
-- package-count guidance in AGENTS.md and CONTRIBUTING.md says ten.
+- package-count guidance in AGENTS.md and CONTRIBUTING.md says eleven.
 """
 
 import json
@@ -35,9 +36,10 @@ PRE_EXISTING = [
 APP_OPS_PACKAGE = "./internal/appops"
 BUILDINFO_PACKAGE = "./internal/buildinfo"
 FLEET_PACKAGE = "./internal/fleet"
+EXECUTION_PACKAGE = "./internal/execution"
 # Additive insertions: existing relative order is preserved, and each added
 # package sits immediately before the CLI packages, newest last.
-CORE_PACKAGES = [*PRE_EXISTING[:5], APP_OPS_PACKAGE, BUILDINFO_PACKAGE, FLEET_PACKAGE, *PRE_EXISTING[5:]]
+CORE_PACKAGES = [*PRE_EXISTING[:5], APP_OPS_PACKAGE, BUILDINFO_PACKAGE, FLEET_PACKAGE, EXECUTION_PACKAGE, *PRE_EXISTING[5:]]
 REQUIRED_DIRS = [pkg[2:] for pkg in CORE_PACKAGES if pkg != "."]
 
 SANITIZED_ENV = "GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS="
@@ -54,7 +56,7 @@ def backticked_packages(text):
 
 
 class SelectorParityTests(unittest.TestCase):
-    def test_taskfile_test_and_vet_select_all_ten_packages(self):
+    def test_taskfile_test_and_vet_select_all_eleven_packages(self):
         taskfile = read("Taskfile.yml")
         for mode in ("test", "vet"):
             with self.subTest(mode=mode):
@@ -62,7 +64,7 @@ class SelectorParityTests(unittest.TestCase):
                 self.assertIn(expected, taskfile, f"Taskfile.yml {mode} must select every core package")
                 self.assertNotIn(f"go {mode} ./...", taskfile)
 
-    def test_harness_contract_required_vet_and_test_select_all_ten_packages(self):
+    def test_harness_contract_required_vet_and_test_select_all_eleven_packages(self):
         contract = json.loads(read("harness/checks.json"))
         required = {check["id"]: check for check in contract["checks"] if "required" in check["scopes"]}
         self.assertEqual(sorted(required), sorted(REQUIRED_CHECK_IDS))
@@ -122,8 +124,8 @@ class SelectorParityTests(unittest.TestCase):
 class PackageCountGuidanceTests(unittest.TestCase):
     def assert_count_and_list(self, path, text):
         flat = " ".join(text.split())
-        self.assertIn("10 supported-core", flat, f"{path} must state the ten-package count")
-        for stale in ("9 supported-core", "8 supported-core", "7 supported-core"):
+        self.assertIn("11 supported-core", flat, f"{path} must state the eleven-package count")
+        for stale in ("10 supported-core", "9 supported-core", "8 supported-core", "7 supported-core"):
             self.assertNotIn(stale, flat, f"{path} still states a stale package count")
         listed = [pkg for pkg in backticked_packages(flat) if pkg in CORE_PACKAGES]
         self.assertEqual(listed, CORE_PACKAGES, f"{path} package list must match the maintained selectors")
@@ -137,8 +139,9 @@ class PackageCountGuidanceTests(unittest.TestCase):
         flat = " ".join(text.split())
         # Both supported-core mentions (pre-commit description and default task
         # description) plus the experimental-exclusion note are current.
-        self.assertEqual(flat.count("10 supported-core"), 2)
-        self.assertEqual(flat.count("10-package core selection"), 1)
+        self.assertEqual(flat.count("11 supported-core"), 2)
+        self.assertEqual(flat.count("11-package core selection"), 1)
+        self.assertNotIn("10-package", flat)
         self.assertNotIn("9-package", flat)
         self.assertNotIn("8-package", flat)
         self.assertNotIn("7-package", flat)

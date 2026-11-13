@@ -29,6 +29,7 @@ CORE_PACKAGES = [
     "./internal/appops",
     "./internal/buildinfo",
     "./internal/fleet",
+    "./internal/execution",
     "./cmd/agentic-sdd",
     "./cmd/sdd-check",
 ]
@@ -49,7 +50,7 @@ class TrustedPolicyTests(unittest.TestCase):
         old_contract = copy.deepcopy(self.contract)
         old_contract["checks"][2]["steps"][0]["argv"] = ["go", "vet", "./..."]
         old_contract["checks"][3]["steps"][0]["argv"] = ["go", "test", "./..."]
-        # Old base contract rejects candidate with new ten-package core contract
+        # Old base contract rejects candidate with new eleven-package core contract
         with self.assertRaisesRegex(ValueError, "reviewed adoption required"):
             gate.required_contract(old_contract, self.contract)
         # New base contract rejects candidate with old ./... contract
