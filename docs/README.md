@@ -25,6 +25,9 @@ specifications, evidence and handovers continue to work.
   MCP/CLI fallback, sync checks and troubleshooting; never committed.
 - [Default MCP integration study](mcp-default-integration-study.md) — CodeGraph,
   Context7 and Exa install-time checks, config merge and missing-piece options.
+- [Research skills and subagents: current state](research-skills-and-subagents-current-state.md) —
+  how research is routed, delegated and evidenced across the portable skills,
+  the opt-in pack and the installed machine fleet.
 - [TUI architecture and toolchain migration blueprint](tui-architecture.md) —
   experimental Charm v2 hybrid spike and 8-point toolchain audit for Feature 012.
 - [Feature 009 spec](../specs/009-opencode-orchestration/spec.md),
