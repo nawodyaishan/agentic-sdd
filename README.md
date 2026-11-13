@@ -36,31 +36,35 @@ Agentic SDD helps you bring that judgment into your work with AI:
 
 ```sh
 brew install --cask nawodyaishan/tap/agentic-sdd
-asdx-core preview
+asdx
 ```
 
-Preview shows which skills would be installed or replaced. **It does not write changes.** When you're happy with the plan:
+The TUI opens Install & Manage, previews the exact changes, and writes only after you confirm (default **No**). It includes the OpenCode profile pack by default; pass `--with-opencode=false` for core skills only, or `--opencode-free-first` to preset routine implement/test profiles to try Free models first.
+
+For scripts, pipes and CI, the explicit write-free CLI remains `asdx-core preview`, with `asdx-core apply` as the scripted write path. The legacy `agentic-sdd` name remains a CLI wrapper to `asdx-core` and never becomes the TUI; `agentic-sdd-tui` is the legacy TUI wrapper to `asdx`.
+
+**OpenCode orchestration pack:**
+
+The TUI includes the pack by default. To install core skills only:
 
 ```sh
-asdx-core apply
+asdx --with-opencode=false
 ```
 
-In a real interactive terminal, a bare `asdx` opens the terminal UI; `asdx-core preview` always keeps the explicit, write-free CLI, so scripts, pipes and `AGENTIC_SDD_FORCE_INTERACTIVE=1` are unaffected. The legacy `agentic-sdd` name remains a CLI wrapper to `asdx-core` and never becomes the TUI; `agentic-sdd-tui` is the legacy TUI wrapper to `asdx`.
-
-**Install with the OpenCode Orchestration Pack (`--with-opencode`):**
+To keep the pack and preset Free-first profiles:
 
 ```sh
-# Preview core skills + agentic-sdd-orchestrate + 14 OpenCode v2 agent profiles
+asdx --opencode-free-first
+```
+
+For scripted/CI preview and apply:
+
+```sh
 asdx-core preview --with-opencode
-
-# Apply (backs up any existing managed profiles first)
 asdx-core apply --with-opencode
-
-# Optional: also configure routine implement/test profiles to try Free models first
-asdx-core apply --with-opencode --opencode-free-first
 ```
 
-Already installed? Run `brew upgrade nawodyaishan/tap/agentic-sdd`, then preview and apply to update your installed skills and profiles.
+Already installed? Run `brew upgrade nawodyaishan/tap/agentic-sdd`, then run `asdx` to preview and apply the update. For scripted updates use `asdx-core preview` and `asdx-core apply`.
 
 <details>
 <summary><strong>Upgrading an earlier formula installation</strong></summary>
@@ -116,41 +120,16 @@ The CLI writes to your real home by default, as it does on macOS. To try a read-
 
 </details>
 
-### Try the interactive CLI locally
+### Try the TUI locally
 
-From a repository checkout with Go and Task installed:
-
-```sh
-task run
-```
-
-This opens the animated guide in your terminal with a fresh temporary home, removed on exit. Installs affect that temporary home, not your real agent directories. Animation respects `TERM`, `NO_COLOR`, and `COLUMNS`; inherited flow tracing and forced-interactive settings are disabled for the demo. Enter `q` at the menu to quit. This is not an OS sandbox; explicitly choosing the update check can contact GitHub.
-
-### Try the interactive CLI in Docker
-
-From a repository checkout, with Docker, Task, and the `golang:1.25-alpine` image already available locally:
+From a repository checkout with Go 1.26 or newer and Task installed:
 
 ```sh
-task docker-guide
+task -t Taskfile.experimental.yml tui:pair
+bin/tui-pair/asdx --home /tmp/test-home
 ```
 
-Explore the numbered menu and optional animated intro; enter `q` at the menu to quit. The repository is mounted read-only, installs target only `/tmp/demo-home` inside the disposable container, and your real home is never mounted. Networking is disabled, so checking for updates shows the offline fallback. Animation respects your terminal's `TERM`, `NO_COLOR`, and `COLUMNS` settings. All container changes disappear on exit.
-
-For automated container checks instead, run `task docker-guide-e2e`.
-
-### Guided CLI (`asdx-core guide`)
-
-`asdx-core guide` is the zero-dependency, numbered-prompt path through the same installer. It needs an interactive terminal; with piped or `/dev/null` stdin it exits `2` without reading input.
-
-On terminal stdout it shows:
-
-- a branded introduction with the tagline, creator, installed version and documentation URL;
-- a grouped main menu: **1** preview and install, **2** restore from a backup, **3** view the latest install or restore log, **4** About and getting started, **5** check for CLI updates (contacts GitHub), **6** explore skills and agent profiles, and **q** to quit;
-- a staged flow — choose options, review exact changes, then confirm — with complete paths, per-destination counts and a preview restoring command.
-
-Every confirmation defaults to **No**; EOF cancels without writing, and `q` exits the menu. Installing through the wizard performs the same `apply` operation as the CLI, including backups and the operation log. `task run` and `task docker-guide` are disposable demo wrappers for this flow.
-
-Scripted use is unaffected: with non-terminal stdout, the guide and every other command keep their historical plain output and exit codes.
+`tui:pair` builds identity-matched `asdx`, `asdx-core`, `agentic-sdd`, and `agentic-sdd-tui` binaries in `bin/tui-pair/`. The `--home` example keeps the demo away from your real agent directories; the TUI still previews before writing. The task needs Go 1.26 or newer for the nested TUI module and prints the injected revision and source digest for both binaries.
 
 ### Terminal UI (`asdx`)
 
@@ -172,14 +151,31 @@ The Home screen checks GitHub once per session for a newer CLI release without b
 
 The TUI includes the OpenCode profile pack by default; pass `--with-opencode=false` for the core skills only. It needs a real input and output terminal, plus the paired `asdx` binary next to `asdx-core`; the legacy `agentic-sdd-tui` name is only a compatibility wrapper. The CLI checks the companion's build identity before starting it; a missing, non-executable or mismatched companion is a clear error with rebuild guidance, never a silent switch to another workflow. Pipes, scripts, `AGENTIC_SDD_FORCE_INTERACTIVE=1` and every explicit command or flag keep the standard CLI. `asdx-core preview` is always the write-free escape hatch.
 
-From a source checkout, build a matching local pair (same revision, commit and source-content digest, so the handshake passes without a release tag):
+### Optional: guided CLI (`asdx-core guide`)
+
+`asdx-core guide` is the zero-dependency, numbered-prompt fallback through the same installer. It needs an interactive terminal; with piped or `/dev/null` stdin it exits `2` without reading input.
+
+On terminal stdout it shows:
+
+- a branded introduction with the tagline, creator, installed version and documentation URL;
+- a grouped main menu: **1** preview and install, **2** restore from a backup, **3** view the latest install or restore log, **4** About and getting started, **5** check for CLI updates (contacts GitHub), **6** explore skills and agent profiles, and **q** to quit;
+- a staged flow — choose options, review exact changes, then confirm — with complete paths, per-destination counts and a preview restoring command.
+
+Every confirmation defaults to **No**; EOF cancels without writing, and `q` exits the menu. Installing through the wizard performs the same `apply` operation as the CLI, including backups and the operation log. `task run` and `task docker-guide` remain disposable demo wrappers for this fallback.
+
+Scripted use is unaffected: with non-terminal stdout, the guide and every other command keep their historical plain output and exit codes.
+
+### Optional: numbered-prompt guide in Docker
+
+From a repository checkout, with Docker, Task, and the `golang:1.25-alpine` image already available locally:
 
 ```sh
-task -t Taskfile.experimental.yml tui:pair
-bin/tui-pair/asdx
+task docker-guide
 ```
 
-The task needs Go 1.26 or newer for the nested TUI module. It prints the injected revision and source digest for both binaries.
+Explore the numbered menu and optional animated intro; enter `q` at the menu to quit. The repository is mounted read-only, installs target only `/tmp/demo-home` inside the disposable container, and your real home is never mounted. Networking is disabled, so checking for updates shows the offline fallback. Animation respects your terminal's `TERM`, `NO_COLOR`, and `COLUMNS` settings. All container changes disappear on exit.
+
+For automated container checks instead, run `task docker-guide-e2e`.
 
 ## What's new (feature 010–013)
 
