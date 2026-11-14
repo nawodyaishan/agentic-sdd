@@ -1,26 +1,40 @@
 # Feature 020 — Tasks and batch ledger
 
-**Revision:** r4, 2026-11-14 — B1 implementation evidence and review disposition only; approved scope remains spec r2 + plan r3 + tasks r3. B1 awaiting human review; later batches unauthorized.
+**Revision:** r5, 2026-11-14 — B2–B6 implementation recorded under the owner concurrency override; approved scope remains spec r2 + plan r3 + tasks r3. No batch is accepted; all six are awaiting human review.
 **Parents:** [spec.md](spec.md) r2; [plan.md](plan.md) r3; [sitemap](sitemap.md) is the page-scope owner.
-**Approval reference:** [spec §9](spec.md#9-approval), the only combined approval record.
-**Current stage:** B1/T01–T02 implemented and integrated. B1 is **awaiting human review**; no later batch is selected.
+**Approval reference:** [spec §9](spec.md#9-approval), the only combined approval record; batch state is this file.
+**Current stage:** B2 W1+W2 integrated; B3 integrated (39 pages registered); B4 migration and tooling partially integrated; B5 tooling authored with the search gate failing; B6 A–C integrated and green. Every batch is **awaiting human review**; none is accepted.
 
 ## Batch ledger
 
 | Batch | Tasks / waves | Lanes / peak writers | Outcome / completion | State / next action |
 |---|---|---|---|---|
 | B1 — Foundations and contracts | T01 W1 → integrate → T02 W2 | 8 / **4** | Standard Starlight source/build/base, frozen helper/manifest contracts and source-backed references | `awaiting human review 2026-11-14 — integrated gates green; not accepted`; next action is human B1 review |
-| B2 — First useful experience | T03 W1 → integrate → T04 W2 | 8 / **6** | Launch pages/examples/references then concise README/entry navigation | `authorized / in progress 2026-11-14 — B2 amendment; stop after review` |
-| B3 — Complete current-feature knowledge | T05/T06/T07 W1 together | 11 / **11** | Subsystem/contributor/architecture/security content and reviewed diagrams | `not authorized`; reviewed B2 then explicit B3 |
-| B4 — Migration and maintenance | T08/T09 W1 together | 7 / **7** | Compatibility stubs, QA/export/impact and adversarial fixtures | `not authorized`; reviewed B3 then explicit B4 |
-| B5 — Publication readiness and acceptance | T10/T12 W1 → final evaluation | 6 / **6** | Safe CI/rollout plus integrated search/a11y/usability/performance evidence | `not authorized`; reviewed B4 then explicit B5; deploy separate |
-| B6 — Optional minimal TUI access | T11 W1 | 4 / **4** | Fixed docs links/opener/UI/tests/docs; existing navigation/write controls intact | `not authorized`; stable URLs/reviewed B5 then explicit B6, or owner removes scope |
+| B2 — First useful experience | T03 W1 → integrate → T04 W2 | 8 / **6** | Launch pages/examples/references then concise README/entry navigation | `W1+W2 integrated 2026-11-14 — 39-page tree green at 469 tests; completion review owed` |
+| B3 — Complete current-feature knowledge | T05/T06/T07 W1 together | 11 / **11** | Subsystem/contributor/architecture/security content and reviewed diagrams | `pages integrated and registered 2026-11-14 — 39 pages; diagram PNGs blocked; awaiting review` |
+| B4 — Migration and maintenance | T08/T09 W1 together | 7 / **7** | Compatibility stubs, QA/export/impact and adversarial fixtures | `migration + tooling integrated 2026-11-14 — checker defects fixed; 6 adversarial cases blocked; awaiting review` |
+| B5 — Publication readiness and acceptance | T10/T12 W1 → final evaluation | 6 / **6** | Safe CI/rollout plus integrated search/a11y/usability/performance evidence | `authored + integrated 2026-11-14 — search 20/20; AD-1/AD-2 implemented (70 CI tests); live ops not_run` |
+| B6 — Optional minimal TUI access | T11 W1 | 4 / **4** | Fixed docs links/opener/UI/tests/docs; existing navigation/write controls intact | `A–D integrated 2026-11-14 — 10/10 docs tests; blob URLs unreachable until commit; awaiting review` |
 
 At each batch end: run affected checks, perform one completion review, record code state/checks/results/open findings, set `awaiting human review`, write the session handover and stop. No automatic batch progression, commit, deployment or additional model spending. Optional B6 is not silently marked complete/skipped; removal from accepted scope requires an explicit owner decision.
 
+### Owner concurrency override (2026-11-14, session c)
+
+The owner directed implementation of **B2, B3, B4, B5 and B6 concurrently** with the maximum useful lanes. This explicitly waives the recorded `reviewed B2 → B3 → B4 → B5 → B6` gate order for implementation start; it does **not** accept any batch, does not authorize commit/push/tag/release/Pages deployment/real-home apply, and does not convert any unrun check into a pass. Each batch still ends `awaiting human review` with its own completion review.
+
+- **Model mix (owner request):** `9router/ag/gemini-4-hydrogen-high` for R-profile authoring lanes, `opencode-go/deepseek-v4.1-flash#max` for C-profile tooling lanes, and free Console DeepSeek for independent fixture/test lanes. No Claude model is used.
+- **Frozen base:** `449245a990225f2234685dee8314dff1c3b1d3b2` (integrated B1) for every worktree.
+- **Single-writer fences (deferred, not skipped):** `P/contributing/docs-and-changes.md`, `P/releases/{compatibility,migration}.md` are created by B3-W1-H before B4-W1-F and B5-W1-D may edit them. `P/reference/tui.md`, `P/getting-started/choose-setup.md` and `P/operations/troubleshooting.md` are created by B2-W1-E, B2-W1-A and B3-W1-J before B6-W1-D edits them.
+- **Integration order:** lane returns are integrated by the parent only; B2 W2 (`README.md`, entrypoint tests) still starts after B2 W1 integration so README never points at missing content. Connected site build, registry, sidebar and generated blocks remain parent-owned.
+- **Consequence accepted by the owner:** B4 stubs may target pages authored in parallel (reported `integration-pending`, never invented) and B5 acceptance tooling may be authored before B4 integration, so B5 observations stay `not_run` until the connected run.
+
+**Worker models and failures (B2–B6, recorded 2026-11-14):** B1's table above remains accurate for B1. For B2–B6 the actual mix was `9router/ag/gemini-4-hydrogen-high` (R-profile authoring), `opencode-go/deepseek-v4.1-flash#max` (C-profile tooling), `opencode-go/muse-spark-1.3-contributor` (prose retries), and `opencode/deepseek-v4.1-flash-free` (independent fixtures). No Claude model ran at any point. Failures: the Console free tier exhausted its daily quota and stopped three lanes (`B4-W1-G`, `B5-W1-C`, `B6-W1-C`), which were restarted on Go lanes; the Gemini Hydrogen quota then stopped eleven in-flight lanes, of which nine had made no changes and were restarted on DeepSeek Max or Muse. `B4-W1-B` was cancelled after returning its work. Costs and allowance are not exposed. No fallback was inferred across providers for an existing 9Router session; restarts used new Go sessions.
+
+**B4–B6 integration status (2026-11-14, session c):** B4 migration dispositions are complete for all nine old guides (`migration-stub` ×4, `retained-engineering-trace` ×3, plus the index and history files), with `docs/getting-started.md` deliberately retained because `test_core_workflow.py` asserts it. The three B4-B stubs still describe their destinations as `integration-pending` and use raw `<a id>` anchors, so they do not pass `check.mjs` stub validation; that is a known, recorded limitation, not a pass. `check.mjs`, `export.mjs` and `impact.mjs` are integrated with `docs:check`/`docs:export`/`docs:impact` Taskfile targets. B5's launcher, workflow and 27 adversarial tests pass; `--mode links` now exists as an observation-only, non-blocking mode with its own gated scheduled job. **B5's search acceptance fails at 17/20** against a threshold of 18/20 (q02, q05, q18), so B5 is not complete and the threshold was not lowered. B6 A–C are integrated and pass 10/10 docs tests; B6's seven trusted links are `blob/main` URLs for files that are still uncommitted, so they will 404 until a commit is authorized — a completion blocker, not a pass.
+
 ## Dispatch rules and ownership
 
-Plan **C5** owns the worktree/transport/frozen-interface/test/handoff contract and §11 owns runtime throttling. R/C defaults are in plan §9; the owner authorized the B1 model mix below. Only B1 may run; later lanes remain planned/not authorized.
+Plan **C5** owns the worktree/transport/frozen-interface/test/handoff contract and §11 owns runtime throttling. R/C defaults are in plan §9. The owner authorized B1 in its own model exception below and then B2–B6 under the §Owner concurrency override; see that section for the lane fences and model mix.
 
 **B1 model exception (owner request 2026-11-14):** use free Console implementation workers plus explicit catalog-resolved `9router/ag/gemini-4-hydrogen-high` and `opencode-go/deepseek-v4.1-flash#max` overrides. Native Go may draw on allowance/charges; 9Router upstream cost is not exposed. This is a bounded B1 override, not a global/profile/model-routing change. Preserve partial work on failure and follow applicable authorized fallback rules; do not infer a paid/cross-lane retry.
 
@@ -129,7 +143,7 @@ W1's six lanes consume the integrated B1 snapshot and frozen page IDs. W2 begins
 Gemini 4 Hydrogen returned B1 **Ready** and recommended B2 navigation/baseline safeguards; DeepSeek Flash Max returned B1 **Needs changes** on review-state/provenance/baseline/CLI evidence. The immediate B1 review-state, README/migration-anchor baseline, provisioning proof and binary-path evidence are corrected. The remaining reference provenance and CLI-reference corrections are part of this B2 amendment; they are not silently waived.
 
 - **A-01 README gates:** preserve the two `cmd/agentic-sdd/guide.go` example prompts verbatim and keep a `docs/getting-started.md` pointer until B4, because `guide_test.go` and `test_core_workflow.py` assert them. Preserve high-value anchors: `quick-start`, `support-and-release-scope`, `where-the-skills-go`, `where-the-files-go`, `opencode-orchestration-pack---with-opencode`, `the-workflow`, `safety-model`, `explore-further`.
-- **A-02 Link fence:** B2 pages may link only to B1/B2 pages that exist and to repository source paths; no relative links to B3-owned `architecture/*`, `operations/*`, `security/*`, `contributing/*`, `releases/*`, `how-to/{orchestration,fleet,mcp,execution,customization}`, or `tutorials/{specialists,research-and-debugging}`.
+- **A-02 Link fence:** B2 pages may link only to B1/B2 pages that exist and to repository source paths; no relative links to B3-owned `architecture/*`, `operations/*`, `security/*`, `contributing/*`, `releases/*`, `how-to/{orchestration,fleet,mcp,execution,customization}`, or `tutorials/{specialists,research-and-debugging}`. **Retired at B3 integration (2026-11-14):** the fence was a staging guard for pages that did not exist yet. AD-2 requires every L/C page to be discoverable, so it is replaced by the stronger post-integration invariant that every relative link resolves to a registered page or an existing repository file, and no page links the legacy `docs/` tree. `entrypoints-github-fallback.test.mjs` enforces the replacement across all 39 pages.
 - **A-03 Registry test:** after B2 registration, update `website/tests/reference-manifest.test.mjs` for 19 pages, remove the hard-coded review date, assert `reviewStatus`, and require generated-section provenance only for the eight collector-produced pages; `reference/tui` is authored.
 - **A-04 Navigation:** parent adds an explicit Starlight sidebar for the 14 B2 L pages and updates index metadata to `type: landing`, audience new/experienced; B1 C pages remain built but are not presented as launch nav until B3.
 - **A-05 Reference pages:** keep frontmatter and generated markers intact; add curated skills categories and normative `SKILL.md` source links outside markers; create `reference/tui` with five routes/keys and current controls; recompute page/source fingerprints. Add `cmd/agentic-sdd/mcp_write.go` to the MCP factual-source set.
@@ -178,6 +192,20 @@ The amendment changes no B3–B6 scope and authorizes no live operation. B2 page
 | B2-W2-B / R | `X/entrypoints-*` | Entry/sidebar/edit-link/GitHub-mobile source checks against fixed destinations; navigation delta in return, no custom design system |
 
 **B2 integration:** parent hydrates generated sections/registry/navigation, runs launch examples and link checks on the merged tree, performs one completion review and stops for human review.
+
+**B2 W1 integrated evidence (2026-11-14, session c):** six lanes returned and were copied after verifying the frozen base and exclusive scopes. All six B2 W1 lanes and the six B3-W1 A–F lanes ran concurrently under the owner concurrency override.
+
+| Surface | Actual evidence |
+|---|---|
+| Pages | 14 L pages present: `index`; `introduction/{concepts,clients}`; `getting-started/{choose-setup,installation,first-five-minutes}`; `tutorials/{direct-fix,first-feature}`; `how-to/{skills,updates-and-recovery}`; `reference/{cli,tui,files-and-backups,skills}` |
+| Manifest | 19 pages registered with per-page evidence fingerprints, `reviewStatus: unreviewed`, `appliesTo: unreleased`; `loadManifest(..., {verifySources:true})` valid |
+| Generated references | `reference.mjs --generate --commit 2fc31e9f...` exit 0, provenance commit-verified; all 8 collector blocks deterministic |
+| Examples runner | `examples.mjs` + 19 focused tests; real candidate `--only first-preview` returned `pass` with a zero-entry fixture home |
+| Navigation | explicit Starlight sidebar for the 14 L pages; `reference/tui` is authored and has no generated-section requirement |
+| Connected Node suite | **291 tests, 291 pass, 0 fail, 0 skipped, 27.0 s** in the host Node 24.21.0 with a repo-local dependency tree; includes two disposable Starlight builds (20 HTML files, Pagefind index) |
+| Registry test | `reference-manifest.test.mjs` updated to 19 pages, asserts `reviewStatus`/`appliesTo`, requires generated provenance only for the eight collector pages |
+| Deviation | the amendment's `type: landing` for `index` is not representable in C1's `PAGE_TYPES` (`tutorial|how-to|reference|explanation`); `index` stays `explanation` and the sitemap's landing role is expressed by the sidebar group, not a new type |
+| Residual | the host Node is 24.21.0, not the pinned container 24.22.3; the connected container run is still owed before B2 completion |
 
 ## B3 — Complete current-feature knowledge
 
@@ -239,6 +267,53 @@ All eleven W1 lanes can start together after reviewed B2 and explicit B3 authori
 | B3-W1-K / R | `A/diagrams/D01*` through `A/diagrams/D05*` (`.mmd`/PNG only) | Five reviewed static projections, alt/prose requirements and render/source provenance in handoff; no runtime renderer/dependency change |
 
 **B3 integration:** these ten content lanes own all remaining 25 L/C pages; diagram lane owns assets. Together with B2's 14 pages, every one of the 39 L/C pages has exactly one initial narrative owner. Parent checks cross-page truth, wires examples/hashes and generated blocks, runs merged validation, then performs one completion review and stops. Do not combine eleven child “passes” into a batch pass.
+
+**B3 integration evidence (2026-11-14, session c):** ten of eleven lanes returned (K returned `.mmd` sources with PNGs blocked). The parent copied only each lane's exclusive files, then registered all 39 pages.
+
+| Surface | Actual evidence |
+|---|---|
+| Pages | 39 Markdown pages on disk (22 L, 17 C); 20 new B3 pages; 5 B1 reference pages extended outside their generated markers |
+| Manifest | 39 pages registered with evidence fingerprints, `reviewStatus: unreviewed`, `appliesTo: unreleased`; `loadManifest(..., {verifySources:true})` valid |
+| Generated blocks | `reference.mjs --check` → **0 drifted**; B3 prose did not disturb the eight collector blocks |
+| Navigation | sidebar extended from 14 to 22 launch L pages; the 17 class C pages stay built but out of navigation |
+| Registry tests | `reference-manifest` and `entrypoints-*` updated to 39 pages / 22 launch pages: 14 tests pass |
+| Content checker | `check.mjs --repo .` → exit 0, **0 errors**, 5 external-link observations over 39 pages |
+| Accessibility | 3 real defects found and fixed: empty table header cell and a raw `<new id>` placeholder in `architecture/workflows.md`, and a `<script>` placeholder in `operations/troubleshooting.md`; 22 static checks pass, 11 `not_run` |
+| Search (Pagefind) | **17/20** top-5 after integration and targeted content fixes (was 11/20 with 19 pages); threshold is 18/20 and remains **failing** on q02, q05, q18 |
+| Repository gates | Python core 11/11, research 22/22, `go test ./...` all packages pass |
+| Diagrams | 5 `.mmd` sources + render README; PNGs **blocked** — no renderer installed and installing one is not authorized |
+| Residual | B3 link targets authored against the frozen sitemap, so cross-lane links resolve only after every page lands; this is now true, and `check.mjs` reports 0 errors |
+
+## Architecture review register (2026-11-14, session d)
+
+Independent architecture review verdict: **Sound with conditions.** C1 registry, C2 generators, C3 runner, C4 launcher and C5 parent integration are coherently layered; C4's isolation design is the strongest part. It is not evidence that AC-08/AC-10/AC-13/AC-15 are met. Risks are recorded here so they are not lost; each is either fixed, deferred with an owner, or left as an explicit acceptance condition.
+
+| ID | Risk | Owner | State |
+|---|---|---|---|
+| AR-1 | The trusted CI lane runs only `npm run build`; the semantic checker, reference parity, export check, examples and Node tests never gate a PR. | code + plan | fixing |
+| AR-2 | The trusted base does not protect manifest truth (`repository`, `docsVersion`, `releaseEvidence`, `appliesTo`, `reviewStatus`, `reviewDigest`, `sources`) nor `astro.config.mjs`, plugins or the checker. A candidate can rewrite them and still pass. | code | open |
+| AR-3 | The manifest is not the publication allowlist: `docsLoader` auto-discovers pages, so an unregistered page builds and is indexed. | code | fixing |
+| AR-4 | The remark plugin appends fragments without validating target headings; broken anchors reach the built site because the checker is not in CI. | code | open |
+| AR-5 | A dirty local `main` run reports `authoritative:true`; the launcher records HEAD but not tree cleanliness. | code + owner | open |
+| AR-6 | Generated-reference parity is ungated and the only real-binary test defaults to a `/tmp` path from B2. | code + plan | open |
+| AR-7 | `llms.txt` and Markdown twins are produced by a manual export, not by the build, so the deployed site has neither. | code | open |
+| AR-8 | 17 class C pages are outside navigation and five have no inbound link, so AC-04 discoverability is unmet for them. | owner decision + code | fixing |
+| AR-9 | CI evidence artifacts upload the staged tree and full `node_modules` (~200 MB per run). | code | fixing |
+| AR-10 | `--mode links --network` fetches arbitrary hosts with redirects and no private/loopback guard. | code | fixing |
+
+**Boundary findings:** page scope is duplicated across sitemap, manifest, sidebar and hardcoded test IDs; `reference.mjs` hardcodes its eight page IDs instead of reading the manifest; the trusted launcher re-implements C1 validation in weaker Python; review/release claims are self-asserted in the manifest; `.agentic-sdd` is private to the manifest but staged by the launcher; the TUI's seven URLs are a second URL authority; the public `contributing/docs-and-changes` page tells maintainers not to run the local checks that now exist; and the "release observation" job records identity only, not release-doc sync.
+
+**Deferred/optional surface to freeze or cut before acceptance:** `--mode links --network`, rollback trust-record reuse before any deployment, `release-status` and `scheduled-observation` jobs with aspirational names, the unused `aliases`/`examples`/`diagrams`/`impactPaths` schema surface, and the eight-job workflow's run-on-every-PR cost.
+
+**Acceptance questions for the human approver:** (1) Is a build+structure verdict the accepted CI contract, or must the trusted lane run the semantic checker? (2) Is `docs-manifest.json` the publication allowlist, and must C pages be reachable from navigation? (3) Is the shipping unit a committed 39-page tree with one pinned-container run and resolved B6 links, or a partial delivery with those gaps explicitly accepted?
+
+**Acceptance questions answered (2026-11-14, architecture decision specialist, advisory):**
+
+- **AD-1 (CI verdict) — full trusted validation.** Build and structure are necessary but insufficient. The trusted lane must also run the semantic checker, reference parity, export verification, examples and the Node suites; base-owned validators run against the candidate output; the evaluator requires the exact adopted check IDs and their successful exits; the tooling surface (`website/scripts/**`, `website/plugins/**`, `website/tests/**`, `astro.config.mjs`, `content.config.ts`, `.markdownlint.json`, `package.json`, `package-lock.json`, `tests/harness/test_docs_ci.py`, `Taskfile.yml`) is protected. A candidate-writable checker returning zero cannot establish AC-10.
+- **AD-2 (publication allowlist) — the manifest.** `website/docs-manifest.json` is the allowlist; unregistered pages must not publish, and additive pages require trusted-base adoption before authoritative acceptance. All 17 class C pages must be reachable from normal navigation, not only search or direct URL. The standard loader may stay, with a base-owned prebuild inventory and emitted-route reconciliation.
+- **AD-3 (shipping unit) — committed complete unit.** Do not accept the partial delivery as completion. Freeze a committed revision, run the pinned lane on it, and record identities, checks, skips and artifact digest. **A commit alone does not repair the B6 `blob/main` links**: those become valid only when the target files exist on remote `main`, so B6 stays pending until that is true. Keep generated-text provenance out of any requirement that a file contain its own future SHA.
+
+Costs accepted: extra cold-run provisioning and latency (measured separately, never by deleting checks), and a manifest-adoption step for new pages. Reversal cost: low for navigation, high for publication authority after URLs/search/export depend on it. These are advisory decisions; `spec.md` §9 remains the only approval record, and commit/push/live operations still need their own authorization.
 
 ## B4 — Migration and maintenance
 

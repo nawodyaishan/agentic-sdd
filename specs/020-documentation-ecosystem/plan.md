@@ -237,7 +237,7 @@ These names are planned interfaces, **not currently executable product commands*
 | Proposed interface | Contract |
 |---|---|
 | `npm --prefix website ci` | Provision locked dependencies; network may be needed; not part of Go-only workflow |
-| `npm --prefix website run docs:generate` | C2 generation, no prose outside markers |
+| `npm --prefix website run docs:reference -- --binary <abs>` | C2 reference-catalog generation, no prose outside markers; `--check` (the default) verifies without writing, `--generate` writes (local parity: `task docs:reference -- --binary <abs> [--check]`) |
 | `npm --prefix website run docs:check` | Offline lint/metadata/internal links/source and generated parity/scope |
 | `npm --prefix website run docs:examples` | C3 selected safe fixtures only |
 | `npm --prefix website run build` | Static Astro/Starlight build plus exports |
