@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "site": "https://example.github.io",
+  "base": "/agentic-sdd",
+  "repository": "https://github.com/example/repo",
+  "docsVersion": "dev",
+  "releaseEvidence": [
+    {
+      "tag": "v0.11.0",
+      "commit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b",
+      "url": "https://github.com/example/repo/releases/tag/v0.11.0",
+      "observedAt": "2026-11-14",
+      "verification": "public metadata only",
+      "asset": "example_0.11.0_darwin_all.tar.gz",
+      "sha256": "42e5d832b4427f1390b59322d1641ec953bcdce7f2c033f5af6f17d60f495f82"
+    }
+  ],
+  "pages": [
+    {
+      "id": "index",
+      "source": "website/src/content/docs/index.md",
+      "type": "explanation",
+      "audience": ["maintainer"],
+      "class": "L",
+      "sources": [
+        {
+          "path": "go.mod",
+          "sha256": "5c349f3d6697eb84ed84db3ae3328d61ebfa50be0c6dd2c193beb35d30da5b65"
+        }
+      ],
+      "reviewDigest": "aca64814be0a0a3855e0e6b15533f3343961f57c30fd4f253be85cfde8df432f",
+      "reviewedAt": "2026-11-14",
+      "appliesTo": "unreleased"
+    },
+    {
+      "id": "reference/cli",
+      "source": "website/src/content/docs/reference/cli.md",
+      "type": "reference",
+      "audience": ["maintainer", "user"],
+      "class": "C",
+      "sources": [
+        {
+          "path": "website/src/content/docs/reference/cli.md",
+          "sha256": "bb4becab8c651a11cc24bec1f2be05ce17f4a562d9c32df90fcddd8f633696cf"
+        }
+      ],
+      "reviewDigest": "8f5f78fdab7eaac874257502404b1084f4414df7d44915b3fddb74b7e560ea33",
+      "reviewedAt": "2026-11-14",
+      "appliesTo": "unreleased",
+      "reviewedCommit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b"
+    },
+    {
+      "id": "guides/other-page",
+      "source": "website/src/content/docs/guides/other page.md",
+      "type": "how-to",
+      "audience": ["user"],
+      "class": "L",
+      "sources": [
+        {
+          "path": "website/src/content/docs/guides/other page.md",
+          "sha256": "3f6a6692b8eb4c3f5f12fdd1e8ed0f3990e65afc486588e7578321bb6b57df9d"
+        }
+      ],
+      "reviewDigest": "bc1ddffb6a1cf27e3de10b84c2a343246e4f388dc8f05affaaa3f1f69e8f68b6",
+      "reviewedAt": "2026-11-14",
+      "appliesTo": "unreleased"
+    }
+  ]
+}

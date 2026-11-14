@@ -1,0 +1,20 @@
+{
+  "name": "agentic-sdd-website",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.22.3 <25.0.0"
+  },
+  "scripts": {
+    "build": "astro build",
+    "docs:reference": "node scripts/reference.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "7.3.9",
+    "@astrojs/starlight": "0.43.1",
+    "astro": "7.4.12",
+    "yaml": "2.9.1"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "site": "https://example.github.io",
+  "base": "/agentic-sdd",
+  "repository": "https://github.com/example/repo",
+  "docsVersion": "dev",
+  "pages": [

@@ -1,0 +1,824 @@
+{
+  "schemaVersion": 1,
+  "site": "https://nawodyaishan.github.io",
+  "base": "/agentic-sdd",
+  "repository": "https://github.com/nawodyaishan/agentic-sdd",
+  "docsVersion": "dev",
+  "releaseEvidence": [
+    {
+      "tag": "v0.11.0",
+      "commit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b",
+      "url": "https://github.com/nawodyaishan/agentic-sdd/releases/tag/v0.11.0",
+      "observedAt": "2026-11-14",
+      "verification": "public metadata only",
+      "asset": "agentic-sdd_0.11.0_darwin_all.tar.gz",
+      "sha256": "42e5d832b4427f1390b59322d1641ec953bcdce7f2c033f5af6f17d60f495f82"
+    }
+  ],
+  "pages": [
+    {
+      "id": "index",
+      "source": "website/src/content/docs/index.md",
+      "type": "explanation",
+      "audience": [
+        "maintainer"
+      ],
+      "class": "L",
+      "sources": [
+        {
+          "path": "website/src/content/docs/index.md",
+          "sha256": "d296c4a78edb62c6d41dcae6658af002740fb740ec7ee81c6181ff1a2b628692"
+        }
+      ],
+      "reviewDigest": "b702d622753c8410d37817f4d2ee2b54d645d86daf3c10c4253b1e2cd439d4cc",
+      "appliesTo": "unreleased",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "reference/cli",
+      "source": "website/src/content/docs/reference/cli.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "experienced user"
+      ],
+      "class": "L",
+      "sources": [
+        {
+          "path": "cmd/agentic-sdd/env.go",
+          "sha256": "865085270f76c3b93798607b67ae98c3e8c1abb8ca72d351a1af28dc6cdb3771"
+        },
+        {
+          "path": "cmd/agentic-sdd/execution_cli.go",
+          "sha256": "0a6f4bd8b011b7378268c260e0041a8274c81c87ad25d4420d43790da3ad52d9"
+        },
+        {
+          "path": "cmd/agentic-sdd/fleet.go",
+          "sha256": "1b5d9d355f3b72dc438f297cae5338dfae09335b625e12f47afc83fc2d06b287"
+        },
+        {
+          "path": "cmd/agentic-sdd/fleet_doctor.go",
+          "sha256": "a2815e951064016526c840517d93798f1b24fb9847f336001acea149aae2bf4c"
+        },
+        {
+          "path": "cmd/agentic-sdd/fleet_plan.go",
+          "sha256": "1f8d72c6e26d5dac5397fe5243e97e5f459b929f497e58451ba3e8323b9d71b9"
+        },
+        {
+          "path": "cmd/agentic-sdd/guide.go",
+          "sha256": "7d31f10e5fac479a1b1f384328004838e28e15426ce16f2ecf1e44fbe6ad9cc3"
+        },
+        {
+          "path": "cmd/agentic-sdd/helptext.go",
+          "sha256": "12f2587c302c207776078a69a9aa311c30ed4c840bbe89128f17909a785b2097"
+        },
+        {
+          "path": "cmd/agentic-sdd/logs.go",
+          "sha256": "0186f5654e5f99b77fe38aa512e6b9649b8a632c1413c45b2aa63d5e4edf0045"
+        },
+        {
+          "path": "cmd/agentic-sdd/main.go",
+          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+        },
+        {
+          "path": "cmd/agentic-sdd/mcp.go",
+          "sha256": "f08d36acea20f00f710e1db0adedf597cdbdf776b9132b2ed31bc2e74f52059e"
+        },
+        {
+          "path": "cmd/agentic-sdd/mcp_write.go",
+          "sha256": "9c957ffe33e898d76ac2618eff0a49714a7c84921d8e5c655b3d7998e507e6af"
+        },
+        {
+          "path": "cmd/agentic-sdd/opencode_disabled.go",
+          "sha256": "4a1d4d04e2920de32b93d7980ac60c73cb2457065209e1d2e368811b6746e453"
+        },
+        {
+          "path": "cmd/agentic-sdd/review.go",
+          "sha256": "1a0519f7da7f8779ecc249c909486aac83a3c41250be6a70f9883c99e65ff2ce"
+        },
+        {
+          "path": "cmd/agentic-sdd/run.go",
+          "sha256": "2971f04848762aaa71e29a48d2609370a54cdc68b4ad74d31ba7002b391f91aa"
+        },
+        {
+          "path": "cmd/agentic-sdd/task.go",
+          "sha256": "1dfb152e403685c8fd47068291ceba9b7e09f92e4702e01f249ad6383f8c09b6"
+        },
+        {
+          "path": "cmd/agentic-sdd/trace.go",
+          "sha256": "ea3fec6ef54421790710aeae826dc15cbef219341b1f90d73459f7649b3a5906"
+        },
+        {
+          "path": "cmd/agentic-sdd/tui.go",
+          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+        },
+        {
+          "path": "internal/buildinfo/buildinfo.go",
+          "sha256": "5d299680fbb126036e6904b94cbe002c9ee38f193bba056a60173277ea5c8535"
+        },
+        {
+          "path": "website/scripts/reference.mjs",
+          "sha256": "ee41c773309e4ed4dc076e62b633ae4850438c5f6bf504e6b110e28f6c50756d"
+        },
+        {
+          "path": "website/scripts/reference/cli.mjs",
+          "sha256": "a93bf5b7c36ef6cec2dc605acfa1e8bdb3e95ed5c738c3482f90312e97eaa004"
+        },
+        {
+          "path": "website/src/content/docs/reference/cli.md",
+          "sha256": "8f30854f4f51228563fbe0a99be9fdb6e553ad7d1b6aad9cffd22f7f51152f75"
+        }
+      ],
+      "reviewDigest": "64bdece7a301824ecacd9ce5c9f52e3cf3b21aef088407e50c81c93cd72e00ec",
+      "appliesTo": "unreleased",
+      "generatedSections": [
+        {
+          "id": "reference/cli",
+          "producer": "website/scripts/reference/cli.mjs",
+          "markerStart": "<!-- generated:reference/cli:start -->",
+          "markerEnd": "<!-- generated:reference/cli:end -->",
+          "inputs": [
+            "cmd/agentic-sdd/env.go",
+            "cmd/agentic-sdd/execution_cli.go",
+            "cmd/agentic-sdd/fleet.go",
+            "cmd/agentic-sdd/fleet_doctor.go",
+            "cmd/agentic-sdd/fleet_plan.go",
+            "cmd/agentic-sdd/guide.go",
+            "cmd/agentic-sdd/helptext.go",
+            "cmd/agentic-sdd/logs.go",
+            "cmd/agentic-sdd/main.go",
+            "cmd/agentic-sdd/mcp.go",
+            "cmd/agentic-sdd/mcp_write.go",
+            "cmd/agentic-sdd/opencode_disabled.go",
+            "cmd/agentic-sdd/review.go",
+            "cmd/agentic-sdd/run.go",
+            "cmd/agentic-sdd/task.go",
+            "cmd/agentic-sdd/trace.go",
+            "cmd/agentic-sdd/tui.go",
+            "internal/buildinfo/buildinfo.go"
+          ]
+        }
+      ],
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "reference/skills",
+      "source": "website/src/content/docs/reference/skills.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "new user"
+      ],
+      "class": "L",
+      "sources": [
+        {
+          "path": "opencode-pack/skills/agentic-sdd-orchestrate/SKILL.md",
+          "sha256": "fed251123f323e20632454de741bbb95c2123dd5ec9072715ae9b603c350ca10"
+        },
+        {
+          "path": "skills-files/agentic-sdd-architecture-review/SKILL.md",
+          "sha256": "77d00adcf1cec1f0462a9eb91e8931980dbffd15b3b2e55c03235d47e71d12cd"
+        },
+        {
+          "path": "skills-files/agentic-sdd-bootstrap/SKILL.md",
+          "sha256": "5e54f814595f9954e0042ed5344af385bef65cbcc93b70fc43bc2dc2a3572c10"
+        },
+        {
+          "path": "skills-files/agentic-sdd-debugging/SKILL.md",
+          "sha256": "eb335bce5e4f29adbc62150adcaea49e466e5cda4e3b089aadf1d6a90b095032"
+        },
+        {
+          "path": "skills-files/agentic-sdd-drift-retro/SKILL.md",
+          "sha256": "3f93b2eff5202a573359f39d158991fcd8faf74a5be3ed8e1cda5a5adbba233c"
+        },
+        {
+          "path": "skills-files/agentic-sdd-grill-me/SKILL.md",
+          "sha256": "76669c2bca8e3d1aeb03246ef576e177f0b743d141859e77a304bf0fc3ada445"
+        },
+        {
+          "path": "skills-files/agentic-sdd-grilling/SKILL.md",
+          "sha256": "07f70e6ce9d879fe2511664c0198ce928fcd49be2dc5c283f073c4b63b0f4e91"
+        },
+        {
+          "path": "skills-files/agentic-sdd-handoff/SKILL.md",
+          "sha256": "915ac3dc2cab9a05eff81c935ef2666e214fe830ecabe018fc5f6fd46ed791c6"
+        },
+        {
+          "path": "skills-files/agentic-sdd-implement/SKILL.md",
+          "sha256": "1c4c6c260f5e5219c87224c2cfeb867968cf16372a7ee4f608dcb36774a8776b"
+        },
+        {
+          "path": "skills-files/agentic-sdd-plan/SKILL.md",
+          "sha256": "f4d7a230559e6c393b5bc0714e61fe2e4e05e5477f76c6ec5869825bf00251ce"
+        },
+        {
+          "path": "skills-files/agentic-sdd-questionnaire/SKILL.md",
+          "sha256": "05a5aa430832aab6d0c52d3479fafdbc46597e7360c865311765d231cc22a6b0"
+        },
+        {
+          "path": "skills-files/agentic-sdd-research-spec/SKILL.md",
+          "sha256": "bd215ae35f2668fc82cbdc2cda343f4ab6efe1e280500ca6f0c8b6ea69624cb2"
+        },
+        {
+          "path": "skills-files/agentic-sdd-router/SKILL.md",
+          "sha256": "15af922e1622e9da15cc31c5752f9615c18cc85421ab05dfe73b1ca0b9cfc28b"
+        },
+        {
+          "path": "skills-files/agentic-sdd-spec/SKILL.md",
+          "sha256": "efb1667b37ab5643d4d515d0332e303ad86a1a9530405b8adb23e902f2124b5f"
+        },
+        {
+          "path": "skills-files/agentic-sdd-tasks/SKILL.md",
+          "sha256": "894e06d8dedca6ae2c98a0c423a1d04b76c270a98d83cf2373a780dc81a68990"
+        },
+        {
+          "path": "skills-files/agentic-sdd-teach/SKILL.md",
+          "sha256": "f97cf3525f890110a64609dfd9268f49079f7e7f0e3c78a481151fbfc1d9a610"
+        },
+        {
+          "path": "skills-files/agentic-sdd-verification-review/SKILL.md",
+          "sha256": "78f6276ef41d33d6bbae2de9504fe9856bd9cc21b83691595331681b93c19920"
+        },
+        {
+          "path": "skills-files/agentic-sdd-wait-what/SKILL.md",
+          "sha256": "dfccf86414b601c9a1eafb6684a9b8cb333688b614b56e08a795c8bae65a9445"
+        },
+        {
+          "path": "skills-files/agentic-sdd-writing-for-agents/SKILL.md",
+          "sha256": "ab77bd70097c5a5c0195e2cb840bf5026d23a0f9ae6876ffe03f937bb2270d45"
+        },
+        {
+          "path": "website/scripts/reference.mjs",
+          "sha256": "ee41c773309e4ed4dc076e62b633ae4850438c5f6bf504e6b110e28f6c50756d"
+        },
+        {
+          "path": "website/scripts/reference/catalogs.mjs",
+          "sha256": "e0c6420c3461c11650fdc040137b3128af7365ca1f25836cf93e714d2d306e20"
+        },
+        {
+          "path": "website/src/content/docs/reference/skills.md",
+          "sha256": "1a1158414a279fc5cf9bd6d212ef6d500ec25e8f7e205d3ff2603a06e32d763c"
+        }
+      ],
+      "reviewDigest": "4642167caa34c1d853595dacf115ce4d5a93e7e0290dbd4d098c7dbb89f16daf",
+      "appliesTo": "unreleased",
+      "generatedSections": [
+        {
+          "id": "reference/skills",
+          "producer": "website/scripts/reference/catalogs.mjs",
+          "markerStart": "<!-- generated:reference/skills:start -->",
+          "markerEnd": "<!-- generated:reference/skills:end -->",
+          "inputs": [
+            "opencode-pack/skills/agentic-sdd-orchestrate/SKILL.md",
+            "skills-files/agentic-sdd-architecture-review/SKILL.md",
+            "skills-files/agentic-sdd-bootstrap/SKILL.md",
+            "skills-files/agentic-sdd-debugging/SKILL.md",
+            "skills-files/agentic-sdd-drift-retro/SKILL.md",
+            "skills-files/agentic-sdd-grill-me/SKILL.md",
+            "skills-files/agentic-sdd-grilling/SKILL.md",
+            "skills-files/agentic-sdd-handoff/SKILL.md",
+            "skills-files/agentic-sdd-implement/SKILL.md",
+            "skills-files/agentic-sdd-plan/SKILL.md",
+            "skills-files/agentic-sdd-questionnaire/SKILL.md",
+            "skills-files/agentic-sdd-research-spec/SKILL.md",
+            "skills-files/agentic-sdd-router/SKILL.md",
+            "skills-files/agentic-sdd-spec/SKILL.md",
+            "skills-files/agentic-sdd-tasks/SKILL.md",
+            "skills-files/agentic-sdd-teach/SKILL.md",
+            "skills-files/agentic-sdd-verification-review/SKILL.md",
+            "skills-files/agentic-sdd-wait-what/SKILL.md",
+            "skills-files/agentic-sdd-writing-for-agents/SKILL.md"
+          ]
+        }
+      ],
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "reference/profiles",
+      "source": "website/src/content/docs/reference/profiles.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "experienced user"
+      ],
+      "class": "C",
+      "sources": [
+        {
+          "path": "opencode-pack/adapters/sdd-plan-9r.md",
+          "sha256": "878986cf2cbf92e664379c87a78d7357ae6ca3e8488736aad29d6c100434b8b0"
+        },
+        {
+          "path": "opencode-pack/adapters/sdd-spec-9r.md",
+          "sha256": "e1298fc6a05da037d28816565ef5426f4a55709b6c210b851708607d34175421"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-architecture-advisor.md",
+          "sha256": "4fee088caf5da4415f4a7e866e1f33b8ec78d18df556c381eb19a61a2ad7b38a"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-architecture-review-9r.md",
+          "sha256": "b4b467527e8c3777b7a52859625bb6067e09c6ef93b1afb5d9e832fef06aa612"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-code-review-9r.md",
+          "sha256": "332453219d006edcb909e5fae22eaae64b9bd34f88c9ec409d57913fd76fea91"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-debug-diagnose.md",
+          "sha256": "fa09a5961380039f69d04e4eb7de82c1ae990d7e9153f20a9905639deceb627d"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-docs-worker.md",
+          "sha256": "1640d057e8695bcd4339e195651c572c92ce125d1dc4b8117e215e1bbd26014c"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-lightweight.md",
+          "sha256": "dbe984792a0e902d57069c0b526318047903436ec48ab244baf0b54ad6d4d715"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-openai-architect.md",
+          "sha256": "391f789348b57c91ed7360f40f6096c0257f0ab4c850434a4f16437cfe8c4eda"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-openai-implement.md",
+          "sha256": "01ecee280229ba65a36e94bd35cbb5d84fd69c23a14be8992407bc9ef816ac80"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-orchestrator.md",
+          "sha256": "7a8028b708361b5901020ecd78d566897fb94af946512e951da11aabeac73bc0"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-research-librarian.md",
+          "sha256": "3fd4cf29f8f409915878571a722b94b9ebf9f6f0fffa229e4421d8e30dda1c82"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-review-verification-1.md",
+          "sha256": "03fbc6ddf5a3f052646be85097b3f59793115404cb74052594da49b48edcbe4b"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-review-verification-2.md",
+          "sha256": "392f0c57900613661b72e46a56bb9491f5121950efb72f6ef8787c2396c783c4"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-test-design.md",
+          "sha256": "546647627754016b9f0fcb28b58e03a8b7757ccb7e85792c35fdf4e9bf118324"
+        },
+        {
+          "path": "opencode-pack/agents/sdd-visual-inspector.md",
+          "sha256": "2b97f7275d86a6c2e42318ff3ae18b9ebddb3e172bf17c1e8bd17371b56ba6b8"
+        },
+        {
+          "path": "opencode-pack/presets/free-first/sdd-implement-1.md",
+          "sha256": "ad0eb00ab4164dcca7e028458d5691cb85c793f27bcd6995702f45946f86f901"
+        },
+        {
+          "path": "opencode-pack/presets/free-first/sdd-implement-2.md",
+          "sha256": "7c984e25bcd4a788894025a1241dc35ff92b8c0b142dba76e7d14d760f09df26"
+        },
+        {
+          "path": "opencode-pack/presets/free-first/sdd-test-implement-1.md",
+          "sha256": "f85c6984678422dad9c9dd49b3a254dc73d25f972018efa611b55e145b44c68c"
+        },
+        {
+          "path": "opencode-pack/presets/free-first/sdd-test-implement-2.md",
+          "sha256": "7c1b76fb97df695b6aa7b74e4214244adfdc07de43345d5d6cb0388412e21c0a"
+        },
+        {
+          "path": "website/scripts/reference.mjs",
+          "sha256": "ee41c773309e4ed4dc076e62b633ae4850438c5f6bf504e6b110e28f6c50756d"
+        },
+        {
+          "path": "website/scripts/reference/catalogs.mjs",
+          "sha256": "e0c6420c3461c11650fdc040137b3128af7365ca1f25836cf93e714d2d306e20"
+        },
+        {
+          "path": "website/src/content/docs/reference/profiles.md",
+          "sha256": "3d3ca632120743a94c715505ce33802c2046ed8d35ad173cfd0dabfb540848cf"
+        }
+      ],
+      "reviewDigest": "d7c29349dfaa3ee04b9b015da528119b0fece1e4684fa5b247537eaabcca4eb9",
+      "appliesTo": "unreleased",
+      "generatedSections": [
+        {
+          "id": "reference/profiles",
+          "producer": "website/scripts/reference/catalogs.mjs",
+          "markerStart": "<!-- generated:reference/profiles:start -->",
+          "markerEnd": "<!-- generated:reference/profiles:end -->",
+          "inputs": [
+            "opencode-pack/adapters/sdd-plan-9r.md",
+            "opencode-pack/adapters/sdd-spec-9r.md",
+            "opencode-pack/agents/sdd-architecture-advisor.md",
+            "opencode-pack/agents/sdd-architecture-review-9r.md",
+            "opencode-pack/agents/sdd-code-review-9r.md",
+            "opencode-pack/agents/sdd-debug-diagnose.md",
+            "opencode-pack/agents/sdd-docs-worker.md",
+            "opencode-pack/agents/sdd-lightweight.md",
+            "opencode-pack/agents/sdd-openai-architect.md",
+            "opencode-pack/agents/sdd-openai-implement.md",
+            "opencode-pack/agents/sdd-orchestrator.md",
+            "opencode-pack/agents/sdd-research-librarian.md",
+            "opencode-pack/agents/sdd-review-verification-1.md",
+            "opencode-pack/agents/sdd-review-verification-2.md",
+            "opencode-pack/agents/sdd-test-design.md",
+            "opencode-pack/agents/sdd-visual-inspector.md",
+            "opencode-pack/presets/free-first/sdd-implement-1.md",
+            "opencode-pack/presets/free-first/sdd-implement-2.md",
+            "opencode-pack/presets/free-first/sdd-test-implement-1.md",
+            "opencode-pack/presets/free-first/sdd-test-implement-2.md"
+          ]
+        }
+      ],
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "reference/configuration",
+      "source": "website/src/content/docs/reference/configuration.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "experienced user"
+      ],
+      "class": "C",
+      "sources": [
+        {
+          "path": "cmd/agentic-sdd/env.go",
+          "sha256": "865085270f76c3b93798607b67ae98c3e8c1abb8ca72d351a1af28dc6cdb3771"
+        },
+        {
+          "path": "cmd/agentic-sdd/execution_cli.go",
+          "sha256": "0a6f4bd8b011b7378268c260e0041a8274c81c87ad25d4420d43790da3ad52d9"
+        },
+        {
+          "path": "cmd/agentic-sdd/fleet.go",
+          "sha256": "1b5d9d355f3b72dc438f297cae5338dfae09335b625e12f47afc83fc2d06b287"
+        },
+        {
+          "path": "cmd/agentic-sdd/main.go",
+          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+        },
+        {
+          "path": "cmd/agentic-sdd/mcp.go",
+          "sha256": "f08d36acea20f00f710e1db0adedf597cdbdf776b9132b2ed31bc2e74f52059e"
+        },
+        {
+          "path": "cmd/agentic-sdd/trace.go",
+          "sha256": "ea3fec6ef54421790710aeae826dc15cbef219341b1f90d73459f7649b3a5906"
+        },
+        {
+          "path": "cmd/agentic-sdd/tui.go",
+          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+        },
+        {
+          "path": "experiments/tui/cmd/internal/tuirun/run.go",
+          "sha256": "42cbc1f40834e696a9a2867587097b18811a20e8cfc3ce745553c12e6a5e68d5"
+        },
+        {
+          "path": "internal/execution/workspace.go",
+          "sha256": "4293689ad4c4dfd241cd7a6bdbf6dc9d8b5e28ccd5d8e0cab6c185ffacbec04b"
+        },
+        {
+          "path": "internal/fleet/fleet.go",
+          "sha256": "a45a6ff2a563108cfeacb25cce04722667dc17922cade239ad038384283ad862"
+        },
+        {
+          "path": "internal/skillsync/mcp_config.go",
+          "sha256": "8d78487d37878f100a31e38090bda74ca83e2cf7630c53e1acc8139e91fea938"
+        },
+        {
+          "path": "internal/skillsync/source.go",
+          "sha256": "85444072b020b3af66069eb53a4ea9b09e8ab02422165c61a73ef09e46afc4c1"
+        },
+        {
+          "path": "website/scripts/reference.mjs",
+          "sha256": "ee41c773309e4ed4dc076e62b633ae4850438c5f6bf504e6b110e28f6c50756d"
+        },
+        {
+          "path": "website/scripts/reference/configuration.mjs",
+          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+        },
+        {
+          "path": "website/src/content/docs/reference/configuration.md",
+          "sha256": "0b181af981425c3ed6be18d6d416db65b93b774481b0cdb18cc191977347aa79"
+        }
+      ],
+      "reviewDigest": "c130e2532ae3e0c8bb8ac059e0f8fb43d12bab57ab85f7b8006a4d1aa94b4e7a",
+      "appliesTo": "unreleased",
+      "generatedSections": [
+        {
+          "id": "reference/configuration",
+          "producer": "website/scripts/reference/configuration.mjs",
+          "markerStart": "<!-- generated:reference/configuration:start -->",
+          "markerEnd": "<!-- generated:reference/configuration:end -->",
+          "inputs": [
+            "cmd/agentic-sdd/env.go",
+            "cmd/agentic-sdd/execution_cli.go",
+            "cmd/agentic-sdd/fleet.go",
+            "cmd/agentic-sdd/main.go",
+            "cmd/agentic-sdd/mcp.go",
+            "cmd/agentic-sdd/trace.go",
+            "cmd/agentic-sdd/tui.go",
+            "experiments/tui/cmd/internal/tuirun/run.go",
+            "internal/execution/workspace.go",
+            "internal/fleet/fleet.go",
+            "internal/skillsync/mcp_config.go",
+            "internal/skillsync/source.go"
+          ]
+        }
+      ],
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "reference/fleet",
+      "source": "website/src/content/docs/reference/fleet.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "experienced user"
+      ],
+      "class": "C",
+      "sources": [
+        {
+          "path": "cmd/agentic-sdd/fleet.go",
+          "sha256": "1b5d9d355f3b72dc438f297cae5338dfae09335b625e12f47afc83fc2d06b287"
+        },
+        {
+          "path": "cmd/agentic-sdd/fleet_plan.go",
+          "sha256": "1f8d72c6e26d5dac5397fe5243e97e5f459b929f497e58451ba3e8323b9d71b9"
+        },
+        {
+          "path": "internal/buildinfo/buildinfo.go",
+          "sha256": "5d299680fbb126036e6904b94cbe002c9ee38f193bba056a60173277ea5c8535"
+        },
+        {
+          "path": "internal/fleet/fleet.go",
+          "sha256": "a45a6ff2a563108cfeacb25cce04722667dc17922cade239ad038384283ad862"
+        },
+        {
+          "path": "internal/fleet/manifest.go",
+          "sha256": "5dc94b3b31cc8b47934b1f9570aaf71d737de19610e01a63e20c99dab4051371"
+        },
+        {
+          "path": "internal/fleet/parse.go",
+          "sha256": "10262583d906b8294940c3436bb077ac2b3da7b34c9c90b7ecc2702acf331574"
+        },
+        {
+          "path": "internal/fleet/resolve.go",
+          "sha256": "a3adfa6acdec2ae3820c6a02dc28ad8af64a16eca688512844d9fc5e5df27fe7"
+        },
+        {
+          "path": "website/scripts/reference.mjs",
+          "sha256": "ee41c773309e4ed4dc076e62b633ae4850438c5f6bf504e6b110e28f6c50756d"
+        },
+        {
+          "path": "website/scripts/reference/configuration.mjs",
+          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+        },
+        {
+          "path": "website/src/content/docs/reference/fleet.md",
+          "sha256": "d2e0e1c88dbb36adc3f29be10b4bb579307e7f682e0d59c28e1ec8e9525416f9"
+        }
+      ],
+      "reviewDigest": "0fb278bb4c4bffa0d51d6578a9741d009b0f6052c1109d0349545a6bd1b8bd73",
+      "appliesTo": "unreleased",
+      "generatedSections": [
+        {
+          "id": "reference/fleet",
+          "producer": "website/scripts/reference/configuration.mjs",
+          "markerStart": "<!-- generated:reference/fleet:start -->",
+          "markerEnd": "<!-- generated:reference/fleet:end -->",
+          "inputs": [
+            "cmd/agentic-sdd/fleet.go",
+            "cmd/agentic-sdd/fleet_plan.go",
+            "internal/buildinfo/buildinfo.go",
+            "internal/fleet/fleet.go",
+            "internal/fleet/manifest.go",
+            "internal/fleet/parse.go",
+            "internal/fleet/resolve.go"
+          ]
+        }
+      ],
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "reference/mcp",
+      "source": "website/src/content/docs/reference/mcp.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "experienced user"
+      ],
+      "class": "C",
+      "sources": [
+        {
+          "path": "cmd/agentic-sdd/mcp.go",
+          "sha256": "f08d36acea20f00f710e1db0adedf597cdbdf776b9132b2ed31bc2e74f52059e"
+        },
+        {
+          "path": "internal/skillsync/mcp.go",
+          "sha256": "749b7049836193b83b1357052764e5075389ba844f6c2dd8c1b2b2785b3c5cc9"
+        },
+        {
+          "path": "internal/skillsync/mcp_config.go",
+          "sha256": "8d78487d37878f100a31e38090bda74ca83e2cf7630c53e1acc8139e91fea938"
+        },
+        {
+          "path": "internal/skillsync/mcp_transaction.go",
+          "sha256": "45db03e19400af89af5779c0de5efa014ce316a58dc1b75d8dc06060796e9a57"
+        },
+        {
+          "path": "website/scripts/reference.mjs",
+          "sha256": "ee41c773309e4ed4dc076e62b633ae4850438c5f6bf504e6b110e28f6c50756d"
+        },
+        {
+          "path": "website/scripts/reference/configuration.mjs",
+          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+        },
+        {
+          "path": "website/src/content/docs/reference/mcp.md",
+          "sha256": "02e6f85eec5ef4e835ff6947f9d7abd9d900953428edca69dd03fe402cb011e1"
+        }
+      ],
+      "reviewDigest": "d654dd229c329af876d2f41f0e9862df262617e34e58a106c6f2679f625c6722",
+      "appliesTo": "unreleased",
+      "generatedSections": [
+        {
+          "id": "reference/mcp",
+          "producer": "website/scripts/reference/configuration.mjs",
+          "markerStart": "<!-- generated:reference/mcp:start -->",
+          "markerEnd": "<!-- generated:reference/mcp:end -->",
+          "inputs": [
+            "cmd/agentic-sdd/mcp.go",
+            "internal/skillsync/mcp.go",
+            "internal/skillsync/mcp_config.go",
+            "internal/skillsync/mcp_transaction.go"
+          ]
+        }
+      ],
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "reference/execution",
+      "source": "website/src/content/docs/reference/execution.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "experienced user"
+      ],
+      "class": "C",
+      "sources": [
+        {
+          "path": "cmd/agentic-sdd/execution_cli.go",
+          "sha256": "0a6f4bd8b011b7378268c260e0041a8274c81c87ad25d4420d43790da3ad52d9"
+        },
+        {
+          "path": "cmd/agentic-sdd/review.go",
+          "sha256": "1a0519f7da7f8779ecc249c909486aac83a3c41250be6a70f9883c99e65ff2ce"
+        },
+        {
+          "path": "cmd/agentic-sdd/run.go",
+          "sha256": "2971f04848762aaa71e29a48d2609370a54cdc68b4ad74d31ba7002b391f91aa"
+        },
+        {
+          "path": "internal/execution/checkpoint.go",
+          "sha256": "75fa9442668bfa53c5529c87c045993b58f3bd997279c6a05dcfd9131a0845fd"
+        },
+        {
+          "path": "internal/execution/checks.go",
+          "sha256": "34575e2a2bb6d27332f95f84a5a7dcb77edc711d31d099676334dd59d53f9b2d"
+        },
+        {
+          "path": "internal/execution/record.go",
+          "sha256": "f4b9bafaa43ffe0e9819d95f62541cbe37a2a9923174aa02f19eaf384668f0c0"
+        },
+        {
+          "path": "internal/execution/reviewpackage.go",
+          "sha256": "2b5ef5c27f8ebad1bb0cdb7dc07b77817c9b3b7636abaa96b0c8c2eecc83d163"
+        },
+        {
+          "path": "internal/execution/taskbrief.go",
+          "sha256": "dbb5dc1d933932adbd0a2ed4cbbedd05f251dc289f95f46630b3f94089bf9a5a"
+        },
+        {
+          "path": "internal/execution/types.go",
+          "sha256": "0b95239c37bb362b932112d137680cafae46284cf72595bf57a46c6c8d3960ff"
+        },
+        {
+          "path": "internal/execution/workspace.go",
+          "sha256": "4293689ad4c4dfd241cd7a6bdbf6dc9d8b5e28ccd5d8e0cab6c185ffacbec04b"
+        },
+        {
+          "path": "website/scripts/reference.mjs",
+          "sha256": "ee41c773309e4ed4dc076e62b633ae4850438c5f6bf504e6b110e28f6c50756d"
+        },
+        {
+          "path": "website/scripts/reference/configuration.mjs",
+          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+        },
+        {
+          "path": "website/src/content/docs/reference/execution.md",
+          "sha256": "3ca8320bc5bd2b941c0fde972dc9c47e3c607366db12b02402be5dbd69a34c56"
+        }
+      ],
+      "reviewDigest": "4031383cf2d797c7d4fbeb61891332aa700f6247f24de72174ae2837c5032ebe",
+      "appliesTo": "unreleased",
+      "generatedSections": [
+        {
+          "id": "reference/execution",
+          "producer": "website/scripts/reference/configuration.mjs",
+          "markerStart": "<!-- generated:reference/execution:start -->",
+          "markerEnd": "<!-- generated:reference/execution:end -->",
+          "inputs": [
+            "cmd/agentic-sdd/execution_cli.go",
+            "cmd/agentic-sdd/review.go",
+            "cmd/agentic-sdd/run.go",
+            "internal/execution/checkpoint.go",
+            "internal/execution/checks.go",
+            "internal/execution/record.go",
+            "internal/execution/reviewpackage.go",
+            "internal/execution/taskbrief.go",
+            "internal/execution/types.go",
+            "internal/execution/workspace.go"
+          ]
+        }
+      ],
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "reference/files-and-backups",
+      "source": "website/src/content/docs/reference/files-and-backups.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "experienced user"
+      ],
+      "class": "L",
+      "sources": [
+        {
+          "path": "internal/execution/workspace.go",
+          "sha256": "4293689ad4c4dfd241cd7a6bdbf6dc9d8b5e28ccd5d8e0cab6c185ffacbec04b"
+        },
+        {
+          "path": "internal/fleet/manifest.go",
+          "sha256": "5dc94b3b31cc8b47934b1f9570aaf71d737de19610e01a63e20c99dab4051371"
+        },
+        {
+          "path": "internal/skillsync/clients.go",
+          "sha256": "e16a1bd16c82bb7f958776568a91825b8e2273c9b0fcb918ff6dfe47a66393a0"
+        },
+        {
+          "path": "internal/skillsync/manifest.go",
+          "sha256": "29ec720444d95477647ccdc4244366998afa34db03b8374b6104b408895fda6f"
+        },
+        {
+          "path": "internal/skillsync/mcp_transaction.go",
+          "sha256": "45db03e19400af89af5779c0de5efa014ce316a58dc1b75d8dc06060796e9a57"
+        },
+        {
+          "path": "internal/skillsync/restore.go",
+          "sha256": "8183c0f505797ccc245f44bcd319f49731d8bd02c41fa733c6d768f687b7e93c"
+        },
+        {
+          "path": "internal/skillsync/source.go",
+          "sha256": "85444072b020b3af66069eb53a4ea9b09e8ab02422165c61a73ef09e46afc4c1"
+        },
+        {
+          "path": "internal/skillsync/sync.go",
+          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+        },
+        {
+          "path": "website/scripts/reference.mjs",
+          "sha256": "ee41c773309e4ed4dc076e62b633ae4850438c5f6bf504e6b110e28f6c50756d"
+        },
+        {
+          "path": "website/scripts/reference/configuration.mjs",
+          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+        },
+        {
+          "path": "website/src/content/docs/reference/files-and-backups.md",
+          "sha256": "4e6dfbcddff3fdc1cb4f20baa113bc73f9768615627ebc16e5a9cdebbe918c6e"
+        }
+      ],
+      "reviewDigest": "f003bffc1dc2575d0968b49da879b5ff26fef7d8b01962dee52ea0db3b25ee8a",
+      "appliesTo": "unreleased",
+      "generatedSections": [
+        {
+          "id": "reference/files-and-backups",
+          "producer": "website/scripts/reference/configuration.mjs",
+          "markerStart": "<!-- generated:reference/files-and-backups:start -->",
+          "markerEnd": "<!-- generated:reference/files-and-backups:end -->",
+          "inputs": [
+            "internal/execution/workspace.go",
+            "internal/fleet/manifest.go",
+            "internal/skillsync/clients.go",
+            "internal/skillsync/manifest.go",
+            "internal/skillsync/mcp_transaction.go",
+            "internal/skillsync/restore.go",
+            "internal/skillsync/source.go",
+            "internal/skillsync/sync.go"
+          ]
+        }
+      ],
+      "reviewStatus": "unreviewed"
+    }
+  ]
+}

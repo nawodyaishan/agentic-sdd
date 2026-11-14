@@ -1,0 +1,969 @@
+{
+  "schemaVersion": 1,
+  "snapshotCommit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b",
+  "purpose": "T01 pre-migration old-guide heading and link inventory for B4/T08; not a public export allowlist",
+  "paths": [
+    "docs/README.md",
+    "docs/getting-started.md",
+    "docs/installer-reference.md",
+    "docs/guide-flows.md",
+    "docs/execution-runs.md",
+    "docs/orchestration-guide.md",
+    "docs/mcp-tools.md",
+    "docs/fleet-manager-tui.md",
+    "docs/tui-architecture.md"
+  ],
+  "files": [
+    {
+      "path": "docs/README.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Documentation index",
+          "slug": "documentation-index"
+        },
+        {
+          "line": 8,
+          "level": 2,
+          "text": "Product vision",
+          "slug": "product-vision"
+        },
+        {
+          "line": 15,
+          "level": 2,
+          "text": "Current status and next decisions",
+          "slug": "current-status-and-next-decisions"
+        },
+        {
+          "line": 74,
+          "level": 2,
+          "text": "Pinned-image human-cycle evidence (Feature 005)",
+          "slug": "pinned-image-human-cycle-evidence-feature-005"
+        },
+        {
+          "line": 84,
+          "level": 2,
+          "text": "Advisory plans and historical research",
+          "slug": "advisory-plans-and-historical-research"
+        },
+        {
+          "line": 96,
+          "level": 2,
+          "text": "Session handovers",
+          "slug": "session-handovers"
+        }
+      ],
+      "links": [
+        {
+          "line": 10,
+          "href": "vision/Agentic-SDD-Project-Vision-and-Evolution.md",
+          "text": "Agentic-SDD product vision and evolution strategy"
+        },
+        {
+          "line": 17,
+          "href": "getting-started.md",
+          "text": "Getting started"
+        },
+        {
+          "line": 19,
+          "href": "orchestration-guide.md",
+          "text": "Full usage and orchestration guide"
+        },
+        {
+          "line": 22,
+          "href": "installer-reference.md",
+          "text": "Installer reference"
+        },
+        {
+          "line": 24,
+          "href": "execution-runs.md",
+          "text": "Execution runs"
+        },
+        {
+          "line": 28,
+          "href": "codegraph.md",
+          "text": "CodeGraph setup and continuous sync"
+        },
+        {
+          "line": 30,
+          "href": "mcp-default-integration-study.md",
+          "text": "Default MCP integration study"
+        },
+        {
+          "line": 32,
+          "href": "research-skills-and-subagents-current-state.md",
+          "text": "Research skills and subagents: current state"
+        },
+        {
+          "line": 35,
+          "href": "tui-architecture.md",
+          "text": "TUI architecture and toolchain migration blueprint"
+        },
+        {
+          "line": 37,
+          "href": "../specs/009-opencode-orchestration/spec.md",
+          "text": "Feature 009 spec"
+        },
+        {
+          "line": 38,
+          "href": "../specs/009-opencode-orchestration/plan.md",
+          "text": "plan"
+        },
+        {
+          "line": 39,
+          "href": "../specs/009-opencode-orchestration/tasks.md",
+          "text": "tasks"
+        },
+        {
+          "line": 41,
+          "href": "../README.md#support-and-release-scope",
+          "text": "Public support and release scope"
+        },
+        {
+          "line": 43,
+          "href": "testing/test-cases-report.md",
+          "text": "Test case inventory"
+        },
+        {
+          "line": 46,
+          "href": "snap-ubuntu-release-report.md",
+          "text": "Snap and Ubuntu release report"
+        },
+        {
+          "line": 50,
+          "href": "../specs/008-core-release-quality/spec.md#approval",
+          "text": "Feature 008 approval"
+        },
+        {
+          "line": 51,
+          "href": "../specs/008-core-release-quality/tasks.md#continuation-record",
+          "text": "batch continuation"
+        },
+        {
+          "line": 52,
+          "href": "../specs/008-core-release-quality/release-readiness.md",
+          "text": "working release inventory"
+        },
+        {
+          "line": 54,
+          "href": "vnext-remaining-work-guide.md",
+          "text": "Remaining vNext work and adoption guide"
+        },
+        {
+          "line": 56,
+          "href": "../specs/005-vnext-completion/tasks.md#continuation-record",
+          "text": "Feature 005 continuation"
+        },
+        {
+          "line": 57,
+          "href": "../specs/005-vnext-completion/spec.md#approval",
+          "text": "approval"
+        },
+        {
+          "line": 59,
+          "href": "../harness/acceptance.md",
+          "text": "Feature 004 acceptance map"
+        },
+        {
+          "line": 61,
+          "href": "../specs/006-independent-review/spec.md#approval",
+          "text": "Feature 006 approval"
+        },
+        {
+          "line": 62,
+          "href": "../specs/006-independent-review/tasks.md#continuation-record",
+          "text": "continuation"
+        },
+        {
+          "line": 64,
+          "href": "../specs/007-taskfile-migration/spec.md#approval",
+          "text": "Feature 007 approval"
+        },
+        {
+          "line": 65,
+          "href": "../specs/007-taskfile-migration/tasks.md#continuation-record",
+          "text": "continuation"
+        },
+        {
+          "line": 67,
+          "href": "../integrations/opencode/safety.md",
+          "text": "OpenCode safety"
+        },
+        {
+          "line": 68,
+          "href": "../integrations/opencode/adoption.md",
+          "text": "adoption"
+        },
+        {
+          "line": 69,
+          "href": "../integrations/opencode/recovery.md",
+          "text": "recovery"
+        },
+        {
+          "line": 76,
+          "href": "vnext-human-test-guide.md",
+          "text": "Human test guide"
+        },
+        {
+          "line": 77,
+          "href": "vnext-human-cycle-run-sheet.md",
+          "text": "Run sheet"
+        },
+        {
+          "line": 78,
+          "href": "vnext-human-test-plan.md",
+          "text": "Human usage plan"
+        },
+        {
+          "line": 86,
+          "href": "Agentic-SDD-vNext-Adoption-Plan.md",
+          "text": "vNext adoption plan"
+        },
+        {
+          "line": 88,
+          "href": "Agentic-SDD-Workflow-Audit-2026-09-24.md",
+          "text": "Workflow audit"
+        },
+        {
+          "line": 89,
+          "href": "../audits/Agentic-SDD-Workflow-Audit-2026-09-24%20%281%29.md",
+          "text": "Corrected September audit"
+        },
+        {
+          "line": 92,
+          "href": "compass_artifact_wf-97cc6285-b594-5b61-ae30-2894cfe0b595_text_markdown.md",
+          "text": "Workflow research artifact"
+        },
+        {
+          "line": 93,
+          "href": "reddit_research.md",
+          "text": "Reddit research"
+        },
+        {
+          "line": 94,
+          "href": "agentic-sdd-architecture.png",
+          "text": "Architecture illustration"
+        },
+        {
+          "line": 98,
+          "href": "handovers/",
+          "text": "handovers/"
+        }
+      ]
+    },
+    {
+      "path": "docs/getting-started.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Getting started with the supported core",
+          "slug": "getting-started-with-the-supported-core"
+        },
+        {
+          "line": 8,
+          "level": 2,
+          "text": "First five minutes: preview, then stop",
+          "slug": "first-five-minutes-preview-then-stop"
+        },
+        {
+          "line": 43,
+          "level": 2,
+          "text": "Direct fix: no feature paperwork",
+          "slug": "direct-fix-no-feature-paperwork"
+        },
+        {
+          "line": 57,
+          "level": 2,
+          "text": "Feature: one combined approval and one batch",
+          "slug": "feature-one-combined-approval-and-one-batch"
+        },
+        {
+          "line": 88,
+          "level": 2,
+          "text": "Review and resume: acceptance is not continuation",
+          "slug": "review-and-resume-acceptance-is-not-continuation"
+        },
+        {
+          "line": 111,
+          "level": 2,
+          "text": "Optional learning and useful reports",
+          "slug": "optional-learning-and-useful-reports"
+        }
+      ],
+      "links": [
+        {
+          "line": 13,
+          "href": "../README.md#support-and-release-scope",
+          "text": "support matrix"
+        },
+        {
+          "line": 18,
+          "href": "guide-flows.md",
+          "text": "guided CLI journeys"
+        },
+        {
+          "line": 36,
+          "href": "../CONTRIBUTING.md",
+          "text": "contributor checks"
+        },
+        {
+          "line": 55,
+          "href": "../skills-files/agentic-sdd-router/references/workflow-policy.md#direct-fixes",
+          "text": "direct-fix contract"
+        },
+        {
+          "line": 85,
+          "href": "../skills-files/agentic-sdd-router/references/workflow-policy.md#drafting-sequence-and-one-combined-approval",
+          "text": "approval"
+        },
+        {
+          "line": 86,
+          "href": "../skills-files/agentic-sdd-router/references/workflow-policy.md#execution-batches-and-resume",
+          "text": "batch/resume rules"
+        },
+        {
+          "line": 109,
+          "href": "../skills-files/agentic-sdd-router/references/human-input.md#decision-meaning",
+          "text": "decision meaning"
+        },
+        {
+          "line": 115,
+          "href": "../skills-files/agentic-sdd-teach/SKILL.md",
+          "text": "teaching"
+        },
+        {
+          "line": 118,
+          "href": "../CONTRIBUTING.md#reporting-bugs-and-security-concerns",
+          "text": "CONTRIBUTING"
+        }
+      ]
+    },
+    {
+      "path": "docs/installer-reference.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Installer reference",
+          "slug": "installer-reference"
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "text": "Commands",
+          "slug": "commands"
+        },
+        {
+          "line": 33,
+          "level": 2,
+          "text": "Flags",
+          "slug": "flags"
+        },
+        {
+          "line": 35,
+          "level": 3,
+          "text": "Understanding a guided installation",
+          "slug": "understanding-a-guided-installation"
+        },
+        {
+          "line": 68,
+          "level": 2,
+          "text": "Destinations and managed files",
+          "slug": "destinations-and-managed-files"
+        },
+        {
+          "line": 76,
+          "level": 2,
+          "text": "Change detection and permissions",
+          "slug": "change-detection-and-permissions"
+        },
+        {
+          "line": 84,
+          "level": 2,
+          "text": "Backups and restore",
+          "slug": "backups-and-restore"
+        },
+        {
+          "line": 101,
+          "level": 2,
+          "text": "Logs and exit codes",
+          "slug": "logs-and-exit-codes"
+        },
+        {
+          "line": 111,
+          "level": 2,
+          "text": "Terminal presentation and environment",
+          "slug": "terminal-presentation-and-environment"
+        },
+        {
+          "line": 138,
+          "level": 2,
+          "text": "Contributor tooling",
+          "slug": "contributor-tooling"
+        }
+      ],
+      "links": [
+        {
+          "line": 3,
+          "href": "../README.md#quick-start",
+          "text": "README"
+        },
+        {
+          "line": 31,
+          "href": "guide-flows.md",
+          "text": "Guided CLI journeys"
+        },
+        {
+          "line": 50,
+          "href": "guide-flows.md#expanded-terminal-review-and-learning",
+          "text": "journeys and navigation"
+        },
+        {
+          "line": 70,
+          "href": "../README.md#where-the-skills-go",
+          "text": "Where the skills go"
+        },
+        {
+          "line": 133,
+          "href": "guide-flows.md#flow-trace-agentic_sdd_trace",
+          "text": "flow tracing"
+        },
+        {
+          "line": 134,
+          "href": "guide-flows.md#test-seam-agentic_sdd_force_interactive1",
+          "text": "the test seam"
+        },
+        {
+          "line": 140,
+          "href": "../CONTRIBUTING.md",
+          "text": "Contributing"
+        },
+        {
+          "line": 140,
+          "href": "../harness/README.md",
+          "text": "Check-runner documentation"
+        },
+        {
+          "line": 140,
+          "href": "../harness/trusted-ci.md",
+          "text": "trusted CI"
+        }
+      ]
+    },
+    {
+      "path": "docs/guide-flows.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Guided CLI journeys and flow tracing",
+          "slug": "guided-cli-journeys-and-flow-tracing"
+        },
+        {
+          "line": 9,
+          "level": 2,
+          "text": "Scope and limits",
+          "slug": "scope-and-limits"
+        },
+        {
+          "line": 28,
+          "level": 2,
+          "text": "Visual presentation, branding, and animation",
+          "slug": "visual-presentation-branding-and-animation"
+        },
+        {
+          "line": 70,
+          "level": 2,
+          "text": "Journeys",
+          "slug": "journeys"
+        },
+        {
+          "line": 72,
+          "level": 3,
+          "text": "Expanded terminal review and learning",
+          "slug": "expanded-terminal-review-and-learning"
+        },
+        {
+          "line": 136,
+          "level": 2,
+          "text": "Screens and prompts",
+          "slug": "screens-and-prompts"
+        },
+        {
+          "line": 172,
+          "level": 2,
+          "text": "Flow trace (AGENTIC_SDD_TRACE)",
+          "slug": "flow-trace-agentic_sdd_trace"
+        },
+        {
+          "line": 213,
+          "level": 3,
+          "text": "Privacy and safety",
+          "slug": "privacy-and-safety"
+        },
+        {
+          "line": 231,
+          "level": 3,
+          "text": "Failure isolation",
+          "slug": "failure-isolation"
+        },
+        {
+          "line": 237,
+          "level": 2,
+          "text": "Test seam: AGENTIC_SDD_FORCE_INTERACTIVE=1",
+          "slug": "test-seam-agentic_sdd_force_interactive1"
+        }
+      ],
+      "links": [
+        {
+          "line": 7,
+          "href": "installer-reference.md",
+          "text": "installer reference"
+        }
+      ]
+    },
+    {
+      "path": "docs/execution-runs.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Execution runs — task briefs, check evidence and review packages",
+          "slug": "execution-runs--task-briefs-check-evidence-and-review-packages"
+        },
+        {
+          "line": 7,
+          "level": 2,
+          "text": "What a run is — and is not",
+          "slug": "what-a-run-is--and-is-not"
+        },
+        {
+          "line": 17,
+          "level": 2,
+          "text": "Commands",
+          "slug": "commands"
+        },
+        {
+          "line": 59,
+          "level": 2,
+          "text": "Artifact layout",
+          "slug": "artifact-layout"
+        },
+        {
+          "line": 83,
+          "level": 2,
+          "text": "Exit codes",
+          "slug": "exit-codes"
+        },
+        {
+          "line": 95,
+          "level": 2,
+          "text": "Observed state, stale runs and reconciliation",
+          "slug": "observed-state-stale-runs-and-reconciliation"
+        },
+        {
+          "line": 107,
+          "level": 2,
+          "text": "Task briefs: provenance and recovery",
+          "slug": "task-briefs-provenance-and-recovery"
+        },
+        {
+          "line": 119,
+          "level": 2,
+          "text": "Review packages and partial reasons",
+          "slug": "review-packages-and-partial-reasons"
+        },
+        {
+          "line": 134,
+          "level": 2,
+          "text": "Privacy and safety limits",
+          "slug": "privacy-and-safety-limits"
+        },
+        {
+          "line": 143,
+          "level": 2,
+          "text": "Boundaries: no sandbox, no approval, no model calls",
+          "slug": "boundaries-no-sandbox-no-approval-no-model-calls"
+        },
+        {
+          "line": 150,
+          "level": 2,
+          "text": "Related",
+          "slug": "related"
+        }
+      ],
+      "links": [
+        {
+          "line": 3,
+          "href": "../specs/016-agent-execution-context-evidence-recovery/spec.md",
+          "text": "Feature 016"
+        },
+        {
+          "line": 3,
+          "href": "../specs/016-agent-execution-context-evidence-recovery/spec.md#14-approval",
+          "text": "spec §14"
+        },
+        {
+          "line": 3,
+          "href": "../specs/017-agent-context-upgrade/spec.md",
+          "text": "Feature 017"
+        },
+        {
+          "line": 152,
+          "href": "../specs/016-agent-execution-context-evidence-recovery/spec.md",
+          "text": "Feature 016 specification"
+        },
+        {
+          "line": 153,
+          "href": "../specs/016-agent-execution-context-evidence-recovery/plan.md",
+          "text": "Plan"
+        },
+        {
+          "line": 154,
+          "href": "../specs/016-agent-execution-context-evidence-recovery/tasks.md",
+          "text": "Tasks"
+        }
+      ]
+    },
+    {
+      "path": "docs/orchestration-guide.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Full Usage & Orchestration Guide",
+          "slug": "full-usage--orchestration-guide"
+        },
+        {
+          "line": 7,
+          "level": 2,
+          "text": "1. Installation & CLI Commands",
+          "slug": "1-installation--cli-commands"
+        },
+        {
+          "line": 11,
+          "level": 3,
+          "text": "Standard install (18 core portable skills)",
+          "slug": "standard-install-18-core-portable-skills"
+        },
+        {
+          "line": 21,
+          "level": 3,
+          "text": "Opt-in OpenCode Orchestration Pack (--with-opencode)",
+          "slug": "opt-in-opencode-orchestration-pack---with-opencode"
+        },
+        {
+          "line": 33,
+          "level": 3,
+          "text": "Opt-in Free-First Writer/Test Preset (--opencode-free-first)",
+          "slug": "opt-in-free-first-writertest-preset---opencode-free-first"
+        },
+        {
+          "line": 42,
+          "level": 3,
+          "text": "Backups, Logs & Restore",
+          "slug": "backups-logs--restore"
+        },
+        {
+          "line": 65,
+          "level": 2,
+          "text": "2. How the Core Workflow Works",
+          "slug": "2-how-the-core-workflow-works"
+        },
+        {
+          "line": 86,
+          "level": 2,
+          "text": "3. Using the OpenCode Orchestration Pack (agentic-sdd-orchestrate)",
+          "slug": "3-using-the-opencode-orchestration-pack-agentic-sdd-orchestrate"
+        },
+        {
+          "line": 99,
+          "level": 3,
+          "text": "Specialist Fleet Installed by --with-opencode",
+          "slug": "specialist-fleet-installed-by---with-opencode"
+        },
+        {
+          "line": 122,
+          "level": 2,
+          "text": "4. Example Orchestration Prompts",
+          "slug": "4-example-orchestration-prompts"
+        },
+        {
+          "line": 124,
+          "level": 3,
+          "text": "Delegate an architecture review to OpenAI GPT-6.1 Sol or Claude Opus",
+          "slug": "delegate-an-architecture-review-to-openai-gpt-61-sol-or-claude-opus"
+        },
+        {
+          "line": 127,
+          "level": 3,
+          "text": "Delegate complex implementation to OpenAI GPT-6.1 Terra",
+          "slug": "delegate-complex-implementation-to-openai-gpt-61-terra"
+        },
+        {
+          "line": 130,
+          "level": 3,
+          "text": "Delegate routine work to Free-First / Gemini Flash agents and verify with a Free reviewer",
+          "slug": "delegate-routine-work-to-free-first--gemini-flash-agents-and-verify-with-a-free-reviewer"
+        },
+        {
+          "line": 135,
+          "level": 2,
+          "text": "5. MCP Integration (codegraph, context7, exa)",
+          "slug": "5-mcp-integration-codegraph-context7-exa"
+        }
+      ],
+      "links": [
+        {
+          "line": 141,
+          "href": "codegraph.md",
+          "text": "CodeGraph setup and continuous sync"
+        }
+      ]
+    },
+    {
+      "path": "docs/mcp-tools.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "MCP Tools: CodeGraph, Context7 and Exa",
+          "slug": "mcp-tools-codegraph-context7-and-exa"
+        },
+        {
+          "line": 24,
+          "level": 2,
+          "text": "The beginner journey",
+          "slug": "the-beginner-journey"
+        },
+        {
+          "line": 44,
+          "level": 2,
+          "text": "CLI equivalents",
+          "slug": "cli-equivalents"
+        },
+        {
+          "line": 66,
+          "level": 2,
+          "text": "Read-only first (MCP-A)",
+          "slug": "read-only-first-mcp-a"
+        },
+        {
+          "line": 79,
+          "level": 2,
+          "text": "Applying and restoring (MCP-B)",
+          "slug": "applying-and-restoring-mcp-b"
+        },
+        {
+          "line": 101,
+          "level": 2,
+          "text": "Global configuration only; nothing is created",
+          "slug": "global-configuration-only-nothing-is-created"
+        },
+        {
+          "line": 113,
+          "level": 2,
+          "text": "JSONC, conflicts and unsafe targets",
+          "slug": "jsonc-conflicts-and-unsafe-targets"
+        },
+        {
+          "line": 133,
+          "level": 2,
+          "text": "CodeGraph prerequisite and index",
+          "slug": "codegraph-prerequisite-and-index"
+        },
+        {
+          "line": 149,
+          "level": 2,
+          "text": "Context7 and Exa honesty",
+          "slug": "context7-and-exa-honesty"
+        },
+        {
+          "line": 163,
+          "level": 2,
+          "text": "TUI keys",
+          "slug": "tui-keys"
+        },
+        {
+          "line": 184,
+          "level": 2,
+          "text": "What this guide does not promise",
+          "slug": "what-this-guide-does-not-promise"
+        }
+      ],
+      "links": [
+        {
+          "line": 191,
+          "href": "../specs/015-fleet-manager-tui/spec.md",
+          "text": "Feature 015 spec"
+        }
+      ]
+    },
+    {
+      "path": "docs/fleet-manager-tui.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Fleet Manager in the terminal UI",
+          "slug": "fleet-manager-in-the-terminal-ui"
+        },
+        {
+          "line": 26,
+          "level": 2,
+          "text": "Where it lives",
+          "slug": "where-it-lives"
+        },
+        {
+          "line": 41,
+          "level": 2,
+          "text": "First use",
+          "slug": "first-use"
+        },
+        {
+          "line": 58,
+          "level": 2,
+          "text": "Five things to keep apart",
+          "slug": "five-things-to-keep-apart"
+        },
+        {
+          "line": 75,
+          "level": 2,
+          "text": "The journey",
+          "slug": "the-journey"
+        },
+        {
+          "line": 100,
+          "level": 2,
+          "text": "Conflicts and limits",
+          "slug": "conflicts-and-limits"
+        },
+        {
+          "line": 114,
+          "level": 2,
+          "text": "CLI equivalents and further reading",
+          "slug": "cli-equivalents-and-further-reading"
+        }
+      ],
+      "links": [
+        {
+          "line": 125,
+          "href": "../specs/014-agent-fleet-model-overrides/fleet-worked-guide.md",
+          "text": "Fleet profiles worked guide"
+        },
+        {
+          "line": 129,
+          "href": "../specs/015-fleet-manager-tui/spec.md",
+          "text": "Feature 015 spec"
+        },
+        {
+          "line": 131,
+          "href": "tui-architecture.md",
+          "text": "TUI architecture"
+        }
+      ]
+    },
+    {
+      "path": "docs/tui-architecture.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "TUI Architecture and Toolchain Migration Blueprint",
+          "slug": "tui-architecture-and-toolchain-migration-blueprint"
+        },
+        {
+          "line": 37,
+          "level": 2,
+          "text": "1. What exists today",
+          "slug": "1-what-exists-today"
+        },
+        {
+          "line": 82,
+          "level": 2,
+          "text": "2. Module isolation and the module-path decision",
+          "slug": "2-module-isolation-and-the-module-path-decision"
+        },
+        {
+          "line": 142,
+          "level": 2,
+          "text": "3. Domain boundary: screens ↔ internal/appops ↔ internal/skillsync (013 controlled-adapter rule, batch under review)",
+          "slug": "3-domain-boundary-screens--internalappops--internalskillsync-013-controlled-adapter-rule-batch-under-review"
+        },
+        {
+          "line": 227,
+          "level": 3,
+          "text": "Launch precedence",
+          "slug": "launch-precedence"
+        },
+        {
+          "line": 255,
+          "level": 2,
+          "text": "4. Toolchain migration blueprint (012 history; no 013 root migration required)",
+          "slug": "4-toolchain-migration-blueprint-012-history-no-013-root-migration-required"
+        },
+        {
+          "line": 263,
+          "level": 3,
+          "text": "Why the change is atomic",
+          "slug": "why-the-change-is-atomic"
+        },
+        {
+          "line": 272,
+          "level": 3,
+          "text": "The eight pinned locations",
+          "slug": "the-eight-pinned-locations"
+        },
+        {
+          "line": 285,
+          "level": 3,
+          "text": "Additional references found during the audit",
+          "slug": "additional-references-found-during-the-audit"
+        },
+        {
+          "line": 301,
+          "level": 3,
+          "text": "Target version and sequencing",
+          "slug": "target-version-and-sequencing"
+        },
+        {
+          "line": 347,
+          "level": 3,
+          "text": "Risk notes",
+          "slug": "risk-notes"
+        },
+        {
+          "line": 359,
+          "level": 2,
+          "text": "5. Phased path (012 history + 013 controlled operation host, batch under review)",
+          "slug": "5-phased-path-012-history--013-controlled-operation-host-batch-under-review"
+        },
+        {
+          "line": 385,
+          "level": 2,
+          "text": "6. Non-goals and honest limitations",
+          "slug": "6-non-goals-and-honest-limitations"
+        }
+      ],
+      "links": [
+        {
+          "line": 21,
+          "href": "../specs/012-cli-tui-remediation/spec.md",
+          "text": "012 — CLI UI/UX Remediation & Hybrid TUI Experience"
+        },
+        {
+          "line": 23,
+          "href": "../specs/013-unified-tui-experience/spec.md",
+          "text": "013 — Unified TUI Experience and Animated Branding"
+        },
+        {
+          "line": 25,
+          "href": "../specs/013-unified-tui-experience/spec.md#approval",
+          "text": "013 spec.md §Approval"
+        }
+      ]
+    }
+  ]
+}

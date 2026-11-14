@@ -1,0 +1,999 @@
+{
+  "schemaVersion": 1,
+  "snapshotCommit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b",
+  "purpose": "T01 pre-migration README, contributor, OpenCode integration and pack anchor inventory for T04/T08; historical snapshot, not a current equality test",
+  "paths": [
+    "README.md",
+    "CONTRIBUTING.md",
+    "integrations/opencode/README.md",
+    "integrations/opencode/adoption.md",
+    "integrations/opencode/usage.md",
+    "integrations/opencode/safety.md",
+    "integrations/opencode/verification.md",
+    "integrations/opencode/recovery.md",
+    "integrations/opencode/supported-version.md",
+    "opencode-pack/README.md",
+    "opencode-pack/routing.md"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Agentic SDD",
+          "slug": "agentic-sdd"
+        },
+        {
+          "line": 3,
+          "level": 3,
+          "text": "Build software with AI. Stay the engineer.",
+          "slug": "build-software-with-ai-stay-the-engineer"
+        },
+        {
+          "line": 17,
+          "level": 2,
+          "text": "Why Agentic SDD?",
+          "slug": "why-agentic-sdd"
+        },
+        {
+          "line": 31,
+          "level": 2,
+          "text": "Quick start",
+          "slug": "quick-start"
+        },
+        {
+          "line": 33,
+          "level": 3,
+          "text": "1. Install the toolkit",
+          "slug": "1-install-the-toolkit"
+        },
+        {
+          "line": 123,
+          "level": 3,
+          "text": "Try the TUI locally",
+          "slug": "try-the-tui-locally"
+        },
+        {
+          "line": 134,
+          "level": 3,
+          "text": "Terminal UI (asdx)",
+          "slug": "terminal-ui-asdx"
+        },
+        {
+          "line": 154,
+          "level": 3,
+          "text": "Optional: guided CLI (asdx-core guide)",
+          "slug": "optional-guided-cli-asdx-core-guide"
+        },
+        {
+          "line": 168,
+          "level": 3,
+          "text": "Optional: numbered-prompt guide in Docker",
+          "slug": "optional-numbered-prompt-guide-in-docker"
+        },
+        {
+          "line": 180,
+          "level": 2,
+          "text": "What's new (feature 010–013)",
+          "slug": "whats-new-feature-010013"
+        },
+        {
+          "line": 195,
+          "level": 2,
+          "text": "Complete usage guide",
+          "slug": "complete-usage-guide"
+        },
+        {
+          "line": 197,
+          "level": 3,
+          "text": "CLI commands at a glance",
+          "slug": "cli-commands-at-a-glance"
+        },
+        {
+          "line": 218,
+          "level": 3,
+          "text": "Command migration (Feature 019)",
+          "slug": "command-migration-feature-019"
+        },
+        {
+          "line": 229,
+          "level": 3,
+          "text": "Environment and accessibility switches",
+          "slug": "environment-and-accessibility-switches"
+        },
+        {
+          "line": 245,
+          "level": 3,
+          "text": "Everyday prompts in your project",
+          "slug": "everyday-prompts-in-your-project"
+        },
+        {
+          "line": 262,
+          "level": 2,
+          "text": "OpenCode Orchestration Pack (--with-opencode)",
+          "slug": "opencode-orchestration-pack---with-opencode"
+        },
+        {
+          "line": 287,
+          "level": 2,
+          "text": "The workflow",
+          "slug": "the-workflow"
+        },
+        {
+          "line": 303,
+          "level": 2,
+          "text": "What comes in the toolkit?",
+          "slug": "what-comes-in-the-toolkit"
+        },
+        {
+          "line": 315,
+          "level": 2,
+          "text": "Where the files go",
+          "slug": "where-the-files-go"
+        },
+        {
+          "line": 327,
+          "level": 2,
+          "text": "Safety model",
+          "slug": "safety-model"
+        },
+        {
+          "line": 341,
+          "level": 2,
+          "text": "Explore further",
+          "slug": "explore-further"
+        }
+      ],
+      "links": [
+        {
+          "line": 5,
+          "href": "https://img.shields.io/github/v/release/nawodyaishan/agentic-sdd",
+          "text": "![Release"
+        },
+        {
+          "line": 6,
+          "href": "https://img.shields.io/github/actions/workflow/status/nawodyaishan/agentic-sdd/ci.yml?label=CI",
+          "text": "![CI"
+        },
+        {
+          "line": 7,
+          "href": "https://img.shields.io/badge/license-MIT-blue",
+          "text": "![License: MIT"
+        },
+        {
+          "line": 15,
+          "href": "#quick-start",
+          "text": "Quick start"
+        },
+        {
+          "line": 15,
+          "href": "#whats-new-feature-010013",
+          "text": "What's new"
+        },
+        {
+          "line": 15,
+          "href": "#complete-usage-guide",
+          "text": "Usage guide"
+        },
+        {
+          "line": 15,
+          "href": "#opencode-orchestration-pack---with-opencode",
+          "text": "OpenCode orchestration (                 )"
+        },
+        {
+          "line": 15,
+          "href": "docs/orchestration-guide.md",
+          "text": "Full orchestration docs"
+        },
+        {
+          "line": 15,
+          "href": "docs/installer-reference.md",
+          "text": "Installer reference"
+        },
+        {
+          "line": 15,
+          "href": "docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md",
+          "text": "Product vision"
+        },
+        {
+          "line": 119,
+          "href": "docs/getting-started.md#first-five-minutes-preview-then-stop",
+          "text": "first-five-minutes guide"
+        },
+        {
+          "line": 188,
+          "href": "docs/tui-architecture.md",
+          "text": "isolated Charm v2 prototype"
+        },
+        {
+          "line": 191,
+          "href": "specs/010-guided-cli-ux/spec.md",
+          "text": "010"
+        },
+        {
+          "line": 191,
+          "href": "specs/011-cli-brand-styling/spec.md",
+          "text": "011"
+        },
+        {
+          "line": 191,
+          "href": "specs/012-cli-tui-remediation/spec.md",
+          "text": "012"
+        },
+        {
+          "line": 191,
+          "href": "specs/013-unified-tui-experience/spec.md",
+          "text": "013"
+        },
+        {
+          "line": 191,
+          "href": "specs/013-unified-tui-experience/tasks.md",
+          "text": "tasks"
+        },
+        {
+          "line": 243,
+          "href": "docs/guide-flows.md",
+          "text": "guide-flows.md"
+        },
+        {
+          "line": 258,
+          "href": "docs/orchestration-guide.md",
+          "text": "Full Usage & Orchestration Guide"
+        },
+        {
+          "line": 258,
+          "href": "docs/getting-started.md",
+          "text": "Getting Started Examples"
+        },
+        {
+          "line": 283,
+          "href": "opencode-pack/README.md",
+          "text": "                         "
+        },
+        {
+          "line": 283,
+          "href": "opencode-pack/routing.md",
+          "text": "                          "
+        },
+        {
+          "line": 313,
+          "href": "skills-files/",
+          "text": "18 core skills"
+        },
+        {
+          "line": 313,
+          "href": "opencode-pack/",
+          "text": "opt-in OpenCode orchestration pack"
+        },
+        {
+          "line": 313,
+          "href": "skills-files/agentic-sdd-router/references/matt-pocock-notice.md",
+          "text": "Matt Pocock's productivity principles"
+        },
+        {
+          "line": 343,
+          "href": "docs/orchestration-guide.md",
+          "text": "Full Usage & Orchestration Guide"
+        },
+        {
+          "line": 344,
+          "href": "docs/getting-started.md",
+          "text": "Getting started"
+        },
+        {
+          "line": 345,
+          "href": "docs/installer-reference.md",
+          "text": "Installer reference"
+        },
+        {
+          "line": 346,
+          "href": "docs/guide-flows.md",
+          "text": "Guided CLI journeys and flow tracing"
+        },
+        {
+          "line": 347,
+          "href": "docs/tui-architecture.md",
+          "text": "TUI architecture"
+        },
+        {
+          "line": 348,
+          "href": "docs/fleet-manager-tui.md",
+          "text": "Fleet Manager (terminal UI)"
+        },
+        {
+          "line": 349,
+          "href": "docs/mcp-tools.md",
+          "text": "MCP Tools (CodeGraph, Context7, Exa)"
+        },
+        {
+          "line": 350,
+          "href": "docs/execution-runs.md",
+          "text": "Execution runs"
+        },
+        {
+          "line": 351,
+          "href": "opencode-pack/README.md",
+          "text": "OpenCode pack reference"
+        },
+        {
+          "line": 351,
+          "href": "opencode-pack/routing.md",
+          "text": "Model routing policy"
+        },
+        {
+          "line": 352,
+          "href": "docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md",
+          "text": "Product vision"
+        },
+        {
+          "line": 353,
+          "href": "docs/README.md",
+          "text": "Documentation index"
+        },
+        {
+          "line": 353,
+          "href": "CONTRIBUTING.md",
+          "text": "Contributing"
+        },
+        {
+          "line": 355,
+          "href": "LICENSE",
+          "text": "MIT License"
+        }
+      ]
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Contributing",
+          "slug": "contributing"
+        },
+        {
+          "line": 8,
+          "level": 2,
+          "text": "Product vision and design choices",
+          "slug": "product-vision-and-design-choices"
+        },
+        {
+          "line": 20,
+          "level": 2,
+          "text": "Set up",
+          "slug": "set-up"
+        },
+        {
+          "line": 34,
+          "level": 3,
+          "text": "Supported-core verification and experimental task separation",
+          "slug": "supported-core-verification-and-experimental-task-separation"
+        },
+        {
+          "line": 44,
+          "level": 2,
+          "text": "Change a skill",
+          "slug": "change-a-skill"
+        },
+        {
+          "line": 58,
+          "level": 2,
+          "text": "Change the Go installer",
+          "slug": "change-the-go-installer"
+        },
+        {
+          "line": 62,
+          "level": 2,
+          "text": "Send a change",
+          "slug": "send-a-change"
+        },
+        {
+          "line": 66,
+          "level": 2,
+          "text": "Reporting bugs and security concerns",
+          "slug": "reporting-bugs-and-security-concerns"
+        }
+      ],
+      "links": [
+        {
+          "line": 6,
+          "href": "docs/getting-started.md",
+          "text": "Getting started"
+        },
+        {
+          "line": 10,
+          "href": "docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md",
+          "text": "project vision"
+        },
+        {
+          "line": 22,
+          "href": "https://lefthook.dev/install/",
+          "text": "Lefthook"
+        },
+        {
+          "line": 42,
+          "href": "AGENTS.md#temporary-008-validation-scope",
+          "text": "temporary fence"
+        },
+        {
+          "line": 56,
+          "href": "tests/harness/README.md#core-workflow-text-and-onboarding-checks",
+          "text": "fixture ownership"
+        },
+        {
+          "line": 68,
+          "href": "https://github.com/nawodyaishan/agentic-sdd/issues",
+          "text": "repository issues"
+        }
+      ]
+    },
+    {
+      "path": "integrations/opencode/README.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "OpenCode adapter preflight",
+          "slug": "opencode-adapter-preflight"
+        },
+        {
+          "line": 12,
+          "level": 2,
+          "text": "B3 artifacts",
+          "slug": "b3-artifacts"
+        },
+        {
+          "line": 38,
+          "level": 2,
+          "text": "Inspected setup — 2026-10-28",
+          "slug": "inspected-setup--2026-10-28"
+        },
+        {
+          "line": 62,
+          "level": 2,
+          "text": "Pending before support/adoption",
+          "slug": "pending-before-supportadoption"
+        }
+      ],
+      "links": [
+        {
+          "line": 7,
+          "href": "supported-version.md",
+          "text": "supported-version record"
+        },
+        {
+          "line": 9,
+          "href": "../../docs/vnext-human-test-plan.md",
+          "text": "final human usage plan"
+        },
+        {
+          "line": 14,
+          "href": "usage.md",
+          "text": "B2 inactive configuration helper"
+        },
+        {
+          "line": 20,
+          "href": "opencode.jsonc",
+          "text": "Native template"
+        },
+        {
+          "line": 22,
+          "href": "policy-lockdown.jsonc",
+          "text": "Higher-authority lockdown example"
+        },
+        {
+          "line": 24,
+          "href": "independent-review.jsonc",
+          "text": "Independent review example"
+        },
+        {
+          "line": 25,
+          "href": "independent-review.md",
+          "text": "runbook"
+        },
+        {
+          "line": 27,
+          "href": "model-usage.json",
+          "text": "Usage catalog"
+        },
+        {
+          "line": 29,
+          "href": "adoption.md",
+          "text": "Manual adoption/rollback"
+        },
+        {
+          "line": 30,
+          "href": "verification.md",
+          "text": "verification limits"
+        },
+        {
+          "line": 31,
+          "href": "recovery.md",
+          "text": "Manual recovery procedure"
+        },
+        {
+          "line": 75,
+          "href": "https://opencode.ai/v2/docs/cli/commands",
+          "text": "CLI commands"
+        },
+        {
+          "line": 75,
+          "href": "https://opencode.ai/v2/docs/api",
+          "text": "API"
+        }
+      ]
+    },
+    {
+      "path": "integrations/opencode/adoption.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Manual adoption and rollback",
+          "slug": "manual-adoption-and-rollback"
+        },
+        {
+          "line": 16,
+          "level": 2,
+          "text": "Preview — no active changes",
+          "slug": "preview--no-active-changes"
+        },
+        {
+          "line": 55,
+          "level": 2,
+          "text": "Backup, apply and verify — separate explicit authorization",
+          "slug": "backup-apply-and-verify--separate-explicit-authorization"
+        },
+        {
+          "line": 79,
+          "level": 2,
+          "text": "Rollback — digest checked",
+          "slug": "rollback--digest-checked"
+        },
+        {
+          "line": 99,
+          "level": 2,
+          "text": "Final-cycle status — 005/B5 (2026-11-02)",
+          "slug": "final-cycle-status--005b5-2026-11-02"
+        }
+      ],
+      "links": [
+        {
+          "line": 3,
+          "href": "usage.md",
+          "text": "005/B2 helper"
+        },
+        {
+          "line": 12,
+          "href": "verification.md",
+          "text": "verification.md"
+        },
+        {
+          "line": 45,
+          "href": "safety.md",
+          "text": "safety.md"
+        }
+      ]
+    },
+    {
+      "path": "integrations/opencode/usage.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Inactive configuration helper — 005/B2",
+          "slug": "inactive-configuration-helper--005b2"
+        },
+        {
+          "line": 15,
+          "level": 2,
+          "text": "File-only operations",
+          "slug": "file-only-operations"
+        },
+        {
+          "line": 49,
+          "level": 2,
+          "text": "Explicit config transaction — separate live authorization",
+          "slug": "explicit-config-transaction--separate-live-authorization"
+        },
+        {
+          "line": 89,
+          "level": 2,
+          "text": "Native ACP session — 005/B3 (fake-peer transport, strict admission)",
+          "slug": "native-acp-session--005b3-fake-peer-transport-strict-admission"
+        },
+        {
+          "line": 135,
+          "level": 2,
+          "text": "Evidence consumer and receipt projection — 005/B4 (offline)",
+          "slug": "evidence-consumer-and-receipt-projection--005b4-offline"
+        }
+      ],
+      "links": [
+        {
+          "line": 7,
+          "href": "supported-version.md",
+          "text": "uncertified"
+        },
+        {
+          "line": 132,
+          "href": "recovery.md",
+          "text": "recovery"
+        }
+      ]
+    },
+    {
+      "path": "integrations/opencode/safety.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Evaluation safety and model usage",
+          "slug": "evaluation-safety-and-model-usage"
+        },
+        {
+          "line": 3,
+          "level": 2,
+          "text": "Incident correction and scope",
+          "slug": "incident-correction-and-scope"
+        },
+        {
+          "line": 18,
+          "level": 2,
+          "text": "Controls delivered now",
+          "slug": "controls-delivered-now"
+        },
+        {
+          "line": 42,
+          "level": 2,
+          "text": "Selected models",
+          "slug": "selected-models"
+        },
+        {
+          "line": 67,
+          "level": 2,
+          "text": "Before any separately authorized online test",
+          "slug": "before-any-separately-authorized-online-test"
+        },
+        {
+          "line": 109,
+          "level": 2,
+          "text": "Privacy is separate from price",
+          "slug": "privacy-is-separate-from-price"
+        },
+        {
+          "line": 140,
+          "level": 2,
+          "text": "User-controlled remediation and reported status",
+          "slug": "user-controlled-remediation-and-reported-status"
+        }
+      ],
+      "links": [
+        {
+          "line": 70,
+          "href": "../../specs/006-independent-review/spec.md#pilot-prerequisites-and-retained-findings",
+          "text": "006's specification"
+        },
+        {
+          "line": 135,
+          "href": "https://openrouter.ai/docs/guides/privacy/provider-logging",
+          "text": "provider policies"
+        },
+        {
+          "line": 136,
+          "href": "https://openrouter.ai/docs/guides/features/zdr",
+          "text": "ZDR"
+        },
+        {
+          "line": 137,
+          "href": "https://opencode.ai/v2/docs/agents",
+          "text": "OpenCode agents"
+        },
+        {
+          "line": 138,
+          "href": "https://opencode.ai/v2/docs/policies",
+          "text": "policies"
+        },
+        {
+          "line": 144,
+          "href": "../../specs/004-vnext-harness/spec.md#approval",
+          "text": "spec §Approval"
+        }
+      ]
+    },
+    {
+      "path": "integrations/opencode/verification.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "B3 verification and support limits",
+          "slug": "b3-verification-and-support-limits"
+        },
+        {
+          "line": 6,
+          "level": 2,
+          "text": "Reproduce without provider access",
+          "slug": "reproduce-without-provider-access"
+        },
+        {
+          "line": 30,
+          "level": 2,
+          "text": "Observed",
+          "slug": "observed"
+        },
+        {
+          "line": 52,
+          "level": 2,
+          "text": "Discovery failures retained / fixture corrections",
+          "slug": "discovery-failures-retained--fixture-corrections"
+        },
+        {
+          "line": 69,
+          "level": 2,
+          "text": "Open acceptance findings",
+          "slug": "open-acceptance-findings"
+        },
+        {
+          "line": 98,
+          "level": 2,
+          "text": "B4/B5 status note (2026-11-02)",
+          "slug": "b4b5-status-note-2026-11-02"
+        }
+      ],
+      "links": [
+        {
+          "line": 86,
+          "href": "safety.md",
+          "text": "safety.md"
+        }
+      ]
+    },
+    {
+      "path": "integrations/opencode/recovery.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Recovery procedure — offline B6 subset",
+          "slug": "recovery-procedure--offline-b6-subset"
+        },
+        {
+          "line": 8,
+          "level": 2,
+          "text": "Before any resumed action",
+          "slug": "before-any-resumed-action"
+        },
+        {
+          "line": 36,
+          "level": 2,
+          "text": "Deterministic check interruption (observed offline)",
+          "slug": "deterministic-check-interruption-observed-offline"
+        },
+        {
+          "line": 46,
+          "level": 2,
+          "text": "Native cancellation, compaction and restart (not observed)",
+          "slug": "native-cancellation-compaction-and-restart-not-observed"
+        },
+        {
+          "line": 68,
+          "level": 2,
+          "text": "Pending-human normalization — 005/B3 (fake-peer only)",
+          "slug": "pending-human-normalization--005b3-fake-peer-only"
+        },
+        {
+          "line": 89,
+          "level": 2,
+          "text": "Evidence-linked recovery — 005/B4/B5 (offline)",
+          "slug": "evidence-linked-recovery--005b4b5-offline"
+        }
+      ],
+      "links": [
+        {
+          "line": 4,
+          "href": "supported-version.md",
+          "text": "support record"
+        },
+        {
+          "line": 4,
+          "href": "verification.md#open-acceptance-findings",
+          "text": "B3 findings"
+        },
+        {
+          "line": 13,
+          "href": "../../docs/handovers/",
+          "text": "handovers"
+        },
+        {
+          "line": 22,
+          "href": "safety.md",
+          "text": "safety"
+        },
+        {
+          "line": 25,
+          "href": "../../harness/evidence/README.md",
+          "text": "offline receipt checks"
+        }
+      ]
+    },
+    {
+      "path": "integrations/opencode/supported-version.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Runtime compatibility record",
+          "slug": "runtime-compatibility-record"
+        },
+        {
+          "line": 27,
+          "level": 2,
+          "text": "Offline S0 revalidation — 2026-10-31",
+          "slug": "offline-s0-revalidation--2026-10-31"
+        },
+        {
+          "line": 40,
+          "level": 2,
+          "text": "Feature 005 implementation target — 2026-11-02",
+          "slug": "feature-005-implementation-target--2026-11-02"
+        },
+        {
+          "line": 51,
+          "level": 2,
+          "text": "Native ACP transport — 005/B3 (2026-11-02)",
+          "slug": "native-acp-transport--005b3-2026-11-02"
+        },
+        {
+          "line": 67,
+          "level": 2,
+          "text": "Evidence consumer and receipt projection — 005/B4 (2026-11-02)",
+          "slug": "evidence-consumer-and-receipt-projection--005b4-2026-11-02"
+        },
+        {
+          "line": 85,
+          "level": 2,
+          "text": "Final integration — 005/B5 (2026-11-02)",
+          "slug": "final-integration--005b5-2026-11-02"
+        }
+      ],
+      "links": [
+        {
+          "line": 22,
+          "href": "../../harness/baseline.md",
+          "text": "baseline.md"
+        },
+        {
+          "line": 25,
+          "href": "verification.md",
+          "text": "verification.md"
+        },
+        {
+          "line": 33,
+          "href": "../../tests/harness/S0.md",
+          "text": "S0 scope and results"
+        },
+        {
+          "line": 42,
+          "href": "usage.md",
+          "text": "inactive helper"
+        },
+        {
+          "line": 100,
+          "href": "../../specs/005-vnext-completion/tasks.md#continuation-record",
+          "text": "continuation"
+        }
+      ]
+    },
+    {
+      "path": "opencode-pack/README.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "OpenCode orchestration pack (optional)",
+          "slug": "opencode-orchestration-pack-optional"
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "text": "What it contains",
+          "slug": "what-it-contains"
+        },
+        {
+          "line": 44,
+          "level": 2,
+          "text": "Install",
+          "slug": "install"
+        },
+        {
+          "line": 59,
+          "level": 2,
+          "text": "Preview, backup, restore",
+          "slug": "preview-backup-restore"
+        },
+        {
+          "line": 72,
+          "level": 2,
+          "text": "Routing and models",
+          "slug": "routing-and-models"
+        },
+        {
+          "line": 76,
+          "level": 2,
+          "text": "Safety notes",
+          "slug": "safety-notes"
+        },
+        {
+          "line": 83,
+          "level": 2,
+          "text": "Verification",
+          "slug": "verification"
+        }
+      ],
+      "links": [
+        {
+          "line": 74,
+          "href": "routing.md",
+          "text": "routing.md"
+        }
+      ]
+    },
+    {
+      "path": "opencode-pack/routing.md",
+      "headings": [
+        {
+          "line": 1,
+          "level": 1,
+          "text": "Routing and model policy (opt-in OpenCode pack)",
+          "slug": "routing-and-model-policy-opt-in-opencode-pack"
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "text": "Provider lanes",
+          "slug": "provider-lanes"
+        },
+        {
+          "line": 16,
+          "level": 2,
+          "text": "Pinned models in this pack",
+          "slug": "pinned-models-in-this-pack"
+        },
+        {
+          "line": 39,
+          "level": 2,
+          "text": "Free-first ladder",
+          "slug": "free-first-ladder"
+        },
+        {
+          "line": 56,
+          "level": 2,
+          "text": "Preserved Claude/9Router fallback exception",
+          "slug": "preserved-claude9router-fallback-exception"
+        },
+        {
+          "line": 62,
+          "level": 2,
+          "text": "The two Beam cross-lane rules",
+          "slug": "the-two-beam-cross-lane-rules"
+        },
+        {
+          "line": 69,
+          "level": 2,
+          "text": "MCP access rules",
+          "slug": "mcp-access-rules"
+        },
+        {
+          "line": 77,
+          "level": 2,
+          "text": "CLI usage",
+          "slug": "cli-usage"
+        }
+      ],
+      "links": []
+    }
+  ]
+}
