@@ -1,5 +1,16 @@
 # Getting started with the supported core
 
+> **Retained engineering trace (Feature 020, T08).** This page is no longer the
+> maintained public getting-started procedure. Public procedures live under
+> `website/src/content/docs/getting-started/` and
+> `website/src/content/docs/tutorials/`, starting with
+> [First five minutes](../website/src/content/docs/getting-started/first-five-minutes.md),
+> [Direct fix](../website/src/content/docs/tutorials/direct-fix.md) and
+> [First feature](../website/src/content/docs/tutorials/first-feature.md). The
+> three worked paths below are kept intact because
+> `tests/harness/test_core_workflow.py` asserts them. Review status: unreviewed.
+> Applies to: unreleased.
+
 One workflow for learners and experienced engineers: choose the right scope,
 verify the result, and keep the human stop points. These fictional examples are
 not model-compliance evidence. Their approval lines illustrate decisions; they

@@ -9,6 +9,11 @@ certified support; the one integrated cycle is prepared in the
 [final human usage plan](../../docs/vnext-human-test-plan.md) and is a separate
 launch decision.
 
+**Canonical ownership (Feature 020, integration-pending):** optional-pack and OpenCode
+coverage moves to the new site pages `how-to/orchestration`, `tutorials/specialists`
+and `reference/profiles` (see the [Feature 020 sitemap](../../specs/020-documentation-ecosystem/sitemap.md)).
+This file is retained as the 005 B1–B5 engineering trace; it is not current adoption guidance.
+
 ## B3 artifacts
 
 Feature 005 adds the [B2 inactive configuration helper](usage.md) in the existing

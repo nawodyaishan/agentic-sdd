@@ -63,6 +63,18 @@ Keep CLI flags and exit behavior in `cmd/agentic-sdd/`. Put sync behavior in `in
 
 Keep pull requests focused. Explain the behavior you changed, how you checked it, and any effect on installed skills or backups. Update the README and Taskfile when commands or paths change. Do not commit `backups/`, local Lefthook overrides, or personal skill content.
 
+## Public website docs
+
+Contributor, compatibility, and migration guidance for the public site lives in
+the website source and is owned by the docs lanes:
+
+- `website/src/content/docs/contributing/docs-and-changes.md` — docs style, impact review, and page/skill/profile ownership.
+- `website/src/content/docs/releases/compatibility.md` — supported checkout, release, platform, and client combinations.
+- `website/src/content/docs/releases/migration.md` — the sole canonical/legacy/state migration table.
+
+Those pages are the source of truth for website content; this file remains the
+repository entry point.
+
 ## Reporting bugs and security concerns
 
 Use [repository issues](https://github.com/nawodyaishan/agentic-sdd/issues) for

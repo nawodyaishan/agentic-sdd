@@ -5,6 +5,12 @@ Repository instructions and the feature approval and task records take precedenc
 over advisory or historical documents. Existing paths are retained so links in
 specifications, evidence and handovers continue to work.
 
+This index is split in two: **public manual** (active guides whose procedures
+move to the new site) versus **engineering records** (specs, continuations,
+evidence and historical research, kept with historical-entry framing). The new
+site's canonical page inventory is the [Feature 020 sitemap](../specs/020-documentation-ecosystem/sitemap.md);
+site pages authored in parallel lanes are integration-pending here, never invented.
+
 ## Product vision
 
 - [Agentic-SDD product vision and evolution strategy](vision/Agentic-SDD-Project-Vision-and-Evolution.md) —
@@ -13,6 +19,13 @@ specifications, evidence and handovers continue to work.
   release commitment.
 
 ## Current status and next decisions
+
+### Public manual — active guides
+
+Procedures in these guides move to the new site pages listed in the
+[Feature 020 sitemap](../specs/020-documentation-ecosystem/sitemap.md)
+(integration-pending until the parallel content lanes land). Until then the
+guides below remain the readable source; they are not engineering verdicts.
 
 - [Getting started](getting-started.md) — safe preview and three compact core
   experiences: direct fix, one approved feature batch, and review/resume.
@@ -32,6 +45,13 @@ specifications, evidence and handovers continue to work.
 - [Research skills and subagents: current state](research-skills-and-subagents-current-state.md) —
   how research is routed, delegated and evidenced across the portable skills,
   the opt-in pack and the installed machine fleet.
+
+### Engineering records — specs, continuations and operational boundaries
+
+Retained with historical-entry framing. These records explain what was decided
+and observed; they authorize no batch, execution or publication (see note at
+the end of this section).
+
 - [TUI architecture and toolchain migration blueprint](tui-architecture.md) —
   experimental Charm v2 hybrid spike and 8-point toolchain audit for Feature 012.
 - [Feature 009 spec](../specs/009-opencode-orchestration/spec.md),

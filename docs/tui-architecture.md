@@ -28,6 +28,11 @@ migration that does not. It is not an approval record, a batch authorization, a
 release commitment or evidence that the TUI is wired into the shipped binary.
 New B3 descriptions in §§3/5 are batch-under-review, not verified fact.
 
+**Canonical ownership (Feature 020, integration-pending):** the new site pages
+`architecture/overview`, `architecture/interfaces` and `reference/tui` own current
+TUI description (see the [Feature 020 sitemap](../specs/020-documentation-ecosystem/sitemap.md)).
+This file is retained as the 012/013 engineering trace below; it is not the current manual.
+
 Line numbers and digests below were verified against the working tree on
 2026-11-10 and will drift; treat the file and symbol names as the stable part of
 each reference.
