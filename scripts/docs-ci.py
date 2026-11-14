@@ -220,7 +220,7 @@ DEFAULT_POLICY = {
         {"id": "docs-check", "argv": ["npm", "run", "docs:check"],
          "requires_script": "docs:check"},
         {"id": "docs-check-built",
-         "argv": ["npm", "run", "docs:check-built", "--", "--built", "dist", "--source"],
+         "argv": ["npm", "run", "docs:check-built"],
          "requires_script": "docs:check-built"},
         {"id": "docs-export-write", "argv": ["node", "scripts/export.mjs", "--out", "dist/export"],
          "requires_file": "scripts/export.mjs"},

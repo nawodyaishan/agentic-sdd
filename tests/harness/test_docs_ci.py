@@ -99,7 +99,7 @@ ADOPTED_CHECKS = [
     {"id": "build", "argv": ["npm", "run", "build"]},
     {"id": "docs-check", "argv": ["npm", "run", "docs:check"]},
     {"id": "docs-check-built",
-     "argv": ["npm", "run", "docs:check-built", "--", "--built", "dist", "--source"]},
+     "argv": ["npm", "run", "docs:check-built"]},
     {"id": "docs-export-write",
      "argv": ["node", "scripts/export.mjs", "--out", "dist/export"]},
     {"id": "docs-export-check",
