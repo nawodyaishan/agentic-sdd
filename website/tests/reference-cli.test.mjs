@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -12,10 +13,17 @@ import {
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { REFERENCE_BINARY_RECIPE } from '../scripts/reference.mjs';
 
 const moduleURL = new URL('../scripts/reference/cli.mjs', import.meta.url);
+const referenceScript = fileURLToPath(new URL('../scripts/reference.mjs', import.meta.url));
 const worktreeRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const candidateBinaryPath = process.env.ASDX_CORE_BINARY || '/tmp/opencode/spec020-b1/asdx-core';
+// Real-binary parity is opt-in only: no hardcoded default, no implicit path.
+// Without ASDX_CORE_BINARY the parity test reports `blocked` (skip with the
+// exact build recipe) and must never count as a pass.
+const candidateBinaryPath = process.env.ASDX_CORE_BINARY?.trim() || '';
+const candidateExpectedCommit = process.env.ASDX_CORE_COMMIT?.trim() || '';
+const STANDARD_FAKE_COMMIT = '2fc31e9f9c4d019e2b9f3b4f004978028808c74b';
 
 const EXPECTED_SOURCES = [
   'cmd/agentic-sdd/env.go',
@@ -161,7 +169,9 @@ const outputs = {
   'task help': 'Usage: asdx-core task brief --run ID --task T01 [--force] [--repo DIR] [--run-root DIR] [--format text|json]\\n',
   'help review': 'review — package actual Git changes for a bounded review\\n',
   'review help': 'Usage: asdx-core review package --run ID --base COMMIT [--head COMMIT] [--max-file-bytes N] [--max-total-bytes N] [--repo DIR] [--run-root DIR] [--format text|json]\\n',
+  'version': 'asdx-core 0.11.0-dev\\n  commit:     ${STANDARD_FAKE_COMMIT}\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1',
 };
+
 if (!Object.hasOwn(outputs, key)) {
   process.stderr.write('error: unexpected argv: ' + key + '\\n');
   process.exit(2);
@@ -278,13 +288,19 @@ const record = {
   hasSecret: Object.hasOwn(process.env, 'OPENAI_API_KEY'),
 };
 fs.appendFileSync(${JSON.stringify(markerPath)}, JSON.stringify(record) + '\\n');
+if (args.join(' ') === 'version') {
+  process.stdout.write('asdx-core 0.11.0-dev\\n  commit:     ${STANDARD_FAKE_COMMIT}\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1\\n');
+  process.exit(0);
+}
 process.stdout.write('Usage: asdx-core\\nFlags:\\n  --help\\n');
 `;
   const fakeBin = writeFakeExecutable(binDir, 'asdx-core', auditBody);
   const { inventory } = await mod.collectCLI({ repoRoot, binaryPath: fakeBin });
 
   const lines = readFileSync(markerPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-  assert.equal(lines.length, inventory.commands.length);
+  assert.equal(lines.length, inventory.commands.length + 1, 'help inventory plus one identity probe');
+  const probes = lines.filter((entry) => entry.args.join(' ') === 'version');
+  assert.equal(probes.length, 1, 'exactly one version identity probe');
   for (const entry of lines) {
     assert.equal(entry.noColor, '1');
     assert.equal(entry.term, 'dumb');
@@ -294,7 +310,10 @@ process.stdout.write('Usage: asdx-core\\nFlags:\\n  --help\\n');
     assert.equal(entry.hasForce, false);
     assert.equal(entry.hasAnimate, false);
     assert.equal(entry.hasSecret, false);
-    assert.ok(entry.args.includes('--help') || entry.args.includes('help'), `non-help argv executed: ${entry.args.join(' ')}`);
+    assert.ok(
+      entry.args.includes('--help') || entry.args.includes('help') || entry.args.join(' ') === 'version',
+      `non-help argv executed: ${entry.args.join(' ')}`,
+    );
     assert.ok(!entry.args.includes('opencode'), 'experimental opencode command must never be invoked');
     assert.ok(!entry.args.includes('opencode-harness'), 'experimental opencode-harness command must never be invoked');
   }
@@ -343,6 +362,10 @@ test('fails clearly on non-zero exit, empty stdout, ANSI leakage, timeout, and m
   const dir = makeTempDir(t, 'ref-cli-fail-');
 
   const exitFailBin = writeFakeExecutable(dir, 'exit-fail', `
+if (process.argv.slice(2).join(' ') === 'version') {
+  process.stdout.write('asdx-core 0.11.0-dev\\n  commit:     ${STANDARD_FAKE_COMMIT}\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1\\n');
+  process.exit(0);
+}
 if (process.argv.slice(2).join(' ') === 'fleet status --help') {
   process.stderr.write('error: unknown fleet command\\n');
   process.exit(2);
@@ -354,16 +377,40 @@ process.stdout.write('Usage: asdx-core\\nFlags:\\n  --help\\n');
     /code 2.*"fleet status --help"|"fleet status --help".*(?:exit|code)\s*2/i,
   );
 
-  const emptyBin = writeFakeExecutable(dir, 'empty-out', `process.stdout.write('   \\n');`);
+  const emptyBin = writeFakeExecutable(dir, 'empty-out', `
+if (process.argv.slice(2).join(' ') === 'version') {
+  process.stdout.write('asdx-core 0.11.0-dev\\n  commit:     ${STANDARD_FAKE_COMMIT}\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1\\n');
+  process.exit(0);
+}
+process.stdout.write('   \\n');
+`);
   await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: emptyBin }), /empty/i);
 
-  const ansiBin = writeFakeExecutable(dir, 'ansi-out', `process.stdout.write('\\x1b[31mUsage: asdx-core\\x1b[0m\\n');`);
+  const ansiBin = writeFakeExecutable(dir, 'ansi-out', `
+if (process.argv.slice(2).join(' ') === 'version') {
+  process.stdout.write('asdx-core 0.11.0-dev\\n  commit:     ${STANDARD_FAKE_COMMIT}\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1\\n');
+  process.exit(0);
+}
+process.stdout.write('\\x1b[31mUsage: asdx-core\\x1b[0m\\n');
+`);
   await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: ansiBin }), /ansi|escape/i);
 
-  const slowBin = writeFakeExecutable(dir, 'slow-out', `setTimeout(() => process.stdout.write('late\\n'), 5000);`);
+  const slowBin = writeFakeExecutable(dir, 'slow-out', `
+if (process.argv.slice(2).join(' ') === 'version') {
+  process.stdout.write('asdx-core 0.11.0-dev\\n  commit:     ${STANDARD_FAKE_COMMIT}\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1\\n');
+  process.exit(0);
+}
+setTimeout(() => process.stdout.write('late\\n'), 5000);
+`);
   await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: slowBin, timeoutMs: 80 }), /timed out/i);
 
-  const floodBin = writeFakeExecutable(dir, 'flood-out', `process.stdout.write('x'.repeat(8192));`);
+  const floodBin = writeFakeExecutable(dir, 'flood-out', `
+if (process.argv.slice(2).join(' ') === 'version') {
+  process.stdout.write('asdx-core 0.11.0-dev\\n  commit:     ${STANDARD_FAKE_COMMIT}\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1\\n');
+  process.exit(0);
+}
+process.stdout.write('x'.repeat(8192));
+`);
   await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: floodBin, maxBuffer: 512 }), /maxBuffer|exceeded/i);
   await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: realOrEmpty(dir), timeoutMs: 0 }), /timeoutMs/i);
   await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: realOrEmpty(dir), maxBuffer: 1.5 }), /maxBuffer/i);
@@ -420,19 +467,183 @@ test('never modifies repoRoot or fake HOME during collection', async (t) => {
   assert.equal(existsSync(path.join(repoRoot, 'website/src/content/docs/reference/cli.md')), false);
 });
 
+test('binds generated CLI facts to the candidate binary commit and records provenance', async (t) => {
+  const mod = await loadCollector();
+  const repoRoot = makeSyntheticRepo(t);
+  const binDir = makeTempDir(t, 'ref-cli-provenance-');
+  const fakeBin = writeFakeExecutable(binDir, 'asdx-core', STANDARD_FAKE_CLI_BODY);
+
+  const first = await mod.collectCLI({ repoRoot, binaryPath: fakeBin, expectedCommit: STANDARD_FAKE_COMMIT });
+  const second = await mod.collectCLI({ repoRoot, binaryPath: fakeBin, expectedCommit: STANDARD_FAKE_COMMIT });
+  assert.deepEqual(first, second);
+
+  const [section] = first.sections;
+  assert.deepEqual(section.metadata, {
+    producer: 'website/scripts/reference/cli.mjs',
+    binary: {
+      product: 'asdx-core',
+      version: '0.11.0-dev',
+      commit: STANDARD_FAKE_COMMIT,
+      date: '2026-11-14T00:00:00Z',
+      goVersion: 'go1.27.1',
+    },
+    expectedCommit: STANDARD_FAKE_COMMIT,
+    commitVerified: true,
+  });
+  assert.deepEqual(first.inventory.provenance, section.metadata);
+  assert.match(section.markdown, /captured by running the candidate/);
+  assert.match(section.markdown, /expected inspected-revision commit/);
+
+  const abbreviated = await mod.collectCLI({
+    repoRoot,
+    binaryPath: fakeBin,
+    expectedCommit: STANDARD_FAKE_COMMIT.slice(0, 12),
+  });
+  assert.equal(abbreviated.inventory.provenance.commitVerified, true);
+
+  const unverified = await mod.collectCLI({ repoRoot, binaryPath: fakeBin });
+  assert.equal(unverified.inventory.provenance.commitVerified, false);
+  assert.equal(unverified.inventory.provenance.expectedCommit, null);
+  assert.doesNotMatch(unverified.sections[0].markdown, /expected inspected-revision commit/);
+});
+
+test('fails closed on commit mismatch, malformed expectation and unidentifiable binaries', async (t) => {
+  const mod = await loadCollector();
+  const repoRoot = makeSyntheticRepo(t);
+  const binDir = makeTempDir(t, 'ref-cli-provenance-fail-');
+  const fakeBin = writeFakeExecutable(binDir, 'asdx-core', STANDARD_FAKE_CLI_BODY);
+
+  await assert.rejects(
+    () => mod.collectCLI({ repoRoot, binaryPath: fakeBin, expectedCommit: 'a'.repeat(40) }),
+    /mismatch|expected commit/i,
+  );
+  await assert.rejects(
+    () => mod.collectCLI({ repoRoot, binaryPath: fakeBin, expectedCommit: 'not-a-commit' }),
+    /--commit|hex/i,
+  );
+
+  const noCommitBin = writeFakeExecutable(
+    binDir,
+    'no-commit',
+    `process.stdout.write('asdx-core dev\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1\\n');`,
+  );
+  await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: noCommitBin }), /commit|rebuild/i);
+
+  const legacyBin = writeFakeExecutable(
+    binDir,
+    'legacy-name',
+    `process.stdout.write('agentic-sdd dev\\n  commit:     ${STANDARD_FAKE_COMMIT}\\n  date:       2026-11-14T00:00:00Z\\n  go version: go1.27.1\\n');`,
+  );
+  await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: legacyBin }), /canonical|asdx-core/i);
+
+  const failingProbeBin = writeFakeExecutable(
+    binDir,
+    'failing-probe',
+    `if (process.argv.slice(2).join(' ') === 'version') process.exit(2);\nprocess.stdout.write('Usage: asdx-core\\n');`,
+  );
+  await assert.rejects(() => mod.collectCLI({ repoRoot, binaryPath: failingProbeBin }), /code 2/i);
+});
+
+test('check mode emits a bounded deterministic first-difference diff per drifted page', async (t) => {
+  const { applySections } = await import('../scripts/reference.mjs');
+  const root = makeTempDir(t, 'ref-check-diff-');
+  const docs = path.join(root, 'website/src/content/docs/reference');
+  mkdirSync(docs, { recursive: true });
+  const longLine = 'x'.repeat(400);
+  const sections = [];
+  for (let index = 1; index <= 7; index += 1) {
+    sections.push({
+      pageId: `reference/page-${index}`,
+      title: `Page ${index}`,
+      markdown: index === 1
+        ? `${longLine}\nsecond expected line\nthird expected line`
+        : `expected line ${index}`,
+      sources: [],
+    });
+  }
+
+  applySections({ repoRoot: root, sections: [sections[0]], mode: 'generate' });
+  const firstPage = path.join(docs, 'page-1.md');
+  writeFileSync(firstPage, readFileSync(firstPage, 'utf8').replace(longLine, 'y'.repeat(400)), 'utf8');
+  for (const section of sections.slice(1)) {
+    writeFileSync(path.join(docs, `${section.pageId.split('/')[1]}.md`), '---\ntitle: Authored\n---\n\nAuthored body.\n', 'utf8');
+  }
+
+  const first = applySections({ repoRoot: root, sections, mode: 'check' });
+  const second = applySections({ repoRoot: root, sections, mode: 'check' });
+  assert.deepEqual(first, second, 'bounded check diff is deterministic');
+  assert.equal(first.changed.length, 7);
+  assert.equal(first.differences.length, 5, 'bounded page count');
+  assert.equal(first.diffOmitted, 2);
+  for (const difference of first.differences) {
+    assert.match(difference.path, /^website\/src\/content\/docs\/reference\/page-\d\.md$/);
+    assert.equal(typeof difference.line, 'number');
+    assert.ok(difference.line >= 1);
+    assert.ok(difference.expected.length > 0);
+    assert.ok(difference.expected.length <= 3);
+    assert.ok(difference.actual.length <= 3);
+    for (const line of [...difference.expected, ...difference.actual]) assert.ok(line.length <= 160);
+  }
+  assert.equal(first.differences[0].missing, false);
+  assert.ok(first.differences[0].expected[0].endsWith('...'), 'long expected line is truncated');
+  assert.ok(first.differences[0].actual[0].endsWith('...'), 'long actual line is truncated');
+  assert.equal(first.differences[0].line, 9, 'first difference points at the generated block line');
+
+  const missingRoot = makeTempDir(t, 'ref-check-missing-');
+  const missing = applySections({ repoRoot: missingRoot, sections: [sections[0]], mode: 'check' });
+  assert.equal(missing.differences.length, 1);
+  assert.equal(missing.differences[0].missing, true);
+  assert.deepEqual(missing.differences[0].actual, []);
+  assert.match(missing.changed[0], /page-1\.md$/);
+
+  const generated = applySections({ repoRoot: makeTempDir(t, 'ref-check-generate-'), sections: [sections[0]], mode: 'generate' });
+  assert.deepEqual(generated.differences, []);
+  assert.equal(generated.diffOmitted, 0);
+});
+
+test('curated CLI facts record preview exits, root --version, experimental topics and execution defaults', async (t) => {
+  const mod = await loadCollector();
+  const repoRoot = makeSyntheticRepo(t);
+  const binDir = makeTempDir(t, 'ref-cli-curated-');
+  const fakeBin = writeFakeExecutable(binDir, 'asdx-core', STANDARD_FAKE_CLI_BODY);
+  const { sections } = await mod.collectCLI({ repoRoot, binaryPath: fakeBin });
+  const markdown = sections[0].markdown;
+
+  assert.match(markdown, /`--version` \(root flag\)/);
+  assert.match(markdown, /not bare-only/);
+  assert.match(markdown, /Exits `0`, `1` \(runtime\/I\/O error\), or `2` \(usage\/flag error\)/);
+  assert.match(markdown, /`help opencode`\/`help opencode-harness`/);
+  assert.match(markdown, /Execution flag defaults/);
+  assert.match(markdown, /run check --timeout 15m/);
+  assert.match(markdown, /67108864/);
+  assert.match(markdown, /2097152/);
+  assert.match(markdown, /33554432/);
+});
+
 test(
-  'collects accurate CLI inventory and parity from parent candidate asdx-core binary',
-  { skip: !existsSync(candidateBinaryPath) && 'candidate binary not present in this environment' },
+  'collects accurate CLI inventory and parity from the configured ASDX_CORE_BINARY',
+  {
+    skip: candidateBinaryPath
+      ? false
+      : `blocked: ASDX_CORE_BINARY is unset, so real-binary reference parity was not evaluated.\nBuild the candidate binary from the inspected revision, then set ASDX_CORE_BINARY to it:\n${REFERENCE_BINARY_RECIPE}`,
+  },
   async () => {
     const mod = await loadCollector();
     assert.equal(typeof mod.collectCLI, 'function', 'collectCLI export is missing');
 
-    const first = await mod.collectCLI({ repoRoot: worktreeRoot, binaryPath: candidateBinaryPath });
-    const second = await mod.collectCLI({ repoRoot: worktreeRoot, binaryPath: candidateBinaryPath });
+    const options = candidateExpectedCommit
+      ? { repoRoot: worktreeRoot, binaryPath: candidateBinaryPath, expectedCommit: candidateExpectedCommit }
+      : { repoRoot: worktreeRoot, binaryPath: candidateBinaryPath };
+    const first = await mod.collectCLI(options);
+    const second = await mod.collectCLI(options);
     assert.deepEqual(first, second);
 
     const [section] = first.sections;
     assert.equal(section.pageId, 'reference/cli');
+    assert.equal(section.metadata.binary.product, 'asdx-core');
+    assert.match(section.metadata.binary.commit, /^[0-9a-f]{40}$/);
+    assert.equal(first.inventory.provenance.binary.commit, section.metadata.binary.commit);
+    assert.ok(section.markdown.includes('commit `' + section.metadata.binary.commit + '`'));
     assert.ok(!section.markdown.includes('\x1b'));
     assert.ok(!section.markdown.includes(worktreeRoot));
     assert.ok(!section.markdown.includes(candidateBinaryPath));
@@ -501,3 +712,39 @@ test(
     ]);
   },
 );
+
+test('reference generate and check report blocked with the exact build recipe when no binary is configured', (t) => {
+  const env = { ...process.env };
+  delete env.ASDX_CORE_BINARY;
+  for (const mode of ['--generate', '--check']) {
+    const result = spawnSync(process.execPath, [referenceScript, mode], { encoding: 'utf8', env });
+    assert.equal(result.status, 2, `${mode} must exit 2 (blocked), stderr: ${result.stderr}`);
+    assert.match(result.stderr, /reference: blocked:/);
+    assert.match(result.stderr, /ASDX_CORE_BINARY is unset/);
+    assert.ok(
+      result.stderr.includes(REFERENCE_BINARY_RECIPE),
+      `${mode} must print the exact reproducible build recipe`,
+    );
+  }
+});
+
+test('reference CLI prints the reproducible build recipe without a binary', () => {
+  const result = spawnSync(process.execPath, [referenceScript, '--recipe'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), REFERENCE_BINARY_RECIPE);
+  assert.match(result.stdout, /-X agentic-sdd\/internal\/version\.Commit=\$\(git rev-parse HEAD\)/);
+});
+
+test('reference CLI reads ASDX_CORE_BINARY when --binary is omitted', (t) => {
+  const env = { ...process.env, ASDX_CORE_BINARY: path.join(makeTempDir(t, 'ref-env-binary-'), 'absent') };
+  const result = spawnSync(process.execPath, [referenceScript, '--check'], { encoding: 'utf8', env });
+  assert.equal(result.status, 1, `the configured path must be inspected, stderr: ${result.stderr}`);
+  assert.match(result.stderr, /Missing CLI binary/);
+  assert.doesNotMatch(result.stderr, /blocked/);
+});
+
+test('real-binary parity has no hardcoded fallback path', () => {
+  const source = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+  assert.match(source, /process\.env\.ASDX_CORE_BINARY/);
+  assert.doesNotMatch(source, /\/tmp\/opencode\/spec020/);
+});

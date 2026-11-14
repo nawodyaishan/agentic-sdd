@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { accessSync, constants, lstatSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-const ALLOWED_OPTION_KEYS = new Set(['repoRoot', 'binaryPath', 'timeoutMs', 'maxBuffer']);
+const ALLOWED_OPTION_KEYS = new Set(['repoRoot', 'binaryPath', 'timeoutMs', 'maxBuffer', 'expectedCommit']);
 const ANSI_CONTROL_PATTERN = /[\u001b\u009b]/;
 const FLAG_TOKEN_PATTERN = /(?:^|[\s\[,])(-h|--[a-z0-9]+(?:-[a-z0-9]+)*)/g;
 
@@ -60,6 +60,13 @@ const ALLOWLISTED_COMMANDS = Object.freeze([
 ]);
 
 const ALLOWLISTED_ARGV_KEYS = new Set(ALLOWLISTED_COMMANDS.map((entry) => JSON.stringify(entry.argv)));
+
+// The identity probe is the only non-help argv the collector may execute. The
+// observed commit binds generated facts to the binary built from the inspected
+// revision; a missing or unexpected commit fails closed.
+const ALLOWLISTED_PROBE_ARGV = Object.freeze([Object.freeze(['version'])]);
+const ALLOWLISTED_PROBE_KEYS = new Set(ALLOWLISTED_PROBE_ARGV.map((argv) => JSON.stringify(argv)));
+const COMMIT_PATTERN = /^[0-9a-f]{7,40}$/i;
 
 const SANITIZED_ENV = Object.freeze({
   PATH: '/usr/bin:/bin',
@@ -217,10 +224,70 @@ function extractHelpFlags(stdout, flagMode) {
   return [...flags].sort();
 }
 
+function markdownToken(value) {
+  return String(value).replace(/[\u0000-\u001f`]/g, ' ').trim();
+}
+
+function normalizeExpectedCommit(value) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('--commit expects a 7-40 character hexadecimal Git commit');
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!COMMIT_PATTERN.test(normalized)) {
+    throw new Error(`--commit expects a 7-40 character hexadecimal Git commit, got "${value}"`);
+  }
+  return normalized;
+}
+
+function commitSatisfies(observed, expected) {
+  if (expected.length === 40) return observed === expected;
+  return observed.startsWith(expected);
+}
+
+function parseVersionIdentity(stdout) {
+  const text = stdout.replace(/\r\n/g, '\n');
+  const header = (text.split('\n', 1)[0] ?? '').trim();
+  const product = /^asdx-core (\S+)$/.exec(header);
+  if (!product) {
+    throw new Error(`CLI version probe did not identify the canonical asdx-core binary: "${header}"`);
+  }
+  const field = (label) => {
+    const match = new RegExp(`^\\s*${label}:\\s+(\\S.*?)\\s*$`, 'm').exec(text);
+    return match ? match[1] : '';
+  };
+  const commit = field('commit');
+  const date = field('date');
+  const goVersion = field('go version');
+  if (!COMMIT_PATTERN.test(commit)) {
+    throw new Error(`CLI binary has no usable build commit ("${commit || 'missing'}"); rebuild it from the inspected revision`);
+  }
+  if (!date) throw new Error('CLI version probe is missing the build date; rebuild it from the inspected revision');
+  if (!goVersion) throw new Error('CLI version probe is missing the Go version; rebuild it from the inspected revision');
+  return {
+    product: 'asdx-core',
+    version: product[1],
+    commit: commit.toLowerCase(),
+    date,
+    goVersion,
+  };
+}
+
 function runAllowlistedHelp(binaryPath, argv, { cwd, timeoutMs, maxBuffer }) {
   if (!ALLOWLISTED_ARGV_KEYS.has(JSON.stringify(argv))) {
     throw new Error(`Refusing non-allowlisted CLI argv: ${JSON.stringify(argv)}`);
   }
+  return runCapturedProcess(binaryPath, argv, { cwd, timeoutMs, maxBuffer, kind: 'help' });
+}
+
+function runAllowlistedVersion(binaryPath, { cwd, timeoutMs, maxBuffer }) {
+  const argv = ['version'];
+  if (!ALLOWLISTED_PROBE_KEYS.has(JSON.stringify(argv))) {
+    throw new Error(`Refusing non-allowlisted CLI probe argv: ${JSON.stringify(argv)}`);
+  }
+  return runCapturedProcess(binaryPath, argv, { cwd, timeoutMs, maxBuffer, kind: 'version probe' });
+}
+
+function runCapturedProcess(binaryPath, argv, { cwd, timeoutMs, maxBuffer, kind }) {
   const argvLabel = argv.join(' ');
   return new Promise((resolve, reject) => {
     const child = spawn(binaryPath, [...argv], {
@@ -264,7 +331,7 @@ function runAllowlistedHelp(binaryPath, argv, { cwd, timeoutMs, maxBuffer }) {
 
     const timeoutTimer = setTimeout(() => {
       forceKill();
-      finishError(new Error(`CLI help timed out after ${timeoutMs}ms for "${argvLabel}"`));
+      finishError(new Error(`CLI ${kind} timed out after ${timeoutMs}ms for "${argvLabel}"`));
     }, timeoutMs);
     timeoutTimer.unref();
 
@@ -272,7 +339,7 @@ function runAllowlistedHelp(binaryPath, argv, { cwd, timeoutMs, maxBuffer }) {
       stdoutBytes += chunk.length;
       if (stdoutBytes > maxBuffer) {
         forceKill();
-        finishError(new Error(`CLI help stdout exceeded maxBuffer (${maxBuffer} bytes) for "${argvLabel}"`));
+        finishError(new Error(`CLI ${kind} stdout exceeded maxBuffer (${maxBuffer} bytes) for "${argvLabel}"`));
         return;
       }
       stdoutChunks.push(chunk);
@@ -282,7 +349,7 @@ function runAllowlistedHelp(binaryPath, argv, { cwd, timeoutMs, maxBuffer }) {
       stderrBytes += chunk.length;
       if (stderrBytes > maxBuffer) {
         forceKill();
-        finishError(new Error(`CLI help stderr exceeded maxBuffer (${maxBuffer} bytes) for "${argvLabel}"`));
+        finishError(new Error(`CLI ${kind} stderr exceeded maxBuffer (${maxBuffer} bytes) for "${argvLabel}"`));
         return;
       }
       stderrChunks.push(chunk);
@@ -299,7 +366,7 @@ function runAllowlistedHelp(binaryPath, argv, { cwd, timeoutMs, maxBuffer }) {
       if (killTimer) clearTimeout(killTimer);
 
       if (signal) {
-        reject(new Error(`CLI help terminated by signal ${signal} for "${argvLabel}"`));
+        reject(new Error(`CLI ${kind} terminated by signal ${signal} for "${argvLabel}"`));
         return;
       }
 
@@ -307,16 +374,16 @@ function runAllowlistedHelp(binaryPath, argv, { cwd, timeoutMs, maxBuffer }) {
       const stderr = Buffer.concat(stderrChunks).toString('utf8').replace(/\r\n/g, '\n');
 
       if (ANSI_CONTROL_PATTERN.test(stdout) || ANSI_CONTROL_PATTERN.test(stderr)) {
-        reject(new Error(`CLI help emitted unexpected ANSI/control escape sequences for "${argvLabel}"`));
+        reject(new Error(`CLI ${kind} emitted unexpected ANSI/control escape sequences for "${argvLabel}"`));
         return;
       }
       if (code !== 0) {
         const detail = stderr.trim() ? `: ${stderr.trim().split('\n')[0]}` : '';
-        reject(new Error(`CLI help exited with code ${code} for "${argvLabel}"${detail}`));
+        reject(new Error(`CLI ${kind} exited with code ${code} for "${argvLabel}"${detail}`));
         return;
       }
       if (stdout.trim().length === 0) {
-        reject(new Error(`CLI help returned empty stdout for "${argvLabel}"`));
+        reject(new Error(`CLI ${kind} returned empty stdout for "${argvLabel}"`));
         return;
       }
       resolve({ exit: code, stdout, stderr });
@@ -324,9 +391,17 @@ function runAllowlistedHelp(binaryPath, argv, { cwd, timeoutMs, maxBuffer }) {
   });
 }
 
-function buildMarkdown({ commands, sources }) {
+function buildMarkdown({ commands, sources, provenance }) {
   const byId = new Map(commands.map((command) => [command.id, command]));
+  const binary = provenance.binary;
+  const verification = provenance.commitVerified
+    ? ` The expected inspected-revision commit \`${provenance.expectedCommit}\` was verified before capture.`
+    : '';
   const lines = [
+    `Facts below were captured by running the candidate \`${binary.product}\` binary at commit \`${binary.commit}\` `
+      + `(version \`${markdownToken(binary.version)}\`, built \`${markdownToken(binary.date)}\` with `
+      + `\`${markdownToken(binary.goVersion)}\`).${verification}`,
+    '',
     '## Entrypoints and compatibility wrappers',
     '',
     '- Canonical commands: `asdx-core` (CLI) and `asdx` (TUI companion), defined in `internal/buildinfo/buildinfo.go` and `cmd/agentic-sdd/main.go`.',
@@ -340,15 +415,15 @@ function buildMarkdown({ commands, sources }) {
     '',
     '| Command | Forms / subcommands | Accepted flags | Write behavior & exit notes | Source |',
     '|---|---|---|---|---|',
-    '| `preview` (default) | `asdx-core [preview]` | `--repo PATH`, `--home PATH`, `--with-opencode`, `--opencode-free-first`, `--apply` (bare only), `--version` (bare only), `-h`, `--help` | Read-only. `--opencode-free-first` requires `--with-opencode` (`2`); `--apply` cannot combine with explicit `preview`/`apply` (`2`). Exits `0` or `1`. | `cmd/agentic-sdd/main.go` |',
-    '| `apply` | `asdx-core apply` | `--repo PATH`, `--home PATH`, `--with-opencode`, `--opencode-free-first`, `-h`, `--help` | Writes backups + skills + log under `<home>/.agentic-sdd/logs`. Exits `0` success, `1` runtime error, `2` usage/flag error. | `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/logs.go` |',
+    '| `preview` (default) | `asdx-core [preview]` | `--repo PATH`, `--home PATH`, `--with-opencode`, `--opencode-free-first`, `--apply` (default form only), `--version` (root flag), `-h`, `--help` | Read-only. `--version` is a root flag: it is accepted in the default, `preview`, and `apply` forms and short-circuits to version output (`0`); it is not bare-only. `--opencode-free-first` requires `--with-opencode` (`2`); `--apply` combined with an explicit `preview`/`apply` command (`2`); unknown flag/argument (`2`). Exits `0`, `1` (runtime/I/O error), or `2` (usage/flag error). | `cmd/agentic-sdd/main.go` |',
+    '| `apply` | `asdx-core apply` | `--repo PATH`, `--home PATH`, `--with-opencode`, `--opencode-free-first`, `--version` (root flag), `-h`, `--help` | Writes backups + skills + log under `<home>/.agentic-sdd/logs`. Exits `0` success, `1` runtime error, `2` usage/flag error. | `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/logs.go` |',
     '| `version` | `asdx-core version` | None (extra args including `--help` exit `2`; use `asdx-core help version`) | Read-only. Prints version, commit, date, and Go version (`0`). | `cmd/agentic-sdd/main.go` |',
     '| `backups` | `asdx-core backups` | `--repo PATH`, `--home PATH`, `-h`, `--help` | Read-only; identical listing to `restore list`. Exits `0`, `1`, or `2`. | `cmd/agentic-sdd/main.go` |',
     '| `logs` | `asdx-core logs` | `--home PATH`, `-h`, `--help` | Read-only; prints latest apply/restore log. Exits `1` if missing/unreadable, `2` usage. | `cmd/agentic-sdd/logs.go` |',
     '| `restore` | `asdx-core restore [ID]` / `restore list\\|preview\\|apply [ID]` | `--repo PATH`, `--home PATH`, `--apply` (bare form only; rejected on sub-words), `-h`, `--help` | Read-only without `--apply`/`apply`. Interactive mode prompts when no `ID`; non-TTY without `ID` exits `2`. | `cmd/agentic-sdd/main.go` |',
     '| `guide` | `asdx-core guide` | `--repo PATH`, `--home PATH`, `-h`, `--help` | Interactive numbered wizard; refuses non-TTY with exit `2`. Writes only after confirmation. | `cmd/agentic-sdd/guide.go` |',
     '| `tui` | `asdx-core tui` | `--home PATH`, `--repo PATH`, `--fleet-config PATH`, `--with-opencode` (default `true`, `--with-opencode=false` to disable), `--opencode-free-first`, `-h`, `--help` | Requires real stdin+stdout TTY and rejects `AGENTIC_SDD_FORCE_INTERACTIVE=1` (`2`). Missing/mismatched `asdx` exits `1`. | `cmd/agentic-sdd/tui.go` |',
-    '| `help` | `asdx-core help [topic]` | Topics: `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`, `tui`, `orchestrate`, `fleet`, `mcp`, `run`, `task`, `review` | Read-only (`0`); unknown topic or extra args exits `2`. `help orchestrate`, `help fleet`, `help mcp` print dedicated blocks without repeating root usage. | `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/helptext.go` |',
+    '| `help` | `asdx-core help [topic]` | Topics: `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`, `tui`, `orchestrate`, `fleet`, `mcp`, `run`, `task`, `review`; experimental-build `opencode` and `opencode-harness` are accepted and print the unavailable note in default builds | Read-only (`0`); unknown topic or extra args exits `2`. `help orchestrate`, `help fleet`, `help mcp` print dedicated blocks without repeating root usage; the default-build `help opencode`/`help opencode-harness` topics describe commands that require `-tags agentic_sdd_experimental`. | `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/helptext.go` |',
     '',
     '## `fleet` family',
     '',
@@ -380,7 +455,9 @@ function buildMarkdown({ commands, sources }) {
     '',
     '## Execution family (`run`, `task`, `review`)',
     '',
-    'Shared execution flags (`cmd/agentic-sdd/execution_cli.go`): `--repo DIR`, `--run-root DIR`, `--format text|json`.',
+    'Shared execution flags (`cmd/agentic-sdd/execution_cli.go`): `--repo DIR` (default: current working tree), `--run-root DIR` (default: `<repo>/.agentic-sdd/runs`), `--format text|json` (default `text`).',
+    '',
+    'Execution flag defaults (`internal/execution/types.go`): `run check --timeout 15m` (`0` or negative disables the wall-clock limit); `run check --max-output-bytes 67108864` per stream (`0` or negative selects the default; effective range `1024`–`1073741824`); `review package --max-file-bytes 2097152` and `--max-total-bytes 33554432` (`0` or negative selects the default).',
     '',
     '| Subcommand | Additional flags / positional contract | Distinct exit codes & contract notes | Source |',
     '|---|---|---|---|',
@@ -388,16 +465,16 @@ function buildMarkdown({ commands, sources }) {
     '| `run status` | `--run ID` | Missing run for `status` exits `1` (unlike `init` missing batch `2`). | `cmd/agentic-sdd/run.go`, `cmd/agentic-sdd/execution_cli.go` |',
     '| `run record` | `--run ID` (required), `--task T01` (required for feature runs, defaults to `direct` for `--direct`), `--result FILE\\|-` (required) | Ingests untrusted claim record; `0` recorded, `1` runtime, `2` usage/validation. | `cmd/agentic-sdd/run.go` |',
     '| `run clean` | `--run ID`, `--yes` | Without `--yes`, previews without deleting; with `--yes`, deletes only that run directory. | `cmd/agentic-sdd/run.go` |',
-    '| `run check` | `--run ID` (required), `--task T01`, `--timeout DURATION`, `--max-output-bytes N`, `-- COMMAND [ARG...]` | `--` separator before command is required (even `--help` without `--` exits `2`). Exits `0` pass, `1` fail/error, `124` timed out, `2` usage. | `cmd/agentic-sdd/run.go` |',
+    '| `run check` | `--run ID` (required), `--task T01`, `--timeout DURATION` (default `15m`; `0` disables), `--max-output-bytes N` (default `67108864` per stream, clamped to `1024`–`1073741824`), `-- COMMAND [ARG...]` | `--` separator before command is required (even `--help` without `--` exits `2`). Exits `0` pass, `1` fail/error, `124` timed out, `2` usage. | `cmd/agentic-sdd/run.go` |',
     '| `task brief` | `--run ID` (required), `--task T01` (required), `--force` | Refuses `--direct` runs (`2`) and foreign checkpoints (`2`); `--force` refreshes differing brief bytes without bypassing changed scope. | `cmd/agentic-sdd/task.go` |',
-    '| `review package` | `--run ID` (required), `--base COMMIT` (required), `--head COMMIT`, `--max-file-bytes N`, `--max-total-bytes N` | Exits `0` complete package, `3` partial package with explicit omissions, `1` runtime/missing run, `2` usage/unsafe. | `cmd/agentic-sdd/review.go` |',
+    '| `review package` | `--run ID` (required), `--base COMMIT` (required), `--head COMMIT` (defaults to current `HEAD`), `--max-file-bytes N` (default `2097152`), `--max-total-bytes N` (default `33554432`) | Exits `0` complete package, `3` partial package with explicit omissions, `1` runtime/missing run, `2` usage/unsafe. | `cmd/agentic-sdd/review.go` |',
     '',
     '## Presentation and trace environment variables',
     '',
     '- `NO_COLOR`: non-empty disables ANSI color styling (`cmd/agentic-sdd/env.go`).',
     '- `TERM=dumb`: switches to ASCII glyphs and disables color (`cmd/agentic-sdd/env.go`).',
     '- `COLUMNS`: positive integer sets wrap width (defaults to `80`, `cmd/agentic-sdd/env.go`).',
-    '- `AGENTIC_SDD_ANIMATE=1` / `AGENTIC_SDD_REDUCED_MOTION=1`: CLI animation opt-in (`cmd/agentic-sdd/env.go`) and TUI reduced-motion control (`cmd/agentic-sdd/tui.go`).',
+    '- `AGENTIC_SDD_ANIMATE=1` / `AGENTIC_SDD_REDUCED_MOTION=1`: CLI animation opt-in (`cmd/agentic-sdd/env.go`) and TUI reduced-motion control (`experiments/tui/cmd/internal/tuirun/run.go`).',
     '- `AGENTIC_SDD_FORCE_INTERACTIVE=1`: enables interactive CLI prompts on scripted streams, while `asdx-core tui` refuses it with exit `2` (`cmd/agentic-sdd/env.go`, `cmd/agentic-sdd/tui.go`).',
     '- `AGENTIC_SDD_TRACE`: path to append JSONL trace events (`0600` regular file, `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/trace.go`).',
     '',
@@ -445,6 +522,7 @@ export async function collectCLI(options = {}) {
     binaryPath,
     timeoutMs = 5000,
     maxBuffer = 1048576,
+    expectedCommit,
   } = options;
 
   if (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -454,12 +532,31 @@ export async function collectCLI(options = {}) {
     throw new Error('CLI collector maxBuffer must be a positive integer');
   }
 
+  const normalizedCommit = expectedCommit === undefined ? null : normalizeExpectedCommit(expectedCommit);
   const realRoot = validateRepoRoot(repoRoot);
   const checkedBinary = validateBinaryPath(binaryPath);
   const sources = verifyContainedSources(realRoot, [
     ...SOURCE_PATHS,
     ...ALLOWLISTED_COMMANDS.map((entry) => entry.source),
   ]);
+
+  const versionResult = await runAllowlistedVersion(checkedBinary, {
+    cwd: realRoot,
+    timeoutMs,
+    maxBuffer,
+  });
+  const binary = parseVersionIdentity(versionResult.stdout);
+  if (normalizedCommit !== null && !commitSatisfies(binary.commit, normalizedCommit)) {
+    throw new Error(
+      `Reference provenance mismatch: candidate binary commit ${binary.commit} does not match the expected commit ${normalizedCommit}; rebuild the binary from the inspected revision`,
+    );
+  }
+  const provenance = {
+    producer: 'website/scripts/reference/cli.mjs',
+    binary,
+    expectedCommit: normalizedCommit,
+    commitVerified: normalizedCommit !== null,
+  };
 
   const commands = [];
   for (const entry of ALLOWLISTED_COMMANDS) {
@@ -480,7 +577,7 @@ export async function collectCLI(options = {}) {
     });
   }
 
-  const markdown = buildMarkdown({ commands, sources });
+  const markdown = buildMarkdown({ commands, sources, provenance });
   return {
     sections: [
       {
@@ -488,6 +585,7 @@ export async function collectCLI(options = {}) {
         title: 'CLI reference',
         markdown,
         sources,
+        metadata: structuredClone(provenance),
       },
     ],
     inventory: {
@@ -495,6 +593,7 @@ export async function collectCLI(options = {}) {
       discrepancies: structuredClone(DISCREPANCIES),
       experimentalExclusions: structuredClone(EXPERIMENTAL_EXCLUSIONS),
       sources: [...sources],
+      provenance: structuredClone(provenance),
     },
   };
 }

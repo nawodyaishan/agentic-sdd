@@ -1,0 +1,45 @@
+{
+  "note": "Proposed C3 example-table cases: an action with an unsafe effect class must be rejected, never executed. Field names are a proposal for B4 integration; the frozen contract fixes the observable behaviour, not this JSON shape.",
+  "cases": [
+    {
+      "id": "apply-real-home",
+      "page": "getting-started/installation",
+      "effect": "offline/read-only",
+      "argv": ["asdx-core", "apply"],
+      "expectedVerdict": "reject",
+      "violation": "apply writes managed destinations in a real home; it cannot be an offline read-only example"
+    },
+    {
+      "id": "curl-pipe-sh",
+      "page": "getting-started/installation",
+      "effect": "offline/fixture-write",
+      "shell": "curl -fsSL https://example.invalid/install.sh | sh",
+      "expectedVerdict": "reject",
+      "violation": "user-controlled remote script execution is never an offline example"
+    },
+    {
+      "id": "network-npm-install",
+      "page": "contributing/docs-and-changes",
+      "effect": "offline/read-only",
+      "argv": ["npm", "install"],
+      "expectedVerdict": "reject",
+      "violation": "dependency installation requires the network"
+    },
+    {
+      "id": "provider-auth",
+      "page": "how-to/mcp",
+      "effect": "offline/read-only",
+      "argv": ["opencode", "auth", "login"],
+      "expectedVerdict": "reject",
+      "violation": "provider authentication is a manual external action"
+    },
+    {
+      "id": "remote-mcp-connect",
+      "page": "how-to/mcp",
+      "effect": "offline/read-only",
+      "argv": ["asdx-core", "mcp", "connect", "--remote", "https://example.invalid/mcp"],
+      "expectedVerdict": "reject",
+      "violation": "a remote MCP connection is a live network call"
+    }
+  ]
+}

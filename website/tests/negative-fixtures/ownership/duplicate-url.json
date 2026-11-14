@@ -1,0 +1,6 @@
+{
+  "pages": [
+    { "id": "how-to/install", "source": "website/src/content/docs/how-to/install.md", "canonicalUrl": "/agentic-sdd/how-to/installation/" },
+    { "id": "getting-started/installation", "source": "website/src/content/docs/getting-started/installation.md", "canonicalUrl": "/agentic-sdd/how-to/installation/" }
+  ]
+}

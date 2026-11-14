@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "site": "https://example.github.io",
+  "base": "/agentic-sdd",
+  "repository": "https://github.com/example/repo",
+  "docsVersion": "dev",
+  "releaseEvidence": [
+    {
+      "tag": "v0.11.0",
+      "commit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b",
+      "url": "https://github.com/example/repo/releases/tag/v0.11.0",
+      "observedAt": "2026-11-14",
+      "verification": "public metadata only"
+    }
+  ],
+  "pages": [
+    {
+      "id": "index",
+      "source": "website/src/content/docs/index.md",
+      "type": "explanation",
+      "audience": [
+        "maintainer"
+      ],
+      "class": "L",
+      "sources": [
+        {
+          "path": "website/src/content/docs/index.md",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "reviewDigest": "77f5366dfe0ca9fd968b3cf3ce857644bd1d507b55dee626fcef99f7f3797770",
+      "reviewStatus": "unreviewed",
+      "appliesTo": "unreleased"
+    },
+    {
+      "id": "reference/cli",
+      "source": "website/src/content/docs/reference/cli.md",
+      "type": "reference",
+      "audience": [
+        "maintainer",
+        "experienced user"
+      ],
+      "class": "C",
+      "sources": [
+        {
+          "path": "go.mod",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        {
+          "path": "cmd/agentic-sdd/helptext.go",
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ],
+      "reviewDigest": "c591d71086a45da69057aa81665993e8ad3a654cac4f345a5d7b8978d83c6cca",
+      "reviewStatus": "unreviewed",
+      "appliesTo": "unreleased"
+    },
+    {
+      "id": "how-to/install",
+      "source": "website/src/content/docs/how-to/install.md",
+      "type": "how-to",
+      "audience": [
+        "new user"
+      ],
+      "class": "L",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      ],
+      "reviewDigest": "31fb15c445d7ba768791a2108bdfce645b544f727f4f4f9f20e611dfbd667f6f",
+      "reviewStatus": "unreviewed",
+      "appliesTo": "unreleased",
+      "reviewedCommit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b"
+    }
+  ]
+}

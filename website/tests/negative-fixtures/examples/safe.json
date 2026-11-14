@@ -1,0 +1,34 @@
+{
+  "note": "Control cases: the same safety vocabulary must still accept genuinely offline examples and correctly classified manual actions.",
+  "cases": [
+    {
+      "id": "version-in-isolated-home",
+      "page": "getting-started/first-five-minutes",
+      "effect": "offline/read-only",
+      "argv": ["asdx-core", "--version"],
+      "expectedVerdict": "accept"
+    },
+    {
+      "id": "preview-into-fixture-root",
+      "page": "getting-started/first-five-minutes",
+      "effect": "offline/read-only",
+      "argv": ["asdx-core", "preview", "--repo", "/tmp/fixture/repo", "--home", "/tmp/fixture/home"],
+      "expectedVerdict": "accept"
+    },
+    {
+      "id": "apply-in-disposable-fixture",
+      "page": "contributing/testing",
+      "effect": "offline/fixture-write",
+      "argv": ["asdx-core", "apply", "--repo", "/tmp/fixture/repo", "--home", "/tmp/fixture/home"],
+      "expectedVerdict": "accept"
+    },
+    {
+      "id": "real-release-install-manual",
+      "page": "getting-started/installation",
+      "effect": "manual/external",
+      "argv": ["brew", "install", "--cask", "agentic-sdd"],
+      "expectedVerdict": "accept",
+      "note": "allowed on a page as a manual step, never executed by the example runner"
+    }
+  ]
+}

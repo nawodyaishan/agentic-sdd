@@ -86,7 +86,7 @@ test('allows unique headings and non-navigation raw HTML', async () => {
   const tree = root(
     heading('First heading', 2),
     heading('Second heading', 4),
-    { type: 'html', value: '<div><strong>Styled prose</strong></div>', position: position(6) },
+    { type: 'html', value: '<div><a id="retained-anchor"></a><strong>Styled prose</strong></div>', position: position(6) },
     link('https://example.com'),
   );
   await run(tree);

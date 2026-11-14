@@ -1,0 +1,7 @@
+{
+  "canonicalPageIds": ["index", "reference/cli", "how-to/install"],
+  "aliases": [
+    { "from": "docs/getting-started.md", "to": "how-to/install" },
+    { "from": "docs/getting-started.md", "to": "reference/cli" }
+  ]
+}

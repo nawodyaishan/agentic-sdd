@@ -2,7 +2,9 @@ import path from 'node:path';
 
 import { RouteError, resolveLink } from '../scripts/lib/routes.mjs';
 
-const RAW_HTML_NAVIGATION = /<a(?=[\s>])/i;
+// An `<a>` element is navigation only when it opens a destination; a retained
+// `<a id>` / `<a name>` anchor is not raw navigation and must keep rendering.
+const RAW_HTML_NAVIGATION = /<a(?=[\s>])[^>]*\bhref\s*=/i;
 const RAW_HTML_HREF = /<a(?=[\s>])[^>]*\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i;
 const IMAGE_REFERENCE = /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i;
 const SCHEME = /^([a-z][a-z0-9+.-]*):/i;

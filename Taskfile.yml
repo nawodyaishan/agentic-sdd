@@ -138,3 +138,33 @@ tasks:
     desc: Run a local GoReleaser snapshot without publishing
     cmds:
       - GOVERSION=$(go version | awk '{print $3}') goreleaser release --snapshot --clean
+  # Additive documentation-tooling wrappers (Feature 020 / T09 + T10). They
+  # never replace `task test`, `task vet` or `task verify`, are not part of
+  # required-check selection and add nothing to `task test`. Extra arguments
+  # pass through after `--`, for example: task docs:check -- --json
+  'docs:check':
+    desc: 'Check docs links, fragments, metadata and freshness (pass-through args, e.g. --json)'
+    cmds: ['node website/scripts/check.mjs --repo . {{.CLI_ARGS}}']
+  'docs:reference':
+    desc: 'Generate then verify reference pages from a candidate binary: task docs:reference -- --binary /abs/asdx-core [--commit SHA] (or set ASDX_CORE_BINARY)'
+    cmds:
+      - 'node website/scripts/reference.mjs --generate {{.CLI_ARGS}}'
+      - 'node website/scripts/reference.mjs --check {{.CLI_ARGS}}'
+  'docs:reference:build':
+    desc: 'Print the exact reproducible asdx-core build recipe for reference parity (no build runs here)'
+    cmds: ['node website/scripts/reference.mjs --recipe']
+  'docs:examples':
+    desc: 'Run the fixed safe CLI examples; --binary ABSOLUTE_PATH is required: task docs:examples -- --binary /abs/path'
+    cmds: ['node website/scripts/examples.mjs {{.CLI_ARGS}}']
+  'docs:export':
+    desc: 'Export Markdown twins and llms.txt; --out DIR is required: task docs:export -- --out /abs/out'
+    cmds: ['node website/scripts/export.mjs {{.CLI_ARGS}}']
+  'docs:site':
+    desc: 'Build the deployable docs artifact: Astro build plus llms.txt, index.json and Markdown twins in website/dist'
+    cmds: ['npm --prefix website run build:site']
+  'docs:impact':
+    desc: 'Report documentation impact for changed paths; pass --base <rev> or --paths <file|->'
+    cmds: ['node website/scripts/impact.mjs {{.CLI_ARGS}}']
+  'docs:ci':
+    desc: 'Run the trusted docs launcher; requires --trusted DIR --output DIR --mode pr|main|release|rollback|links (see --help)'
+    cmds: ['python3 -B scripts/docs-ci.py {{.CLI_ARGS}}']

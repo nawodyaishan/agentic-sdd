@@ -1,0 +1,6 @@
+{
+  "pages": [
+    { "id": "how-to/install", "source": "website/src/content/docs/how-to/install.md", "bodySha256": "1111111111111111111111111111111111111111111111111111111111111111" },
+    { "id": "reference/cli", "source": "website/src/content/docs/reference/cli.md", "bodySha256": "1111111111111111111111111111111111111111111111111111111111111111" }
+  ]
+}

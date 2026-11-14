@@ -8,8 +8,14 @@
   },
   "scripts": {
     "build": "astro build",
-    "docs:reference": "node scripts/reference.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "build:site": "astro build && node scripts/export.mjs --out dist",
+    "docs:check": "node scripts/check.mjs",
+    "docs:check-built": "node scripts/check.mjs --built website/dist",
+    "docs:reference": "node scripts/reference.mjs --generate",
+    "docs:reference:check": "node scripts/reference.mjs --check",
+    "docs:examples": "node scripts/examples.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "docs:impact": "node scripts/impact.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "7.3.9",

@@ -1,0 +1,6 @@
+{
+  "canonicalPageIds": ["index", "reference/cli", "how-to/install"],
+  "aliases": [
+    { "from": "docs/installer-reference.md", "to": "reference/cli", "fragments": { "flags": "flags" } }
+  ]
+}

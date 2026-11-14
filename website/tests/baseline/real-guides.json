@@ -1,7 +1,9 @@
 {
-  "schemaVersion": 1,
-  "snapshotCommit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b",
-  "purpose": "T01 pre-migration old-guide heading and link inventory for B4/T08; not a public export allowlist",
+  "schemaVersion": 2,
+  "baseCommit": "449245a990225f2234685dee8314dff1c3b1d3b2",
+  "capturedFrom": "uncommitted B4/T08 post-migration working tree after B4-W1-C integration, 2026-11-14",
+  "preMigrationSnapshotCommit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b",
+  "purpose": "T08 post-migration docs/ guide heading and link snapshot and reviewed dispositions; a drift gate for the migrated files, not a pre-migration equality claim. The pre-migration inventory stays readable at the recorded commit.",
   "paths": [
     "docs/README.md",
     "docs/getting-started.md",
@@ -13,6 +15,17 @@
     "docs/fleet-manager-tui.md",
     "docs/tui-architecture.md"
   ],
+  "classification": {
+    "docs/README.md": "retained-engineering-index",
+    "docs/getting-started.md": "retained-engineering-trace",
+    "docs/installer-reference.md": "migration-stub",
+    "docs/guide-flows.md": "retained-engineering-trace",
+    "docs/execution-runs.md": "retained-engineering-trace",
+    "docs/orchestration-guide.md": "migration-stub",
+    "docs/mcp-tools.md": "migration-stub",
+    "docs/fleet-manager-tui.md": "migration-stub",
+    "docs/tui-architecture.md": "retained-engineering-history"
+  },
   "files": [
     {
       "path": "docs/README.md",
@@ -24,31 +37,43 @@
           "slug": "documentation-index"
         },
         {
-          "line": 8,
+          "line": 14,
           "level": 2,
           "text": "Product vision",
           "slug": "product-vision"
         },
         {
-          "line": 15,
+          "line": 21,
           "level": 2,
           "text": "Current status and next decisions",
           "slug": "current-status-and-next-decisions"
         },
         {
-          "line": 74,
+          "line": 23,
+          "level": 3,
+          "text": "Public manual — active guides",
+          "slug": "public-manual--active-guides"
+        },
+        {
+          "line": 49,
+          "level": 3,
+          "text": "Engineering records — specs, continuations and operational boundaries",
+          "slug": "engineering-records--specs-continuations-and-operational-boundaries"
+        },
+        {
+          "line": 94,
           "level": 2,
           "text": "Pinned-image human-cycle evidence (Feature 005)",
           "slug": "pinned-image-human-cycle-evidence-feature-005"
         },
         {
-          "line": 84,
+          "line": 104,
           "level": 2,
           "text": "Advisory plans and historical research",
           "slug": "advisory-plans-and-historical-research"
         },
         {
-          "line": 96,
+          "line": 116,
           "level": 2,
           "text": "Session handovers",
           "slug": "session-handovers"
@@ -56,197 +81,207 @@
       ],
       "links": [
         {
-          "line": 10,
+          "line": 11,
+          "href": "../specs/020-documentation-ecosystem/sitemap.md",
+          "text": "Feature 020 sitemap"
+        },
+        {
+          "line": 16,
           "href": "vision/Agentic-SDD-Project-Vision-and-Evolution.md",
           "text": "Agentic-SDD product vision and evolution strategy"
         },
         {
-          "line": 17,
+          "line": 26,
+          "href": "../specs/020-documentation-ecosystem/sitemap.md",
+          "text": "Feature 020 sitemap"
+        },
+        {
+          "line": 30,
           "href": "getting-started.md",
           "text": "Getting started"
         },
         {
-          "line": 19,
+          "line": 32,
           "href": "orchestration-guide.md",
           "text": "Full usage and orchestration guide"
         },
         {
-          "line": 22,
+          "line": 35,
           "href": "installer-reference.md",
           "text": "Installer reference"
         },
         {
-          "line": 24,
+          "line": 37,
           "href": "execution-runs.md",
           "text": "Execution runs"
         },
         {
-          "line": 28,
+          "line": 41,
           "href": "codegraph.md",
           "text": "CodeGraph setup and continuous sync"
         },
         {
-          "line": 30,
+          "line": 43,
           "href": "mcp-default-integration-study.md",
           "text": "Default MCP integration study"
         },
         {
-          "line": 32,
+          "line": 45,
           "href": "research-skills-and-subagents-current-state.md",
           "text": "Research skills and subagents: current state"
         },
         {
-          "line": 35,
+          "line": 55,
           "href": "tui-architecture.md",
           "text": "TUI architecture and toolchain migration blueprint"
         },
         {
-          "line": 37,
+          "line": 57,
           "href": "../specs/009-opencode-orchestration/spec.md",
           "text": "Feature 009 spec"
         },
         {
-          "line": 38,
+          "line": 58,
           "href": "../specs/009-opencode-orchestration/plan.md",
           "text": "plan"
         },
         {
-          "line": 39,
+          "line": 59,
           "href": "../specs/009-opencode-orchestration/tasks.md",
           "text": "tasks"
         },
         {
-          "line": 41,
+          "line": 61,
           "href": "../README.md#support-and-release-scope",
           "text": "Public support and release scope"
         },
         {
-          "line": 43,
+          "line": 63,
           "href": "testing/test-cases-report.md",
           "text": "Test case inventory"
         },
         {
-          "line": 46,
+          "line": 66,
           "href": "snap-ubuntu-release-report.md",
           "text": "Snap and Ubuntu release report"
         },
         {
-          "line": 50,
+          "line": 70,
           "href": "../specs/008-core-release-quality/spec.md#approval",
           "text": "Feature 008 approval"
         },
         {
-          "line": 51,
+          "line": 71,
           "href": "../specs/008-core-release-quality/tasks.md#continuation-record",
           "text": "batch continuation"
         },
         {
-          "line": 52,
+          "line": 72,
           "href": "../specs/008-core-release-quality/release-readiness.md",
           "text": "working release inventory"
         },
         {
-          "line": 54,
+          "line": 74,
           "href": "vnext-remaining-work-guide.md",
           "text": "Remaining vNext work and adoption guide"
         },
         {
-          "line": 56,
+          "line": 76,
           "href": "../specs/005-vnext-completion/tasks.md#continuation-record",
           "text": "Feature 005 continuation"
         },
         {
-          "line": 57,
+          "line": 77,
           "href": "../specs/005-vnext-completion/spec.md#approval",
           "text": "approval"
         },
         {
-          "line": 59,
+          "line": 79,
           "href": "../harness/acceptance.md",
           "text": "Feature 004 acceptance map"
         },
         {
-          "line": 61,
+          "line": 81,
           "href": "../specs/006-independent-review/spec.md#approval",
           "text": "Feature 006 approval"
         },
         {
-          "line": 62,
+          "line": 82,
           "href": "../specs/006-independent-review/tasks.md#continuation-record",
           "text": "continuation"
         },
         {
-          "line": 64,
+          "line": 84,
           "href": "../specs/007-taskfile-migration/spec.md#approval",
           "text": "Feature 007 approval"
         },
         {
-          "line": 65,
+          "line": 85,
           "href": "../specs/007-taskfile-migration/tasks.md#continuation-record",
           "text": "continuation"
         },
         {
-          "line": 67,
+          "line": 87,
           "href": "../integrations/opencode/safety.md",
           "text": "OpenCode safety"
         },
         {
-          "line": 68,
+          "line": 88,
           "href": "../integrations/opencode/adoption.md",
           "text": "adoption"
         },
         {
-          "line": 69,
+          "line": 89,
           "href": "../integrations/opencode/recovery.md",
           "text": "recovery"
         },
         {
-          "line": 76,
+          "line": 96,
           "href": "vnext-human-test-guide.md",
           "text": "Human test guide"
         },
         {
-          "line": 77,
+          "line": 97,
           "href": "vnext-human-cycle-run-sheet.md",
           "text": "Run sheet"
         },
         {
-          "line": 78,
+          "line": 98,
           "href": "vnext-human-test-plan.md",
           "text": "Human usage plan"
         },
         {
-          "line": 86,
+          "line": 106,
           "href": "Agentic-SDD-vNext-Adoption-Plan.md",
           "text": "vNext adoption plan"
         },
         {
-          "line": 88,
+          "line": 108,
           "href": "Agentic-SDD-Workflow-Audit-2026-09-24.md",
           "text": "Workflow audit"
         },
         {
-          "line": 89,
+          "line": 109,
           "href": "../audits/Agentic-SDD-Workflow-Audit-2026-09-24%20%281%29.md",
           "text": "Corrected September audit"
         },
         {
-          "line": 92,
+          "line": 112,
           "href": "compass_artifact_wf-97cc6285-b594-5b61-ae30-2894cfe0b595_text_markdown.md",
           "text": "Workflow research artifact"
         },
         {
-          "line": 93,
+          "line": 113,
           "href": "reddit_research.md",
           "text": "Reddit research"
         },
         {
-          "line": 94,
+          "line": 114,
           "href": "agentic-sdd-architecture.png",
           "text": "Architecture illustration"
         },
         {
-          "line": 98,
+          "line": 118,
           "href": "handovers/",
           "text": "handovers/"
         }
@@ -262,31 +297,31 @@
           "slug": "getting-started-with-the-supported-core"
         },
         {
-          "line": 8,
+          "line": 19,
           "level": 2,
           "text": "First five minutes: preview, then stop",
           "slug": "first-five-minutes-preview-then-stop"
         },
         {
-          "line": 43,
+          "line": 54,
           "level": 2,
           "text": "Direct fix: no feature paperwork",
           "slug": "direct-fix-no-feature-paperwork"
         },
         {
-          "line": 57,
+          "line": 68,
           "level": 2,
           "text": "Feature: one combined approval and one batch",
           "slug": "feature-one-combined-approval-and-one-batch"
         },
         {
-          "line": 88,
+          "line": 99,
           "level": 2,
           "text": "Review and resume: acceptance is not continuation",
           "slug": "review-and-resume-acceptance-is-not-continuation"
         },
         {
-          "line": 111,
+          "line": 122,
           "level": 2,
           "text": "Optional learning and useful reports",
           "slug": "optional-learning-and-useful-reports"
@@ -294,47 +329,62 @@
       ],
       "links": [
         {
-          "line": 13,
+          "line": 7,
+          "href": "../website/src/content/docs/getting-started/first-five-minutes.md",
+          "text": "First five minutes"
+        },
+        {
+          "line": 8,
+          "href": "../website/src/content/docs/tutorials/direct-fix.md",
+          "text": "Direct fix"
+        },
+        {
+          "line": 9,
+          "href": "../website/src/content/docs/tutorials/first-feature.md",
+          "text": "First feature"
+        },
+        {
+          "line": 24,
           "href": "../README.md#support-and-release-scope",
           "text": "support matrix"
         },
         {
-          "line": 18,
+          "line": 29,
           "href": "guide-flows.md",
           "text": "guided CLI journeys"
         },
         {
-          "line": 36,
+          "line": 47,
           "href": "../CONTRIBUTING.md",
           "text": "contributor checks"
         },
         {
-          "line": 55,
+          "line": 66,
           "href": "../skills-files/agentic-sdd-router/references/workflow-policy.md#direct-fixes",
           "text": "direct-fix contract"
         },
         {
-          "line": 85,
+          "line": 96,
           "href": "../skills-files/agentic-sdd-router/references/workflow-policy.md#drafting-sequence-and-one-combined-approval",
           "text": "approval"
         },
         {
-          "line": 86,
+          "line": 97,
           "href": "../skills-files/agentic-sdd-router/references/workflow-policy.md#execution-batches-and-resume",
           "text": "batch/resume rules"
         },
         {
-          "line": 109,
+          "line": 120,
           "href": "../skills-files/agentic-sdd-router/references/human-input.md#decision-meaning",
           "text": "decision meaning"
         },
         {
-          "line": 115,
+          "line": 126,
           "href": "../skills-files/agentic-sdd-teach/SKILL.md",
           "text": "teaching"
         },
         {
-          "line": 118,
+          "line": 129,
           "href": "../CONTRIBUTING.md#reporting-bugs-and-security-concerns",
           "text": "CONTRIBUTING"
         }
@@ -352,101 +402,158 @@
         {
           "line": 5,
           "level": 2,
+          "text": "Canonical destinations",
+          "slug": "canonical-destinations"
+        },
+        {
+          "line": 12,
+          "level": 2,
+          "text": "Retained anchors",
+          "slug": "retained-anchors"
+        },
+        {
+          "line": 16,
+          "level": 3,
           "text": "Commands",
           "slug": "commands"
         },
         {
-          "line": 33,
-          "level": 2,
+          "line": 20,
+          "level": 3,
           "text": "Flags",
           "slug": "flags"
         },
         {
-          "line": 35,
+          "line": 24,
           "level": 3,
           "text": "Understanding a guided installation",
           "slug": "understanding-a-guided-installation"
         },
         {
-          "line": 68,
-          "level": 2,
+          "line": 28,
+          "level": 3,
           "text": "Destinations and managed files",
           "slug": "destinations-and-managed-files"
         },
         {
-          "line": 76,
-          "level": 2,
+          "line": 32,
+          "level": 3,
           "text": "Change detection and permissions",
           "slug": "change-detection-and-permissions"
         },
         {
-          "line": 84,
-          "level": 2,
+          "line": 36,
+          "level": 3,
           "text": "Backups and restore",
           "slug": "backups-and-restore"
         },
         {
-          "line": 101,
-          "level": 2,
+          "line": 40,
+          "level": 3,
           "text": "Logs and exit codes",
           "slug": "logs-and-exit-codes"
         },
         {
-          "line": 111,
-          "level": 2,
+          "line": 44,
+          "level": 3,
           "text": "Terminal presentation and environment",
           "slug": "terminal-presentation-and-environment"
         },
         {
-          "line": 138,
-          "level": 2,
+          "line": 48,
+          "level": 3,
           "text": "Contributor tooling",
           "slug": "contributor-tooling"
         }
       ],
       "links": [
         {
-          "line": 3,
-          "href": "../README.md#quick-start",
-          "text": "README"
+          "line": 7,
+          "href": "../website/src/content/docs/reference/cli.md",
+          "text": "CLI reference"
         },
         {
-          "line": 31,
+          "line": 8,
+          "href": "../website/src/content/docs/reference/files-and-backups.md",
+          "text": "Files, backups and restore"
+        },
+        {
+          "line": 9,
+          "href": "../website/src/content/docs/how-to/updates-and-recovery.md",
+          "text": "Updates and recovery"
+        },
+        {
+          "line": 10,
           "href": "guide-flows.md",
           "text": "Guided CLI journeys"
         },
         {
+          "line": 18,
+          "href": "../website/src/content/docs/reference/cli.md",
+          "text": "CLI reference"
+        },
+        {
+          "line": 22,
+          "href": "../website/src/content/docs/reference/cli.md",
+          "text": "CLI reference"
+        },
+        {
+          "line": 26,
+          "href": "../website/src/content/docs/reference/cli.md",
+          "text": "CLI reference"
+        },
+        {
+          "line": 26,
+          "href": "guide-flows.md",
+          "text": "Guided CLI journeys"
+        },
+        {
+          "line": 30,
+          "href": "../website/src/content/docs/reference/files-and-backups.md",
+          "text": "Files, backups and restore"
+        },
+        {
+          "line": 34,
+          "href": "../website/src/content/docs/reference/files-and-backups.md",
+          "text": "Files, backups and restore"
+        },
+        {
+          "line": 38,
+          "href": "../website/src/content/docs/reference/files-and-backups.md",
+          "text": "Files, backups and restore"
+        },
+        {
+          "line": 38,
+          "href": "../website/src/content/docs/how-to/updates-and-recovery.md",
+          "text": "Updates and recovery"
+        },
+        {
+          "line": 42,
+          "href": "../website/src/content/docs/reference/cli.md",
+          "text": "CLI reference"
+        },
+        {
+          "line": 42,
+          "href": "../website/src/content/docs/how-to/updates-and-recovery.md",
+          "text": "Updates and recovery"
+        },
+        {
+          "line": 46,
+          "href": "../website/src/content/docs/reference/cli.md",
+          "text": "CLI reference"
+        },
+        {
           "line": 50,
-          "href": "guide-flows.md#expanded-terminal-review-and-learning",
-          "text": "journeys and navigation"
-        },
-        {
-          "line": 70,
-          "href": "../README.md#where-the-skills-go",
-          "text": "Where the skills go"
-        },
-        {
-          "line": 133,
-          "href": "guide-flows.md#flow-trace-agentic_sdd_trace",
-          "text": "flow tracing"
-        },
-        {
-          "line": 134,
-          "href": "guide-flows.md#test-seam-agentic_sdd_force_interactive1",
-          "text": "the test seam"
-        },
-        {
-          "line": 140,
           "href": "../CONTRIBUTING.md",
           "text": "Contributing"
         },
         {
-          "line": 140,
+          "line": 50,
           "href": "../harness/README.md",
-          "text": "Check-runner documentation"
+          "text": "check-runner documentation"
         },
         {
-          "line": 140,
+          "line": 50,
           "href": "../harness/trusted-ci.md",
           "text": "trusted CI"
         }
@@ -637,87 +744,27 @@
           "slug": "full-usage--orchestration-guide"
         },
         {
-          "line": 7,
+          "line": 5,
           "level": 2,
-          "text": "1. Installation & CLI Commands",
-          "slug": "1-installation--cli-commands"
+          "text": "Canonical destinations",
+          "slug": "canonical-destinations"
         },
         {
-          "line": 11,
-          "level": 3,
-          "text": "Standard install (18 core portable skills)",
-          "slug": "standard-install-18-core-portable-skills"
-        },
-        {
-          "line": 21,
-          "level": 3,
-          "text": "Opt-in OpenCode Orchestration Pack (--with-opencode)",
-          "slug": "opt-in-opencode-orchestration-pack---with-opencode"
-        },
-        {
-          "line": 33,
-          "level": 3,
-          "text": "Opt-in Free-First Writer/Test Preset (--opencode-free-first)",
-          "slug": "opt-in-free-first-writertest-preset---opencode-free-first"
-        },
-        {
-          "line": 42,
-          "level": 3,
-          "text": "Backups, Logs & Restore",
-          "slug": "backups-logs--restore"
-        },
-        {
-          "line": 65,
+          "line": 12,
           "level": 2,
-          "text": "2. How the Core Workflow Works",
-          "slug": "2-how-the-core-workflow-works"
+          "text": "Retained operational notes",
+          "slug": "retained-operational-notes"
         },
         {
-          "line": 86,
+          "line": 19,
           "level": 2,
-          "text": "3. Using the OpenCode Orchestration Pack (agentic-sdd-orchestrate)",
-          "slug": "3-using-the-opencode-orchestration-pack-agentic-sdd-orchestrate"
-        },
-        {
-          "line": 99,
-          "level": 3,
-          "text": "Specialist Fleet Installed by --with-opencode",
-          "slug": "specialist-fleet-installed-by---with-opencode"
-        },
-        {
-          "line": 122,
-          "level": 2,
-          "text": "4. Example Orchestration Prompts",
-          "slug": "4-example-orchestration-prompts"
-        },
-        {
-          "line": 124,
-          "level": 3,
-          "text": "Delegate an architecture review to OpenAI GPT-6.1 Sol or Claude Opus",
-          "slug": "delegate-an-architecture-review-to-openai-gpt-61-sol-or-claude-opus"
-        },
-        {
-          "line": 127,
-          "level": 3,
-          "text": "Delegate complex implementation to OpenAI GPT-6.1 Terra",
-          "slug": "delegate-complex-implementation-to-openai-gpt-61-terra"
-        },
-        {
-          "line": 130,
-          "level": 3,
-          "text": "Delegate routine work to Free-First / Gemini Flash agents and verify with a Free reviewer",
-          "slug": "delegate-routine-work-to-free-first--gemini-flash-agents-and-verify-with-a-free-reviewer"
-        },
-        {
-          "line": 135,
-          "level": 2,
-          "text": "5. MCP Integration (codegraph, context7, exa)",
-          "slug": "5-mcp-integration-codegraph-context7-exa"
+          "text": "Retained anchors",
+          "slug": "retained-anchors"
         }
       ],
       "links": [
         {
-          "line": 141,
+          "line": 38,
           "href": "codegraph.md",
           "text": "CodeGraph setup and continuous sync"
         }
@@ -733,69 +780,27 @@
           "slug": "mcp-tools-codegraph-context7-and-exa"
         },
         {
-          "line": 24,
+          "line": 5,
           "level": 2,
-          "text": "The beginner journey",
-          "slug": "the-beginner-journey"
+          "text": "Canonical destinations",
+          "slug": "canonical-destinations"
         },
         {
-          "line": 44,
+          "line": 11,
           "level": 2,
-          "text": "CLI equivalents",
-          "slug": "cli-equivalents"
+          "text": "Retained operational notes",
+          "slug": "retained-operational-notes"
         },
         {
-          "line": 66,
+          "line": 20,
           "level": 2,
-          "text": "Read-only first (MCP-A)",
-          "slug": "read-only-first-mcp-a"
-        },
-        {
-          "line": 79,
-          "level": 2,
-          "text": "Applying and restoring (MCP-B)",
-          "slug": "applying-and-restoring-mcp-b"
-        },
-        {
-          "line": 101,
-          "level": 2,
-          "text": "Global configuration only; nothing is created",
-          "slug": "global-configuration-only-nothing-is-created"
-        },
-        {
-          "line": 113,
-          "level": 2,
-          "text": "JSONC, conflicts and unsafe targets",
-          "slug": "jsonc-conflicts-and-unsafe-targets"
-        },
-        {
-          "line": 133,
-          "level": 2,
-          "text": "CodeGraph prerequisite and index",
-          "slug": "codegraph-prerequisite-and-index"
-        },
-        {
-          "line": 149,
-          "level": 2,
-          "text": "Context7 and Exa honesty",
-          "slug": "context7-and-exa-honesty"
-        },
-        {
-          "line": 163,
-          "level": 2,
-          "text": "TUI keys",
-          "slug": "tui-keys"
-        },
-        {
-          "line": 184,
-          "level": 2,
-          "text": "What this guide does not promise",
-          "slug": "what-this-guide-does-not-promise"
+          "text": "Retained anchors",
+          "slug": "retained-anchors"
         }
       ],
       "links": [
         {
-          "line": 191,
+          "line": 36,
           "href": "../specs/015-fleet-manager-tui/spec.md",
           "text": "Feature 015 spec"
         }
@@ -811,55 +816,37 @@
           "slug": "fleet-manager-in-the-terminal-ui"
         },
         {
-          "line": 26,
+          "line": 5,
           "level": 2,
-          "text": "Where it lives",
-          "slug": "where-it-lives"
+          "text": "Canonical destinations",
+          "slug": "canonical-destinations"
         },
         {
-          "line": 41,
+          "line": 11,
           "level": 2,
-          "text": "First use",
-          "slug": "first-use"
+          "text": "Retained operational notes",
+          "slug": "retained-operational-notes"
         },
         {
-          "line": 58,
+          "line": 20,
           "level": 2,
-          "text": "Five things to keep apart",
-          "slug": "five-things-to-keep-apart"
-        },
-        {
-          "line": 75,
-          "level": 2,
-          "text": "The journey",
-          "slug": "the-journey"
-        },
-        {
-          "line": 100,
-          "level": 2,
-          "text": "Conflicts and limits",
-          "slug": "conflicts-and-limits"
-        },
-        {
-          "line": 114,
-          "level": 2,
-          "text": "CLI equivalents and further reading",
-          "slug": "cli-equivalents-and-further-reading"
+          "text": "Retained anchors",
+          "slug": "retained-anchors"
         }
       ],
       "links": [
         {
-          "line": 125,
+          "line": 32,
           "href": "../specs/014-agent-fleet-model-overrides/fleet-worked-guide.md",
           "text": "Fleet profiles worked guide"
         },
         {
-          "line": 129,
+          "line": 32,
           "href": "../specs/015-fleet-manager-tui/spec.md",
           "text": "Feature 015 spec"
         },
         {
-          "line": 131,
+          "line": 32,
           "href": "tui-architecture.md",
           "text": "TUI architecture"
         }
@@ -875,73 +862,73 @@
           "slug": "tui-architecture-and-toolchain-migration-blueprint"
         },
         {
-          "line": 37,
+          "line": 42,
           "level": 2,
           "text": "1. What exists today",
           "slug": "1-what-exists-today"
         },
         {
-          "line": 82,
+          "line": 87,
           "level": 2,
           "text": "2. Module isolation and the module-path decision",
           "slug": "2-module-isolation-and-the-module-path-decision"
         },
         {
-          "line": 142,
+          "line": 147,
           "level": 2,
           "text": "3. Domain boundary: screens ↔ internal/appops ↔ internal/skillsync (013 controlled-adapter rule, batch under review)",
           "slug": "3-domain-boundary-screens--internalappops--internalskillsync-013-controlled-adapter-rule-batch-under-review"
         },
         {
-          "line": 227,
+          "line": 232,
           "level": 3,
           "text": "Launch precedence",
           "slug": "launch-precedence"
         },
         {
-          "line": 255,
+          "line": 260,
           "level": 2,
           "text": "4. Toolchain migration blueprint (012 history; no 013 root migration required)",
           "slug": "4-toolchain-migration-blueprint-012-history-no-013-root-migration-required"
         },
         {
-          "line": 263,
+          "line": 268,
           "level": 3,
           "text": "Why the change is atomic",
           "slug": "why-the-change-is-atomic"
         },
         {
-          "line": 272,
+          "line": 277,
           "level": 3,
           "text": "The eight pinned locations",
           "slug": "the-eight-pinned-locations"
         },
         {
-          "line": 285,
+          "line": 290,
           "level": 3,
           "text": "Additional references found during the audit",
           "slug": "additional-references-found-during-the-audit"
         },
         {
-          "line": 301,
+          "line": 306,
           "level": 3,
           "text": "Target version and sequencing",
           "slug": "target-version-and-sequencing"
         },
         {
-          "line": 347,
+          "line": 352,
           "level": 3,
           "text": "Risk notes",
           "slug": "risk-notes"
         },
         {
-          "line": 359,
+          "line": 364,
           "level": 2,
           "text": "5. Phased path (012 history + 013 controlled operation host, batch under review)",
           "slug": "5-phased-path-012-history--013-controlled-operation-host-batch-under-review"
         },
         {
-          "line": 385,
+          "line": 390,
           "level": 2,
           "text": "6. Non-goals and honest limitations",
           "slug": "6-non-goals-and-honest-limitations"
@@ -962,6 +949,11 @@
           "line": 25,
           "href": "../specs/013-unified-tui-experience/spec.md#approval",
           "text": "013 spec.md §Approval"
+        },
+        {
+          "line": 33,
+          "href": "../specs/020-documentation-ecosystem/sitemap.md",
+          "text": "Feature 020 sitemap"
         }
       ]
     }
