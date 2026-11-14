@@ -23,9 +23,9 @@ const (
 )
 
 // Link is a trusted, fixed HTTPS destination. Its zero value and any string
-// that is not one of the constants above are untrusted: URL returns empty and
-// the opener refuses them, so a caller cannot pass an arbitrary source-provided
-// URL through the adapter.
+// that is not one of the fixed constants in this file are untrusted: URL
+// returns empty and the opener refuses them, so a caller cannot pass an
+// arbitrary source-provided URL through the adapter.
 type Link string
 
 const (
@@ -35,10 +35,36 @@ const (
 	LinkAuthor Link = AuthorURL
 )
 
+// Fixed documentation destinations (Feature 020). The published documentation
+// site is not live, so every destination is the immutable GitHub blob URL of
+// the canonical page source on main rather than a site or github.io URL. Each
+// value is a literal constant: no catalog, source selection, configuration or
+// user input can add, compose or redirect one.
+const (
+	// LinkDocsGettingStarted is the first-five-minutes guide.
+	LinkDocsGettingStarted Link = "https://github.com/nawodyaishan/agentic-sdd/blob/main/website/src/content/docs/getting-started/first-five-minutes.md"
+	// LinkDocsCLI is the CLI reference.
+	LinkDocsCLI Link = "https://github.com/nawodyaishan/agentic-sdd/blob/main/website/src/content/docs/reference/cli.md"
+	// LinkDocsTUI is the TUI reference.
+	LinkDocsTUI Link = "https://github.com/nawodyaishan/agentic-sdd/blob/main/website/src/content/docs/reference/tui.md"
+	// LinkDocsSkills is the skills how-to.
+	LinkDocsSkills Link = "https://github.com/nawodyaishan/agentic-sdd/blob/main/website/src/content/docs/how-to/skills.md"
+	// LinkDocsUpdates is the updating-and-recovery how-to.
+	LinkDocsUpdates Link = "https://github.com/nawodyaishan/agentic-sdd/blob/main/website/src/content/docs/how-to/updates-and-recovery.md"
+	// LinkDocsTroubleshooting is the operations troubleshooting page. Its page
+	// source may still be integration-pending, but the destination is frozen.
+	LinkDocsTroubleshooting Link = "https://github.com/nawodyaishan/agentic-sdd/blob/main/website/src/content/docs/operations/troubleshooting.md"
+	// LinkDocsContributing is the contributing docs-and-changes page. Its page
+	// source may still be integration-pending, but the destination is frozen.
+	LinkDocsContributing Link = "https://github.com/nawodyaishan/agentic-sdd/blob/main/website/src/content/docs/contributing/docs-and-changes.md"
+)
+
 // Trusted reports whether the link is one of the fixed destinations.
 func (l Link) Trusted() bool {
 	switch l {
-	case LinkReadme, LinkAuthor:
+	case LinkReadme, LinkAuthor,
+		LinkDocsGettingStarted, LinkDocsCLI, LinkDocsTUI, LinkDocsSkills,
+		LinkDocsUpdates, LinkDocsTroubleshooting, LinkDocsContributing:
 		return true
 	default:
 		return false
@@ -61,6 +87,20 @@ func (l Link) Label() string {
 		return "Online guide / README"
 	case LinkAuthor:
 		return "Author profile"
+	case LinkDocsGettingStarted:
+		return "Getting started"
+	case LinkDocsCLI:
+		return "CLI reference"
+	case LinkDocsTUI:
+		return "TUI reference"
+	case LinkDocsSkills:
+		return "Skills"
+	case LinkDocsUpdates:
+		return "Updating and recovery"
+	case LinkDocsTroubleshooting:
+		return "Troubleshooting"
+	case LinkDocsContributing:
+		return "Contributing / docs changes"
 	default:
 		return ""
 	}

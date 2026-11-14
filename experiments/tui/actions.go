@@ -123,8 +123,8 @@ func (a App) underlyingContextActions() []actionBinding {
 		return bindings
 	case RouteGuide:
 		return []actionBinding{
-			{keys: "j/k", short: "select", help: "j/k or arrows: highlight a guided action", priority: 2},
-			{keys: "Enter", short: "open", help: "Enter: open the highlighted destination", priority: 2},
+			{keys: "j/k", short: "select", help: "j/k or arrows: highlight a guided action or documentation page", priority: 2},
+			{keys: "Enter", short: "open", help: "Enter: open the highlighted guided action or documentation page explicitly", priority: 2},
 			{keys: "g", short: "README", help: "g: open the online guide / README explicitly", priority: 2},
 			{keys: "Esc", short: "nav", help: "Esc: return focus to navigation", priority: 1},
 			{keys: "?", short: "help", help: "?: open full contextual help", priority: 3},

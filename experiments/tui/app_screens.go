@@ -1022,11 +1022,32 @@ type OpenLinkResultMsg struct {
 func (a App) openLinkCmd(link Link) tea.Cmd {
 	opener := a.opener
 	if opener == nil {
-		return nil
+		// Without an injected opener nothing can launch, so report the trusted
+		// URL through the existing notice path instead of failing silently.
+		return func() tea.Msg {
+			return OpenLinkResultMsg{Result: OpenResult{Plan: LaunchPlan{
+				Link:   link,
+				URL:    link.URL(),
+				Reason: "no browser opener is configured in this session",
+			}}}
+		}
 	}
 	return func() tea.Msg {
 		return OpenLinkResultMsg{Result: opener.Open(link)}
 	}
+}
+
+// openDocumentationLink opens one fixed, trusted documentation destination that
+// the user selected explicitly in Guide. It adds no launch path of its own: the
+// existing explicit opener command performs the only possible process start.
+// A link outside the frozen registry is refused, and every failure keeps the
+// literal trusted URL in the notice area through OpenResult.Explanation.
+func (a *App) openDocumentationLink(link Link) tea.Cmd {
+	if !link.Trusted() {
+		a.notice = "This documentation destination is not in the frozen trusted registry, so nothing was opened."
+		return nil
+	}
+	return a.openLinkCmd(link)
 }
 
 // openOnboardingCmd builds the skippable Quick start from the read-only catalog
@@ -1135,6 +1156,10 @@ func (a *App) handleGuideRouteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return *a, a.openGuideAbout()
 		case GuideActionReadme:
 			return *a, a.openLinkCmd(LinkReadme)
+		case GuideActionDocumentation:
+			// Resolve first: the refusal path sets the notice on the receiver.
+			cmd := a.openDocumentationLink(a.guide.SelectedEntry().Link)
+			return *a, cmd
 		}
 	}
 	if key == "j" || key == "k" || key == "up" || key == "down" || key == "home" || key == "end" {

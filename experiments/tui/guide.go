@@ -21,6 +21,10 @@ const (
 	GuideActionOnboarding
 	GuideActionAboutUpdate
 	GuideActionReadme
+	// GuideActionDocumentation opens one fixed documentation destination from
+	// the trusted link registry. It adds no route: the existing explicit
+	// opener command performs the only possible launch.
+	GuideActionDocumentation
 )
 
 // GuideEntry describes one selectable step in the Guide hub.
@@ -29,6 +33,10 @@ type GuideEntry struct {
 	Key    string
 	Title  string
 	Desc   string
+	// Link is set only for a documentation row. Its zero value means the entry
+	// is an in-app guided action; a documentation row never derives a URL from
+	// configuration, catalog content or free-form input.
+	Link Link
 }
 
 var defaultGuideEntries = []GuideEntry{
@@ -78,19 +86,24 @@ type GuideModel struct {
 	height  int
 	cursor  int
 	entries []GuideEntry
+	// actionCount is the number of lead guided-action entries; the fixed
+	// documentation rows follow them in the same cursor list.
+	actionCount int
 }
 
 // NewGuideModel constructs the presentation-only Guide hub.
 func NewGuideModel(cfg TUIConfig) GuideModel {
 	cfg = cfg.Normalize()
-	entries := make([]GuideEntry, len(defaultGuideEntries))
-	copy(entries, defaultGuideEntries)
+	entries := make([]GuideEntry, 0, len(defaultGuideEntries))
+	entries = append(entries, defaultGuideEntries...)
+	entries = append(entries, guideDocumentationEntries()...)
 	return GuideModel{
-		cfg:     cfg,
-		theme:   newThemeForConfig(cfg),
-		width:   cfg.Width,
-		height:  cfg.Height,
-		entries: entries,
+		cfg:         cfg,
+		theme:       newThemeForConfig(cfg),
+		width:       cfg.Width,
+		height:      cfg.Height,
+		entries:     entries,
+		actionCount: len(defaultGuideEntries),
 	}
 }
 
@@ -224,18 +237,12 @@ func (m GuideModel) Lines(width int) []string {
 	lines = append(lines, Paragraph(m.theme.Section.Render("Guided actions"), width, 0)...)
 	lines = append(lines, "")
 	glyphs := GlyphSet(m.cfg.ASCII)
-	for i, entry := range m.entries {
-		marker := glyphs.Gutter
-		if i == m.cursor {
-			marker = glyphs.Cursor
-		}
-		head := fmt.Sprintf("%s [%s] %s", marker, entry.Key, entry.Title)
-		for _, row := range Paragraph(head, width, 2) {
-			if i == m.cursor && m.theme.Color {
-				row = m.theme.Selected.Bold(true).Render(row)
-			}
-			lines = append(lines, row)
-		}
+	actionCount := m.actionCount
+	if actionCount < 0 || actionCount > len(m.entries) {
+		actionCount = len(m.entries)
+	}
+	for i, entry := range m.entries[:actionCount] {
+		lines = append(lines, m.entryHeadLines(i, entry, glyphs, width)...)
 		for _, descRow := range Paragraph(entry.Desc, width, 6) {
 			lines = append(lines, m.theme.Hint.Render(descRow))
 		}
@@ -247,6 +254,28 @@ func (m GuideModel) Lines(width int) []string {
 	}
 	lines = append(lines, "")
 
+	if docs := m.entries[actionCount:]; len(docs) > 0 {
+		lines = append(lines, Paragraph(m.theme.Section.Render("Documentation"), width, 0)...)
+		lines = append(lines, "")
+		for _, row := range Paragraph("Fixed trusted pages. Select one and press Enter to open it explicitly.", width, 0) {
+			lines = append(lines, m.theme.Hint.Render(row))
+		}
+		lines = append(lines, "")
+		for offset, entry := range docs {
+			i := actionCount + offset
+			lines = append(lines, m.entryHeadLines(i, entry, glyphs, width)...)
+			// The highlighted page keeps its literal trusted URL on screen, so a
+			// nil, headless, SSH or unsupported-opener session still has the
+			// address even before it opens anything.
+			if i == m.cursor {
+				for _, row := range guideDocumentationFallbackLines(entry.Link, width) {
+					lines = append(lines, m.theme.Accent.Render(row))
+				}
+			}
+		}
+		lines = append(lines, "")
+	}
+
 	lines = append(lines, Paragraph(m.theme.Section.Render("Execution safety"), width, 0)...)
 	lines = append(lines, "")
 	for _, row := range Paragraph(WritePolicyText, width, 2) {
@@ -254,7 +283,7 @@ func (m GuideModel) Lines(width int) []string {
 	}
 	lines = append(lines, "")
 
-	for _, row := range Paragraph("j/k select · Enter open · i install · b backups · l logs · o tour · a about · g README · Esc nav", width, 0) {
+	for _, row := range Paragraph("j/k select · Enter open (guided action or documentation page) · i install · b backups · l logs · o tour · a about · g README · Esc nav", width, 0) {
 		lines = append(lines, m.theme.Hint.Render(row))
 	}
 
@@ -264,4 +293,62 @@ func (m GuideModel) Lines(width int) []string {
 		}
 	}
 	return lines
+}
+
+// entryHeadLines renders one selectable Guide row with the shared selection
+// styling, so guided actions and documentation pages stay visually consistent.
+func (m GuideModel) entryHeadLines(index int, entry GuideEntry, glyphs Glyphs, width int) []string {
+	marker := glyphs.Gutter
+	if index == m.cursor {
+		marker = glyphs.Cursor
+	}
+	head := fmt.Sprintf("%s %s", marker, entry.Title)
+	if entry.Key != "" {
+		head = fmt.Sprintf("%s [%s] %s", marker, entry.Key, entry.Title)
+	}
+	var rows []string
+	for _, row := range Paragraph(head, width, 2) {
+		if index == m.cursor && m.theme.Color {
+			row = m.theme.Selected.Bold(true).Render(row)
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+// guideDocumentationEntries builds the fixed documentation rows from the
+// frozen trusted-link registry. Order and destinations come only from
+// DocsLinks(); no configuration value, catalog field or free-form string can
+// become a URL here. A link outside the registry is skipped rather than shown.
+func guideDocumentationEntries() []GuideEntry {
+	links := DocsLinks()
+	entries := make([]GuideEntry, 0, len(links))
+	for _, link := range links {
+		if !link.Trusted() {
+			continue
+		}
+		title := strings.TrimSpace(link.Label())
+		if title == "" {
+			title = link.URL()
+		}
+		entries = append(entries, GuideEntry{
+			Action: GuideActionDocumentation,
+			Title:  title,
+			Link:   link,
+		})
+	}
+	return entries
+}
+
+// guideDocumentationFallbackLines renders the selectable fallback beneath the
+// highlighted documentation row through the trusted-link registry helper, so
+// the row keeps the visible "Label: URL" form with the literal destination.
+// Guide never hides the address behind a clipboard, and the opener result
+// repeats the same URL in the notice area, so nil, headless, SSH, failed and
+// unsupported-opener sessions all retain it.
+func guideDocumentationFallbackLines(link Link, width int) []string {
+	if line := DocsFallbackLine(link); line != "" {
+		return Paragraph(line, width, 6)
+	}
+	return Paragraph("No trusted URL is available for this destination.", width, 6)
 }
