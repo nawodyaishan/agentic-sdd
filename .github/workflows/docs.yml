@@ -1,0 +1,881 @@
+name: Docs
+
+# Feature 020 / T10 - documentation validation and publication wiring.
+#
+# Additive and separate: neither `.github/workflows/ci.yml` nor
+# `.github/workflows/release.yml` is edited, referenced or weakened here, and
+# nothing in this file is a required product check. Docs-sync failure cannot
+# block a product release: `release.yml` runs on the tag push and never waits
+# for this workflow.
+#
+# Trust model (plan C4):
+#   * PR evidence comes from the reviewed base. The workflow definition is
+#     loaded from the default branch (`pull_request_target`), so a candidate
+#     edit to this file has no effect on the run that judges it.
+#   * The reviewed base is checked out into `docs-trusted`; the PR head is
+#     checked out into `docs-candidate` as data only, then made read-only. No
+#     untrusted checkout is placed in the tree used for evaluation.
+#   * Candidate code is never executed on the host. This workflow never runs
+#     `npm`, `node`, `astro` or a candidate script directly; it only invokes
+#     the reviewed launcher `<trusted>/scripts/docs-ci.py`, which is always
+#     resolved from the trusted checkout - never from the candidate tree - and
+#     which executes the candidate solely inside its networkless, read-only
+#     containers.
+#   * PR jobs hold `contents: read`, no `id-token`, no `environment:`, no
+#     `secrets.*`, no cache action, no Docker socket mount and a job-scoped
+#     HOME. Artifact upload uses the Actions runtime token, not a repository
+#     token. `persist-credentials: false` keeps the checkout token out of both
+#     trees.
+#   * No PR artifact is deployed or promoted. Only a trusted-main build from
+#     this same workflow run can become the Pages artifact, and only the
+#     protected `deploy` job deploys it.
+#   * There is deliberately no `paths:`/`paths-ignore:` filter. A wrong filter
+#     silently skips documentation validation for product changes; running on
+#     every PR is accepted instead.
+#
+# Launcher CLI (B5-W1-A implementation; these are the only launcher inputs this
+# workflow uses, and there is no `DOCS_CI_*` environment contract):
+#   scripts/docs-ci.py --trusted DIR [--candidate DIR] --output DIR
+#       --mode pr|main|release|rollback
+#       [--action run|identity|provision|evaluate]
+#       [--policy FILE | --image REF@sha256:<64hex>]
+#       [--base-sha SHA --candidate-sha SHA --candidate-ref REF]
+#       [--artifact DIR [--record FILE]]
+#       [--expected-revision SHA] [--artifact-run RUN_ID] [--run-id RUN_ID]
+#   Exit codes: 0 pass, 1 fail, 2 blocked. Result vocabulary: `pass`, `fail`,
+#   `blocked`, `needs-trusted-dependency-review`, `needs-trusted-policy-review`,
+#   `observed`. `--mode release` always exits 0 with `blocking_release:false`
+#   and can never block product release. `--mode rollback` exits 2 when the
+#   retained artifact is missing, expired, unbound or from another revision.
+#   `--mode links` is a separate observation lane, not another verdict:
+#     scripts/docs-ci.py --mode links --trusted DIR --output DIR
+#         [--artifact DIR] [--network] [--timeout N] [--max-urls N]
+#   It has its own exit contract (0 a completed inventory, 1 a usage or IO
+#   error), always records `result: observed` with `authoritative:false` and
+#   `blocking_release:false`, and fetches no URL unless `--network` is passed.
+#   Reachability answers can never change that result.
+#   `--action run` (default) is the whole lane: identity, dependency/protected/
+#   required-page/content-inventory gates, image preflight, provisioning,
+#   candidate checks in networkless read-only containers, then a
+#   separate-process base evaluator and status. `--action identity` writes only
+#   `identity.json`.
+#   `--action evaluate` re-runs the base evaluator over existing records,
+#   read-only.
+#
+#   `--mode main --artifact DIR` publishes the validated site only when the run
+#   is authoritative (base evaluator pass and a clean trusted checkout), and
+#   only the site: the trust record stays in `--output` and is uploaded
+#   separately. A dirty trusted tree is recorded and publishes nothing.
+#   `--artifact` is refused in `pr` mode. `--mode rollback` re-verifies a
+#   retained site against a trust record that is bound to an explicit
+#   `--expected-revision` and/or `--artifact-run`; the current HEAD is never the
+#   reference, because a rollback restores an older revision by design.
+#
+# Every path is an explicit CLI argument; the reviewed runtime image is passed
+# as `--image` from the workflow-owned pin below so the launcher's image-pin
+# gate is satisfied. Each job that can start a container pulls that exact digest
+# once, before invoking the launcher, which itself always runs `--pull=never`.
+# The launcher still owns policy/lock adoption, derives the authoritative
+# verdict itself, and fails closed on any mismatch.
+#
+# Adopted validation (Q1). The trusted lane runs the base-owned ordered check
+# list in the bounded container, not just `npm run build`:
+#   build -> docs-check -> docs-check-built (built output and source) ->
+#   docs-export-write -> docs-export-check (byte-identical export drift check) ->
+#   node-test
+# Each check is its own networkless, read-only container with only the declared
+# write paths (the build/export/cache mounts); the base evaluator requires every
+# adopted id, in order, with the exact argv and exit 0, so a missing, renamed or
+# silently skipped check is a failure. The protected surface compared against
+# the reviewed base covers website/scripts, website/plugins, website/tests, the
+# Astro and content configs, the package files, this launcher's harness suite and
+# Taskfile.yml: a candidate edit to any of them needs trusted policy review,
+# while the dependency files keep their separate dependency-review result.
+#
+# Publication allowlist (Q2). The trusted `website/docs-manifest.json` is the
+# allowlist, not a minimum page set. A candidate-only manifest page, a content
+# file that is not an adopted L/C source (including a deferred or private page
+# entering the tree) or an unexpected content extension needs trusted policy
+# review. Before the build the content tree must equal the adopted L/C source
+# set; after it, every built HTML content route must map back to an adopted page
+# id, and an extra built route or a missing adopted route is a failure.
+#
+# Dirty-tree honesty. `--mode main` records whether the trusted checkout was
+# clean. A dirty tree still yields observations, but sets
+# `authoritative: false` with the named reason and publishes nothing.
+
+# One PR job, not two: the frozen CLI has no fast/full split, so two PR jobs
+# would execute the same whole lane twice for no extra evidence.
+#
+# Activation is an owner operation, not a source change. `deploy` is inert
+# until the owner sets the `DOCS_PAGES_DEPLOY_ENABLED` repository variable and
+# configures the `github-pages` environment (required reviewers and/or a
+# protected-branch policy). `rollback` is inert until
+# `DOCS_PAGES_ROLLBACK_ENABLED` is set. The scheduled identity observation is
+# inert until `DOCS_SCHEDULED_CHECKS_ENABLED` is set, and the separate scheduled
+# external-link observation is inert until `DOCS_SCHEDULED_LINKS_ENABLED` is
+# set. Nothing here enables Pages,
+# changes a setting, protection rule, retention policy or environment, or
+# deploys.
+#
+# Live status is unverified: the site is not published (`has_pages:false`,
+# 404 observed 2026-11-14) and no run of this workflow has executed. Actual
+# Actions behaviour, Pages state, artifact retention and deploy/rollback
+# results are `not_run` until an authorized live run.
+
+on:
+  # Authoritative PR evidence. The workflow file is taken from the default
+  # branch, never from the pull request.
+  pull_request_target:
+    branches: ["main"]
+    types: [opened, synchronize, reopened, ready_for_review]
+  # The only trusted source of a publication artifact.
+  push:
+    branches: ["main"]
+  # Independent read-only release-doc observation. Separate from the product
+  # release pipeline, so it cannot block a release.
+  release:
+    types: [published]
+  # Optional weekly read-only observation. Inert by default: the job
+  # additionally requires the DOCS_SCHEDULED_CHECKS_ENABLED repository
+  # variable. See the job comment for its exact, limited scope.
+  schedule:
+    - cron: "17 4 * * 1"
+  # Owner-operated entrypoint for the protected deploy/rollback jobs. The
+  # default operation is read-only validation and cannot deploy.
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "validate (read-only), deploy (protected), or rollback (protected)"
+        type: choice
+        options:
+          - validate
+          - deploy
+          - rollback
+        default: validate
+        required: true
+      rollback_run_id:
+        description: "Prior main run id whose retained artifact is reused (rollback only)"
+        type: string
+        default: ""
+        required: false
+
+# Baseline for every job; each job restates its own permissions explicitly.
+permissions:
+  contents: read
+
+env:
+  # Reviewed runtime image, pinned by digest (Node 24.22.3; matches
+  # website/.node-version and the B1 evidence in
+  # specs/020-documentation-ecosystem/tasks.md). Passed as `--image`; the
+  # launcher's image-pin gate fails closed if this disagrees with its adopted
+  # lock/policy identity.
+  DOCS_IMAGE: "node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # PR lane - the reviewed base judges the candidate, which stays data.
+  # ---------------------------------------------------------------------------
+  pr-validate:
+    name: PR validate (reviewed base, candidate as data)
+    if: github.event_name == 'pull_request_target'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    # The plan's ~5 minute warm full-PR target is a target, not a kill switch:
+    # cold dependency provisioning and candidate builds are measured separately,
+    # so the hard cap leaves bounded headroom instead of failing on a slow first
+    # run. A target miss is a diagnosis item, never a reason to add a skip.
+    timeout-minutes: 15
+    concurrency:
+      group: docs-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout reviewed base
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: docs-trusted
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Checkout candidate head as data only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          # The base repository's pull ref, so a readable fork head resolves
+          # through the reviewed repository instead of an arbitrary remote.
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          path: docs-candidate
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Bind the candidate tree to the event head SHA
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CANDIDATE_DIR: ${{ github.workspace }}/docs-candidate
+        run: |
+          set -euo pipefail
+          actual="$(git -C "$CANDIDATE_DIR" rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_HEAD_SHA" ]; then
+            echo "::error::candidate checkout $actual does not match pull_request.head.sha $EXPECTED_HEAD_SHA; refusing to evaluate a moving or substituted ref"
+            exit 1
+          fi
+
+      - name: Materialise the pull ref the launcher resolves
+        env:
+          CANDIDATE_DIR: ${{ github.workspace }}/docs-candidate
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # actions/checkout fetches `refs/pull/<n>/head` into
+          # `refs/remotes/pull/<n>/head`, so the documented
+          # `refs/pull/<n>/head` form the launcher is given does not exist in
+          # the candidate checkout and every PR run would block at
+          # `candidate-ref-unavailable`. Create that exact local ref from the
+          # already-bound HEAD: the previous step proved HEAD is
+          # `pull_request.head.sha`, so this cannot point at a substituted ref.
+          git -C "$CANDIDATE_DIR" update-ref "refs/pull/$PR_NUMBER/head" HEAD
+          git -C "$CANDIDATE_DIR" rev-parse --verify "refs/pull/$PR_NUMBER/head^{commit}"
+
+      - name: Make the candidate source read-only
+        env:
+          CANDIDATE_DIR: ${{ github.workspace }}/docs-candidate
+        run: |
+          set -euo pipefail
+          # Data only: the launcher may read this tree and must never write it.
+          chmod -R a-w "$CANDIDATE_DIR"
+
+      - name: Assert the PR lane holds no OIDC credential
+        run: |
+          set -euo pipefail
+          # Deterministic proof that this job has no `id-token: write`:
+          # GitHub only exports these when the job may mint an OIDC token.
+          for name in ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN; do
+            if [ -n "${!name:-}" ]; then
+              echo "::error::$name is set in a PR job; the PR lane must not hold OIDC"
+              exit 1
+            fi
+          done
+
+      - name: Pull the reviewed runtime image by digest
+        run: |
+          set -euo pipefail
+          # The only pull in this job. Everything downstream runs the pinned
+          # image with `--pull=never`, so a fresh runner would otherwise block
+          # at `pinned-image-unavailable` before any candidate byte executes.
+          # The reference is the digest pin above, so a moved tag cannot satisfy
+          # it, and the local image is confirmed present before the launcher.
+          docker pull "$DOCS_IMAGE"
+          docker image inspect "$DOCS_IMAGE" >/dev/null
+
+      - name: Run reviewed docs launcher (mode pr)
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          CANDIDATE_DIR: ${{ github.workspace }}/docs-candidate
+          OUT_DIR: ${{ runner.temp }}/docs-ci/pr
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HOME: ${{ runner.temp }}/docs-ci/home-pr
+          # Constructed environment: no inherited user/Git configuration is
+          # handed to the launcher or its containers.
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT_DIR" "$HOME"
+          # The launcher always runs from the trusted checkout, never from
+          # `docs-candidate`.
+          python3 "$TRUSTED_DIR/scripts/docs-ci.py" \
+            --mode pr \
+            --action run \
+            --trusted "$TRUSTED_DIR" \
+            --candidate "$CANDIDATE_DIR" \
+            --output "$OUT_DIR" \
+            --base-sha "$BASE_SHA" \
+            --candidate-sha "$HEAD_SHA" \
+            --candidate-ref "refs/pull/$PR_NUMBER/head" \
+            --image "$DOCS_IMAGE"
+
+      - name: Upload identity and check evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          name: docs-pr-validate-${{ github.event.pull_request.number }}
+          # Evidence only, never the whole scratch tree: the staged candidate,
+          # `node_modules` and the build would add hundreds of megabytes to the
+          # artifact for no extra forensic value.
+          path: |
+            ${{ runner.temp }}/docs-ci/pr/identity.json
+            ${{ runner.temp }}/docs-ci/pr/records.json
+            ${{ runner.temp }}/docs-ci/pr/status.json
+            ${{ runner.temp }}/docs-ci/pr/private/logs/*.log
+          # Forensic only. A missing artifact is never read as success or
+          # failure; the launcher exit code is the verdict.
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Trusted main - the only job that can produce a publication artifact.
+  # ---------------------------------------------------------------------------
+  main-build:
+    name: Trusted main validate and build
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.event.inputs.operation != 'rollback')
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: docs-main
+      cancel-in-progress: false
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          ref: ${{ github.sha }}
+          path: docs-trusted
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Pull the reviewed runtime image by digest
+        run: |
+          set -euo pipefail
+          # Same single pull as the PR lane: the launcher itself never pulls
+          # (`--pull=never`) and fails closed when the pinned image is absent.
+          docker pull "$DOCS_IMAGE"
+          docker image inspect "$DOCS_IMAGE" >/dev/null
+
+      - name: Run reviewed docs launcher (mode main)
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          OUT_DIR: ${{ runner.temp }}/docs-ci/main
+          ARTIFACT_DIR: ${{ runner.temp }}/docs-ci/main-artifact
+          HOME: ${{ runner.temp }}/docs-ci/home-main
+          RUN_ID: ${{ github.run_id }}
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT_DIR" "$HOME"
+          # `--artifact` publishes the site the base evaluator just validated;
+          # the trust record (status/identity/records) stays in OUT_DIR.
+          python3 "$TRUSTED_DIR/scripts/docs-ci.py" \
+            --mode main \
+            --action run \
+            --trusted "$TRUSTED_DIR" \
+            --output "$OUT_DIR" \
+            --artifact "$ARTIFACT_DIR" \
+            --run-id "$RUN_ID" \
+            --image "$DOCS_IMAGE"
+
+      - name: Re-run the base evaluator over the recorded evidence
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          OUT_DIR: ${{ runner.temp }}/docs-ci/main
+          HOME: ${{ runner.temp }}/docs-ci/home-main
+          RUN_ID: ${{ github.run_id }}
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          # Read-only re-evaluation of the existing records. The verdict still
+          # comes from the reviewed base evaluator, never from the build. The
+          # run id keeps the retained trust record bound to this Actions run.
+          python3 "$TRUSTED_DIR/scripts/docs-ci.py" \
+            --mode main \
+            --action evaluate \
+            --trusted "$TRUSTED_DIR" \
+            --output "$OUT_DIR" \
+            --run-id "$RUN_ID" \
+            --image "$DOCS_IMAGE"
+
+      - name: Upload the retained trust record
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          # Small companion to the Pages artifact: the record a later rollback
+          # downloads and re-verifies against the site, bound to this run id and
+          # revision. `if-no-files-found: error` keeps a missing record loud.
+          name: docs-trust-record
+          path: |
+            ${{ runner.temp }}/docs-ci/main/status.json
+            ${{ runner.temp }}/docs-ci/main/identity.json
+            ${{ runner.temp }}/docs-ci/main/records.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Refuse linked or empty deploy artifacts
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/docs-ci/main-artifact
+        run: |
+          set -euo pipefail
+          if [ ! -d "$ARTIFACT_DIR" ]; then
+            echo "::error::validated artifact directory is missing"
+            exit 1
+          fi
+          if [ -z "$(ls -A "$ARTIFACT_DIR")" ]; then
+            echo "::error::validated artifact directory is empty"
+            exit 1
+          fi
+          # Pages artifacts may not contain symlinks or hardlinks; scan before
+          # the upload so a linked escape never becomes a deployable artifact.
+          links="$(find "$ARTIFACT_DIR" -type l -print -quit)"
+          if [ -n "$links" ]; then
+            printf '%s\n' "$links"
+            echo "::error::symlinks are not allowed in the deploy artifact"
+            exit 1
+          fi
+          hardlinks="$(find "$ARTIFACT_DIR" -type f -links +1 -print -quit)"
+          if [ -n "$hardlinks" ]; then
+            printf '%s\n' "$hardlinks"
+            echo "::error::hardlinked files are not allowed in the deploy artifact"
+            exit 1
+          fi
+
+      - name: Upload validated Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0, resolved 2026-11-14
+        with:
+          path: ${{ runner.temp }}/docs-ci/main-artifact
+          # Hidden files stay excluded (the action's safe default); the site
+          # needs no dotfiles. Retention is a workflow default only: the
+          # owner-recorded retention policy (R02 preflight) stays authoritative,
+          # and a rollback beyond it must rebuild a known-good revision.
+          retention-days: 30
+
+      - name: Upload run identity evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          name: docs-run-identity
+          # The whole OUT_DIR also holds the staged tree, `node_modules` and the
+          # build (~200 MB); only the trust record and check logs are evidence.
+          path: |
+            ${{ runner.temp }}/docs-ci/main/identity.json
+            ${{ runner.temp }}/docs-ci/main/records.json
+            ${{ runner.temp }}/docs-ci/main/status.json
+            ${{ runner.temp }}/docs-ci/main/private/logs/*.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # Protected deploy - inert by default.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Protected Pages deploy
+    # Two independent gates: the repository variable (inert until the owner
+    # activates it) and the `github-pages` environment with its owner-configured
+    # protection rules. Neither is set by this file.
+    if: |
+      vars.DOCS_PAGES_DEPLOY_ENABLED == 'true' && (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.event.inputs.operation == 'deploy')
+      )
+    needs: [main-build]
+    permissions:
+      # Deploy is the only job allowed to write; it reads no repository content.
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Deploy the validated artifact from this run
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1, resolved 2026-11-14
+        with:
+          # Same-run artifact only: `main-build` produced it with `--mode main`
+          # and re-verified it from this exact `github.sha`. Cross-run and PR
+          # artifacts are refused by construction; the rollback job is the only
+          # cross-run path.
+          artifact_name: github-pages
+          timeout: 300000
+          error_count: 5
+
+  # ---------------------------------------------------------------------------
+  # Protected rollback - inert by default.
+  # ---------------------------------------------------------------------------
+  rollback:
+    name: Protected rollback from a retained artifact
+    if: |
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+      github.event.inputs.operation == 'rollback' &&
+      vars.DOCS_PAGES_ROLLBACK_ENABLED == 'true'
+    permissions:
+      contents: read   # reviewed launcher/tooling at the trusted main revision
+      actions: read    # read a prior run's retained artifact
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Validate the requested run id
+        env:
+          ROLLBACK_RUN_ID: ${{ github.event.inputs.rollback_run_id }}
+        run: |
+          set -euo pipefail
+          case "${ROLLBACK_RUN_ID}" in
+            '') echo "::error::rollback_run_id is required for a rollback"; exit 1 ;;
+            *[!0-9]*) echo "::error::rollback_run_id must be numeric"; exit 1 ;;
+          esac
+          if [ "${#ROLLBACK_RUN_ID}" -gt 20 ]; then
+            echo "::error::rollback_run_id is not a plausible run id"
+            exit 1
+          fi
+
+      - name: Checkout trusted main for the reviewed launcher
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          ref: ${{ github.ref }}
+          path: docs-trusted
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Resolve the retained run revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLLBACK_RUN_ID: ${{ github.event.inputs.rollback_run_id }}
+        run: |
+          set -euo pipefail
+          # The owner supplies a run id, not a revision. Resolve that run's
+          # recorded head through the read-only Actions API (`actions: read`)
+          # and bind the retained artifact to it explicitly. The current HEAD is
+          # never the reference: a rollback restores an older revision by design.
+          revision="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${ROLLBACK_RUN_ID}" --jq '.head_sha')"
+          branch="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${ROLLBACK_RUN_ID}" --jq '.head_branch')"
+          event="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${ROLLBACK_RUN_ID}" --jq '.event')"
+          if ! printf '%s' "$revision" | grep -Eq '^[0-9a-f]{40}([0-9a-f]{24})?$'; then
+            echo "::error::run ${ROLLBACK_RUN_ID} does not record a full revision"
+            exit 1
+          fi
+          if [ "$branch" != "main" ]; then
+            echo "::error::run ${ROLLBACK_RUN_ID} was not a trusted main build (branch: ${branch:-unknown})"
+            exit 1
+          fi
+          case "$event" in
+            push|workflow_dispatch) ;;
+            *) echo "::error::run ${ROLLBACK_RUN_ID} came from event ${event}, not a trusted main build"; exit 1 ;;
+          esac
+          echo "EXPECTED_REVISION=${revision}" >> "$GITHUB_ENV"
+          echo "Retained revision: ${revision}"
+
+      - name: Pull the reviewed runtime image by digest
+        run: |
+          set -euo pipefail
+          # Same single pull as the other launcher jobs. The launcher itself
+          # keeps `--pull=never` and fails closed when the pin is absent.
+          docker pull "$DOCS_IMAGE"
+          docker image inspect "$DOCS_IMAGE" >/dev/null
+
+      - name: Download the retained site from the prior run
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2, resolved 2026-11-14
+        with:
+          name: github-pages
+          run-id: ${{ github.event.inputs.rollback_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/docs-ci/rollback/download
+          # Default `digest-mismatch: error` fails the download on a digest
+          # mismatch; no flag weakens that here.
+
+      - name: Download the retained trust record from the same run
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2, resolved 2026-11-14
+        with:
+          name: docs-trust-record
+          run-id: ${{ github.event.inputs.rollback_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/docs-ci/rollback/record
+          # Without the record there is nothing to verify the site against, so
+          # a missing record fails here rather than degrading to an unchecked
+          # deploy.
+
+      - name: Materialise the retained site without following links
+        env:
+          DOWNLOAD_DIR: ${{ runner.temp }}/docs-ci/rollback/download
+          ARTIFACT_DIR: ${{ runner.temp }}/docs-ci/rollback/artifact
+        run: |
+          set -euo pipefail
+          if [ ! -d "$DOWNLOAD_DIR" ] || [ -z "$(ls -A "$DOWNLOAD_DIR")" ]; then
+            echo "::error::retained artifact is missing or empty"
+            exit 1
+          fi
+          install -d -m 0700 "$ARTIFACT_DIR"
+          if [ -f "$DOWNLOAD_DIR/artifact.tar" ]; then
+            # `upload-pages-artifact` stores the site as `artifact.tar`. GNU tar
+            # refuses absolute or `..` member names by default, and the launcher
+            # rescans the extracted tree, so an escaping member cannot land.
+            tar -xf "$DOWNLOAD_DIR/artifact.tar" -C "$ARTIFACT_DIR" \
+              --no-same-owner --no-same-permissions
+          else
+            cp -R "$DOWNLOAD_DIR/." "$ARTIFACT_DIR/"
+          fi
+
+      - name: Verify the retained artifact with the reviewed launcher
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          OUT_DIR: ${{ runner.temp }}/docs-ci/rollback
+          ARTIFACT_DIR: ${{ runner.temp }}/docs-ci/rollback/artifact
+          RECORD_FILE: ${{ runner.temp }}/docs-ci/rollback/record/status.json
+          RUN_ID: ${{ github.run_id }}
+          ROLLBACK_RUN_ID: ${{ github.event.inputs.rollback_run_id }}
+          HOME: ${{ runner.temp }}/docs-ci/home-rollback
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT_DIR" "$HOME"
+          if [ -z "${EXPECTED_REVISION:-}" ]; then
+            echo "::error::the retained run revision was not resolved"
+            exit 1
+          fi
+          if [ ! -f "$RECORD_FILE" ]; then
+            echo "::error::retained trust record is missing"
+            exit 1
+          fi
+          # `--mode rollback` re-verifies the retained site digest against the
+          # record downloaded from the same run, and binds that record to the
+          # explicit prior revision and run id - not to the current HEAD, which
+          # is newer by definition. An unavailable, expired, unbound or foreign
+          # artifact exits 2 and is reported as `blocked`, never a silent pass.
+          set +e
+          python3 "$TRUSTED_DIR/scripts/docs-ci.py" \
+            --mode rollback \
+            --trusted "$TRUSTED_DIR" \
+            --output "$OUT_DIR" \
+            --artifact "$ARTIFACT_DIR" \
+            --record "$RECORD_FILE" \
+            --expected-revision "$EXPECTED_REVISION" \
+            --artifact-run "$ROLLBACK_RUN_ID" \
+            --run-id "$RUN_ID" \
+            --image "$DOCS_IMAGE"
+          code=$?
+          set -e
+          case "$code" in
+            0) ;;
+            2) echo "::error::rollback blocked: the retained artifact is missing, expired or not bound to the requested revision (exit 2)"; exit 2 ;;
+            *) echo "::error::docs launcher rollback failed (exit $code)"; exit "$code" ;;
+          esac
+
+      - name: Refuse linked retained artifacts
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/docs-ci/rollback/artifact
+        run: |
+          set -euo pipefail
+          if [ ! -d "$ARTIFACT_DIR" ] || [ -z "$(ls -A "$ARTIFACT_DIR")" ]; then
+            echo "::error::retained artifact is missing or empty"
+            exit 1
+          fi
+          links="$(find "$ARTIFACT_DIR" -type l -print -quit)"
+          if [ -n "$links" ]; then
+            printf '%s\n' "$links"
+            echo "::error::symlinks are not allowed in a rollback artifact"
+            exit 1
+          fi
+          hardlinks="$(find "$ARTIFACT_DIR" -type f -links +1 -print -quit)"
+          if [ -n "$hardlinks" ]; then
+            printf '%s\n' "$hardlinks"
+            echo "::error::hardlinked files are not allowed in a rollback artifact"
+            exit 1
+          fi
+
+      - name: Re-publish the verified artifact as this run's Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0, resolved 2026-11-14
+        with:
+          path: ${{ runner.temp }}/docs-ci/rollback/artifact
+          retention-days: 30
+
+      - name: Deploy the verified rollback artifact
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1, resolved 2026-11-14
+        with:
+          artifact_name: github-pages
+          timeout: 300000
+          error_count: 5
+
+  # ---------------------------------------------------------------------------
+  # Release-doc observation - independent and read-only.
+  # ---------------------------------------------------------------------------
+  release-status:
+    name: Release documentation observation (read-only)
+    if: github.event_name == 'release'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the released revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          path: docs-trusted
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Record observed release metadata identity
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          OUT_DIR: ${{ runner.temp }}/docs-ci/release
+          HOME: ${{ runner.temp }}/docs-ci/home-release
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT_DIR" "$HOME"
+          # `--mode release` always exits 0 with `blocking_release:false`; the
+          # observation cannot block product release. `--action identity` writes
+          # only `identity.json` and mutates nothing. No tap token is used or
+          # available here, and `release.yml` has already completed
+          # independently of this job.
+          python3 "$TRUSTED_DIR/scripts/docs-ci.py" \
+            --mode release \
+            --action identity \
+            --trusted "$TRUSTED_DIR" \
+            --output "$OUT_DIR" \
+            --image "$DOCS_IMAGE"
+
+      - name: Upload release observation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          # Static name: the tag identity is recorded inside the evidence JSON,
+          # because tag text may contain characters artifact names reject.
+          name: docs-release-observation
+          path: ${{ runner.temp }}/docs-ci/release
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Optional scheduled observation - inert by default.
+  # ---------------------------------------------------------------------------
+  scheduled-observation:
+    name: Scheduled observation (identity only, disabled by default)
+    if: |
+      github.event_name == 'schedule' && vars.DOCS_SCHEDULED_CHECKS_ENABLED == 'true'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          path: docs-trusted
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      # Scope limit, stated so it cannot be mistaken for more: this job
+      # records trusted-main identity drift only and never calls the network.
+      # The separate `scheduled-links` job below owns external-link and
+      # declared-dependency observation through `--mode links`, behind its own
+      # repository variable, so this identity record cannot silently grow into
+      # a network or a publication step. Both jobs are informational and must
+      # never become a merge gate.
+      - name: Record trusted-main identity
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          OUT_DIR: ${{ runner.temp }}/docs-ci/scheduled
+          HOME: ${{ runner.temp }}/docs-ci/home-scheduled
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT_DIR" "$HOME"
+          python3 "$TRUSTED_DIR/scripts/docs-ci.py" \
+            --mode main \
+            --action identity \
+            --trusted "$TRUSTED_DIR" \
+            --output "$OUT_DIR" \
+            --image "$DOCS_IMAGE"
+
+      - name: Upload scheduled observation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          name: docs-scheduled-observation
+          path: ${{ runner.temp }}/docs-ci/scheduled
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Optional scheduled external-link observation - inert by default.
+  # ---------------------------------------------------------------------------
+  # Observation only. `--mode links` is read-only, never authoritative and never
+  # changes `blocking_release`, so no answer from a third-party site can block a
+  # merge, a release or a deploy. Network access exists only because this job
+  # deliberately passes `--network`; every answer - including an unreachable
+  # host, a 5xx or a timeout - is stored as an observation and the launcher
+  # still exits 0 for a completed inventory. A non-zero exit here can only mean
+  # a usage or IO error, which is surfaced instead of being converted into a
+  # documentation verdict.
+  #
+  # No site build runs here, so the inventory covers source pages; a local or
+  # explicitly provisioned run can add `--artifact <built dir>` for the built
+  # HTML. `--budget-seconds 420` with `--max-urls 200` and a 3s request timeout
+  # keeps the worst case inside the 10-minute job cap.
+  #
+  # Activation is an owner operation: set the `DOCS_SCHEDULED_LINKS_ENABLED`
+  # repository variable. The job holds `contents: read` only, uses no secrets,
+  # no OIDC, no cache action and no Docker socket, and publishes nothing.
+  scheduled-links:
+    name: Scheduled external-link observation (observation-only, disabled by default)
+    if: |
+      github.event_name == 'schedule' && vars.DOCS_SCHEDULED_LINKS_ENABLED == 'true'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          path: docs-trusted
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Record external links and declared dependencies (observation only)
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          OUT_DIR: ${{ runner.temp }}/docs-ci/scheduled-links
+          HOME: ${{ runner.temp }}/docs-ci/home-scheduled-links
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT_DIR" "$HOME"
+          # Observation only: the record is `observed` with exact URLs and
+          # counts, and `authoritative` / `blocking_release` stay false whatever
+          # the network answers. Exit 1 means a usage or IO error, not a broken
+          # link verdict.
+          python3 -B "$TRUSTED_DIR/scripts/docs-ci.py" \
+            --mode links \
+            --trusted "$TRUSTED_DIR" \
+            --output "$OUT_DIR" \
+            --network \
+            --timeout 3 \
+            --max-urls 200 \
+            --budget-seconds 420
+
+      - name: Upload external-link observation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          name: docs-scheduled-links-observation
+          path: ${{ runner.temp }}/docs-ci/scheduled-links
+          if-no-files-found: warn
+          retention-days: 14
