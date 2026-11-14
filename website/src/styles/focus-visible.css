@@ -1,0 +1,28 @@
+/* Feature 020 — visible keyboard focus for search widgets.
+ *
+ * Pagefind's widget stylesheet removes the native outline on its controls
+ * (:focus { outline: none }) while restoring a replacement indicator only on
+ * some of them, so a keyboard user can land on a widget with no visible
+ * marker. A scan of the built CSS shows the .pf-* widget classes are the only
+ * controls that remove the outline, so these :focus-visible rules restore a
+ * high-contrast outline on every Pagefind widget class the built site ships.
+ * They apply to :focus-visible only, so pointer interaction is unchanged, and
+ * they leave the theme's own focus treatments (box-shadow/border accents)
+ * alone. The outline color follows the Starlight accent with Pagefind's own
+ * light-theme focus blue as the fallback.
+ */
+.pf-input:focus-visible,
+.pf-searchbox-input:focus-visible,
+.pf-input-clear:focus-visible,
+.pf-dropdown-clear:focus-visible,
+.pf-result-link:focus-visible,
+.pf-heading-link:focus-visible,
+.pf-checkbox-input:focus-visible,
+.pf-dropdown-trigger:focus-visible,
+.pf-trigger-btn:focus-visible,
+.pf-modal-close:focus-visible,
+.pf-searchbox-result:focus-visible,
+.pf-dropdown-options:focus-visible {
+	outline: 2px solid var(--sl-color-accent, #0969da);
+	outline-offset: 2px;
+}

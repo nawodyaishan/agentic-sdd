@@ -1,0 +1,21 @@
+%% D05 — MCP/execution evidence flows (Feature 020, B3-W1-K)
+%% Purpose: MCP = config digest/lock/recovery; execution = brief/record/freshness/review; neither implies sandbox nor live auth.
+%% Source revision: 449245a
+%% Encodes: internal/skillsync/mcp_transaction.go (ApplyMCPPlan, acquireMCPLock, mcpVerifySnapshotEntries, RestoreMCPConfig, ReadMCPTransactionIntent), internal/execution (WriteCheckpoint/LoadCheckpoint, StatusRun/evaluateFreshness, registerTaskBrief, checks.go, reviewpackage.go)
+flowchart TB
+  subgraph MCP["MCP config flow (no live-auth claim)"]
+    MPlan["MCPPlan"] --> MLock["acquireMCPLock"]
+    MLock --> MApply["ApplyMCPPlan"]
+    MApply --> MVerify["mcpVerifySnapshotEntries"]
+    MVerify -->|fail| MRollback["mcpApplyRollback"]
+    MIntent["ReadMCPTransactionIntent"] -.->|diagnose| MApply
+    MRestore["RestoreMCPConfig"] --> MVerify
+  end
+  subgraph EXEC["Execution evidence flow (no sandbox claim)"]
+    Brief["registerTaskBrief"] --> CP["WriteCheckpoint"]
+    CP --> Run["child command runs"]
+    Run --> Status["StatusRun / evaluateFreshness<br/>LoadCheckpoint"]
+    Status --> Checks["checks.go evidence"]
+    Checks --> Review["reviewpackage.go"]
+  end
+  MCP -.->|separate stores| EXEC

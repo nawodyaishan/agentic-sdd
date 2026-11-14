@@ -1,0 +1,19 @@
+%% D03 — Install/restore transaction (Feature 020, B3-W1-K)
+%% Purpose: preview writes nothing; apply goes source-plan-backup-write with rollback; stores are separate.
+%% Source revision: 449245a
+%% Encodes: internal/skillsync/sync.go (planChanges, installChanges/installChangesWithHook, rollback, backupRootFor/BackupRootFor), internal/skillsync/restore.go (ListBackups, Restore/RestoreResult), internal/skillsync/manifest.go (treeDigest/fileDigest), internal/fleet (manifest.go/plan.go/apply.go), skillsync mcp_transaction.go (ApplyMCPPlan/mcpApplyRollback)
+flowchart LR
+  Source[(Source<br/>embed or --repo)] --> Plan["planChanges<br/>+ treeDigest/fileDigest"]
+  Plan -->|preview: stop, write nothing| Stop([Stop])
+  Plan -->|apply| Backup["Backup existing<br/>backupRootFor"]
+  Backup --> Write["installChanges"]
+  Write -->|success| Verify["verifyInstalled"]
+  Write -->|failure| Rollback["rollback<br/>restore written prefix"]
+  Restore_REQ["Restore(repo, home, id)<br/>ListBackups"] --> Load["loadBackup"]
+  Load --> RWrite["rewrite from manifest"]
+  FleetStore[("Fleet store<br/>fleet manifest/lock")]
+  MCPStore[("MCP store<br/>mcpOwnershipManifest")]
+  ExecScratch[("Execution scratch<br/>.agentic-sdd/runs")]
+  Backup -.->|separate, not interchangeable| FleetStore
+  Backup -.->|separate| MCPStore
+  Backup -.->|separate| ExecScratch

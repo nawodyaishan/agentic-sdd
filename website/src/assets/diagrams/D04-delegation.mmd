@@ -1,0 +1,14 @@
+%% D04 — Optional delegation sequence (Feature 020, B3-W1-K)
+%% Purpose: bounded explicit delegation only; main reconciles evidence; human decides; no daemon/routing.
+%% Source revision: 449245a
+%% Encodes: skills-files/agentic-sdd-orchestrate (bounded briefs, manual fallback), skills-files/agentic-sdd-implement + agentic-sdd-verification-review (evidence), human combined approval (spec.md Approval, tasks.md ledger)
+sequenceDiagram
+  participant H as Human
+  participant M as Main session
+  participant C as Child session (explicit)
+  H->>M: Authorize one bounded brief
+  M->>C: Compact brief (scope + format)
+  C-->>M: Evidence + result (no auto-apply)
+  M->>M: Reconcile against sources<br/>(spec/plan/tasks)
+  M->>H: Report; await combined approval
+  Note over M,C: No daemon, no automatic routing;<br/>continuation only via tasks.md batch state

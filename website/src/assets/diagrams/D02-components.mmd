@@ -1,0 +1,20 @@
+%% D02 — Component/pairing view (Feature 020, B3-W1-K)
+%% Purpose: CLI calls engines directly; TUI pairs with a same-install companion; legacy names forward.
+%% Source revision: 449245a
+%% Encodes: cmd/agentic-sdd/main.go (runEnv dispatch), cmd/agentic-sdd/tui.go (same-install companion handshake), cmd/internal/tuirun (companion resolution), internal/buildinfo (CurrentProtocolInfo/ProductCLI/ProductTUI), internal/skillsync SyncWithOptionsResult, internal/fleet ApplyPlan, skillsync ApplyMCPPlan
+flowchart TB
+  subgraph CLI["asdx-core process (cmd/agentic-sdd)"]
+    Dispatch["runEnv dispatch<br/>main.go"]
+    Dispatch -->|direct, no facade| Sync["skillsync.SyncWithOptionsResult"]
+    Dispatch -->|direct| Fleet["fleet.ApplyPlan"]
+    Dispatch -->|direct| MCP["skillsync.ApplyMCPPlan"]
+    Dispatch -->|direct| Exec["execution (record/check/review)"]
+  end
+  subgraph TUI["asdx TUI (companion pair)"]
+    Parent["TUI parent<br/>tui.go"]
+    Companion["Trusted same-install companion asdx<br/>tuirun resolution"]
+    Parent -->|handshake: buildinfo.CurrentProtocolInfo<br/>fail-closed on mismatch| Companion
+    Companion -->|same engines as CLI| Sync
+  end
+  Legacy1["legacy agentic-sdd"] -->|forwards to| CLI
+  Legacy2["legacy agentic-sdd-tui"] -->|forwards to| TUI

@@ -1,9 +1,11 @@
 ---
 title: Execution run reference
-description: Private run, brief, check, record and review-package contracts.
+description: Field contracts for private run scratch, task briefs, check observations, caller records, and review packages, with states, limits, and boundaries.
 ---
 
 Source-derived execution facts. A run or check is observation, never approval, verification or a sandbox.
+
+For the step-by-step workflow, follow [Use execution runs for one task](../how-to/execution.md); this page lists the exact field, state, and limit contracts that workflow relies on.
 
 <!-- generated:reference/execution:start -->
 Source-derived execution-run facts for the current checkout. A run, checkpoint, check or record is an observation: it is never approval, batch state, verification or a sandbox.
@@ -69,3 +71,7 @@ Documented exit codes are `0`, `1`, `2`, `3`, `124`. `124` is the check-timeout 
 
 The service observes local state and writes only private run artifacts. It does not approve work, call a model, or act as a sandbox; the repository, batch authorization and human review remain authoritative.
 <!-- generated:reference/execution:end -->
+
+## Cleanup
+
+`asdx-core run clean --run RUN_ID` previews the deletion of one private run directory, and adding `--yes` deletes only that run's scratch. It refuses a live writer lock, never follows a symlink, and treats an already-absent run as success; there is no bulk cleanup command and no background purging.

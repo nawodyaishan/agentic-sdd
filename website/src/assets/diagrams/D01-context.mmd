@@ -1,0 +1,16 @@
+%% D01 — Context/container overview (Feature 020, B3-W1-K)
+%% Purpose: who talks to what; authority stays in repo sources, not clients/models.
+%% Source revision: 449245a
+%% Encodes: skillsfiles.go (go:embed all:skills-files), internal/skillsync (clientTargets, SyncWithOptionsResult), cmd/agentic-sdd/main.go (asdx-core entry), cmd/agentic-sdd/tui.go (asdx companion), external client dirs + model/MCP services (unverified, outside authority)
+flowchart LR
+  Human([Human operator]) --> CLI["asdx-core CLI<br/>cmd/agentic-sdd/main.go"]
+  Human --> TUI["asdx TUI<br/>cmd/agentic-sdd/tui.go"]
+  CLI --> SRC[(Skill sources<br/>skillsfiles.go embed<br/>or --repo)]
+  TUI --> SRC
+  CLI --> Managed["Managed files<br/>skillsync clientTargets:<br/>~/.agents/skills, ~/.codex/skills,<br/>~/.claude/skills, ~/.gemini/antigravity-cli/skills"]
+  TUI --> Managed
+  CLI -.->|invokes, no parity claim| Models["External models/providers"]
+  TUI -.->|invokes, no parity claim| Models
+  CLI -.->|reads only when asked| MCP["External MCP servers"]
+  TUI -.->|reads only when asked| MCP
+  SRC -->|SyncWithOptionsResult plans+writes| Managed

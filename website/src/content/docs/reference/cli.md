@@ -1,11 +1,52 @@
 ---
 title: CLI reference
-description: Command families, flags, defaults and output contracts.
+description: Command families, flags, defaults, exit codes, and output contracts for asdx-core, asdx, and the guide, fleet, MCP, and execution subcommands.
 ---
 
-Source-derived command facts for the current checkout. Agentic-SDD documentation is incomplete until every family is reviewed.
+This page combines curated orientation prose with source-derived command tables and captured help output from `asdx-core`.
+See [TUI reference](./tui.md) for the interactive `asdx` terminal interface and [Files and backups](./files-and-backups.md) for storage roots and manifest formats.
+
+## Command family overview
+
+`asdx-core` groups commands into four operational areas, each with its own `flag.FlagSet` rather than universal global flags:
+
+- **Core installer and recovery**: `preview` (the default when `asdx-core` runs bare), `apply`, `backups`, `logs`, `restore`, `version`, and `help`. These manage portable skills under client destinations (`--home`) from embedded assets or an explicit checkout (`--repo`).
+- **Interactive entrypoints**: `guide` (numbered terminal wizard) and `tui` (compatibility launcher for the sibling `asdx` binary).
+- **Subsystem commands**: `fleet` (personal `fleet.json` agent plans and sidecar backups), `mcp` (existing global OpenCode MCP configuration inspection, plans, and entry-level restore), and the execution family (`run`, `task`, `review`) for private run scratch under `.agentic-sdd/runs/`. See [Fleet reference](./fleet.md), [MCP reference](./mcp.md), and [Execution reference](./execution.md).
+- **Excluded experimental commands**: `opencode` and `opencode-harness` require the `-tags agentic_sdd_experimental` build tag and exit `2` in default core builds.
+
+## Interactive entrypoints: `guide`, `tui`, and `asdx`
+
+- **Bare `asdx-core` vs `asdx`**: running `asdx-core` with no command always runs a read-only skill `preview` and never opens the full terminal UI. Run `asdx` directly (or `asdx-core tui`) for the Bubble Tea terminal UI.
+- **`asdx-core guide` (numbered wizard)**: a stdin/stdout numbered-prompt flow over skill `preview`, `apply`, `restore`, and `logs`. It accepts only `--repo` and `--home`, refuses non-interactive runs (`exit 2`, while honoring `AGENTIC_SDD_FORCE_INTERACTIVE=1`), and on interactive terminal stdout (`StdoutTTY`) also exposes a GitHub CLI release check (choice `5`) and a read-only skill/profile explorer (choice `6`). It defaults to core skills unless you confirm the OpenCode pack prompts inside the wizard.
+- **`asdx-core tui` (companion launcher)**: verifies the same-install `asdx` binary over a bounded `--protocol-info` handshake (protocol revision `2`, matching revision, commit, and source digest) without searching `PATH` or invoking a shell. Unlike bare `asdx-core` or `apply`, `asdx` and `asdx-core tui` default `--with-opencode` to `true` (pass `--with-opencode=false` for core skills only), require real stdin and stdout TTYs, and reject `AGENTIC_SDD_FORCE_INTERACTIVE=1` with exit `2`.
+- **Legacy wrappers**: during the deprecation window, `agentic-sdd` forwards to same-directory `asdx-core` and `agentic-sdd-tui` forwards to same-directory `asdx` after a stderr-only notice (bare `--help`, `-h`, and `--version` are answered locally).
+
+## Exit-code and structured-output caveats
+
+Exit codes are family-specific rather than shared across all commands:
+
+- **`0`**: success, a read-only preview, or a produced diagnostic/status report — including `fleet doctor` when model routes are unavailable, `mcp status`/`doctor` when prerequisites are missing, or a real `mcp` no-op.
+- **`1`**: runtime or I/O error, missing or unreadable log (`logs`), missing or mismatched `asdx` sibling (`tui`), missing run (`run status`), held lock, stale plan, or unmanaged conflict (`fleet`, `mcp`), or a failing check command (`run check`).
+- **`2`**: usage, flag, or unknown-command/topic error, non-TTY refusal (`guide`, `tui`, `restore` without ID), disabled experimental command (`opencode`, `opencode-harness`), deferred `mcp doctor --network` / `--connect`, invalid configuration, or execution scope refusal (for example `task brief` on a `--direct` run).
+- **`3`**: `review package` partial package (`execution.ErrPartial`) when explicit omissions occur; the manifest output is still written.
+- **`124`**: `run check` timed out before the wrapped command exited.
+
+Structured JSON output is also subsystem-specific:
+
+- `--json` belongs to the `mcp` family (`status`, `doctor`, `preview`, `apply`, `restore list|preview|apply`). Flag/usage errors still emit plain text on `stderr`, and `mcp restore apply` still prompts `[y/N]` interactively.
+- `--format json` (default `text`) belongs to the execution family (`run`, `task`, `review`).
+- Core installer commands (`preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`) and `fleet` subcommands have no `--json` flag; `fleet plan --output PATH` writes a canonical JSON plan file, `asdx --protocol-info` emits private pairing JSON, and `AGENTIC_SDD_TRACE` appends `0600` JSONL trace events.
+
+## Related reference pages
+
+- [TUI reference](./tui.md) — `asdx` routes, keys, child screens, and update/browser effects.
+- [Files and backups](./files-and-backups.md) — destination paths, backup roots, and manifest formats.
+- [Configuration reference](./configuration.md) — per-subsystem flags, files, and environment precedence.
 
 <!-- generated:reference/cli:start -->
+Facts below were captured by running the candidate `asdx-core` binary at commit `2fc31e9f9c4d019e2b9f3b4f004978028808c74b` (version `dev`, built `2026-11-14T00:00:00Z` with `go1.27.1`). The expected inspected-revision commit `2fc31e9f9c4d019e2b9f3b4f004978028808c74b` was verified before capture.
+
 ## Entrypoints and compatibility wrappers
 
 - Canonical commands: `asdx-core` (CLI) and `asdx` (TUI companion), defined in `internal/buildinfo/buildinfo.go` and `cmd/agentic-sdd/main.go`.
@@ -19,15 +60,15 @@ Flags are command-specific (standard-library `flag.FlagSet` per handler, not uni
 
 | Command | Forms / subcommands | Accepted flags | Write behavior & exit notes | Source |
 |---|---|---|---|---|
-| `preview` (default) | `asdx-core [preview]` | `--repo PATH`, `--home PATH`, `--with-opencode`, `--opencode-free-first`, `--apply` (bare only), `--version` (bare only), `-h`, `--help` | Read-only. `--opencode-free-first` requires `--with-opencode` (`2`); `--apply` cannot combine with explicit `preview`/`apply` (`2`). Exits `0` or `1`. | `cmd/agentic-sdd/main.go` |
-| `apply` | `asdx-core apply` | `--repo PATH`, `--home PATH`, `--with-opencode`, `--opencode-free-first`, `-h`, `--help` | Writes backups + skills + log under `<home>/.agentic-sdd/logs`. Exits `0` success, `1` runtime error, `2` usage/flag error. | `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/logs.go` |
+| `preview` (default) | `asdx-core [preview]` | `--repo PATH`, `--home PATH`, `--with-opencode`, `--opencode-free-first`, `--apply` (default form only), `--version` (root flag), `-h`, `--help` | Read-only. `--version` is a root flag: it is accepted in the default, `preview`, and `apply` forms and short-circuits to version output (`0`); it is not bare-only. `--opencode-free-first` requires `--with-opencode` (`2`); `--apply` combined with an explicit `preview`/`apply` command (`2`); unknown flag/argument (`2`). Exits `0`, `1` (runtime/I/O error), or `2` (usage/flag error). | `cmd/agentic-sdd/main.go` |
+| `apply` | `asdx-core apply` | `--repo PATH`, `--home PATH`, `--with-opencode`, `--opencode-free-first`, `--version` (root flag), `-h`, `--help` | Writes backups + skills + log under `<home>/.agentic-sdd/logs`. Exits `0` success, `1` runtime error, `2` usage/flag error. | `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/logs.go` |
 | `version` | `asdx-core version` | None (extra args including `--help` exit `2`; use `asdx-core help version`) | Read-only. Prints version, commit, date, and Go version (`0`). | `cmd/agentic-sdd/main.go` |
 | `backups` | `asdx-core backups` | `--repo PATH`, `--home PATH`, `-h`, `--help` | Read-only; identical listing to `restore list`. Exits `0`, `1`, or `2`. | `cmd/agentic-sdd/main.go` |
 | `logs` | `asdx-core logs` | `--home PATH`, `-h`, `--help` | Read-only; prints latest apply/restore log. Exits `1` if missing/unreadable, `2` usage. | `cmd/agentic-sdd/logs.go` |
 | `restore` | `asdx-core restore [ID]` / `restore list\|preview\|apply [ID]` | `--repo PATH`, `--home PATH`, `--apply` (bare form only; rejected on sub-words), `-h`, `--help` | Read-only without `--apply`/`apply`. Interactive mode prompts when no `ID`; non-TTY without `ID` exits `2`. | `cmd/agentic-sdd/main.go` |
 | `guide` | `asdx-core guide` | `--repo PATH`, `--home PATH`, `-h`, `--help` | Interactive numbered wizard; refuses non-TTY with exit `2`. Writes only after confirmation. | `cmd/agentic-sdd/guide.go` |
 | `tui` | `asdx-core tui` | `--home PATH`, `--repo PATH`, `--fleet-config PATH`, `--with-opencode` (default `true`, `--with-opencode=false` to disable), `--opencode-free-first`, `-h`, `--help` | Requires real stdin+stdout TTY and rejects `AGENTIC_SDD_FORCE_INTERACTIVE=1` (`2`). Missing/mismatched `asdx` exits `1`. | `cmd/agentic-sdd/tui.go` |
-| `help` | `asdx-core help [topic]` | Topics: `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`, `tui`, `orchestrate`, `fleet`, `mcp`, `run`, `task`, `review` | Read-only (`0`); unknown topic or extra args exits `2`. `help orchestrate`, `help fleet`, `help mcp` print dedicated blocks without repeating root usage. | `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/helptext.go` |
+| `help` | `asdx-core help [topic]` | Topics: `preview`, `apply`, `backups`, `logs`, `restore`, `guide`, `version`, `tui`, `orchestrate`, `fleet`, `mcp`, `run`, `task`, `review`; experimental-build `opencode` and `opencode-harness` are accepted and print the unavailable note in default builds | Read-only (`0`); unknown topic or extra args exits `2`. `help orchestrate`, `help fleet`, `help mcp` print dedicated blocks without repeating root usage; the default-build `help opencode`/`help opencode-harness` topics describe commands that require `-tags agentic_sdd_experimental`. | `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/helptext.go` |
 
 ## `fleet` family
 
@@ -59,7 +100,9 @@ Exit codes (`cmd/agentic-sdd/mcp.go`, `cmd/agentic-sdd/mcp_write.go`): `0` succe
 
 ## Execution family (`run`, `task`, `review`)
 
-Shared execution flags (`cmd/agentic-sdd/execution_cli.go`): `--repo DIR`, `--run-root DIR`, `--format text|json`.
+Shared execution flags (`cmd/agentic-sdd/execution_cli.go`): `--repo DIR` (default: current working tree), `--run-root DIR` (default: `<repo>/.agentic-sdd/runs`), `--format text|json` (default `text`).
+
+Execution flag defaults (`internal/execution/types.go`): `run check --timeout 15m` (`0` or negative disables the wall-clock limit); `run check --max-output-bytes 67108864` per stream (`0` or negative selects the default; effective range `1024`–`1073741824`); `review package --max-file-bytes 2097152` and `--max-total-bytes 33554432` (`0` or negative selects the default).
 
 | Subcommand | Additional flags / positional contract | Distinct exit codes & contract notes | Source |
 |---|---|---|---|
@@ -67,16 +110,16 @@ Shared execution flags (`cmd/agentic-sdd/execution_cli.go`): `--repo DIR`, `--ru
 | `run status` | `--run ID` | Missing run for `status` exits `1` (unlike `init` missing batch `2`). | `cmd/agentic-sdd/run.go`, `cmd/agentic-sdd/execution_cli.go` |
 | `run record` | `--run ID` (required), `--task T01` (required for feature runs, defaults to `direct` for `--direct`), `--result FILE\|-` (required) | Ingests untrusted claim record; `0` recorded, `1` runtime, `2` usage/validation. | `cmd/agentic-sdd/run.go` |
 | `run clean` | `--run ID`, `--yes` | Without `--yes`, previews without deleting; with `--yes`, deletes only that run directory. | `cmd/agentic-sdd/run.go` |
-| `run check` | `--run ID` (required), `--task T01`, `--timeout DURATION`, `--max-output-bytes N`, `-- COMMAND [ARG...]` | `--` separator before command is required (even `--help` without `--` exits `2`). Exits `0` pass, `1` fail/error, `124` timed out, `2` usage. | `cmd/agentic-sdd/run.go` |
+| `run check` | `--run ID` (required), `--task T01`, `--timeout DURATION` (default `15m`; `0` disables), `--max-output-bytes N` (default `67108864` per stream, clamped to `1024`–`1073741824`), `-- COMMAND [ARG...]` | `--` separator before command is required (even `--help` without `--` exits `2`). Exits `0` pass, `1` fail/error, `124` timed out, `2` usage. | `cmd/agentic-sdd/run.go` |
 | `task brief` | `--run ID` (required), `--task T01` (required), `--force` | Refuses `--direct` runs (`2`) and foreign checkpoints (`2`); `--force` refreshes differing brief bytes without bypassing changed scope. | `cmd/agentic-sdd/task.go` |
-| `review package` | `--run ID` (required), `--base COMMIT` (required), `--head COMMIT`, `--max-file-bytes N`, `--max-total-bytes N` | Exits `0` complete package, `3` partial package with explicit omissions, `1` runtime/missing run, `2` usage/unsafe. | `cmd/agentic-sdd/review.go` |
+| `review package` | `--run ID` (required), `--base COMMIT` (required), `--head COMMIT` (defaults to current `HEAD`), `--max-file-bytes N` (default `2097152`), `--max-total-bytes N` (default `33554432`) | Exits `0` complete package, `3` partial package with explicit omissions, `1` runtime/missing run, `2` usage/unsafe. | `cmd/agentic-sdd/review.go` |
 
 ## Presentation and trace environment variables
 
 - `NO_COLOR`: non-empty disables ANSI color styling (`cmd/agentic-sdd/env.go`).
 - `TERM=dumb`: switches to ASCII glyphs and disables color (`cmd/agentic-sdd/env.go`).
 - `COLUMNS`: positive integer sets wrap width (defaults to `80`, `cmd/agentic-sdd/env.go`).
-- `AGENTIC_SDD_ANIMATE=1` / `AGENTIC_SDD_REDUCED_MOTION=1`: CLI animation opt-in (`cmd/agentic-sdd/env.go`) and TUI reduced-motion control (`cmd/agentic-sdd/tui.go`).
+- `AGENTIC_SDD_ANIMATE=1` / `AGENTIC_SDD_REDUCED_MOTION=1`: CLI animation opt-in (`cmd/agentic-sdd/env.go`) and TUI reduced-motion control (`experiments/tui/cmd/internal/tuirun/run.go`).
 - `AGENTIC_SDD_FORCE_INTERACTIVE=1`: enables interactive CLI prompts on scripted streams, while `asdx-core tui` refuses it with exit `2` (`cmd/agentic-sdd/env.go`, `cmd/agentic-sdd/tui.go`).
 - `AGENTIC_SDD_TRACE`: path to append JSONL trace events (`0600` regular file, `cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/trace.go`).
 
