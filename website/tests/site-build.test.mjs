@@ -70,7 +70,7 @@ description: Disposable base-path validation fixture injected by site-build test
 
 This [Foundation validation](./base-path-fixture.md#foundation-validation) anchor link and image fixture validates base-path URL handling in disposable site builds.
 
-![Base-path fixture](../../assets/fixtures/base-path.svg)
+![Base-path fixture](../../assets-v1/fixtures/base-path.svg)
 `;
 	writeFileSync(join(siteDir, 'src/content/docs/base-path-fixture.md'), fixtureText);
 	const fixtureSha256 = createHash('sha256').update(fixtureText).digest('hex');
