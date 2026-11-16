@@ -186,9 +186,9 @@ test('disposable Starlight build succeeds with project base /agentic-sdd', () =>
 		result.indexHtml,
 		/href="https:\/\/github\.com\/nawodyaishan\/agentic-sdd\/edit\/main\/website\/src\/content\/docs\/index\.md"/
 	);
-	assert.match(result.indexHtml, /href="\/agentic-sdd\/assets-v1\//);
+	assert.match(result.indexHtml, /href="\/agentic-sdd\/assets-v2\//);
 	assert.match(result.fixtureHtml, /href="[^"]*#foundation-validation"/);
-	assert.match(result.fixtureHtml, /<img[^>]+src="\/agentic-sdd\/assets-v1\/base-path\.[^"]+\.svg"/);
+	assert.match(result.fixtureHtml, /<img[^>]+src="\/agentic-sdd\/assets-v2\/base-path\.[^"]+\.svg"/);
 	assert.doesNotMatch(result.indexHtml, /foundation-validation|base-path/);
 	assert.match(result.sitemapIndex, /https:\/\/nawodyaishan\.github\.io\/agentic-sdd\/sitemap-0\.xml/);
 	assert.match(result.sitemap0, /<loc>https:\/\/nawodyaishan\.github\.io\/agentic-sdd\/<\/loc>/);
@@ -200,9 +200,9 @@ test('disposable Starlight build succeeds with root base /', () => {
 	assert.equal(result.pagefindEntryExists, true);
 	assert.equal(result.pagefindJsExists, true);
 	assert.match(result.indexHtml, /<link rel="canonical" href="https:\/\/nawodyaishan\.github\.io\/"\s*\/?>/);
-	assert.match(result.indexHtml, /href="\/assets-v1\//);
-	assert.match(result.fixtureHtml, /<img[^>]+src="\/assets-v1\/base-path\.[^"]+\.svg"/);
-	assert.doesNotMatch(result.indexHtml, /href="\/\/assets-v1\//);
+	assert.match(result.indexHtml, /href="\/assets-v2\//);
+	assert.match(result.fixtureHtml, /<img[^>]+src="\/assets-v2\/base-path\.[^"]+\.svg"/);
+	assert.doesNotMatch(result.indexHtml, /href="\/\/assets-v2\//);
 	assert.doesNotMatch(result.indexHtml, /"\/agentic-sdd\//);
 	assert.match(result.sitemapIndex, /https:\/\/nawodyaishan\.github\.io\/sitemap-0\.xml/);
 	assert.match(result.sitemap0, /<loc>https:\/\/nawodyaishan\.github\.io\/<\/loc>/);
