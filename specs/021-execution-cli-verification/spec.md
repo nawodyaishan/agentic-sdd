@@ -239,10 +239,18 @@ Historical-record findings (the 016 `b3-acceptance.md` release-vs-`not_run` inco
 
 - **Approver:** the repository owner in this conversation (no additional identity asserted).
 - **Decision evidence:** the owner said “approved start implementation using sub agents” on 2026-11-16.
-- **Authorized scope:** B1–B6 parallel disjoint-file lanes; B7 integration after every Wave 1 lane stops. No commit, push, tag, release, real-home apply, live Homebrew/cask action or production Go behavior change.
-- **Still not authorized:** live release/packaging, real-home `apply`, model/network/MCP calls outside the implementation fleet, or a new batch after B7.
+- **Approved scope:** B1–B6 parallel disjoint-file lanes; B7 integration after every Wave 1 lane stops. This approval did not by itself authorize commit, push, tag or release; those were separately authorized later.
+- **Still not authorized:** real-home `apply`, model/network/MCP calls outside the implementation fleet, a new batch after B7, or human acceptance inferred from tests/reviews.
 
-**Implementation status (2026-11-16):** B1–B7 complete; integrated gates green; awaiting human review. See [tasks.md](tasks.md) for the evidence and review verdicts. This status is not acceptance and does not authorize a commit, push, release or real-home action.
+**Implementation status (2026-11-16):** B1–B7 complete; integrated gates green; awaiting human review. See [tasks.md](tasks.md) for the evidence and review verdicts. This status is not acceptance.
+
+**Release (2026-11-16):** the owner separately authorized “commit and push, release as a new version”.
+
+- **Commits:** `f77765a` (`test(execution): verify CLI contract and align orchestration skills`), `bd1fbb9` (`chore(docs): remove superseded handovers`).
+- **Tag:** `v0.13.0`.
+- **Release workflow:** [43821612662](https://github.com/nawodyaishan/agentic-sdd/actions/runs/43821612662) — success.
+- **Release:** https://github.com/nawodyaishan/agentic-sdd/releases/tag/v0.13.0; Homebrew cask `0.13.0`; paired archive contains `asdx`, `asdx-core`, `agentic-sdd`, `agentic-sdd-tui`.
+- **Still not authorized:** real-home apply, live model/MCP/network work, or a new feature batch. Release publication is not feature acceptance.
 
 ## 12. Decisions and defaults
 

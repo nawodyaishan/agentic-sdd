@@ -245,6 +245,8 @@ The parent confirms each child's actual model before launch and reports fallback
 
 **Independent reviews:** V1 (`sdd-review-verification-1`, GLM) and V2 (`sdd-code-review-9r`, Gemini 4 Hydrogen XHigh, provisional) returned findings; both had shell permission denied and could not independently rerun tests. **V2 re-review after fixes: Ready (provisional); F1–F3 resolved with no remaining static findings.** **V1 re-review: Ready with findings; R1-021-1 and R1-021-2 fixed; R1-021-5 (matrix lock wording) resolved by the matrix edit; R1-021-3/R1-021-4 dispositioned.**
 
+**Commit, tag and release (2026-11-16):** owner authorized commit/push and a new version. Commits `f77765a` (`test(execution): verify CLI contract and align orchestration skills`) and `bd1fbb9` (`chore(docs): remove superseded handovers`); tag `v0.13.0`; Release workflow [43821612662](https://github.com/nawodyaishan/agentic-sdd/actions/runs/43821612662) succeeded; release https://github.com/nawodyaishan/agentic-sdd/releases/tag/v0.13.0; cask `0.13.0`; paired archive contains `asdx`, `asdx-core`, `agentic-sdd`, `agentic-sdd-tui`. Release publication is not feature acceptance.
+
 **Review fixes applied (2026-11-16):**
 - G14 now asserts the 017 recovery rules against `failure-and-reconciliation.md` alone (not `docs`), asserts the dispatch handoff fields, scopes `run record`/`claim` to its table row, and scopes exit tokens to the exit bullet rather than headings.
 - The record adapter test uses its own repo for the inside-repository run root and resolves `sh` via `exec.LookPath("sh")`, asserting the direct-check `TaskID`.
@@ -263,9 +265,9 @@ The parent confirms each child's actual model before launch and reports fallback
 
 ## Continuation
 
-- **Current stage:** B1–B7 implementation, integration and independent review complete; **awaiting human review**. A green suite and reviewer verdicts are not acceptance.
-- **Baseline:** `ed68941a91c7a9aec4c6642ca8f85142c0a83fc2` plus unrelated Feature 020 working-tree changes.
-- **Changed paths:** six new `cmd/agentic-sdd/execution_*_test.go` files; `opencode-pack/skills/agentic-sdd-orchestrate/{SKILL.md,references/failure-and-reconciliation.md}`, `opencode-pack/routing.md`; `specs/021-execution-cli-verification/{spec,plan,tasks,test-case-matrix,compatibility-audit}.md`; `docs/handovers/2026-11-16_021.md`. No production Go code.
-- **Checks:** see §B7 evidence — all integrated gates and `task verify` passed after the review fixes.
-- **Next permitted action:** human review/acceptance of Feature 021. No commit/push/tag/release/real-home/apply.
-- **Guardrails:** no commit/push/tag/release/real-home/apply; no production Go change; named skill files only; keep 016/017/018/019 records unchanged; never add a skip or gate exclusion to make the suite pass.
+- **Current stage:** B1–B7 complete, committed, tagged `v0.13.0`, and released; **awaiting human review/acceptance**. A green suite, reviewer verdicts and the release are not acceptance.
+- **Baseline:** `ed68941a91c7a9aec4c6642ca8f85142c0a83fc2` plus unrelated Feature 020 work; Feature 021 commits `f77765a`, `bd1fbb9`.
+- **Changed paths:** six new `cmd/agentic-sdd/execution_*_test.go` files; `opencode-pack/skills/agentic-sdd-orchestrate/{SKILL.md,references/failure-and-reconciliation.md}`, `opencode-pack/routing.md`; `specs/021-execution-cli-verification/{spec,plan,tasks,test-case-matrix,compatibility-audit}.md`; `docs/handovers/2026-11-16_021.md`; six superseded handovers removed. No production Go code.
+- **Checks:** see §B7 evidence — all integrated gates and `task verify` passed; release workflow succeeded.
+- **Next permitted action:** human review/acceptance of Feature 021. No further batch, real-home apply or unrelated live action.
+- **Guardrails:** no production Go change; named skill files only; keep 016/017/018/019 records unchanged; never add a skip or gate exclusion to make the suite pass.
