@@ -1,20 +1,20 @@
 # Feature 020 — Tasks and batch ledger
 
-**Revision:** r5, 2026-11-14 — B2–B6 implementation recorded under the owner concurrency override; approved scope remains spec r2 + plan r3 + tasks r3. No batch is accepted; all six are awaiting human review.
+**Revision:** r6, 2026-11-16 — B1–B6 accepted with named conditions (spec §9). Approved scope remains spec r2 + plan r3 + tasks r3; the 2026-11-16 README amendment remains a separate pending decision.
 **Parents:** [spec.md](spec.md) r2; [plan.md](plan.md) r3; [sitemap](sitemap.md) is the page-scope owner.
 **Approval reference:** [spec §9](spec.md#9-approval), the only combined approval record; batch state is this file.
-**Current stage:** B2 W1+W2 integrated; B3 integrated (39 pages registered); B4 migration and tooling partially integrated; B5 tooling authored with the search gate failing; B6 A–C integrated and green. Every batch is **awaiting human review**; none is accepted.
+**Current stage:** B1–B6 **accepted with named conditions** on 2026-11-16; the docs pipeline runs the full adopted check list and has deployed an authoritative site. Deferred conditions and accepted limitations are listed in spec §9.
 
 ## Batch ledger
 
 | Batch | Tasks / waves | Lanes / peak writers | Outcome / completion | State / next action |
 |---|---|---|---|---|
-| B1 — Foundations and contracts | T01 W1 → integrate → T02 W2 | 8 / **4** | Standard Starlight source/build/base, frozen helper/manifest contracts and source-backed references | `awaiting human review 2026-11-14 — integrated gates green; not accepted`; next action is human B1 review |
-| B2 — First useful experience | T03 W1 → integrate → T04 W2 | 8 / **6** | Launch pages/examples/references then concise README/entry navigation | `W1+W2 integrated 2026-11-14 — 39-page tree green at 469 tests; completion review owed` |
-| B3 — Complete current-feature knowledge | T05/T06/T07 W1 together | 11 / **11** | Subsystem/contributor/architecture/security content and reviewed diagrams | `pages integrated and registered 2026-11-14 — 39 pages; diagram PNGs blocked; awaiting review` |
-| B4 — Migration and maintenance | T08/T09 W1 together | 7 / **7** | Compatibility stubs, QA/export/impact and adversarial fixtures | `migration + tooling integrated 2026-11-14 — checker defects fixed; 6 adversarial cases blocked; awaiting review` |
-| B5 — Publication readiness and acceptance | T10/T12 W1 → final evaluation | 6 / **6** | Safe CI/rollout plus integrated search/a11y/usability/performance evidence | `authored + integrated 2026-11-14 — search 20/20; AD-1/AD-2 implemented (70 CI tests); live ops not_run` |
-| B6 — Optional minimal TUI access | T11 W1 | 4 / **4** | Fixed docs links/opener/UI/tests/docs; existing navigation/write controls intact | `A–D integrated 2026-11-14 — 10/10 docs tests; blob URLs unreachable until commit; awaiting review` |
+| B1 — Foundations and contracts | T01 W1 → integrate → T02 W2 | 8 / **4** | Standard Starlight source/build/base, frozen helper/manifest contracts and source-backed references | `accepted with conditions 2026-11-16 — see spec §9` |
+| B2 — First useful experience | T03 W1 → integrate → T04 W2 | 8 / **6** | Launch pages/examples/references then concise README/entry navigation | `accepted with conditions 2026-11-16 — see spec §9` |
+| B3 — Complete current-feature knowledge | T05/T06/T07 W1 together | 11 / **11** | Subsystem/contributor/architecture/security content and reviewed diagrams | `accepted with conditions 2026-11-16 — diagram PNGs rendered; see spec §9` |
+| B4 — Migration and maintenance | T08/T09 W1 together | 7 / **7** | Compatibility stubs, QA/export/impact and adversarial fixtures | `accepted with conditions 2026-11-16 — six adversarial cases deferred; see spec §9` |
+| B5 — Publication readiness and acceptance | T10/T12 W1 → final evaluation | 6 / **6** | Safe CI/rollout plus integrated search/a11y/usability/performance evidence | `accepted with conditions 2026-11-16 — live site verified; parity via pinned Go builder; see spec §9` |
+| B6 — Optional minimal TUI access | T11 W1 | 4 / **4** | Fixed docs links/opener/UI/tests/docs; existing navigation/write controls intact | `accepted with conditions 2026-11-16 — links resolve on main; see spec §9` |
 
 At each batch end: run affected checks, perform one completion review, record code state/checks/results/open findings, set `awaiting human review`, write the session handover and stop. No automatic batch progression, commit, deployment or additional model spending. Optional B6 is not silently marked complete/skipped; removal from accepted scope requires an explicit owner decision.
 
