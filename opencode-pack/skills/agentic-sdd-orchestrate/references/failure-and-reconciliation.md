@@ -34,6 +34,12 @@ Within the authorized batch, the main may diagnose and make a focused correction
 - A `run record` entry is a **claim**. A `passed` claim yields `awaiting-verification`; only a fresh check in the current code state, or the parent's own inspection, supports a verified observation.
 - Never resume a writer, command, reviewer or the next batch because a checkpoint says the work was nearly done. Reconcile, re-observe, then decide with the human.
 
+Recovery pointers — exact flags, reason ordering and artifact layout are in `docs/execution-runs.md` and the CLI help, not here:
+
+- **Foreign checkpoint:** status and checkpoint-consuming mutations exit `2`, emit no status JSON, change nothing, and preserve the foreign file for investigation.
+- **Brief drift:** `missing_artifact`, `brief_digest_mismatch`, `unregistered_brief` and `brief_inspection_failed` leave the run `stale` with `reconcile_source_change`. A reissue adopts only byte-identical brief content; different bytes need `--force`, and `--force` never bypasses a changed source scope.
+- **Record, clean and brief refusals** are state or authorization questions, not model problems: an unowned, symlinked, moved or live-locked run is refused with exit `2` and nothing is deleted. Never hand-edit run files to manufacture a pass.
+
 ## Model failure and manual fallback
 
 Fallback is **manual by default**. A written model ladder in `opencode-pack/routing.md` documents permitted substitutes; it is not an automatic failover engine, and no child may switch provider or spend more on its own.

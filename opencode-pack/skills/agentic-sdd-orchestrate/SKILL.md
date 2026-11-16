@@ -40,6 +40,8 @@ The `asdx-core` CLI can prepare and record execution context locally. It calls n
 | `run check` | A check must be preserved truthfully — full logs, exit code, timeout, interruption. | Private full logs plus a compact excerpt; the wrapper's exit code is not the command's exit code. |
 | `review package` | A review needs the actual committed, staged, unstaged and untracked change set with provenance. | A manifest and patch under the run; `partial` when content was omitted, with each reason named. |
 | `run status` | Context was compacted, a session restarted, or you need the observed state before continuing. | Nothing new; it reports state, freshness and the next permitted investigation. |
+| `run record` | A child or caller supplies a result you must keep as a **claim**, not verified truth. | `records/<record-id>.json` plus digest; a `passed` claim yields `awaiting-verification`, never acceptance. |
+| `run clean` | The run scratch is finished with and must be removed. | Nothing after `--yes`; a preview otherwise. Refuses a live lock or unowned run (exit `2`); an absent run is success. |
 
 Use your own read, diff and test tools when a single command already answers the question, when no run exists and no evidence must persist, or when the work is one read or edit.
 
@@ -47,6 +49,7 @@ Use your own read, diff and test tools when a single command already answers the
 - A run, checkpoint or package is observation. `tasks.md` and `spec.md` §Approval remain the only authority, and `run init` is not permission to implement.
 - `run check` executes only a command the human or authorized orchestrator supplied, with its real permissions and side effects. It is not a sandbox and does not itself authorize running tests.
 - After compaction or interruption, read `run status` first. A `stale` or `blocked` observation stops the work until it is reconciled; never resume a writer, command or reviewer because a checkpoint looks nearly done.
+- `run check` requires `--` and a non-empty command vector: no implicit shell, glob or variable expansion. Exit `0` passed, `1` failed, interrupted or over a limit, `124` timed out, `2` usage, lock or conflicting identity, `3` a partial `review package`. `run status` exits `0` even when the reported state is `stale` or `blocked`. Exact flags and reasons are in `docs/execution-runs.md`.
 
 ## 5. During delegated work
 

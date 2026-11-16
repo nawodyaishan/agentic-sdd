@@ -16,7 +16,7 @@
 
 ## 2. Closed gap list
 
-All new tests live in `cmd/agentic-sdd/execution_cli_contract_test.go` (package `main`). Each name is an exact top-level `func Test…`.
+New tests live in `cmd/agentic-sdd/execution_cli_contract_*_test.go`, `execution_skill_alignment_test.go` and `execution_contract_traceability_test.go` (package `main`). Each name is an exact top-level `func Test…`.
 
 | ID | Test | Fixture / technique | Exact assertions |
 |---|---|---|---|
@@ -24,7 +24,7 @@ All new tests live in `cmd/agentic-sdd/execution_cli_contract_test.go` (package 
 | G2 | `TestExecutionContractCheckFailure` | `sh -c 'exit 7'` | exit 1; `result=failed`; command exit 7 recorded; wrapper exit is not 7; logs present |
 | G3 | `TestExecutionContractCheckOutputLimit` | `--max-output-bytes 1024` + POSIX `sh` builtin loop | exit 1; `result=output_limit`; `output_limit=true`; `stdout_truncated=true`; partial state |
 | G4 | `TestExecutionContractCheckInterrupted` | Unix only: `sh -c 'kill -TERM $$'` | exit 1; `result=interrupted`; partial state; lock released; Windows/absent `sh` = `not_run` |
-| G5 | `TestExecutionContractWriterLock` | `sh -c 'sleep 2'` holder; poll `.lock` + checkpoint `running`; second `run check`/`task brief` while holder sleeps; join | second writer exit 2; no new artifact/checkpoint bytes; lock diagnostic |
+| G5 | `TestExecutionContractWriterLock` | `sh -c 'sleep 3'` holder; poll `.lock` + checkpoint `running` with a 2s deadline; second `run check`/`task brief` while holder sleeps; join | second writer exit 2; no new artifact/checkpoint bytes; lock diagnostic |
 | G6 | `TestExecutionContractCleanRefusals` | unowned/symlinked/moved run dir; live lock from a deterministic concurrent check; absent run | unsafe/live-lock exit 2, nothing deleted; absent run exit 0 `already absent`; symlink setup skip = `not_run` |
 | G7 | `TestExecutionContractReviewPartialReasons` | `--head` differs; conflicted index | exit 3; `complete=false`; `head_not_current` / `index_conflict`; no complete claim |
 | G8 | `TestExecutionContractRecordValidation` | unknown field, >1 MiB, `--result -` via direct `run(...)` stdin | invalid/oversize exit 2, empty stdout, `error:` stderr, no record artifact; stdin success writes raw claim + digest |
@@ -33,7 +33,7 @@ All new tests live in `cmd/agentic-sdd/execution_cli_contract_test.go` (package 
 | G11 | `TestExecutionContractAdapterWiring` | `--direct` + feature/batch; explicit `--run-root`; feature vs direct `--task`; invalid `--base`; review cap flags | exit 2 for conflicts/invalid base; `workspace_git_visible` surfaced; feature missing `--task` exit 2; direct defaults `direct` |
 | G12 | `TestExecutionContractServiceEdges` | missing program; worktree mutated during check; spec/tasks edit vs checkbox-only; record blocker | `not_started` exit 1; worktree change flag + `observed-partial`; `stale` vs `progress_updated`; blocker → `blocked` |
 | G13 | `TestExecutionContractTraceabilityMatrix` | `go/parser` over `./*_test.go`, `../../internal/execution/*_test.go`, `../../internal/skillsync/*_test.go`; read `../../specs/021-execution-cli-verification/test-case-matrix.md` | every named top-level test exists; 016 FR-01–FR-12, 016 AC-01–AC-13, 017 AC-01–AC-05 and 019 D-03/D-04/D-10 exactly once; status vocabulary valid; no writes |
-| G14 | `TestExecutionContractSkillAlignment` | read `../../opencode-pack/skills/agentic-sdd-orchestrate/**`, `../../opencode-pack/routing.md`, `../../docs/execution-runs.md` | seven canonical command families; `run record` claim; exit tokens `124/3/2` once; `run status` exit 0 for `stale`/`blocked`; four drift reasons subset; 017 foreign/`--force` recovery; required `not a sandbox` denial; no active legacy execution examples or affirmative sandbox/approval/resume claims; denial wording allowed |
+| G14 | `TestExecutionContractSkillAlignment` | read `../../opencode-pack/skills/agentic-sdd-orchestrate/**`, `../../opencode-pack/routing.md`, `../../docs/execution-runs.md` | seven canonical command families; `run record` claim; distinct exit tokens `124/3/2` present (no global count); `run status` exit 0 for `stale`/`blocked`; four drift reasons subset; 017 foreign/`--force` recovery; required `not a sandbox` denial; no active legacy execution examples or affirmative sandbox/approval/resume claims; denial wording allowed |
 
 ## 3. Existing cases referenced (non-gaps)
 
@@ -120,8 +120,8 @@ No row may use `pass`, `accepted` or `certified` as an origin or status.
 
 ## 8. Technique and compatibility constraints
 
-- One new file `cmd/agentic-sdd/execution_cli_contract_test.go`; G13/G14 in the same package.
-- G14 reads the orchestration skill and references plus `docs/execution-runs.md`; it asserts canonical commands and boundary phrases and rejects active legacy execution examples. It asserts the required denial `not a sandbox` but only the absence of **affirmative** forms (`is a sandbox`, `acts as a sandbox`) and affirmative approval/resume phrases; denial wording (`never resume`, `not approval`) is allowed. It asserts exit tokens `2`/`3`/`124` once each and the four drift reasons as a subset; it does not assert full sentences, section numbering, line numbers, flag defaults, link depth, the eight-state list or the full freshness vocabulary.
+- New files `cmd/agentic-sdd/execution_cli_contract_*_test.go`, `execution_skill_alignment_test.go`, `execution_contract_traceability_test.go`; all in package `main`.
+- G14 reads the orchestration skill and references plus `docs/execution-runs.md`; it asserts canonical commands and boundary phrases and rejects active legacy execution examples. It asserts the required denial `not a sandbox` but only the absence of **affirmative** forms (`is a sandbox`, `acts as a sandbox`) and affirmative approval/resume phrases; denial wording (`never resume`, `not approval`) is allowed. It asserts distinct exit tokens `2`/`3`/`124` by presence (not a global occurrence count) and the four drift reasons as a subset; it does not assert full sentences, section numbering, line numbers, flag defaults, link depth, the eight-state list or the full freshness vocabulary.
 - G14 treats `dispatch-contract.md` handoff fields as `covered-existing`; new assertions focus on the missing `run record`/`run clean`, exit `2/3/124`, `run status` exit 0 for stale/blocked, and 017 foreign/drift recovery.
 - `routing.md` gets a prose-only cross-reference; G14 must not require a table row or a backticked model name there (`internal/appops/routing_test.go` parses the table).
 - Reuse `executionTestRepo`, `runExecutionCLI`, `executionGitOutput`, `decodeRunIdentity`, `initExecutionIntegrityRun`; no second repo builder.
@@ -129,9 +129,9 @@ No row may use `pass`, `accepted` or `certified` as an origin or status.
 - No PTY, no golden JSON, no built binary, no real `os.Exit`.
 - Shell lookup: every shell-invoking case (`G1`–`G6`, `G12` where applicable) resolves `sh` via `exec.LookPath("sh")` and skips as `not_run` if absent; do not hard-code `/bin/sh`.
 - Timeout: 250–300ms with `sleep 5`; output cap: POSIX `sh` builtin loop; signal: Unix + `LookPath("sh")`.
-- Lock: holder runs `sh -c 'sleep 2'` (or a FIFO gate); poll `.lock` + checkpoint `running`; issue the competing call while the holder sleeps; then join. `RunCheck` writes the final state before releasing the lock, so polling `running` alone is not enough. No `t.Fatal` in workers; `t.Setenv` only on the test goroutine.
+- Lock: holder runs `sh -c 'sleep 3'` (or a FIFO gate); poll `.lock` + checkpoint `running` with a 2s observation deadline; issue the competing call while the holder sleeps; then join. `RunCheck` writes the final state before releasing the lock, so polling `running` alone is not enough. No `t.Fatal` in workers; `t.Setenv` only on the test goroutine.
 - Stdin: direct `run(...)` with `strings.NewReader`.
-- Added runtime under ~4s; no sleep over 2s; `harness/checks.json` test budget 180s.
+- Added runtime about 6s; the lock holder sleeps 3s with a 2s observation deadline; `harness/checks.json` test budget 180s.
 - Only test files, feature docs and the named orchestration skill files change; docs/reference parity and the generated reference stay untouched.
 
 ## 9. Explicit exclusions / not_run accounting

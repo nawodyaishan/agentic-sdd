@@ -85,6 +85,8 @@ asdx-core backups                                     # list backups (skills and
 asdx-core restore [ID] [--apply]                      # restore a backup without extra flags
 ```
 
+This section covers the installer CLI only; the execution commands `asdx-core run`, `asdx-core task` and `asdx-core review` are documented in `docs/execution-runs.md`.
+
 `preview` is the default and writes nothing. `--opencode-free-first` without `--with-opencode` exits `2`. `apply` backs up every replaced profile first, keeps unrelated files untouched, and is a no-op when the files already match. Restore accepts backups written with or without `--with-opencode`.
 
 Running `apply` against the real `~/.config/opencode` changes the live installation and needs its own explicit authorization.

@@ -2,7 +2,7 @@
 
 **Revision:** APPROVED r1 (spec), 2026-11-16 — the owner approved `spec.md`; `plan.md` and `tasks.md` are pending combined approval. No implementation authority.
 **Parents:** [Feature 016](../016-agent-execution-context-evidence-recovery/spec.md) (execution service and CLI), [Feature 017](../017-agent-context-upgrade/spec.md) (checkpoint/brief integrity), [Feature 019](../019-cli-tui-entrypoint/spec.md) D-03/D-04/D-10 (canonical `asdx-core` CLI).
-**Companion:** [test-case-matrix.md](test-case-matrix.md) — closed gap list, exact test names and traceability matrix. [compatibility-audit.md](compatibility-audit.md) records the 016–019 audit findings.
+**Companion:** [test-case-matrix.md](test-case-matrix.md) — closed gap list, exact test names and traceability matrix. [compatibility-audit.md](compatibility-audit.md) records the 016–019 audit findings. [plan.md](plan.md) and [tasks.md](tasks.md) define the parallel fleet schedule.
 **Status:** draft only. Combined spec/plan/tasks approval and explicit batch authorization are still required.
 **Provenance:** drafted after read-only reviews: an architecture/testability review (DeepSeek), a test-technique/codebase-compatibility review (9Router Gemini Hydrogen), four Muse Spark 1.3 compatibility audits (016–019), and a DeepSeek skill-gap-closure study. A Gemini Argon Medium spec review was applied as **provisional** input (non-Opus); per the model-routing policy it does not replace an Opus verdict or human approval. Verdicts are recorded in [the session handover](../../docs/handovers/2026-11-16_021.md) and [compatibility-audit.md](compatibility-audit.md); none is approval.
 
@@ -99,7 +99,7 @@ Existing coverage is referenced, not repeated: direct-scope refusal, foreign che
 
 ## 5. Test architecture
 
-- **Location:** a small new suite under `cmd/agentic-sdd/execution_cli_contract_*_test.go` (package `main`). The plan may split the suite across a few disjoint files in the same package to enable parallel lanes; it remains one suite, one package, with no new gate or dependency. Typed-service cases are added only if a gap cannot be reached through the CLI; otherwise existing `internal/execution` tests are referenced.
+- **Location:** a small new suite under `cmd/agentic-sdd/execution_*_test.go` (four `execution_cli_contract_*_test.go` files plus `execution_skill_alignment_test.go` and `execution_contract_traceability_test.go`; package `main`). The plan may split the suite across disjoint files in the same package to enable parallel lanes; it remains one suite, one package, with no new gate or dependency. Typed-service cases are added only if a gap cannot be reached through the CLI; otherwise existing `internal/execution` tests are referenced.
 - **Reuse:** `executionTestRepo`, `runExecutionCLI`, `executionGitOutput`, `decodeRunIdentity`, `initExecutionIntegrityRun`. No second Git repo builder.
 - **No new package/dependency/Taskfile entry:** `task test` already selects `cmd/agentic-sdd` and `internal/execution`; the 11-package fence, `harness/checks.json`, `tests/supported-core-go.sh` and its Python parity tests stay unchanged.
 - **Hermeticity:** disposable Git repo per case; `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_SYSTEM=/dev/null`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_OPTIONAL_LOCKS=0`, fixed identities, `LC_ALL=C`; temp run root; no real home, network, model or MCP.
@@ -107,13 +107,13 @@ Existing coverage is referenced, not repeated: direct-scope refusal, foreign che
 - **Output-cap case:** use a POSIX `sh` builtin loop, and assert `output_limit == true` and `stdout_truncated == true`. `CheckRecord` has no single `truncated` field.
 - **Signal case:** gate on `runtime.GOOS != "windows"` (or a `//go:build unix` file) **and** `exec.LookPath("sh")`; use `kill -TERM $$`. A skip is `not_run`, never a pass.
 - **Shell lookup:** every shell-invoking case (`G1`–`G6`, `G12` where applicable) resolves `sh` with `exec.LookPath("sh")` and skips as `not_run` if absent; do not hard-code `/bin/sh`.
-- **Lock cases:** set Git isolation once on the test goroutine. Start a check that blocks deterministically (`sh -c 'sleep 2'`, or a FIFO gate) in a goroutine returning results over a buffered channel. Poll until `.lock` exists **and** `checkpoint.json` reports state `running`, issue the competing `run check`, `task brief` or `run clean --yes` while the holder is still sleeping, then join the holder. Do not rely on polling `running` alone: `RunCheck` writes the final state before releasing the lock, so the holder must remain alive until the competing call returns. No `t.Fatal` in a worker goroutine; always join before returning. For `run clean`'s live-lock refusal, trigger the lock with a concurrent check rather than forging `.lock`.
+- **Lock cases:** set Git isolation once on the test goroutine. Start a check that blocks deterministically (`sh -c 'sleep 3'`, or a FIFO gate) in a goroutine returning results over a buffered channel. Poll until `.lock` exists **and** `checkpoint.json` reports state `running` with a 2s observation deadline, issue the competing `run check`, `task brief` or `run clean --yes` while the holder is still sleeping, then join the holder. Do not rely on polling `running` alone: `RunCheck` writes the final state before releasing the lock, so the holder must remain alive until the competing call returns. No `t.Fatal` in a worker goroutine; always join before returning. For `run clean`'s live-lock refusal, trigger the lock with a concurrent check rather than forging `.lock`.
 - **Stdin case:** call `run(args, &stdout, &stderr, strings.NewReader(payload), false)` directly with Git isolation set; `runExecutionCLI`/`runNonInteractive` hard-code empty stdin.
 - **Flag edges:** `run check` without `--`, an empty vector after `--`, and a negative `--timeout` all return exit 2 with a single `error:` line on stderr and empty stdout. They do not print the long usage block. The negative-timeout case must first resolve a valid run.
 - **Process boundary:** `runNonInteractive` returns the exact code `main` exits with, so exit assertions are in-process. Real `os.Exit`, `EPIPE`, and built-binary behavior are `not_run`.
 - **JSON:** structural assertions only. No golden files: IDs, timestamps and temp paths are not deterministic. Assert `schemaVersion == 1`, exact `kind`, ID grammar, required non-empty fields, ordered reason sets, and no JSON object on stderr-path usage errors.
-- **Skill alignment (G14):** read the orchestration skill and its references plus `docs/execution-runs.md` as ground truth. Assert the seven canonical command families, the required denial wording `not a sandbox`, `run record` as a claim, and `stale` guidance; assert the absence of **affirmative** sandbox claims (`is a sandbox`, `acts as a sandbox`), active legacy execution command examples, and **affirmative** approval/resume phrases attached to a run (`run init is permission`, `resume the batch`, `run status approves`). Denial wording (`not a sandbox`, `never resume`, `not approval`) is required or allowed and must not trip the absence check. The documented `"agentic-sdd" wraps "asdx-core"` note is allowed. Assert exit tokens `2`, `3`, `124` once each, not per cause; assert the four brief-drift reasons as a subset, not the full freshness list or state precedence. Do not assert full sentences, section titles, line numbers, flag defaults, link depth or the eight-state list. The check is structural alignment only.
-- **Budget:** under ~4s added; no sleep over 2s in the lock case; `harness/checks.json` gives `test` 180s for all 11 packages.
+- **Skill alignment (G14):** read the orchestration skill and its references plus `docs/execution-runs.md` as ground truth. Assert the seven canonical command families, the required denial wording `not a sandbox`, `run record` as a claim, and `stale` guidance; assert the absence of **affirmative** sandbox claims (`is a sandbox`, `acts as a sandbox`), active legacy execution command examples, and **affirmative** approval/resume phrases attached to a run (`run init is permission`, `resume the batch`, `run status approves`). Denial wording (`not a sandbox`, `never resume`, `not approval`) is required or allowed and must not trip the absence check. The documented `"agentic-sdd" wraps "asdx-core"` note is allowed. Assert distinct exit tokens `2`, `3`, `124` (presence, not a global occurrence count; a legitimate repeated mention such as the `run clean` row plus the exit bullet is allowed), not per cause; assert the four brief-drift reasons as a subset, not the full freshness list or state precedence. Do not assert full sentences, section titles, line numbers, flag defaults, link depth or the eight-state list. The check is structural alignment only.
+- **Budget:** about 6s added; the lock holder sleeps 3s with a 2s observation deadline; `harness/checks.json` gives `test` 180s for all 11 packages.
 
 ## 6. Traceability matrix
 
@@ -231,7 +231,18 @@ Historical-record findings (the 016 `b3-acceptance.md` release-vs-`not_run` inco
 
 **Spec approval:** Recorded 2026-11-16. The owner approved `spec.md` r1 and authorized drafting of `plan.md` and `tasks.md`. This is not combined approval and does not authorize implementation.
 
-**Combined spec/plan/tasks approval:** Pending review of `plan.md` and `tasks.md`. No implementation batch, commit, release or real-home operation is authorized until that approval and an explicit batch authorization are recorded here.
+- **Approver:** the repository owner in this conversation (no additional identity asserted).
+- **Decision evidence:** the owner said “spec approved, now draft plan and tasks” on 2026-11-16.
+- **Authorized by this record:** drafting `plan.md` and `tasks.md` only. No implementation, commit, release or real-home action.
+
+**Combined spec/plan/tasks approval:** **Recorded 2026-11-16.** The owner approved `spec.md` r1, `plan.md` r1 and `tasks.md` r1 and authorized Wave 1 (B1–B6) implementation/testing with the fleet in `tasks.md`.
+
+- **Approver:** the repository owner in this conversation (no additional identity asserted).
+- **Decision evidence:** the owner said “approved start implementation using sub agents” on 2026-11-16.
+- **Authorized scope:** B1–B6 parallel disjoint-file lanes; B7 integration after every Wave 1 lane stops. No commit, push, tag, release, real-home apply, live Homebrew/cask action or production Go behavior change.
+- **Still not authorized:** live release/packaging, real-home `apply`, model/network/MCP calls outside the implementation fleet, or a new batch after B7.
+
+**Implementation status (2026-11-16):** B1–B7 complete; integrated gates green; awaiting human review. See [tasks.md](tasks.md) for the evidence and review verdicts. This status is not acceptance and does not authorize a commit, push, release or real-home action.
 
 ## 12. Decisions and defaults
 
