@@ -187,6 +187,8 @@ asdx-core fleet status \
 - `fleet doctor` without `--opencode-bin` reports each pinned route as `not checked (offline)` (`internal/fleet/doctor.go`) and exits `0`. Even with a local `--opencode-bin`, `fleet doctor` only reads local evidence (`configured`, `catalog-visible`, `authenticated`, `unknown`, `unavailable`, `not checked (offline)`) and never confirms live quota, billing, or runtime availability.
 - `fleet status` on `fleet-routing.invalid.json` exits `2` (`ErrInvalidConfig`) without leaking the config body.
 
+These fixtures are deliberately small. [`nawodyaishan/agentic-sdd-fleet`](https://github.com/nawodyaishan/agentic-sdd-fleet) (observed 2026-11-16, not part of Agentic-SDD) shows the same `schemaVersion: 1` document scaled to a personal multi-lane fleet: 27 instances across 20 unique `agent:` / `preset:` sources — including the `sdd-spec-9r` / `sdd-plan-9r` adapters and `preset:sdd-implement-*` overrides used above — beside an `agents/` snapshot and a `manifest.json` that pins the tool and pack commit it was rendered from. Inspect it exactly as you inspected the fixtures: read-only `fleet status` / `fleet plan` with an explicit `--config` and an isolated `--home`, never a bare real-home `--adopt`. It is configuration only, so its model strings carry no credentials, quota or provider guarantee; the full walkthrough is in [How to manage a fleet](../how-to/fleet.md).
+
 ## Next steps
 
 - Review full profile permissions and model-pin rules in [the agent profile catalog](../reference/profiles.md).

@@ -121,6 +121,10 @@ Every fleet decision is a digest comparison. None of them is a signature or an a
 
 Diagnostics name fields and instance IDs only; the parser never echoes the document body (`internal/fleet/parse.go`).
 
+## Real-world specimen
+
+`website/tests/examples/fleet/` is the inert, offline fixture set that checks run against; [`nawodyaishan/agentic-sdd-fleet`](https://github.com/nawodyaishan/agentic-sdd-fleet) is its real-world counterpart, observed 2026-11-16. It is a public, MIT-licensed personal repository — **not part of Agentic-SDD** and not a bundled CI fixture — carrying a `schemaVersion: 1` `fleet.json` of 27 instances across 20 unique `agent:` / `preset:` sources, an `agents/` snapshot, and a `manifest.json` pinning tool `asdx-core v0.10.0@f7a3314` and pack commit `f559872`. That pin is dated provenance, not a claim about the current checkout, and the example makes no provider, quota or runtime claim; it is configuration only, with no credentials. Read any external `fleet.json` with read-only `fleet status` / `fleet plan` against an isolated `--home` — the walkthrough is in [Set up an agent fleet](../how-to/fleet.md).
+
 ## Source resolution
 
 `Resolve` walks three allow-listed roots of the canonical pack: `agents/`, `adapters/` and `presets/free-first/`. Adapters are reviewed fleet-only render sources that share the `agent:` namespace with canonical agents, so a name may exist in exactly one of `agents/` and `adapters/`; a duplicate name fails resolution. Only `.md` files whose base name matches the source grammar are candidates, and a non-regular entry named `*.md` is refused rather than followed (`internal/fleet/resolve.go`).

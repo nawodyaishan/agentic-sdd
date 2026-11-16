@@ -149,3 +149,27 @@ Because the TUI cannot save the source, the practical loop in the shipped build 
 ## 10. Keep each store separate
 
 Fleet's `fleet.json` source, its format-4 sidecar, the skill backup store and the MCP ownership store are distinct schemas in distinct roots. A skill restore never reverses a fleet transaction, and a fleet restore never restores skills. Locations and formats are in [Files and backups reference](../reference/files-and-backups.md); the fleet backup root is `<home>/.agentic-sdd/backups`, the same root skills use when assets are embedded, which is why the sidecar format — not the directory name — decides who owns a backup.
+
+## 11. Study a real fleet repository
+
+The one-instance document in section 2 is enough to learn the grammar, but it does not show what a personal fleet looks like after it grows. [`nawodyaishan/agentic-sdd-fleet`](https://github.com/nawodyaishan/agentic-sdd-fleet) is a public, MIT-licensed repository observed on 2026-11-16 that carries a complete personal setup: a `schemaVersion: 1` `fleet.json` with **27 instances across 20 unique `agent:` / `preset:` sources**, an `agents/` snapshot of the 27 installed profile files, a `manifest.json`, and a `sync.sh` snapshot script. It is **not part of Agentic-SDD** — a separately maintained configuration backup holding configuration only, with no credentials and no `opencode.json` — and nothing in this product fetches it.
+
+Read an external source the way you would read any other: explicitly, and read-only.
+
+```sh
+asdx-core fleet status --config /path/to/agentic-sdd-fleet/fleet.json --home /path/to/isolated-home
+asdx-core fleet plan --config /path/to/agentic-sdd-fleet/fleet.json --home /path/to/isolated-home
+```
+
+`status` and `plan` (without `--output`) write nothing, and `--home` keeps any later write inside a disposable directory. Do not point `--adopt` or `fleet apply` at your real home on the strength of an example you have not reviewed: the conflict rules in section 7 apply to an external repository exactly as they apply to your own.
+
+What the repository demonstrates, in order:
+
+- **Scaling from one instance to many lanes.** The minimal document grows by repeating one entry per lane — canonical `agent:` profiles, the fleet-only `sdd-spec-9r` and `sdd-plan-9r` adapters, and `preset:sdd-implement-*` Free-first overrides, each with its own `model` and `enabled` choice — until it spans 27 instances over 20 unique sources. Size does not change the rules: a 27-instance file is validated by exactly the parser in section 2.
+- **`manifest.json` pins what was actually installed.** It records the tool (`asdx-core v0.10.0@f7a3314`) and pack commit (`f559872`) that produced the snapshot, so a later reader can tell which upstream sources the rendered bytes came from instead of assuming they match a newer checkout.
+- **Local variants diverge from canonical sources on purpose.** Seven of the 27 snapshot files — for example `sdd-implement-9r-*`, `sdd-implement-free-*` and `vision` — have no upstream pack source, so `fleet.json` alone cannot regenerate them, and the repository records a deliberate divergence on `sdd-implement-9r-1` between `fleet.json` and `agents/`. A snapshot layer and a fleet source are different artifacts: fleet installs from canonical sources, it does not import arbitrary profile files.
+- **`unmanaged` appears before `--adopt`.** Previewing against a home that already holds those snapshot files reports `conflict` with `unmanaged file already exists; use --adopt after review` for each one. Read the diff first, then pass `--adopt` to `fleet plan` as a deliberate decision; there is no bulk-adopt shortcut.
+- **`sync.sh` is external to `fleet apply`.** The snapshot script is the repository's own bookkeeping: it captures installed profiles back into `agents/`. `fleet apply` never runs it, never reads `agents/` and never writes to the external repository — the two are separate, manual decisions.
+- **Credentials stay out.** Model strings in `fleet.json` are configuration, not entitlement: no API keys, no `opencode.json`, no quota. Keep secrets out of any fleet repository you publish.
+
+The figures above are a dated baseline, not a permanent contract — re-check the repository rather than this page if you need its current shape. The schema is owned by [Fleet reference](../reference/fleet.md); this page owns the workflow.

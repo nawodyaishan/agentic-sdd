@@ -57,6 +57,7 @@ Notes on boundaries:
 - Bare `asdx-core` runs core-only preview; bare `asdx` (TUI) defaults `--with-opencode=true` (pass `asdx --with-opencode=false` for core-only).
 - The two fleet adapters (`sdd-spec-9r`, `sdd-plan-9r` in `opencode-pack/adapters/`) are resolved only by `internal/fleet/resolve.go`; `--with-opencode` does not install them.
 - Shipped TUI Fleet Manager controls remain `preview`-only unless a reviewed binary sets the build-time `FleetCapabilityMarker` to `live` (`../reference/fleet.md`). Use [How to manage a fleet](../how-to/fleet.md) for the CLI `fleet plan` and `fleet apply` workflow.
+- **A real multi-instance example lives outside this repository.** [`nawodyaishan/agentic-sdd-fleet`](https://github.com/nawodyaishan/agentic-sdd-fleet) (observed 2026-11-16) is an external personal repository — not part of Agentic-SDD, configuration only, no credentials — where these same `model` and `enabled` overrides run at 27-instance scale beside an `agents/` snapshot and a `manifest.json` pack pin. It is the counterpoint to the local `--repo` source edits above: `fleet.json` selects and re-models canonical sources, while a `--repo` edit changes the sources themselves. Read it with read-only `fleet status` / `fleet plan` against an isolated `--home`.
 
 ## Fleet model-only render limits vs policy rewrites
 

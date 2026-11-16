@@ -332,10 +332,10 @@
         },
         {
           "path": "website/src/content/docs/tutorials/specialists.md",
-          "sha256": "d94547d42239688f13205ec6627ae204d7e68988fc29611a885584e55b6c3e2d"
+          "sha256": "fe1935f3a51a7ed3d3c5bba4bd6c19ebac363160aef46d552bba123933c2b167"
         }
       ],
-      "reviewDigest": "1f17c5a03c6691032ebaf981d7d5640912ec470e64465566068244829260b5d4",
+      "reviewDigest": "5f5e27b55e81746d75165c1e4204465c279b00ae188458f0dc0aa43d5495fb81",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -589,10 +589,10 @@
         },
         {
           "path": "website/src/content/docs/how-to/fleet.md",
-          "sha256": "afad54ae1bf17a64c460911867707cb94686e1dd83f8a6faeb623f73bfb2bd84"
+          "sha256": "04f8d84c979080b79b0c7c06fe6269976d74ec8badb387096b17ffc052ec7782"
         }
       ],
-      "reviewDigest": "bd3053f565d1763d3ee3fe36e82583cc9f1ed90be49578f21696065e34b03dda",
+      "reviewDigest": "d0cde8ee978daf7a65e92c57f8fac5e0c732c405a5b0f2088491cabaa52c6a9b",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -699,10 +699,10 @@
         },
         {
           "path": "website/src/content/docs/how-to/customization.md",
-          "sha256": "e2141af275f05c9756f7c9040875df7862edbd179bea036a0e944c9c6a9b24d0"
+          "sha256": "dd20416e70ce34f8cab90b867689c0c0dece4c46a2dfe9a76d7634eb40ca48b3"
         }
       ],
-      "reviewDigest": "eab1841b124bb76fcd423824da90100ce25973d022355e23603bc0e99f12ecba",
+      "reviewDigest": "5ceefef9d5218c169d8c549d5ab2edf9f526502e10c6d352fabf66cb66b2c842",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -874,10 +874,10 @@
         },
         {
           "path": "website/src/content/docs/reference/tui.md",
-          "sha256": "deeaf3a64a95b6489c0a3bd3d98e159d07538371b1551de9d512ea60ef2cb15f"
+          "sha256": "58a6505e448ff69dfb8a63302a2e4dab74440b903c51b75ac282e0a9af96c01a"
         }
       ],
-      "reviewDigest": "3aa66fa501940fcc89b9b45a15d5769671d7e13c8a6db76f97ff89799d7542eb",
+      "reviewDigest": "cc79d775f1ec01e5a2b474353ed475f05b3136ca12fd72166098f905b1da4d99",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1379,10 +1379,10 @@
         },
         {
           "path": "website/src/content/docs/reference/configuration.md",
-          "sha256": "848d28403a4fffd9730a9c9df733caeedbfddef2f88f15adf768093b2a67dec1"
+          "sha256": "177e4260a00fec7b347fdd821ed59bf756678df4c52e83a06cfacfd948f24407"
         }
       ],
-      "reviewDigest": "8fb3aa1385da6577506e872cddf944fd183e352f21adc650e876c31eec703106",
+      "reviewDigest": "408515d5bd5a9a6ab3311258d95859b572e13cf61dea2868cbb41ac47568ee22",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1504,10 +1504,10 @@
         },
         {
           "path": "website/src/content/docs/reference/fleet.md",
-          "sha256": "d9bec1f3a69bf00dba98b1115ecd84657ce4a23f3019d64cdf4431061eff2f20"
+          "sha256": "cf4acb21bf7987fcd60c447fa99adce54d24d34e60ba54e1958ebb12a6f2e366"
         }
       ],
-      "reviewDigest": "ef5c626ea6dac72618c35b5bc972c31d4bcade1591d297bce1c171194886f720",
+      "reviewDigest": "e82d59505fbb8f82d8a4c47825b4efbeb3e4727fe67a381171543ac6465c0b06",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
