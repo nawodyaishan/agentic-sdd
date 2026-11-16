@@ -19,7 +19,7 @@ export function sha256File(path) {
 
 function bucketFor(relPath) {
 	if (relPath.startsWith('pagefind/')) return 'pagefind';
-	if (relPath.startsWith('_astro/')) return 'astro-assets';
+	if (relPath.startsWith('_astro/') || relPath.startsWith('assets/')) return 'astro-assets';
 	if (relPath.toLowerCase().endsWith('.html')) return 'html';
 	return 'other';
 }
