@@ -909,3 +909,45 @@ jobs:
           path: ${{ runner.temp }}/docs-ci/scheduled-links
           if-no-files-found: warn
           retention-days: 14
+
+# ---------------------------------------------------------------------------
+# Post-deploy smoke gate.
+#
+# GitHub Pages invalidates its CDN at deploy time and can take ~10 minutes to
+# propagate; repeated requests while it is still deploying are cached as 404s
+# (actions/deploy-pages#86). This job is the only place that polls, and it
+# revalidates with `Cache-Control: no-cache` so a stale 404 cannot be baked in
+# or mistaken for a real failure. It runs after the protected deploy and fails
+# the workflow if the deployment never becomes servable.
+# ---------------------------------------------------------------------------
+  smoke:
+    name: Verify the deployed site
+    needs: [deploy]
+    if: needs.deploy.result == 'success'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Poll for a servable deployment
+        env:
+          SITE: https://nawodyaishan.github.io/agentic-sdd
+        run: |
+          set -euo pipefail
+          fetch() {
+            curl -fsS --retry 40 --retry-delay 15 --retry-all-errors \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$1" >/dev/null
+          }
+          fetch "$SITE/"
+          CSS=$(curl -fsS -H 'Cache-Control: no-cache' "$SITE/" | grep -o '/agentic-sdd/assets-v[0-9]*/[^"]*\.css' | head -1)
+          JS=$(curl -fsS -H 'Cache-Control: no-cache' "$SITE/" | grep -o '/agentic-sdd/assets-v[0-9]*/[^"]*\.js' | head -1)
+          test -n "$CSS"
+          test -n "$JS"
+          echo "stylesheet: $CSS"
+          echo "script: $JS"
+          fetch "$SITE$CSS"
+          fetch "$SITE$JS"
+          fetch "$SITE/diagrams/d01-context.png"
+          fetch "$SITE/llms.txt"
+          fetch "$SITE/sitemap-index.xml"
+          echo "deployed site is servable"
