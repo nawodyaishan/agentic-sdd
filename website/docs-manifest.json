@@ -320,7 +320,7 @@
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "0162bf4523d3b1eec0f81262788271549449acee47024cb9b44b573907b93b99"
+          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/dispatch-contract.md",
@@ -328,14 +328,14 @@
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/failure-and-reconciliation.md",
-          "sha256": "b7203c80222f6f7f84f401e094cb80b9723383bcaa291e2b100bac6057a8561e"
+          "sha256": "473e884345c3bc3bde81cf43c67d2b09054051ad403d23eca3fc85382f6e36d2"
         },
         {
           "path": "website/src/content/docs/tutorials/specialists.md",
           "sha256": "fe1935f3a51a7ed3d3c5bba4bd6c19ebac363160aef46d552bba123933c2b167"
         }
       ],
-      "reviewDigest": "5f5e27b55e81746d75165c1e4204465c279b00ae188458f0dc0aa43d5495fb81",
+      "reviewDigest": "441ed0dfdd4a2659e86da1568147f986d00740f0d4dc87b69c33d62d97fcff8c",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -495,11 +495,11 @@
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "0162bf4523d3b1eec0f81262788271549449acee47024cb9b44b573907b93b99"
+          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/SKILL.md",
-          "sha256": "fed251123f323e20632454de741bbb95c2123dd5ec9072715ae9b603c350ca10"
+          "sha256": "efaa1c9f24e22b7c53b873823076db39ad025961f30e664c2942a70231b90bd1"
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/context-and-cost.md",
@@ -511,7 +511,7 @@
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/failure-and-reconciliation.md",
-          "sha256": "b7203c80222f6f7f84f401e094cb80b9723383bcaa291e2b100bac6057a8561e"
+          "sha256": "473e884345c3bc3bde81cf43c67d2b09054051ad403d23eca3fc85382f6e36d2"
         },
         {
           "path": "skills-files/agentic-sdd-router/references/workflow-policy.md",
@@ -519,10 +519,10 @@
         },
         {
           "path": "website/src/content/docs/how-to/orchestration.md",
-          "sha256": "d6d619527701b428f0b3bfaf176511fc7b7e5cfb330fc352182a4f35a37a8dce"
+          "sha256": "ddc199e2b4d32acde813ed65dbb0b6e35bacdb828a6d222b575ee39822d2ed02"
         }
       ],
-      "reviewDigest": "f07e5613cb4793f8492a4f890c8a2d4e035b0dc7aad2577529a05d467e833b4d",
+      "reviewDigest": "f90c31414b19835aeb6b9b707ecaa85454bf1d64c8c47bfce197c354d9782e94",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -687,7 +687,7 @@
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "0162bf4523d3b1eec0f81262788271549449acee47024cb9b44b573907b93b99"
+          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
         },
         {
           "path": "skills-files/agentic-sdd-bootstrap/SKILL.md",
@@ -702,7 +702,7 @@
           "sha256": "dd20416e70ce34f8cab90b867689c0c0dece4c46a2dfe9a76d7634eb40ca48b3"
         }
       ],
-      "reviewDigest": "5ceefef9d5218c169d8c549d5ab2edf9f526502e10c6d352fabf66cb66b2c842",
+      "reviewDigest": "aaeee56aeb275ee12d8befbfc786ae20a20fc6b6d939038807bbba9312d47988",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -970,7 +970,7 @@
       "sources": [
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/SKILL.md",
-          "sha256": "fed251123f323e20632454de741bbb95c2123dd5ec9072715ae9b603c350ca10"
+          "sha256": "efaa1c9f24e22b7c53b873823076db39ad025961f30e664c2942a70231b90bd1"
         },
         {
           "path": "skills-files/agentic-sdd-architecture-review/SKILL.md",
@@ -1057,7 +1057,7 @@
           "sha256": "7fb9f5a9ec7298a0082d773f723ce1e615fdc4c744fc6a41d8fb2b5d9179a3fb"
         }
       ],
-      "reviewDigest": "7ed325649a5147d461e116d51ad84c3102c9be06663692c2eb52283aa4bb5f5c",
+      "reviewDigest": "839c6c95016eeea4658e58374cc873ee6543e2792f30c9d261f018869ffe9f25",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1218,11 +1218,11 @@
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "0162bf4523d3b1eec0f81262788271549449acee47024cb9b44b573907b93b99"
+          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/failure-and-reconciliation.md",
-          "sha256": "b7203c80222f6f7f84f401e094cb80b9723383bcaa291e2b100bac6057a8561e"
+          "sha256": "473e884345c3bc3bde81cf43c67d2b09054051ad403d23eca3fc85382f6e36d2"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -1237,7 +1237,7 @@
           "sha256": "07d86d0d751fa0e72d30cbcf3beb2b51e787525690a151b07521b4eb1564e5e5"
         }
       ],
-      "reviewDigest": "39c65ffb7dd881830f683d4886b789fde85ee880ea17e9eb9d5446a6b247639e",
+      "reviewDigest": "4f97db45a842491f10ac99effa98598ab87c557cc418d399275ff387f3521474",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1868,14 +1868,14 @@
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "0162bf4523d3b1eec0f81262788271549449acee47024cb9b44b573907b93b99"
+          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
         },
         {
           "path": "website/src/content/docs/architecture/workflows.md",
           "sha256": "c877b78b06a177ea340743d817ccb5ef7e9804cf17cce72f483202adc3212173"
         }
       ],
-      "reviewDigest": "4bdbf649ae3e5efc5cef3403e075d88f4186a0f33bbcf8f95aca4aaadb95504c",
+      "reviewDigest": "7e5340982a5ea3cf4f9f61ccd000588744df3f0ecd1c2e2c8b8a5c9912c61650",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1967,14 +1967,14 @@
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "0162bf4523d3b1eec0f81262788271549449acee47024cb9b44b573907b93b99"
+          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
         },
         {
           "path": "website/src/content/docs/operations/known-limitations.md",
           "sha256": "43a027b805105fd5546cbb4062d5ffc26a6f59267c4aa5e91dc21b5b1ce619ab"
         }
       ],
-      "reviewDigest": "12e3e1ea91973995f292aa627f12622d7c3be3554585e6a59125ad5a3e8c31cd",
+      "reviewDigest": "45be66df849ac2c757e499ad5581a88ace8cdb6683844d2c172e01ff3eab9050",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },

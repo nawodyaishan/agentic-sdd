@@ -96,6 +96,8 @@ Treat the return as a **claim** to verify before reporting (`opencode-pack/skill
 4. **Preserve `unverified_claims` and `actual_model`:** Never upgrade an unverified claim to verified, and report the model that actually ran rather than the configured model string.
 5. **Stop at the human gate:** Synthesize one concise result for the human reviewer. A child verdict or single completion review (`Ready`) is a technical assessment, never combined approval or authorization for the next batch (`skills-files/agentic-sdd-router/references/workflow-policy.md`).
 
+When a run already exists, persist a child's returned result with `asdx-core run record --run <run-id> --result <file>` (add `--task <task-id>` for a feature-scope run). A `passed` claim is stored as a claim and moves the task to `awaiting-verification`; it is never accepted work (`docs/execution-runs.md`).
+
 ## Apply manual fallback and safe continuation
 
 Written routing ladders in `opencode-pack/routing.md` are **policy, not an automatic failover engine**. Neither `asdx-core` nor `opencode-pack` automatically retries across models or providers (`opencode-pack/routing.md`, `opencode-pack/skills/agentic-sdd-orchestrate/references/failure-and-reconciliation.md`).
@@ -126,9 +128,11 @@ When a child fails from model unavailability, quota exhaustion, or repeated tran
 
 Before resuming any write task or continuing after session compaction (`opencode-pack/skills/agentic-sdd-orchestrate/references/failure-and-reconciliation.md`):
 
-1. If an execution run exists, inspect `asdx-core run status --run <run-id>` first. A `stale` or `blocked` checkpoint stops execution until source changes, task brief digests, or the worktree are reconciled.
+1. If an execution run exists, inspect `asdx-core run status --run <run-id>` first. A `stale` or `blocked` checkpoint stops execution until source changes, task brief digests, or the worktree are reconciled. Foreign-checkpoint and brief-drift refusals exit `2` without writing status JSON, so reissue only byte-identical brief content and never hand-edit run files (`docs/execution-runs.md`).
 2. Inspect recorded tool outputs and check `git status --short` and `git diff` to see what was already written.
 3. Preserve completed edits and patch only missing parts — never replay an entire write blindly. If state is ambiguous, stop and report `blocked`.
+
+When a run is finished with, `asdx-core run clean --run <run-id> --yes` deletes only that owned scratch directory; without `--yes` it previews. It refuses a live lock or an unowned run with exit `2` and deletes nothing (`docs/execution-runs.md`).
 
 ## Related pages
 
