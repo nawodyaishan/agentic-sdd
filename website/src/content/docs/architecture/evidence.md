@@ -22,7 +22,9 @@ The `run`, `task` and `review` families exist so an agent can leave a truthful l
 
 ### Diagram D05 — MCP and execution are separate stores
 
-D05's static projection is owned by the diagram lane and is not rendered here; its text alternative:
+![Diagram D05: the MCP transaction (lock, snapshot, intent, target config) and an execution run (lock, run.json, checkpoint, checks, records, review) are separate stores with no arrow between them.](../../../assets/diagrams/D05-evidence.png)
+
+*Figure D05 — MCP and execution stores. Source: `assets/diagrams/D05-evidence.mmd`.*
 
 - On the left, the MCP transaction: lock at `~/.agentic-sdd/mcp/.lock`, snapshot and intent records under `~/.agentic-sdd/mcp/backups`, target `~/.config/opencode/opencode.json`.
 - On the right, an execution run: lock at `<run>/.lock`, `run.json`, `checkpoint.json`, `briefs/`, `checks/`, `records/`, `review/` under `.agentic-sdd/runs`.

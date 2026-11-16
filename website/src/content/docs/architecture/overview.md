@@ -26,7 +26,9 @@ The root module is `agentic-sdd` on Go 1.23 (`go.mod`); the TUI is a separate ne
 
 ### Diagram D01 — context and components
 
-The static projection for D01 is owned by the diagram lane and is not rendered in this worktree, so no image is embedded here. Its intended content, as text:
+![Diagram D01: a human runs asdx-core or asdx; both reach the same Go packages, which read only the embedded or --repo skill sources and write client skill directories, agent profiles, backups, MCP config and run scratch.](../../../assets/diagrams/D01-context.png)
+
+*Figure D01 — context and components. Source: `assets/diagrams/D01-context.mmd`.*
 
 - A human or an agent session runs either `asdx-core` (CLI) or `asdx` (TUI).
 - `asdx-core tui` does not show a UI itself; it resolves, verifies and starts the sibling `asdx` process (`resolveTUICompanion` and `launchTUI` in `cmd/agentic-sdd/tui.go`).
@@ -53,7 +55,9 @@ There is more than one writer, and the boundaries are narrow:
 
 ### Diagram D02 — installer versus clients
 
-D02's assets are also unrendered here; its text alternative:
+![Diagram D02: the installer is the only arrow into client destinations; each client reads its own copied SKILL.md files and never calls the installer.](../../../assets/diagrams/D02-components.png)
+
+*Figure D02 — installer versus clients. Source: `assets/diagrams/D02-components.mmd`.*
 
 - The installer is the only arrow into client destinations: `planChanges` → `installChangesWithHook` → rename into `clientTargets(home)`.
 - A client (Claude, Codex, Gemini Antigravity CLI, or an `~/.agents` consumer) reads the copied `SKILL.md` files from its own directory. It does not call the installer.

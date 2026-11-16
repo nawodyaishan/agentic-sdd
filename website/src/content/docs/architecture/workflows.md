@@ -7,7 +7,9 @@ This page follows three workflows over time: installing skills, installing the o
 
 ## Diagram D03 — install and recovery
 
-The static projection for D03 is owned by the diagram lane and is not rendered in this worktree, so no image is embedded. Its text alternative:
+![Diagram D03: preview stops before any write; apply plans, backs up, stages, renames into place and can roll back; restore replans from the backup manifest.](../../../assets/diagrams/D03-install-transaction.png)
+
+*Figure D03 — install and recovery transaction. Source: `assets/diagrams/D03-install-transaction.mmd`.*
 
 - Source: `sourceFS(repo)` returns either the embedded `skills-files` tree or an explicit `--repo` checkout.
 - Discovery: `discoverSkills` reads top-level `agentic-sdd-*` directories.
@@ -64,7 +66,9 @@ The restore itself goes back through `installChangesWithHook` with `operation.ki
 
 ## Diagram D04 — optional delegation
 
-D04's assets are unrendered here; its text alternative:
+![Diagram D04: a human authorizes one bounded brief, the child returns evidence, the main session reconciles it, and the human approves; there is no daemon and no automatic routing.](../../../assets/diagrams/D04-delegation.png)
+
+*Figure D04 — optional delegation. Source: `assets/diagrams/D04-delegation.mmd`.*
 
 - A human runs an install with `--with-opencode` (or the TUI default). `SyncWithOptionsResult` adds the orchestration skill, every file in `opencode-pack/agents`, and, with `--opencode-free-first`, the four preset files, all under `~/.config/opencode/agents`.
 - The tool stops there. It installs instruction files; it does not start an agent, choose a model, or call a provider.
