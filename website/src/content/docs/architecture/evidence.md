@@ -22,7 +22,7 @@ The `run`, `task` and `review` families exist so an agent can leave a truthful l
 
 ### Diagram D05 — MCP and execution are separate stores
 
-![Diagram D05: the MCP transaction (lock, snapshot, intent, target config) and an execution run (lock, run.json, checkpoint, checks, records, review) are separate stores with no arrow between them.](../../../assets/diagrams/diagram-d05-evidence.png)
+![Diagram D05: the MCP transaction (lock, snapshot, intent, target config) and an execution run (lock, run.json, checkpoint, checks, records, review) are separate stores with no arrow between them.](/diagrams/d05-evidence.png)
 
 *Figure D05 — MCP and execution stores. Source: `assets/diagrams/D05-evidence.mmd`.*
 

@@ -7,7 +7,7 @@ This page follows three workflows over time: installing skills, installing the o
 
 ## Diagram D03 — install and recovery
 
-![Diagram D03: preview stops before any write; apply plans, backs up, stages, renames into place and can roll back; restore replans from the backup manifest.](../../../assets/diagrams/diagram-d03-install-transaction.png)
+![Diagram D03: preview stops before any write; apply plans, backs up, stages, renames into place and can roll back; restore replans from the backup manifest.](/diagrams/d03-install-transaction.png)
 
 *Figure D03 — install and recovery transaction. Source: `assets/diagrams/D03-install-transaction.mmd`.*
 
@@ -66,7 +66,7 @@ The restore itself goes back through `installChangesWithHook` with `operation.ki
 
 ## Diagram D04 — optional delegation
 
-![Diagram D04: a human authorizes one bounded brief, the child returns evidence, the main session reconciles it, and the human approves; there is no daemon and no automatic routing.](../../../assets/diagrams/diagram-d04-delegation.png)
+![Diagram D04: a human authorizes one bounded brief, the child returns evidence, the main session reconciles it, and the human approves; there is no daemon and no automatic routing.](/diagrams/d04-delegation.png)
 
 *Figure D04 — optional delegation. Source: `assets/diagrams/D04-delegation.mmd`.*
 

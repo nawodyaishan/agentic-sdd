@@ -107,6 +107,16 @@ export default function remarkLinkRoutes(options = {}) {
     for (const update of updates) {
       update.node.url = update.url;
     }
+
+    // Images served from the public directory use a `/diagrams/` sentinel so
+    // one Markdown source works under both the project base and a root base.
+    const manifest = await loadManifest(source);
+    const base = manifest.base === '/' ? '' : manifest.base;
+    walk(tree, (node) => {
+      if (node.type === 'image' && typeof node.url === 'string' && node.url.startsWith('/diagrams/')) {
+        node.url = `${base}${node.url}`;
+      }
+    });
   };
 }
 

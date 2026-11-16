@@ -12,10 +12,13 @@ build or CI.
 
 ```sh
 IMG='ghcr.io/mermaid-js/mermaid-cli/mermaid-cli@sha256:18938e53497376d524e04b1fc0bf7b6d61a491ce9ff7032bb2855d57155acb10'
-for f in D01-context D02-components D03-install-transaction D04-delegation D05-evidence; do
+for pair in D01-context:d01-context D02-components:d02-components \
+            D03-install-transaction:d03-install-transaction \
+            D04-delegation:d04-delegation D05-evidence:d05-evidence; do
+  src=${pair%%:*}; out=${pair##*:}
   docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
-    -v "$PWD/website/src/assets/diagrams:/data" "$IMG" \
-    -i "$f.mmd" -o "$f.png" -b white
+    -v "$PWD/website/src/assets/diagrams:/src" -v "$PWD/website/public/diagrams:/out" "$IMG" \
+    -i "/src/$src.mmd" -o "/out/$out.png" -b white
 done
 ```
 
@@ -31,11 +34,11 @@ approval`, or the parser splits the line and fails.
 
 | Source | Size (px) |
 |---|---|
-| `D01-context.mmd` → `diagram-d01-context.png` | 784 × 296 |
-| `D02-components.mmd` → `diagram-d02-components.png` | 784 × 689 |
-| `D03-install-transaction.mmd` → `diagram-d03-install-transaction.png` | 784 × 342 |
-| `D04-delegation.mmd` → `diagram-d04-delegation.png` | 784 × 458 |
-| `D05-evidence.mmd` → `diagram-d05-evidence.png` | 542 × 1173 |
+| `D01-context.mmd` → `public/diagrams/d01-context.png` | 784 × 296 |
+| `D02-components.mmd` → `public/diagrams/d02-components.png` | 784 × 689 |
+| `D03-install-transaction.mmd` → `public/diagrams/d03-install-transaction.png` | 784 × 342 |
+| `D04-delegation.mmd` → `public/diagrams/d04-delegation.png` | 784 × 458 |
+| `D05-evidence.mmd` → `public/diagrams/d05-evidence.png` | 542 × 1173 |
 
 Alt text (one line each):
 
