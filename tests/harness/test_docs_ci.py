@@ -75,6 +75,12 @@ PULL_REF = "refs/pull/7/head"
 IMAGE = "node:22-bookworm@sha256:" + "a" * 64
 # The reviewed runtime pin used by docs.yml; the container-$HOME test runs it.
 DOCS_IMAGE = "node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54"
+# Committer dates the fake git reports for the fixture revisions.
+COMMIT_DATES = {
+    SHA_BASE: "2026-11-16T08:00:00+00:00",
+    SHA_CAND: "2026-11-16T09:30:00+01:00",
+    SHA_MOVED: "2026-11-16T10:45:00+01:00",
+}
 SITE_ROOT = "website"
 
 REQUIRED_PAGES = [
@@ -86,6 +92,7 @@ PACKAGE = {
     "private": True,
     "scripts": {
         "build": "astro build",
+        "build:site": "astro build && node scripts/export.mjs --out dist",
         "docs:check": "node scripts/check.mjs",
         "docs:check-built": "node scripts/check.mjs",
         "test": "node --test tests/*.test.mjs",
@@ -94,17 +101,28 @@ PACKAGE = {
 
 # The ordered adopted check list the trusted base runs and the evaluator
 # requires. Mirrors the launcher's embedded policy; the export write/check pair
-# exists because `--check` refuses a missing output directory.
+# exists because `--check` refuses a missing output directory. `reference-parity`
+# runs last against the builder stage's binary and resolves `--commit` from the
+# candidate revision.
+CONTAINER_BINARY = "/binary/asdx-core"
 ADOPTED_CHECKS = [
-    {"id": "build", "argv": ["npm", "run", "build"]},
+    {"id": "build", "argv": ["npm", "run", "build:site"]},
     {"id": "docs-check", "argv": ["npm", "run", "docs:check"]},
     {"id": "docs-check-built",
      "argv": ["npm", "run", "docs:check-built"]},
     {"id": "docs-export-write",
-     "argv": ["node", "scripts/export.mjs", "--out", "dist/export"]},
+     "argv": ["node", "scripts/export.mjs", "--out", ".export-check"]},
     {"id": "docs-export-check",
-     "argv": ["node", "scripts/export.mjs", "--out", "dist/export", "--check"]},
+     "argv": ["node", "scripts/export.mjs", "--out", ".export-check", "--check"]},
     {"id": "node-test", "argv": ["npm", "test"]},
+    {"id": "reference-parity",
+     "argv": ["node", "scripts/reference.mjs", "--check",
+              "--binary", CONTAINER_BINARY, "--commit", SHA_CAND]},
+]
+# The same list for a trusted-main run, where the candidate revision is the base.
+MAIN_ADOPTED_CHECKS = [
+    dict(check, argv=[SHA_BASE if item == SHA_CAND else item for item in check["argv"]])
+    for check in ADOPTED_CHECKS
 ]
 
 # Every protected path the trusted base owns; a candidate edit to any of them
@@ -200,6 +218,14 @@ if "status" in argv:
         for line in state.get("dirty", []):
             sys.stdout.write(line + "\n")
     sys.exit(code)
+if "show" in argv:
+    sha = argv[-1]
+    value = state.get("commit_dates", {}).get(sha)
+    if not value:
+        sys.stderr.write("fake git: unknown commit\n")
+        sys.exit(1)
+    sys.stdout.write(value + "\n")
+    sys.exit(0)
 if "rev-parse" not in argv:
     sys.exit(2)
 if "--show-toplevel" in argv:
@@ -266,7 +292,12 @@ def main():
         return 2
     if argv[0] == "image":
         scenario = read_scenario()
-        record("image", image=argv[-1])
+        image = argv[-1]
+        record("image", image=image)
+        # The Go builder pin has its own availability switch so a fixture can
+        # prove a missing builder image blocks independently of the runtime one.
+        if image.startswith("golang"):
+            return scenario.get("builder_image_exit", 0)
         return scenario.get("image_exit", 0)
     if argv[0] == "rm":
         record("rm")
@@ -333,6 +364,19 @@ def main():
                 json.dumps({"name": "fixture-package"}) + "\n", encoding="utf-8")
         return scenario.get("provision_exit", 0)
 
+    # The trusted Go build stage: writable launcher scratch at /build, the
+    # candidate source read-only at /workspace. It writes a deterministic fake
+    # binary and the toolchain markers the launcher parses into identity.
+    build_mount = next((item for item in mounts if item["dst"] == "/build"), None)
+    if build_mount is not None:
+        sys.stdout.write("builder-go-version: go version go1.27.4 linux/amd64\n")
+        sys.stdout.write("builder-toolchain: go1.27.4\n")
+        if scenario.get("builder_binary", True):
+            binary = Path(build_mount["src"]) / "asdx-core"
+            binary.write_bytes(b"#!/bin/sh\nexit 0\n" + b"\0" * 32)
+            binary.chmod(0o755)
+        return scenario.get("builder_exit", 0)
+
     artifact = scenario.get("artifact") or {}
     dist = next((item for item in mounts if item["dst"] == "/workspace/website/dist"), None)
     if dist is not None:
@@ -351,6 +395,9 @@ def main():
             path = base / name
             path.parent.mkdir(parents=True, exist_ok=True)
             os.link(base / target, path)
+    if command[:3] == ["node", "scripts/reference.mjs", "--check"]:
+        # Parity drift: the real check exits 1 on a drifted generated page.
+        return scenario.get("parity_exit", 0)
     return scenario.get("build_exit", 0)
 
 
@@ -432,6 +479,7 @@ class DocsCiFixture:
         self.git_state = {
             "roots": {str(self.trusted): SHA_BASE, str(self.candidate): SHA_CAND},
             "refs": {PULL_REF: SHA_CAND},
+            "commit_dates": dict(COMMIT_DATES),
             "dirty": [],
         }
         self.write_git_state()
@@ -456,6 +504,8 @@ class DocsCiFixture:
             "// reviewed validator (fixture)\n", encoding="utf-8")
         (root / "website/scripts/export.mjs").write_text(
             "// reviewed export tool (fixture)\n", encoding="utf-8")
+        (root / "website/scripts/reference.mjs").write_text(
+            "// reviewed reference generator (fixture)\n", encoding="utf-8")
         (root / "website/plugins").mkdir(parents=True)
         (root / "website/plugins/remark-link-routes.mjs").write_text(
             "// reviewed route plugin (fixture)\n", encoding="utf-8")
@@ -610,11 +660,17 @@ class DocsCiFixture:
             argv += ["--artifact", str(artifact)]
         return argv + list(extra)
 
-    def configure(self, *, build_exit=0, provision_exit=0, image_exit=0, artifact=None):
+    def configure(self, *, build_exit=0, provision_exit=0, image_exit=0, artifact=None,
+                  builder_exit=0, builder_image_exit=0, builder_binary=True,
+                  parity_exit=0):
         self.scenario_path.write_text(json.dumps({
             "image_exit": image_exit,
             "provision_exit": provision_exit,
             "build_exit": build_exit,
+            "builder_exit": builder_exit,
+            "builder_image_exit": builder_image_exit,
+            "builder_binary": builder_binary,
+            "parity_exit": parity_exit,
             "artifact": default_artifact() if artifact is None else artifact,
         }, indent=2) + "\n", encoding="utf-8")
 
@@ -954,8 +1010,10 @@ class DocsCiAdversarialTests(unittest.TestCase):
         self.assertEqual(result.code, 0, result.payload)
 
         runs = fixture.docker_runs()
-        self.assertEqual(len(runs), 1 + len(ADOPTED_CHECKS), runs)
+        self.assertEqual(len(runs), 2 + len(ADOPTED_CHECKS), runs)
         provision = next(entry for entry in runs if entry["command"][:2] == ["npm", "ci"])
+        builder = next(entry for entry in runs
+                       if any(mount["dst"] == "/build" for mount in entry["mounts"]))
         build = next(entry for entry in runs
                      if entry["command"] == ADOPTED_CHECKS[0]["argv"])
         self.assertEqual(provision["network"], "bridge")
@@ -974,8 +1032,9 @@ class DocsCiAdversarialTests(unittest.TestCase):
 
         self.assertEqual({mount["dst"] for mount in build["mounts"]}, {
             "/workspace", "/workspace/website/node_modules",
-            "/workspace/website/dist", "/workspace/website/.cache",
-            "/workspace/website/.astro", "/workspace/.cache",
+            "/workspace/website/dist", "/workspace/website/.export-check",
+            "/workspace/website/.cache", "/workspace/website/.astro",
+            "/workspace/.cache",
         })
         self.assertEqual({mount["dst"] for mount in provision["mounts"]}, {"/provision"})
         for entry in runs:
@@ -988,7 +1047,8 @@ class DocsCiAdversarialTests(unittest.TestCase):
                 self.assertNotIn("/.aws", str(source), mount)
                 if mount["writable"]:
                     allowed = ((fixture.output / "private/provision").resolve(),
-                               (fixture.output / "private/writes").resolve())
+                               (fixture.output / "private/writes").resolve(),
+                               (fixture.output / "private/build").resolve())
                     self.assertTrue(
                         any(source == root or root in source.parents for root in allowed),
                         "writable mount outside launcher-owned scratch: %r" % (mount,))
@@ -1370,6 +1430,11 @@ class DocsCiAdversarialTests(unittest.TestCase):
         self.assertEqual([path for path in published.rglob("*") if path.is_symlink()], [])
         status = json.loads((output / "status.json").read_text(encoding="utf-8"))
         self.assertEqual(artifact_digest(published), status["artifact"]["sha256"])
+        # A trusted-main run resolves the parity `--commit` token from the base
+        # revision, so the recorded argv is the command that actually ran.
+        self.assertEqual([{"id": check["id"], "argv": check["argv"]}
+                          for check in status["candidate"]["checks"]],
+                         MAIN_ADOPTED_CHECKS)
         # The trust record stays in the evidence directory, never in the site.
         self.assertFalse((published / "status.json").exists())
         self.assertTrue((output / "status.json").is_file())
@@ -1663,11 +1728,17 @@ class DocsCiAdversarialTests(unittest.TestCase):
         launcher = load_launcher(LAUNCHER)
         self.assertEqual(list(launcher.DEFAULT_POLICY["protected_paths"]),
                          PROTECTED_PATHS)
+        # The parity check carries an identity token in policy and is recorded
+        # resolved; the base-owned list still has to match the fixture contract.
         self.assertEqual(
-            [{"id": check["id"], "argv": check["argv"]}
-             for check in launcher.DEFAULT_POLICY["checks"]],
+            launcher.adopted_checks(launcher.DEFAULT_POLICY,
+                                    {"candidate_sha": SHA_CAND}),
             ADOPTED_CHECKS,
             "the launcher's adopted check list and the fixture contract drifted")
+        parity = launcher.DEFAULT_POLICY["checks"][-1]
+        self.assertEqual(parity["id"], "reference-parity")
+        self.assertIn("{candidate_sha}", parity["argv"])
+        self.assertIs(parity["requires_binary"], True)
 
     def test_candidate_edits_to_the_validation_surface_require_policy_review(self):
         cases = {
@@ -1718,7 +1789,7 @@ class DocsCiAdversarialTests(unittest.TestCase):
         result = fixture.run_pr()
         self.assertEqual(result.code, 0, result.payload)
         runs = [entry for entry in fixture.docker_runs()
-                if entry["command"][:2] != ["npm", "ci"]]
+                if Path(entry["cidfile"]).name.startswith("check-")]
         self.assertEqual([entry["command"] for entry in runs],
                          [check["argv"] for check in ADOPTED_CHECKS])
         self.assertEqual([Path(entry["cidfile"]).name for entry in runs],
@@ -1796,6 +1867,7 @@ class DocsCiAdversarialTests(unittest.TestCase):
                            "name": "docs-ci-fixture",
                            "private": True,
                            "scripts": {"build": "astro build",
+                                       "build:site": "astro build && node scripts/export.mjs --out dist",
                                        "docs:check": "node scripts/check.mjs",
                                        "docs:check-built": "node scripts/check.mjs"},
                        }, indent=2) + "\n", encoding="utf-8"),
@@ -1815,6 +1887,193 @@ class DocsCiAdversarialTests(unittest.TestCase):
                 self.assertEqual(result.payload["reason"], reason)
                 self.assertEqual(result.payload["detail"], detail)
                 self.assertEqual(fixture.docker_entries(), [])
+
+    # ------------------------- trusted Go build stage and reference parity
+
+    def builder_run(self, fixture):
+        runs = [entry for entry in fixture.docker_runs()
+                if any(mount["dst"] == "/build" for mount in entry["mounts"])]
+        self.assertEqual(len(runs), 1, "expected exactly one trusted Go build stage")
+        return runs[0]
+
+    def test_builder_stage_is_bounded_and_sees_only_staged_source_and_scratch(self):
+        fixture = self.fixture()
+        result = fixture.run_pr()
+        self.assertEqual(result.code, 0, result.payload)
+        builder = self.builder_run(fixture)
+        launcher = fixture.launcher
+        self.assertEqual(builder["image"], launcher.DEFAULT_POLICY["builder_image"])
+        self.assertNotEqual(builder["image"], IMAGE,
+                            "the Go builder pin must be its own image, not the runtime one")
+        for flag in ("--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges"):
+            self.assertIn(flag, builder["argv"])
+        self.assertIn("--user=%d:%d" % (os.getuid(), os.getgid()), builder["argv"])
+        self.assertTrue(any(item.startswith("--pids-limit=") for item in builder["argv"]))
+        self.assertTrue(any(item.startswith("--memory=") for item in builder["argv"]))
+        self.assertTrue(any(item.startswith("--cpus=") for item in builder["argv"]))
+        self.assertEqual({mount["dst"] for mount in builder["mounts"]},
+                         {"/workspace", "/build"})
+        staged = next(item for item in builder["mounts"] if item["dst"] == "/workspace")
+        self.assertFalse(staged["writable"])
+        self.assertEqual(Path(staged["src"]).resolve(),
+                         (fixture.output / "private/staged").resolve())
+        scratch = next(item for item in builder["mounts"] if item["dst"] == "/build")
+        self.assertTrue(scratch["writable"])
+        self.assertEqual(Path(scratch["src"]).resolve(),
+                         (fixture.output / "private/build").resolve())
+        for mount in builder["mounts"]:
+            self.assertNotEqual(Path(mount["src"]).resolve(), fixture.candidate)
+            self.assertNotIn(".git", str(mount["src"]))
+            self.assertNotIn("docker.sock", str(mount["src"]))
+        env = builder["env_map"]
+        self.assertTrue(set(env) <= set(launcher.ALLOWED_BUILDER_ENV), env)
+        self.assertEqual(env["CGO_ENABLED"], "0")
+        self.assertEqual(env["GOFLAGS"], "-mod=readonly")
+        self.assertEqual(env["GOTOOLCHAIN"], "local")
+        self.assertEqual(env["GOCACHE"], "/build/cache")
+        self.assertEqual(env["GOPATH"], "/build/gopath")
+        for key in ("DOCKER_HOST", "DOCKER_CONFIG", "GITHUB_TOKEN", "GH_TOKEN", "GH_PAT"):
+            self.assertNotIn(key, env)
+        self.assertFalse(any(key.startswith(("ACTIONS_", "GITHUB_")) for key in env))
+        self.assertEqual(builder["command"][:2], ["sh", "-c"])
+        self.assertIn("go build -trimpath", builder["command"][2])
+        self.assertIn("./cmd/agentic-sdd", builder["command"][2])
+
+    def test_missing_builder_image_blocks_before_any_container(self):
+        fixture = self.fixture()
+        fixture.configure(builder_image_exit=1)
+        result = fixture.run_pr()
+        self.assertEqual(result.code, 2, result.payload)
+        self.assertEqual(result.payload["result"], "blocked")
+        self.assertEqual(result.payload["reason"], "pinned-builder-image-unavailable")
+        self.assertEqual(fixture.docker_runs(), [], "no container may run without the builder")
+        status = fixture.status()
+        self.assertEqual(status["result"], "blocked")
+        self.assertFalse(status["authoritative"])
+        self.assertFalse(status["candidate"]["executed"])
+
+    def test_failed_go_build_blocks_with_a_named_reason_and_runs_no_check(self):
+        fixture = self.fixture()
+        fixture.configure(builder_exit=2)
+        result = fixture.run_pr()
+        self.assertEqual(result.code, 2, result.payload)
+        self.assertEqual(result.payload["result"], "blocked")
+        self.assertEqual(result.payload["reason"], "builder-build-failed")
+        status = fixture.status()
+        self.assertEqual(status["result"], "blocked")
+        self.assertFalse(status["authoritative"])
+        self.assertFalse(status["candidate"]["executed"])
+        checks = [entry for entry in fixture.docker_runs()
+                  if Path(entry["cidfile"]).name.startswith("check-")]
+        self.assertEqual(checks, [], "no adopted check may run after a failed build")
+        self.assertTrue((fixture.output / "private/logs/build-go.log").is_file())
+
+    def test_builder_without_a_binary_is_blocked(self):
+        fixture = self.fixture()
+        fixture.configure(builder_binary=False)
+        result = fixture.run_pr()
+        self.assertEqual(result.code, 2, result.payload)
+        self.assertEqual(result.payload["result"], "blocked")
+        self.assertEqual(result.payload["reason"], "builder-binary-missing")
+        self.assertFalse(fixture.status()["authoritative"])
+
+    def test_builder_binary_identity_is_recorded_in_identity_and_records(self):
+        fixture = self.fixture()
+        result = fixture.run_pr()
+        self.assertEqual(result.code, 0, result.payload)
+        identity = json.loads((fixture.output / "identity.json").read_text(encoding="utf-8"))
+        builder = identity["builder"]
+        binary = fixture.output / builder["binary"]["path"]
+        self.assertTrue(binary.is_file())
+        digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+        self.assertEqual(builder["binary"]["sha256"], digest)
+        self.assertEqual(builder["binary"]["size"], binary.stat().st_size)
+        self.assertEqual(builder["binary"]["mount"], CONTAINER_BINARY)
+        self.assertEqual(builder["image"], fixture.launcher.DEFAULT_POLICY["builder_image"])
+        self.assertEqual(builder["commit"], SHA_CAND)
+        self.assertEqual(builder["commit_date"], COMMIT_DATES[SHA_CAND])
+        self.assertEqual(builder["go_version"], "go version go1.27.4 linux/amd64")
+        self.assertEqual(builder["toolchain"], "go1.27.4")
+        self.assertIn("-X agentic-sdd/internal/version.Version=dev", builder["ldflags"])
+        self.assertIn("-X agentic-sdd/internal/version.Commit=" + SHA_CAND,
+                      builder["ldflags"])
+        self.assertIn("-X agentic-sdd/internal/version.Date=" + COMMIT_DATES[SHA_CAND],
+                      builder["ldflags"])
+        self.assertIn("-X agentic-sdd/internal/version.GoVersion=$(go env GOVERSION)",
+                      builder["ldflags"])
+        records = json.loads((fixture.output / "records.json").read_text(encoding="utf-8"))
+        self.assertEqual(records["builder"], builder)
+        status = fixture.status()
+        self.assertEqual(status["identity"]["builder"]["binary"]["sha256"], digest)
+        self.assertEqual(fixture.evaluator_check(status, "builder-identity")["status"], "pass")
+        parity = next(check for check in status["candidate"]["checks"]
+                      if check["id"] == "reference-parity")
+        self.assertEqual(parity["argv"], ADOPTED_CHECKS[-1]["argv"])
+        self.assertEqual(parity["exit_code"], 0)
+        self.assertEqual(parity["argv"][parity["argv"].index("--commit") + 1], SHA_CAND)
+        parity_run = next(entry for entry in fixture.docker_runs()
+                          if entry["command"][:3] == ["node", "scripts/reference.mjs",
+                                                      "--check"])
+        binary_mount = next(mount for mount in parity_run["mounts"]
+                            if mount["dst"] == "/binary")
+        self.assertFalse(binary_mount["writable"], "the binary mount must be read-only")
+        self.assertEqual(Path(binary_mount["src"]).resolve(),
+                         (fixture.output / "private/binary").resolve())
+
+    def test_reference_parity_drift_fails_the_run(self):
+        fixture = self.fixture()
+        fixture.configure(parity_exit=1)
+        result = fixture.run_pr()
+        self.assertEqual(result.code, 1, result.payload)
+        self.assertEqual(result.payload["result"], "fail")
+        status = fixture.status()
+        self.assertFalse(status["authoritative"])
+        completion = fixture.evaluator_check(status, "candidate-completion")
+        self.assertEqual(completion["status"], "fail")
+        self.assertIn("exit:reference-parity", completion.get("detail", ""))
+        # The build itself was fine: parity, not the toolchain, failed the run.
+        self.assertEqual(fixture.evaluator_check(status, "builder-identity")["status"], "pass")
+
+    def test_unrunnable_reference_check_is_blocked_never_green(self):
+        fixture = self.fixture()
+        fixture.configure(parity_exit=2)
+        result = fixture.run_pr()
+        self.assertEqual(result.code, 2, result.payload)
+        self.assertEqual(result.payload["result"], "blocked")
+        self.assertEqual(result.payload["reason"], "reference-parity-not-runnable")
+        status = fixture.status()
+        self.assertEqual(status["result"], "blocked")
+        self.assertFalse(status["authoritative"])
+
+    def test_evaluator_requires_a_reference_parity_record(self):
+        fixture = self.fixture()
+        first = fixture.run_pr()
+        self.assertEqual(first.code, 0, first.payload)
+        path = fixture.output / "records.json"
+        records = json.loads(path.read_text(encoding="utf-8"))
+        records["checks"] = [check for check in records["checks"]
+                             if check["id"] != "reference-parity"]
+        path.write_text(json.dumps(records) + "\n", encoding="utf-8")
+        second = fixture.run(fixture.pr_argv(extra=["--action", "evaluate"]))
+        self.assertEqual(second.code, 1, second.payload)
+        status = fixture.status()
+        check = fixture.evaluator_check(status, "candidate-completion")
+        self.assertEqual(check["status"], "fail")
+        self.assertIn("missing:reference-parity", check.get("detail", ""))
+        self.assertFalse(status["authoritative"])
+
+    def test_swapped_builder_binary_fails_evaluation(self):
+        fixture = self.fixture()
+        first = fixture.run_pr()
+        self.assertEqual(first.code, 0, first.payload)
+        binary = fixture.output / "private/binary/asdx-core"
+        binary.write_bytes(b"#!/bin/sh\nexit 0\nreplaced")
+        second = fixture.run(fixture.pr_argv(extra=["--action", "evaluate"]))
+        self.assertEqual(second.code, 1, second.payload)
+        check = fixture.evaluator_check(fixture.status(), "builder-identity")
+        self.assertEqual(check["status"], "fail")
+        self.assertIn("builder-binary-digest-drift", check.get("detail", ""))
+        self.assertFalse(fixture.status()["authoritative"])
 
     # ------------------------------- manifest allowlist and content parity (Q2)
 
@@ -2167,6 +2426,32 @@ class DocsWorkflowWiringTests(unittest.TestCase):
         self.assertRegex(
             match.group(1),
             r"^[a-z0-9][a-z0-9._/-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$")
+
+    def test_go_builder_image_is_pinned_and_pulled_before_the_launcher(self):
+        match = re.search(r'^\s*DOCS_BUILDER_IMAGE:\s*"([^"]+)"', self.text, re.MULTILINE)
+        self.assertIsNotNone(match, "DOCS_BUILDER_IMAGE is not declared")
+        image = match.group(1)
+        self.assertRegex(
+            image,
+            r"^[a-z0-9][a-z0-9._/-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$")
+        launcher = load_launcher(LAUNCHER)
+        self.assertEqual(
+            image, launcher.DEFAULT_POLICY["builder_image"],
+            "the workflow pull and the launcher's base-owned builder pin drifted")
+        for job in ("pr-validate", "main-build"):
+            with self.subTest(job=job):
+                lines = self.jobs.get(job)
+                self.assertIsNotNone(lines, "job %s is missing" % job)
+                pulls = [index for index, line in enumerate(lines)
+                         if re.search(r'docker pull\s+"\$DOCS_BUILDER_IMAGE"', line)]
+                launches = [index for index, line in enumerate(lines)
+                            if "scripts/docs-ci.py" in line]
+                self.assertTrue(
+                    pulls,
+                    "job %s never pulls the Go builder image, so the build stage "
+                    "blocks at pinned-builder-image-unavailable" % job)
+                self.assertLess(pulls[0], launches[0],
+                                "job %s pulls the builder after the launcher" % job)
 
     def test_main_build_publishes_the_artifact_and_rollback_binds_the_record(self):
         main = "\n".join(self.jobs["main-build"])

@@ -394,13 +394,14 @@ function runCapturedProcess(binaryPath, argv, { cwd, timeoutMs, maxBuffer, kind 
 function buildMarkdown({ commands, sources, provenance }) {
   const byId = new Map(commands.map((command) => [command.id, command]));
   const binary = provenance.binary;
-  const verification = provenance.commitVerified
-    ? ` The expected inspected-revision commit \`${provenance.expectedCommit}\` was verified before capture.`
-    : '';
+  // The committed page must not embed the binary's own commit: a page added in
+  // commit X could only ever record X's parent, so the line could never be
+  // self-consistent. Capture identity (commit, build date, toolchain) is kept
+  // in the generator's provenance metadata and in CI build evidence instead.
   const lines = [
-    `Facts below were captured by running the candidate \`${binary.product}\` binary at commit \`${binary.commit}\` `
-      + `(version \`${markdownToken(binary.version)}\`, built \`${markdownToken(binary.date)}\` with `
-      + `\`${markdownToken(binary.goVersion)}\`).${verification}`,
+    `Facts below were captured by running the candidate \`${binary.product}\` binary built from the `
+      + `inspected source revision (version \`${markdownToken(binary.version)}\`). `
+      + 'The binary commit, build date and toolchain are recorded in the build evidence, not in this page.',
     '',
     '## Entrypoints and compatibility wrappers',
     '',

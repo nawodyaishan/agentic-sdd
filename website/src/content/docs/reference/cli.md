@@ -45,7 +45,7 @@ Structured JSON output is also subsystem-specific:
 - [Configuration reference](./configuration.md) — per-subsystem flags, files, and environment precedence.
 
 <!-- generated:reference/cli:start -->
-Facts below were captured by running the candidate `asdx-core` binary at commit `2fc31e9f9c4d019e2b9f3b4f004978028808c74b` (version `dev`, built `2026-11-14T00:00:00Z` with `go1.27.1`). The expected inspected-revision commit `2fc31e9f9c4d019e2b9f3b4f004978028808c74b` was verified before capture.
+Facts below were captured by running the candidate `asdx-core` binary built from the inspected source revision (version `dev`). The binary commit, build date and toolchain are recorded in the build evidence, not in this page.
 
 ## Entrypoints and compatibility wrappers
 

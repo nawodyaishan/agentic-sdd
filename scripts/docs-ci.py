@@ -69,6 +69,18 @@ socket and no shared cache. Their container user is `--user uid:gid`, so the
 `$HOME` tmpfs is mounted writable for that non-root user (mode=1777), not
 root-owned.
 
+Reference parity is a two-stage trusted-tooling step in front of those checks.
+The launcher builds the staged candidate *source* with a digest-pinned Go
+builder image under the same bounds (no network, read-only root, dropped
+capabilities, limited pids/memory/cpu, launcher-owned scratch for GOCACHE,
+GOPATH and the output, and no candidate home or Docker socket), records the
+binary sha256, toolchain, commit and exact ldflags, and then runs the adopted
+`reference-parity` check in the Node container with that binary mounted
+read-only. The candidate never chooses its toolchain: the builder pin and the
+check itself live in this protected file. A missing builder image, a failed
+build, a missing binary or an unrunnable parity check is a named `blocked`
+result, never a pass.
+
 Local-only trees are never reviewed input: `.codegraph/` (machine-local index)
 and `backups/` (private local backups) are skipped by the source inventory and
 recorded as an observation, while a real credential file or another sensitive
@@ -79,7 +91,8 @@ surface - launcher, site scripts, plugins, tests, site config, package files,
 this suite and `Taskfile.yml` - and an ordered check list with exact argv. The
 base evaluator requires every adopted check id, in order, with the recorded
 argv and exit 0. The Node suite is part of the lane, so a build that only looks
-green is not enough.
+green is not enough; `reference-parity` re-derives the source reference pages
+from the candidate binary and fails on drift.
 
 Publication allowlist (Q2): `website/docs-manifest.json` in the trusted base is
 the allowlist. A candidate page not adopted by the base needs trusted policy
@@ -163,10 +176,64 @@ FORBIDDEN_CONTAINER_ENV = frozenset({
 })
 FORBIDDEN_CONTAINER_PREFIXES = ("ACTIONS_", "GITHUB_", "NPM_CONFIG_", "npm_config_")
 
-# Embedded default policy. It intentionally carries no image pin: a trusted base
-# (or its workflow) must adopt an exact digest through --image or a policy file
-# before anything executes. Everything else is base-owned and immutable for a
-# run; the candidate never contributes policy fields.
+# Embedded default policy. It intentionally carries no runtime image pin: a
+# trusted base (or its workflow) must adopt an exact digest through --image or a
+# policy file before anything executes. Everything else is base-owned and
+# immutable for a run; the candidate never contributes policy fields.
+#
+# The Go builder pin is different: it is trusted tooling owned by this protected
+# launcher, not a per-run choice. It was observed on 2026-11-16 with
+# `docker pull golang:1.27` and
+# `docker image inspect golang:1.27 --format '{{index .RepoDigests 0}}'`
+# (`go version go1.27.4 linux/amd64` inside the image). docs.yml pulls the same
+# reference before the launcher runs; a missing local image blocks the run.
+BUILDER_IMAGE = (
+    "golang@sha256:ec47ea3725fea0cc88f6de94919aef19f40f12fc1ec0e2d1b3426dbf15ecca04"
+)
+BUILDER_SCRATCH = "/build"
+BUILDER_BINARY_NAME = "asdx-core"
+# The mounted directory and exact path the parity check invokes. It is a
+# top-level read-only mount, not a nested one below /workspace: Docker cannot
+# create a mountpoint inside an already read-only bind mount, so a nested path
+# would fail container creation on every real run.
+CONTAINER_BINARY_DIR = "/binary"
+CONTAINER_BINARY = CONTAINER_BINARY_DIR + "/" + BUILDER_BINARY_NAME
+MAX_BUILDER_BINARY_BYTES = 128 << 20
+
+BUILDER_ENV_BASE = {
+    "PATH": "/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin",
+    "HOME": "/tmp/home",
+    "TMPDIR": "/tmp",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC",
+    # Offline build: no module proxy, no checksum database, no toolchain switch,
+    # no host GOENV, and no shared host build cache. The module graph has no
+    # external dependencies, so a read-only module graph is enough.
+    "CGO_ENABLED": "0",
+    "GOFLAGS": "-mod=readonly",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOWORK": "off",
+    "GOENV": "off",
+    "GOCACHE": BUILDER_SCRATCH + "/cache",
+    "GOPATH": BUILDER_SCRATCH + "/gopath",
+}
+ALLOWED_BUILDER_ENV = frozenset(BUILDER_ENV_BASE)
+
+COMMIT_DATE = re.compile(
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"(?:\.[0-9]{1,9})?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+)
+BUILDER_GO_VERSION_LINE = re.compile(r"^builder-go-version: (go version \S.*)$", re.MULTILINE)
+BUILDER_TOOLCHAIN_LINE = re.compile(r"^builder-toolchain: (go[0-9][^\s]*)$", re.MULTILINE)
+# A check argv token of this form is resolved from the run identity before the
+# container starts and is recorded resolved. The evaluator resolves the policy
+# token the same way, so the exact executed argv is still compared.
+CHECK_TOKEN = re.compile(r"^\{([a-z][a-z0-9_]*)\}$")
+CHECK_SUBSTITUTIONS = frozenset({"candidate_sha"})
+
 DEFAULT_POLICY = {
     "schema": "docs-ci-policy/1",
     "site_root": "website",
@@ -198,12 +265,15 @@ DEFAULT_POLICY = {
         "Taskfile.yml",
     ],
     "image": None,
+    # Trusted Go toolchain for the reference-parity build stage (see
+    # BUILDER_IMAGE). Base-owned, not candidate- or workflow-selectable.
+    "builder_image": BUILDER_IMAGE,
     "dependencies_dir": "website/node_modules",
     "artifact_root": "website/dist",
     # Built output plus caches. The repo-root `.cache` is the scratch base the
     # site's disposable-build tests use; it is still launcher-owned scratch, not
     # a host cache or the staged source tree.
-    "declared_write_paths": ["website/dist", "website/.cache", "website/.astro", ".cache"],
+    "declared_write_paths": ["website/dist", "website/.export-check", "website/.cache", "website/.astro", ".cache"],
     # Ordered adopted check list. The base evaluator requires every id here, in
     # this order, with this exact argv and exit 0; a missing, renamed, reordered
     # or silently skipped check is a failure, never a pass. `requires_script`
@@ -216,25 +286,35 @@ DEFAULT_POLICY = {
     # same writable artifact mount; together they prove the export is
     # deterministic and matches the manifest allowlist.
     "checks": [
-        {"id": "build", "argv": ["npm", "run", "build"], "requires_script": "build"},
+        {"id": "build", "argv": ["npm", "run", "build:site"], "requires_script": "build:site"},
         {"id": "docs-check", "argv": ["npm", "run", "docs:check"],
          "requires_script": "docs:check"},
         {"id": "docs-check-built",
          "argv": ["npm", "run", "docs:check-built"],
          "requires_script": "docs:check-built"},
-        {"id": "docs-export-write", "argv": ["node", "scripts/export.mjs", "--out", "dist/export"],
+        {"id": "docs-export-write", "argv": ["node", "scripts/export.mjs", "--out", ".export-check"],
          "requires_file": "scripts/export.mjs"},
         {"id": "docs-export-check",
-         "argv": ["node", "scripts/export.mjs", "--out", "dist/export", "--check"],
+         "argv": ["node", "scripts/export.mjs", "--out", ".export-check", "--check"],
          "requires_file": "scripts/export.mjs"},
         {"id": "node-test", "argv": ["npm", "test"], "requires_script": "test"},
+        # Reference parity runs last, after every build and check above, and
+        # requires the builder stage's binary mounted read-only. Its `--commit`
+        # token is resolved from the run identity (the candidate SHA), so the
+        # recorded argv is the exact command that ran and the evaluator can
+        # still require it byte-for-byte. A drifted generated reference page
+        # exits 1 here and the run cannot pass.
+        {"id": "reference-parity",
+         "argv": ["node", "scripts/reference.mjs", "--check",
+                  "--binary", CONTAINER_BINARY, "--commit", "{candidate_sha}"],
+         "requires_file": "scripts/reference.mjs", "requires_binary": True},
     ],
     "build_env": {"ASTRO_TELEMETRY_DISABLED": "1"},
     "limits": {"cpus": "2", "memory": "2g", "pids": 256, "timeout_seconds": 900},
 }
 
 POLICY_KEYS = frozenset(DEFAULT_POLICY)
-CHECK_KEYS = frozenset({"id", "argv", "requires_script", "requires_file"})
+CHECK_KEYS = frozenset({"id", "argv", "requires_script", "requires_file", "requires_binary"})
 CONTENT_ROOT_SUFFIX = "src/content/docs"
 # Only Markdown is a canonical page source. A `.mdx`/`.markdown`/`.mdoc` file
 # in the content tree is an unadopted build input, never an extra page.
@@ -340,8 +420,8 @@ def write_json(path, data):
         stream.write("\n")
 
 
-def write_status(path, data):
-    """Status may be replaced by a re-run evaluator; content stays deterministic."""
+def replace_json(path, data):
+    """Atomically replace a launcher-owned JSON record (never a candidate file)."""
     path = Path(path)
     temporary = path.with_name("." + path.name + ".partial")
     if temporary.exists() or temporary.is_symlink():
@@ -350,6 +430,11 @@ def write_status(path, data):
         json.dump(data, stream, indent=2, sort_keys=True)
         stream.write("\n")
     os.replace(temporary, path)
+
+
+def write_status(path, data):
+    """Status may be replaced by a re-run evaluator; content stays deterministic."""
+    replace_json(path, data)
 
 
 def write_bytes(path, data):
@@ -424,6 +509,9 @@ def validate_policy(policy):
     image = policy.get("image")
     if image is not None and (not isinstance(image, str) or not IMAGE_PIN.match(image)):
         raise Refusal(RESULT_BLOCKED, "policy-image-not-digest-pinned")
+    builder = policy.get("builder_image")
+    if builder is not None and (not isinstance(builder, str) or not IMAGE_PIN.match(builder)):
+        raise Refusal(RESULT_BLOCKED, "policy-builder-image-not-digest-pinned")
     for key in ("site_root", "site_manifest", "dependencies_dir", "artifact_root"):
         if not safe_relative(policy.get(key)):
             raise Refusal(RESULT_BLOCKED, "policy-path-invalid", key)
@@ -492,10 +580,21 @@ def validate_policy(policy):
             raise Refusal(RESULT_BLOCKED, "policy-check-invalid", check["id"])
         if argv[0] not in CANDIDATE_PROGRAMS:
             raise Refusal(RESULT_BLOCKED, "policy-check-program-refused", check["id"])
+        for item in argv:
+            token = CHECK_TOKEN.match(item)
+            if token is not None and token.group(1) not in CHECK_SUBSTITUTIONS:
+                raise Refusal(RESULT_BLOCKED, "policy-check-substitution-refused", check["id"])
         if "requires_script" in check and not safe_script_name(check["requires_script"]):
             raise Refusal(RESULT_BLOCKED, "policy-check-invalid", check["id"])
         if "requires_file" in check and not safe_relative(check["requires_file"]):
             raise Refusal(RESULT_BLOCKED, "policy-check-invalid", check["id"])
+        if "requires_binary" in check:
+            if check["requires_binary"] is not True:
+                raise Refusal(RESULT_BLOCKED, "policy-check-invalid", check["id"])
+            # The declared mount must be the one the argv actually invokes; a
+            # typo would otherwise silently check a different path.
+            if CONTAINER_BINARY not in argv:
+                raise Refusal(RESULT_BLOCKED, "policy-check-binary-unreferenced", check["id"])
 
 
 def policy_digest(policy):
@@ -802,19 +901,22 @@ def check_content_inventory(adopted_pages, root, policy):
     return sorted(observed)
 
 
-def adopted_checks(policy):
-    return [{"id": check["id"], "argv": list(check["argv"])} for check in policy["checks"]]
+def adopted_checks(policy, substitutions=None):
+    return [{"id": check["id"], "argv": resolve_check_argv(check, substitutions)}
+            for check in policy["checks"]]
 
 
-def compare_check_records(policy, recorded):
+def compare_check_records(policy, recorded, substitutions=None):
     """Problems with executed checks: exact ids, order, argv and exit 0.
 
     The records are written by this launcher, but `--action evaluate` re-reads
     them from disk, so the base evaluator treats them as data. A check that is
     missing, renamed, reordered, given different arguments or silently skipped
-    cannot pass by omission.
+    cannot pass by omission. Policy argv tokens such as `{candidate_sha}` are
+    resolved from the same identity the run recorded, so the comparison is
+    still against the exact command that ran.
     """
-    adopted = adopted_checks(policy)
+    adopted = adopted_checks(policy, substitutions)
     if not isinstance(recorded, list):
         return ["records-not-a-list"]
     problems = []
@@ -903,6 +1005,17 @@ def git_revision(ctx, root, env, *, expected=None, ref=None, label="root"):
     return sha
 
 
+def git_commit_date(ctx, root, sha, env):
+    """The candidate commit's ISO committer date, as the binary ldflags record it."""
+    completed = ctx.run(
+        GIT_BASE + [str(root), "show", "-s", "--format=%cI", sha], env=env, timeout=20,
+    )
+    value = os.fsdecode(completed.stdout).strip() if completed.returncode == 0 else ""
+    if not COMMIT_DATE.match(value):
+        raise Refusal(RESULT_BLOCKED, "candidate-commit-date-unavailable", sha[:12])
+    return value
+
+
 def tree_state(ctx, root, home):
     """Record whether the trusted tree is clean; never guess.
 
@@ -979,6 +1092,16 @@ def image_reference(policy):
     return image
 
 
+def builder_image(policy):
+    """The base-owned Go builder pin; a missing or unpinned value blocks."""
+    image = policy.get("builder_image")
+    if not image:
+        raise Refusal(RESULT_BLOCKED, "builder-image-pin-not-adopted")
+    if not IMAGE_PIN.match(image):
+        raise Refusal(RESULT_BLOCKED, "policy-builder-image-not-digest-pinned")
+    return image
+
+
 def check_workdir(policy):
     """Containers start in the policy's site root, where its package.json lives.
 
@@ -1040,7 +1163,8 @@ def refuse_sensitive_mount(source, *, home):
         raise Refusal(RESULT_BLOCKED, "socket-or-credential-mount-refused")
 
 
-def container_argv(ctx, policy, *, mounts, workdir, environment, network, cidfile, command):
+def container_argv(ctx, policy, *, mounts, workdir, environment, network, cidfile, command,
+                   image=None):
     if network not in ("none", "bridge"):
         raise Refusal(RESULT_BLOCKED, "container-network-invalid")
     cidfile = Path(cidfile)
@@ -1067,7 +1191,7 @@ def container_argv(ctx, policy, *, mounts, workdir, environment, network, cidfil
         argv += ["--mount", spec]
     for key in sorted(environment):
         argv += ["-e", key + "=" + environment[key]]
-    return argv + [image_reference(policy), *command]
+    return argv + [image or image_reference(policy), *command]
 
 
 def candidate_mounts(policy, *, staged, dependencies, writes):
@@ -1210,31 +1334,224 @@ def provision_dependencies(ctx, policy, *, trusted, private, cidfiles=None):
     return summary
 
 
-def execute_checks(ctx, policy, *, private, staged, dependencies, writes, cidfiles=None):
+def builder_environment():
+    """Constructed environment for the trusted Go build; nothing host-selected."""
+    env = dict(BUILDER_ENV_BASE)
+    for key, value in env.items():
+        if key in FORBIDDEN_CONTAINER_ENV or key.startswith(FORBIDDEN_CONTAINER_PREFIXES):
+            raise Refusal(RESULT_BLOCKED, "builder-env-key-refused", key)
+        if key not in ALLOWED_BUILDER_ENV:
+            raise Refusal(RESULT_BLOCKED, "builder-env-key-refused", key)
+        if not isinstance(value, str) or "\x00" in value or len(value) > 512:
+            raise Refusal(RESULT_BLOCKED, "builder-env-value-refused", key)
+    return env
+
+
+def builder_ldflags(candidate_sha, commit_date):
+    """The exact ldflags string the build stage passes; recorded verbatim.
+
+    `$(go env GOVERSION)` is expanded by the container shell, so the recorded
+    string is the command that ran and the observed toolchain is recorded
+    beside it.
+    """
+    return (
+        "-X agentic-sdd/internal/version.Version=dev "
+        "-X agentic-sdd/internal/version.Commit=" + candidate_sha + " "
+        "-X agentic-sdd/internal/version.Date=" + commit_date + " "
+        "-X agentic-sdd/internal/version.GoVersion=$(go env GOVERSION)"
+    )
+
+
+def builder_command(ldflags):
+    return [
+        "sh", "-c",
+        "set -eu\n"
+        "printf 'builder-go-version: %s\\n' \"$(go version)\"\n"
+        "printf 'builder-toolchain: %s\\n' \"$(go env GOVERSION)\"\n"
+        "exec go build -trimpath -ldflags \"" + ldflags + "\" -o "
+        + BUILDER_SCRATCH + "/" + BUILDER_BINARY_NAME + " ./cmd/agentic-sdd\n",
+    ]
+
+
+def preflight_builder_image(ctx, policy, private):
+    completed = ctx.run(["docker", "image", "inspect", builder_image(policy)],
+                        env=host_environment(private), timeout=30)
+    if completed.returncode != 0:
+        raise Refusal(RESULT_BLOCKED, "pinned-builder-image-unavailable")
+
+
+def builder_scratch(private):
+    """Launcher-owned writable scratch for GOCACHE, GOPATH and the output."""
+    root = Path(private) / "build"
+    if root.exists() or root.is_symlink():
+        raise Refusal(RESULT_BLOCKED, "builder-scratch-exists")
+    root.mkdir(mode=0o700)
+    for name in ("cache", "gopath"):
+        (root / name).mkdir(mode=0o700)
+    return root
+
+
+def publish_builder_binary(scratch, private):
+    """Copy the produced binary into a mountable dir and bind it by digest."""
+    produced = Path(scratch) / BUILDER_BINARY_NAME
+    if produced.is_symlink() or not produced.is_file():
+        raise Refusal(RESULT_BLOCKED, "builder-binary-missing")
+    info = produced.lstat()
+    if not stat.S_ISREG(info.st_mode):
+        raise Refusal(RESULT_BLOCKED, "builder-binary-not-regular")
+    if info.st_size <= 0 or info.st_size > MAX_BUILDER_BINARY_BYTES:
+        raise Refusal(RESULT_BLOCKED, "builder-binary-exceeds-bound")
+    target_dir = Path(private) / "binary"
+    if target_dir.exists() or target_dir.is_symlink():
+        raise Refusal(RESULT_BLOCKED, "builder-binary-scratch-exists")
+    target_dir.mkdir(mode=0o700)
+    target = target_dir / BUILDER_BINARY_NAME
+    shutil.copyfile(produced, target)
+    target.chmod(0o755)
+    data = target.read_bytes()
+    digest = sha256_bytes(data)
+    if digest != sha256_bytes(produced.read_bytes()):
+        raise Refusal(RESULT_BLOCKED, "builder-binary-publication-mismatch")
+    return {
+        "path": "private/binary/" + BUILDER_BINARY_NAME,
+        "mount": CONTAINER_BINARY,
+        "sha256": digest,
+        "size": len(data),
+    }
+
+
+def build_candidate_binary(ctx, policy, *, candidate_root, staged, private, identity,
+                           cidfiles=None):
+    """Trusted Go build stage over the staged candidate source (never the checkout).
+
+    The container is the pinned builder image with the same bounded shape as the
+    candidate checks: no network, read-only root, dropped capabilities, a
+    non-root user, limited pids/memory/cpu, and only launcher-owned scratch
+    writable. It mounts neither the candidate checkout's `.git`, its home nor a
+    Docker socket. Every failure is a named `blocked` refusal, never a pass.
+    """
+    image = builder_image(policy)
+    candidate_sha = str(identity.get("candidate_sha") or "")
+    if not FULL_SHA.match(candidate_sha):
+        raise Refusal(RESULT_BLOCKED, "candidate-sha-unavailable")
+    commit_date = git_commit_date(ctx, candidate_root, candidate_sha,
+                                  git_environment(private))
+    ldflags = builder_ldflags(candidate_sha, commit_date)
+    command = builder_command(ldflags)
+    scratch = builder_scratch(private)
+    logs = Path(private) / "logs"
+    logs.mkdir(mode=0o700, exist_ok=True)
+    cidfile = Path(private) / "build.cid"
+    if cidfiles is not None:
+        # Recorded before the container starts, like every other owned container.
+        cidfiles.append(cidfile)
+    mounts = [
+        mount_spec(staged, CONTAINER_WORKSPACE),
+        mount_spec(scratch, BUILDER_SCRATCH, writable=True),
+    ]
+    assert_writable_scratch(mounts, scratch)
+    argv = container_argv(
+        ctx, policy, mounts=mounts, workdir=CONTAINER_WORKSPACE,
+        environment=builder_environment(), network="none", cidfile=cidfile,
+        command=command, image=image,
+    )
+    completed = ctx.run(argv, cwd=private, env=host_environment(private),
+                        timeout=policy["limits"]["timeout_seconds"])
+    log = logs / "build-go.log"
+    write_bytes(log, completed.stdout + completed.stderr)
+    stdout = os.fsdecode(completed.stdout)
+    observed = BUILDER_GO_VERSION_LINE.search(stdout)
+    toolchain = BUILDER_TOOLCHAIN_LINE.search(stdout)
+    if observed is None or toolchain is None:
+        raise Refusal(RESULT_BLOCKED, "builder-toolchain-unrecorded",
+                      "exit:" + str(completed.returncode))
+    record = {
+        "schema": "docs-ci-builder/1",
+        "image": image,
+        "image_digest": image.split("@", 1)[1],
+        "go_version": observed.group(1)[:200],
+        "toolchain": toolchain.group(1)[:64],
+        "commit": candidate_sha,
+        "commit_date": commit_date,
+        "ldflags": ldflags,
+        "container_command": command,
+        "exit_code": completed.returncode,
+        "log": "private/logs/build-go.log",
+        "log_sha256": sha256_file(log, limit=MAX_ARTIFACT_BYTES),
+        "binary": {},
+    }
+    if completed.returncode != 0:
+        raise Refusal(RESULT_BLOCKED, "builder-build-failed",
+                      "exit:" + str(completed.returncode))
+    record["binary"] = publish_builder_binary(scratch, private)
+    return record
+
+
+def record_builder_identity(output, builder):
+    """Attach the build identity to the run record after the stage completes."""
+    identity = read_identity(output)
+    identity["builder"] = builder
+    replace_json(Path(output) / "identity.json", identity)
+
+
+def check_substitutions(identity):
+    return {"candidate_sha": str(identity.get("candidate_sha") or "")}
+
+
+def resolve_check_argv(check, substitutions):
+    argv = []
+    for item in check["argv"]:
+        token = CHECK_TOKEN.match(item)
+        if token is None:
+            argv.append(item)
+            continue
+        value = (substitutions or {}).get(token.group(1), "")
+        if not value:
+            raise Refusal(RESULT_BLOCKED, "check-substitution-unavailable",
+                          check["id"] + ":" + token.group(1))
+        argv.append(value)
+    return argv
+
+
+def execute_checks(ctx, policy, *, private, staged, dependencies, writes, substitutions,
+                   cidfiles=None):
     """Every candidate command runs in its own bounded, networkless container."""
     logs = Path(private) / "logs"
-    logs.mkdir(mode=0o700)
+    logs.mkdir(mode=0o700, exist_ok=True)
+    binary_dir = Path(private) / "binary"
     results = []
     recorded = cidfiles if cidfiles is not None else []
     for check in policy["checks"]:
         assert_check_workdir(staged, policy, check)
+        command = resolve_check_argv(check, substitutions)
+        mounts = candidate_mounts(policy, staged=staged, dependencies=dependencies,
+                                  writes=writes)
+        if check.get("requires_binary"):
+            if (binary_dir / BUILDER_BINARY_NAME).is_symlink() or not (
+                    binary_dir / BUILDER_BINARY_NAME).is_file():
+                raise Refusal(RESULT_BLOCKED, "reference-binary-unavailable", check["id"])
+            mounts.append(mount_spec(binary_dir, CONTAINER_BINARY_DIR))
         cidfile = Path(private) / ("check-" + check["id"] + ".cid")
         # Record ownership before the container starts: a timeout or a signal
         # must still leave a cidfile the caller's `finally` cleanup can remove.
         recorded.append(cidfile)
         argv = container_argv(
-            ctx, policy,
-            mounts=candidate_mounts(policy, staged=staged, dependencies=dependencies, writes=writes),
-            workdir=check_workdir(policy), environment=container_environment(policy),
-            network="none", cidfile=cidfile, command=check["argv"],
+            ctx, policy, mounts=mounts, workdir=check_workdir(policy),
+            environment=container_environment(policy), network="none",
+            cidfile=cidfile, command=command,
         )
         completed = ctx.run(argv, cwd=private, env=host_environment(private),
                             timeout=policy["limits"]["timeout_seconds"])
         log = logs / (check["id"] + ".log")
         write_bytes(log, completed.stdout + completed.stderr)
+        if check.get("requires_binary") and completed.returncode == 2:
+            # reference.mjs exits 2 for `binary-absent`: the supplied binary was
+            # unusable, so the tooling stage could not run. That is a blocked
+            # build/parity stage, never a green check hiding behind the run.
+            raise Refusal(RESULT_BLOCKED, "reference-parity-not-runnable", check["id"])
         results.append({
             "id": check["id"],
-            "argv": list(check["argv"]),
+            "argv": list(command),
             "exit_code": completed.returncode,
             "log": "private/logs/" + check["id"] + ".log",
             "log_sha256": sha256_file(log, limit=MAX_ARTIFACT_BYTES),
@@ -1646,6 +1963,61 @@ def _detail(error):
     return error.reason + (":" + str(error.detail) if error.detail else "")
 
 
+def verify_builder_record(policy, identity, builder, output):
+    """Re-derive the trusted build identity from the record and the binary.
+
+    The binary is re-hashed from launcher scratch, so a swapped, missing or
+    edited binary cannot inherit the recorded digest. Every failure is a named
+    problem, and the evaluator turns a non-empty list into a failing check.
+    """
+    if not isinstance(builder, dict) or not builder:
+        return ["builder-unrecorded"]
+    problems = []
+    try:
+        expected_image = builder_image(policy)
+    except Refusal:
+        return ["builder-image-not-adopted"]
+    if builder.get("image") != expected_image:
+        problems.append("builder-image-mismatch")
+    if builder.get("exit_code") != 0:
+        problems.append("builder-exit-nonzero")
+    candidate_sha = str(identity.get("candidate_sha") or "")
+    if not candidate_sha or builder.get("commit") != candidate_sha:
+        problems.append("builder-commit-mismatch")
+    ldflags = builder.get("ldflags")
+    if not isinstance(ldflags, str):
+        return problems + ["builder-ldflags-unrecorded"]
+    for fragment in (
+        "-X agentic-sdd/internal/version.Version=dev",
+        "-X agentic-sdd/internal/version.Commit=" + candidate_sha,
+        "-X agentic-sdd/internal/version.Date=" + str(builder.get("commit_date")),
+        "-X agentic-sdd/internal/version.GoVersion=$(go env GOVERSION)",
+    ):
+        if fragment not in ldflags:
+            problems.append("builder-ldflags-incomplete")
+            break
+    if not str(builder.get("go_version") or "").startswith("go version "):
+        problems.append("builder-go-version-unrecorded")
+    binary = builder.get("binary")
+    if not isinstance(binary, dict) or not binary:
+        return problems + ["builder-binary-unrecorded"]
+    relative = str(binary.get("path") or "")
+    if not safe_relative(relative) or not relative.startswith("private/binary/"):
+        return problems + ["builder-binary-path-invalid"]
+    target = Path(output) / relative
+    if target.is_symlink() or not target.is_file():
+        return problems + ["builder-binary-unavailable"]
+    info = target.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_BUILDER_BINARY_BYTES:
+        return problems + ["builder-binary-unavailable"]
+    data = target.read_bytes()
+    if binary.get("sha256") != sha256_bytes(data):
+        problems.append("builder-binary-digest-drift")
+    if binary.get("size") != len(data):
+        problems.append("builder-binary-size-drift")
+    return problems
+
+
 def evaluate_records(ctx, *, trusted, candidate, output, mode, policy, policy_source, identity,
                      records, home):
     """Independent base-owned validation; candidate state is never consulted."""
@@ -1696,8 +2068,18 @@ def evaluate_records(ctx, *, trusted, candidate, output, mode, policy, policy_so
     if not executed or not candidate_checks:
         note("candidate-completion", "fail", "no-executed-check-record")
     else:
-        problems = compare_check_records(policy, candidate_checks)
+        try:
+            problems = compare_check_records(policy, candidate_checks,
+                                             check_substitutions(identity))
+        except Refusal as error:
+            problems = ["check-argv-unresolvable:" + _detail(error)]
         note("candidate-completion", "pass" if not problems else "fail", ",".join(problems))
+
+    try:
+        problems = verify_builder_record(policy, identity, records.get("builder"), output)
+    except (OSError, ValueError):
+        problems = ["builder-record-unreadable"]
+    note("builder-identity", "pass" if not problems else "fail", ",".join(problems))
 
     adopted = []
     try:
@@ -1829,7 +2211,8 @@ def inspect_retained(*, artifact, expected_revision=None, artifact_run=None, rec
 
 def identity_view(identity):
     keys = ("base_sha", "candidate_sha", "candidate_ref", "policy_sha256", "policy_source",
-            "lock_sha256", "image", "launcher_sha256", "required_pages", "trusted_tree")
+            "lock_sha256", "image", "launcher_sha256", "required_pages", "trusted_tree",
+            "builder")
     return {key: identity.get(key) for key in keys}
 
 
@@ -2004,6 +2387,7 @@ def action_run(ctx, args):
         validate_artifact_destination(args.artifact, trusted=trusted,
                                       candidate=candidate, output=output)
     preflight_image(ctx, policy, private)
+    preflight_builder_image(ctx, policy, private)
     staged = private / "staged"
     observations = []
     before = stage_source(candidate, staged, skip=source_skip(policy),
@@ -2015,9 +2399,16 @@ def action_run(ctx, args):
     try:
         dependencies = provision_dependencies(ctx, policy, trusted=trusted, private=private,
                                               cidfiles=cidfiles)
+        builder = build_candidate_binary(
+            ctx, policy, candidate_root=candidate, staged=staged, private=private,
+            identity=identity, cidfiles=cidfiles,
+        )
+        record_builder_identity(output, builder)
+        identity["builder"] = builder
         checks, _ = execute_checks(
             ctx, policy, private=private, staged=staged,
-            dependencies=private / "dependencies", writes=writes, cidfiles=cidfiles,
+            dependencies=private / "dependencies", writes=writes,
+            substitutions=check_substitutions(identity), cidfiles=cidfiles,
         )
     finally:
         # Every recorded container is removed even when a command timed out or
@@ -2048,6 +2439,7 @@ def action_run(ctx, args):
         "artifact_dir": "private/writes/" + policy["artifact_root"],
         "checks": checks,
         "dependencies": dependencies,
+        "builder": builder,
         "inventory_before": inventory_digest(before),
         "inventory_after": inventory_digest(after),
         "changed": changed,
@@ -2078,6 +2470,9 @@ def action_run(ctx, args):
     for key in ("base_sha", "candidate_sha", "policy_sha256", "image"):
         if bound.get(key) != identity.get(key):
             raise Refusal(RESULT_BLOCKED, "base-evaluator-identity-mismatch", key)
+    bound_binary = (bound.get("builder") or {}).get("binary") or {}
+    if bound_binary.get("sha256") != builder["binary"]["sha256"]:
+        raise Refusal(RESULT_BLOCKED, "base-evaluator-identity-mismatch", "builder")
     published = None
     if args.artifact and status.get("result") == RESULT_PASS and status.get("authoritative") is True:
         # Publish only after the base-owned evaluator passed *and* the run is

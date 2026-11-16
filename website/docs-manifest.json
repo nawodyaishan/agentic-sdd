@@ -798,14 +798,14 @@
         },
         {
           "path": "website/scripts/reference/cli.mjs",
-          "sha256": "5f66b02f1b7ae973e2ddc61fac63ffb29aa0f88ee49afa9a8b7a13e2c8da6a88"
+          "sha256": "2c40f7943c82ad7ecefaf5c5f450894c7a5274147555b15f1f8c03e24abb2384"
         },
         {
           "path": "website/src/content/docs/reference/cli.md",
-          "sha256": "727b1ec2ecf216e2ce894b1dfd7e9e169d734f2b83a4c4e892b15c4a950071c5"
+          "sha256": "a756f8a9c68780aafe6d5468f53f6760cdafc1e14d9cd38b2b14d228e891e54a"
         }
       ],
-      "reviewDigest": "ec5565ca971adf4b704fcb75762be833346300d015581cf61a4340d179ec3f43",
+      "reviewDigest": "3b6e6dc3394a54edf5141574a1e93e201a9a7750b6e9384b2a061a9892d3188e",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [

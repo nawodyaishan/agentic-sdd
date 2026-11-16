@@ -171,6 +171,13 @@ env:
   # launcher's image-pin gate fails closed if this disagrees with its adopted
   # lock/policy identity.
   DOCS_IMAGE: "node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54"
+  # Trusted Go builder for the `reference-parity` stage, pinned by digest
+  # (observed 2026-11-16: `docker pull golang:1.27`, in-image
+  # `go version go1.27.4 linux/amd64`). It is trusted tooling over candidate
+  # *source*, never candidate input. The launcher owns the same pin in its
+  # protected policy and blocks when the local image is absent, so this value
+  # exists only for the pull; drift is caught by the launcher and its suite.
+  DOCS_BUILDER_IMAGE: "golang@sha256:ec47ea3725fea0cc88f6de94919aef19f40f12fc1ec0e2d1b3426dbf15ecca04"
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -270,6 +277,17 @@ jobs:
           docker pull "$DOCS_IMAGE"
           docker image inspect "$DOCS_IMAGE" >/dev/null
 
+      - name: Pull the reviewed Go builder image by digest
+        run: |
+          set -euo pipefail
+          # Trusted tooling for the reference-parity build stage: the launcher
+          # builds the staged candidate source with `--network=none`, a
+          # read-only root and launcher-owned scratch. It never pulls, so a
+          # fresh runner needs this digest present first and blocks with
+          # `pinned-builder-image-unavailable` otherwise.
+          docker pull "$DOCS_BUILDER_IMAGE"
+          docker image inspect "$DOCS_BUILDER_IMAGE" >/dev/null
+
       - name: Run reviewed docs launcher (mode pr)
         env:
           TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
@@ -349,6 +367,14 @@ jobs:
           # (`--pull=never`) and fails closed when the pinned image is absent.
           docker pull "$DOCS_IMAGE"
           docker image inspect "$DOCS_IMAGE" >/dev/null
+
+      - name: Pull the reviewed Go builder image by digest
+        run: |
+          set -euo pipefail
+          # Same builder pull as the PR lane: trusted tooling over candidate
+          # source, networkless and read-only, and never pulled by the launcher.
+          docker pull "$DOCS_BUILDER_IMAGE"
+          docker image inspect "$DOCS_BUILDER_IMAGE" >/dev/null
 
       - name: Run reviewed docs launcher (mode main)
         env:

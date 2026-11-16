@@ -492,7 +492,11 @@ test('binds generated CLI facts to the candidate binary commit and records prove
   });
   assert.deepEqual(first.inventory.provenance, section.metadata);
   assert.match(section.markdown, /captured by running the candidate/);
-  assert.match(section.markdown, /expected inspected-revision commit/);
+  // The committed page must not embed the binary's own commit: that can never
+  // be self-consistent for a page added in the same commit. Capture identity
+  // lives in the provenance metadata and in CI build evidence instead.
+  assert.match(section.markdown, /recorded in the build evidence, not in this page/);
+  assert.doesNotMatch(section.markdown, new RegExp(STANDARD_FAKE_COMMIT));
 
   const abbreviated = await mod.collectCLI({
     repoRoot,
