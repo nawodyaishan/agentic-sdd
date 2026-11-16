@@ -466,10 +466,13 @@ jobs:
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0, resolved 2026-11-14
         with:
           path: ${{ runner.temp }}/docs-ci/main-artifact
-          # Hidden files stay excluded (the action's safe default); the site
-          # needs no dotfiles. Retention is a workflow default only: the
-          # owner-recorded retention policy (R02 preflight) stays authoritative,
-          # and a rollback beyond it must rebuild a known-good revision.
+          # GitHub Pages applies the Jekyll underscore rule to served paths, so
+          # the empty `.nojekyll` marker must ship or `_astro` (all CSS, JS and
+          # images) 404s. The action excludes dotfiles unless asked not to.
+          include-hidden-files: true
+          # Retention is a workflow default only: the owner-recorded retention
+          # policy (R02 preflight) stays authoritative, and a rollback beyond it
+          # must rebuild a known-good revision.
           retention-days: 30
 
       - name: Upload run identity evidence
@@ -722,6 +725,7 @@ jobs:
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0, resolved 2026-11-14
         with:
           path: ${{ runner.temp }}/docs-ci/rollback/artifact
+          include-hidden-files: true
           retention-days: 30
 
       - name: Deploy the verified rollback artifact
