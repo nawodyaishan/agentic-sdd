@@ -1,152 +1,165 @@
 # Agentic SDD
 
-### Build software with AI. Stay the engineer.
+**Build software with AI. Stay the engineer.**
 
 [![Release](https://img.shields.io/github/v/release/nawodyaishan/agentic-sdd)](https://github.com/nawodyaishan/agentic-sdd/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/nawodyaishan/agentic-sdd/ci.yml?label=CI)](https://github.com/nawodyaishan/agentic-sdd/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**Turn an idea into changes you can understand, review, and maintain.**
+Agentic SDD is an open-source toolkit of **18 portable core engineering
+skills** plus an optional OpenCode pack, delivered by a preview-first Go CLI
+(`asdx-core`) and a terminal UI companion (`asdx`). It helps one main coding
+agent scope work, keep human approval explicit, verify with real checks, and
+learn as you build. Small fixes skip feature paperwork; larger features get a
+connected spec, plan, and task list for one combined approval.
 
-Agentic SDD is an open-source toolkit of **18 core engineering skills** plus an
-opt-in OpenCode orchestration pack for coding agents. It helps you scope work,
-plan meaningful changes, delegate bounded tasks to specialist subagents, and
-verify results — with you in charge of the decisions.
-
-Two entry points, one installer engine: **`asdx`** opens the packaged terminal
-UI (TUI); **`asdx-core`** is the scriptable command-line interface (CLI) used
-for preview, apply, backups, and restore. Legacy names `agentic-sdd` (CLI) and
-`agentic-sdd-tui` (TUI) remain wrappers during the deprecation window.
-
-[Quick start](#quick-start) · [Support and release scope](#support-and-release-scope) · [Where the skills go](#where-the-skills-go) · [The workflow](#the-workflow) · [Safety model](#safety-model) · [Explore further](#explore-further)
+**[Documentation](https://nawodyaishan.github.io/agentic-sdd/)** — set up
+Agentic SDD, follow a tutorial, and look up commands, references, and known
+limits. If the site is unavailable, use the
+[documentation source index](website/src/content/docs/index.md) instead.
 
 ## Why Agentic SDD?
 
-Writing code is getting faster. Knowing **what to build, why it works, and
-whether it is ready** still takes engineering judgment.
+Knowing **what to build, why it works, and whether it is ready** still takes
+engineering judgment.
 
-Agentic SDD brings that judgment into AI-assisted work:
-
-- **Agree on the outcome before the implementation.** Make requirements and
-  trade-offs visible instead of letting the agent guess.
-- **Keep changes reviewable.** Work in bounded batches with a summary of what
-  changed and what was checked.
-- **Skip unnecessary ceremony.** A small fix stays a small fix. A larger
-  feature gets a connected specification, plan, and task list.
-- **Delegate deliberately.** Scope subagent tasks, check their diffs and test
-  results, and stop for human review between batches.
-- **Learn in place.** Ask for explanations or debugging practice when a topic
-  is unfamiliar. Teaching is optional.
-
-> Learning first when developing competence. Delegation first when applying
-> established competence. Verification always.
+- **Agree on the outcome first.** Make requirements and trade-offs visible.
+- **Keep changes reviewable.** Work in bounded batches and summarize checks.
+- **Skip unnecessary ceremony.** Small fixes stay small; larger features get
+  a spec, plan, and tasks.
+- **Delegate deliberately.** Scope subagent tasks, check diffs and tests, and
+  stop for review.
+- **Learn in place.** Ask for explanations or debugging practice when useful;
+  teaching is optional.
 
 ## Quick start
 
-### 1. Install
+### 1. Get the binaries
 
-**macOS with Homebrew:**
+Binary acquisition is separate from installing skills. None of these commands
+writes to your client skill directories or `~/.agentic-sdd/`.
+
+**macOS (Homebrew cask).** Requires Homebrew. The cask puts `asdx-core` and
+`asdx` on `PATH`, fetches the release archive over the network, and writes
+inside your Homebrew prefix. The `v0.11.0` tag and cask metadata are verified; a
+live macOS install is not.
 
 ```sh
 brew install --cask nawodyaishan/tap/agentic-sdd
-asdx
+asdx-core version
 ```
 
-`asdx` opens the TUI on Home. Enter (or `s`) opens Install & Manage, which
-previews the exact changes and writes only after you confirm (default
-**No**). The pack is included by default; `asdx --with-opencode=false`
-installs core skills only.
-
-**Linux and source checkouts** have no prebuilt package; build from source
-(see [Support and release scope](#support-and-release-scope)):
+**Linux or source checkout (CLI only).** Requires **Go 1.23 or newer** and
+`git`. The clone uses the network, the build writes `bin/asdx-core` plus Go
+build caches, and the root module has no external dependencies.
 
 ```sh
 git clone https://github.com/nawodyaishan/agentic-sdd.git
 cd agentic-sdd
 go build -trimpath -o bin/asdx-core ./cmd/agentic-sdd
-bin/asdx-core preview
+./bin/asdx-core version
 ```
 
-### 2. Preview before you install
+The source build does **not** add `bin/` to `PATH`; use `./bin/asdx-core` in
+place of `asdx-core` below. The paired `asdx` TUI needs Go 1.26+, Task, and
+`sha256sum` or `shasum`; see [Installation](https://nawodyaishan.github.io/agentic-sdd/getting-started/installation/).
+
+### 2. Preview core skills in a disposable home
+
+`asdx-core preview` is the core-only, scriptable path: no OpenCode pack, no
+provider credentials, no model calls. Point `--home` at an empty directory you
+own so the plan cannot touch your real client directories.
 
 ```sh
-asdx-core preview --home /tmp/test-home
-asdx-core apply --home /tmp/test-home
+preview_home=$(mktemp -d "${TMPDIR:-/tmp}/asdx-preview.XXXXXX")
+asdx-core preview --home "$preview_home"
+rmdir "$preview_home"
 ```
 
-`preview` writes nothing. `apply` backs up replaced skills, then installs.
-Omit `--home` to target your real agent directories.
+If you built from source, run the command above with `./bin/asdx-core` instead.
+Expected: **18 core skills** for each of the four client destinations, a
+`Preview only.` notice, and an optional TTY summary; nothing is created inside
+`$preview_home`, so `rmdir` succeeds only while it is empty. **Stop here** —
+nothing was installed. To install into your own client directories, use the
+preview-and-confirm recipe in [Install and manage skills](https://nawodyaishan.github.io/agentic-sdd/how-to/skills/)
+or [First five minutes](https://nawodyaishan.github.io/agentic-sdd/getting-started/first-five-minutes/).
 
 ### 3. Run your first workflow
 
-Follow the worked paths in [docs/getting-started.md](docs/getting-started.md):
-a direct fix with no feature paperwork, a feature with one combined approval
-and one batch, and how review differs from continuation. Each path lists
-prerequisites, expected results, and cleanup.
+Decide between CLI, TUI, core skills, and the optional pack in
+[Choose your setup](https://nawodyaishan.github.io/agentic-sdd/getting-started/choose-setup/),
+then follow one website tutorial:
+
+- [Direct fix](https://nawodyaishan.github.io/agentic-sdd/tutorials/direct-fix/) —
+  a small bug fix with no `specs/` paperwork.
+- [First feature](https://nawodyaishan.github.io/agentic-sdd/tutorials/first-feature/) —
+  `spec.md`, `plan.md`, and `tasks.md` for one combined approval, then one
+  authorized batch.
+- [Research and debugging](https://nawodyaishan.github.io/agentic-sdd/tutorials/research-and-debugging/)
+  or [Specialists](https://nawodyaishan.github.io/agentic-sdd/tutorials/specialists/) —
+  optional depth for investigation or bounded roles.
 
 ## Support and release scope
 
-This section is the compatibility pointer; it replaces any per-feature
-changelog here. For what changed in a specific version, read the notes on the
-[public releases page](https://github.com/nawodyaishan/agentic-sdd/releases)
-and the specs under `specs/` in your checkout.
+These instructions describe the current checkout (`dev`, `unreleased`). A
+release tag is not a support guarantee: for `v0.11.0`, the tag, release
+metadata, and cask declaration are verified, while archive contents, binary
+execution, and a live macOS install are not. The documentation site was observed
+reachable on 2026-11-16; that is not full-site, accessibility, release, or
+runtime verification.
 
-- **Reviewed releases** are cut as `v*` tags with the paired `asdx`/`asdx-core`
-  archive and the Homebrew cask. The README badge above links to the releases
-  page; check there for the notes that apply to your checkout.
-- **macOS** installs through the Homebrew cask (`nawodyaishan/tap/agentic-sdd`).
-  Formula-to-cask migration is not automatic; if you installed the old formula,
-  uninstall it explicitly as described in
-  [Updates and recovery](website/src/content/docs/how-to/updates-and-recovery.md).
-- **Linux** is source-only: build `asdx-core` with Go 1.23 or newer, or the
-  paired TUI with Go 1.26 or newer and Task. No prebuilt Linux package is
-  published.
-- **Windows** is unsupported and its behavior is unknown.
-- **Preview-first applies everywhere.** `asdx-core preview` is the write-free
-  check; `guide` and the TUI confirm (default **No**) before any write.
-- No built-in uninstall command. Restore from a listed backup
-  (`asdx-core backups`, `asdx-core restore apply BACKUP_ID`).
+- **macOS** is the only prebuilt path (Homebrew cask
+  `nawodyaishan/tap/agentic-sdd`); formula-to-cask migration is manual — see
+  [Updates and recovery](https://nawodyaishan.github.io/agentic-sdd/how-to/updates-and-recovery/).
+- **Linux** is source-only: CLI with Go 1.23+, paired TUI with Go 1.26+ and
+  Task. No prebuilt package exists.
+- **Windows** is unsupported and behavior is unknown.
+- **Clients** receive installed files at four destinations; installation does
+  not establish identical behavior across clients, models, or providers.
+- **No built-in uninstall.** `asdx-core backups` lists; `asdx-core restore
+  BACKUP_ID` previews.
+
+See [Compatibility and support](https://nawodyaishan.github.io/agentic-sdd/releases/compatibility/),
+[Migration](https://nawodyaishan.github.io/agentic-sdd/releases/migration/), and
+[Known limitations](https://nawodyaishan.github.io/agentic-sdd/operations/known-limitations/).
 
 ## Where the skills go
 
-Core skills install into per-client skill directories; the orchestration pack
-adds one skill plus agent profiles. The TUI offers client selection during
-install; scripted runs install the fixed destination set.
+Core skills install into `~/.agents/skills` (OpenCode and shared agents),
+`~/.codex/skills`, `~/.claude/skills`, and `~/.gemini/antigravity-cli/skills`;
+the pack also writes profiles under `~/.config/opencode/agents/`. The TUI
+selects clients; scripted runs use the fixed set. See
+[Clients and destinations](https://nawodyaishan.github.io/agentic-sdd/introduction/clients/)
+and the [Skills reference](https://nawodyaishan.github.io/agentic-sdd/reference/skills/).
 
-| Destination | Path | Installed by |
-|---|---|---|
-| OpenCode and shared agents | `~/.agents/skills` | Core and pack |
-| Codex | `~/.codex/skills` | Core and pack |
-| Claude Code | `~/.claude/skills` | Core and pack |
-| Antigravity CLI | `~/.gemini/antigravity-cli/skills` | Core and pack |
-| OpenCode agent profiles | `~/.config/opencode/agents/` | Pack only |
+## Where the files go
 
-### Where the files go
+Operation logs live under `~/.agentic-sdd/logs/`. Backups live under
+`~/.agentic-sdd/backups/` for the embedded source and the checkout's `backups/`
+directory for explicit `--repo`; `asdx-core backups` lists newest first, and
+SHA-256 digests let `restore` preview exactly what would change.
 
-Backups and operation logs live under `~/.agentic-sdd/` (`backups/` and
-`logs/`). The backup store path differs for embedded versus explicit `--repo`
-sources; `asdx-core backups` lists what exists on your machine, newest first.
-Each backup carries SHA-256 digests so `restore` previews exactly what would
-change before writing.
+Execution commands keep private scratch under `.agentic-sdd/runs/`; a run,
+checkpoint, or review package is an observation, not approval, batch state,
+verification, reviewer isolation, or a sandbox. See [Files and backups](https://nawodyaishan.github.io/agentic-sdd/reference/files-and-backups/) and
+[Execution and review evidence](https://nawodyaishan.github.io/agentic-sdd/how-to/execution/).
 
 ## OpenCode Orchestration Pack (`--with-opencode`)
 
 Opt in when one agent is not enough and you want bounded specialist help behind
-a single orchestrator. The pack adds the `agentic-sdd-orchestrate` skill to the
-four client directories and places agent profiles under
-`~/.config/opencode/agents/`.
+a single orchestrator. The pack adds the `agentic-sdd-orchestrate` skill and 14
+agent profiles. `--opencode-free-first` applies Free-first model-ladder
+overrides to four existing implement/test profiles rather than adding new
+profiles.
 
-```sh
-asdx --with-opencode=false   # core skills only
-asdx-core preview --with-opencode
-asdx-core apply --with-opencode
-```
-
-Profile names, permissions, and routing live in
-[`opencode-pack/README.md`](opencode-pack/README.md) and
-[`opencode-pack/routing.md`](opencode-pack/routing.md); the README does not
-duplicate them. Two fleet adapters ship in the repository but are not installed
-by the ordinary pack flow.
+Core-only is the CLI default (`asdx-core preview` without `--with-opencode`);
+the `asdx` TUI enables the pack by default, and `asdx --with-opencode=false`
+selects core only. Profile names, permissions, and routing are owned by
+[Orchestration](https://nawodyaishan.github.io/agentic-sdd/how-to/orchestration/),
+[Profiles](https://nawodyaishan.github.io/agentic-sdd/reference/profiles/), and
+[Fleet](https://nawodyaishan.github.io/agentic-sdd/how-to/fleet/); this README
+does not duplicate them. Model IDs are configuration, not availability, quota,
+cost, or behavior guarantees.
 
 ## The workflow
 
@@ -155,58 +168,64 @@ by the ordinary pack flow.
 For a feature that needs planning, your agent prepares three connected
 documents for **one combined approval**:
 
-- `spec.md` — what are we building, what is out of scope, how will we know it
-  works?
+- `spec.md` — what are we building, what is out of scope, how will we know it works?
 - `plan.md` — how should we build it, and what risks or trade-offs matter?
 - `tasks.md` — what do we do first, how do we check it, and where do we stop?
 
 Then authorize one implementation batch. The agent works that batch, runs the
-relevant checks, explains the result, and stops for your review.
-
-**For a clear, small fix:** go straight to implementation and verification. No
-feature paperwork required.
+relevant checks, explains the result, and stops for your review. **For a clear,
+small fix,** go straight to implementation and verification; no feature
+paperwork is required. The [First feature](https://nawodyaishan.github.io/agentic-sdd/tutorials/first-feature/)
+tutorial owns the full loop.
 
 ### Everyday prompts in your project
 
-1. **Start or plan a feature (with combined human approval):**
-   > Use `agentic-sdd-router`. Inspect this repository, ask at most the consequential questions you can't resolve from the code, and draft `spec.md`, `plan.md`, and `tasks.md` for my combined approval. Stop before implementing.
-2. **Fix a small bug directly (no `specs/` paperwork):**
-   > Use `agentic-sdd-implement` to fix this nil-pointer bug. Keep the diff minimal, run the focused test suite, and report what changed.
+1. **Start or plan a feature (with combined human approval):** Use `agentic-sdd-router`. Inspect this repository, ask at most the consequential questions you can't resolve from the code, and draft `spec.md`, `plan.md`, and `tasks.md` for my combined approval. Stop before implementing.
+2. **Fix a small bug directly (no `specs/` paperwork):** Use `agentic-sdd-implement` to fix this nil-pointer bug. Keep the diff minimal, run the focused test suite, and report what changed.
 
 ## Safety model
 
 The installer **previews by default**, backs up existing skills and agent
 profiles with SHA-256 digests before replacing them, and provides a
-preview-first `restore`. Repeating an `apply` with unchanged content is a clean
-no-op. It rejects symlinks and special files in managed targets.
+preview-first restore. Repeating an `apply` unchanged is a clean no-op. It
+rejects symlinks and special files in managed targets.
 
 ```sh
 asdx-core backups                   # list saved installations
-asdx-core restore BACKUP_ID         # preview a restore
-asdx-core restore apply BACKUP_ID   # restore skills and agent profiles
+asdx-core restore BACKUP_ID         # preview a restore; writes nothing
 ```
 
-The guide and TUI are alternate front ends over the same engine. Neither
-writes before an explicit confirmation (default **No**). The workflow is
-guidance for your review process, not an isolation boundary: your agent
-client's permissions, execution environment, and your own review remain
-essential.
+Effects are command-scoped. `asdx-core preview` writes nothing to managed
+destinations and creates no installer backups or operation logs (an explicitly
+enabled trace is separate); `apply` writes backups, selected skills or profiles,
+and one operation log, and applying a restore writes destinations and a log. The
+`asdx` TUI makes one bounded read-only HTTPS update check per session unless
+`AGENTIC_SDD_NO_UPDATE_CHECK=1` is set. Fleet and execution are not globally
+read-only: `fleet plan --output` writes the named file, and execution writes
+private scratch. `--home` is not an OS sandbox.
+
+The guide and TUI are alternate front ends over the same engine; neither writes
+before explicit confirmation (default **No**). Profile permissions and workflow
+guidance are not containment, credential boundaries, or proof that a model
+follows instructions. MCP configuration proves neither authentication nor
+connectivity. Read [Trust boundaries](https://nawodyaishan.github.io/agentic-sdd/security/trust/),
+[MCP configuration](https://nawodyaishan.github.io/agentic-sdd/how-to/mcp/), and
+[Updates and recovery](https://nawodyaishan.github.io/agentic-sdd/how-to/updates-and-recovery/).
 
 ## Explore further
 
-- [Getting started](docs/getting-started.md) — first-use walkthrough and
-  worked examples for the supported core.
-- [Full usage and orchestration guide](docs/orchestration-guide.md) — CLI,
-  orchestration, specialist, and MCP usage.
-- [Installer reference](docs/installer-reference.md) — commands, backups,
-  restore, and file behavior.
-- [Guided CLI journeys](docs/guide-flows.md) — screens, prompts, and trace
-  events for `asdx-core guide`.
-- [OpenCode pack reference](opencode-pack/README.md) and
-  [model routing policy](opencode-pack/routing.md).
-- [Contributing](CONTRIBUTING.md) and the
-  [public releases page](https://github.com/nawodyaishan/agentic-sdd/releases).
-- Repository source on GitHub:
-  [github.com/nawodyaishan/agentic-sdd](https://github.com/nawodyaishan/agentic-sdd).
+- [Documentation website](https://nawodyaishan.github.io/agentic-sdd/) — primary
+  current reference.
+- [Core concepts](https://nawodyaishan.github.io/agentic-sdd/introduction/concepts/) —
+  skills, profiles, features, direct fixes, batches, and consent; see the
+  [CLI reference](https://nawodyaishan.github.io/agentic-sdd/reference/cli/) and
+  [TUI reference](https://nawodyaishan.github.io/agentic-sdd/reference/tui/) for commands.
+- [Architecture overview](https://nawodyaishan.github.io/agentic-sdd/architecture/overview/),
+  [Testing](https://nawodyaishan.github.io/agentic-sdd/contributing/testing/), and
+  [Development](https://nawodyaishan.github.io/agentic-sdd/contributing/development/) —
+  design, contribution workflow, and checks.
+- [GitHub repository](https://github.com/nawodyaishan/agentic-sdd),
+  [public releases](https://github.com/nawodyaishan/agentic-sdd/releases),
+  [CONTRIBUTING.md](CONTRIBUTING.md), and the [MIT License](LICENSE).
 
-Open source under the [MIT License](LICENSE).
+**Retained historical worked example:** the [original `docs/getting-started.md`](docs/getting-started.md) — a pre-website walkthrough of a direct fix and a feature, kept for continuity, not current onboarding.
