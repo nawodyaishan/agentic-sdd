@@ -51,3 +51,22 @@ func checkProcessSignal(state *os.ProcessState) string {
 	}
 	return status.Signal().String()
 }
+
+// interruptCheckProcessGroup forwards an observed interrupt to the check's own
+// process group so a well-behaved child can exit before the bounded grace period
+// ends. The forwarded signal is best effort: escalation still kills the group,
+// and an already finished group reports ESRCH.
+func interruptCheckProcessGroup(cmd *exec.Cmd, sig os.Signal) {
+	if cmd.Process == nil {
+		return
+	}
+	pid := cmd.Process.Pid
+	if pid <= 0 {
+		return
+	}
+	forwarded, ok := sig.(syscall.Signal)
+	if !ok {
+		forwarded = syscall.SIGTERM
+	}
+	_ = syscall.Kill(-pid, forwarded)
+}

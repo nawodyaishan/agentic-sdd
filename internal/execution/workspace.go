@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -47,6 +48,16 @@ const (
 	LockStateStale = "stale"
 	LockStateLive  = "live"
 )
+
+// lockStaleAfter is the age after which a lock without recent activity may be
+// reclaimed. It stays a variable so tests can shorten the window instead of
+// waiting the production value; production code never changes it.
+var lockStaleAfter = LockStaleAfter
+
+// lockHeartbeatInterval refreshes a held lock several times inside the stale
+// window, so a live holder is never reclaimed by age and a crashed holder is
+// still reclaimed once its beats stop.
+var lockHeartbeatInterval = lockStaleAfter / 6
 
 var runIDPattern = regexp.MustCompile(`^run-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$`)
 
@@ -223,9 +234,9 @@ func CleanRun(runRoot, runID string, apply bool) (CleanResult, error) {
 	if filepath.Clean(identity.RunRoot) != root || filepath.Clean(identity.RunDir) != runDir {
 		return CleanResult{}, fmt.Errorf("%w: run identity points outside the requested run directory", ErrConflict)
 	}
-	lock := inspectLock(runDir)
-	result.LockState = lockStateName(lock)
-	if lock.live {
+	observedLock := inspectLock(runDir)
+	result.LockState = lockStateName(observedLock)
+	if observedLock.live {
 		return CleanResult{}, fmt.Errorf("%w: run is locked by a live writer", ErrConflict)
 	}
 	count, total, entries, err := runDirUsage(runDir)
@@ -241,6 +252,14 @@ func CleanRun(runRoot, runID string, apply bool) (CleanResult, error) {
 	if runDir == root || filepath.Dir(runDir) != root {
 		return CleanResult{}, fmt.Errorf("%w: refusing to remove a path outside the owned run root", ErrUnsafePath)
 	}
+	// Take the run lock before deleting so a writer that starts after the
+	// preview-time inspection is refused rather than deleted underneath. A
+	// stale lock from a crashed holder is reclaimed here.
+	lock, err := acquireRunLock(runDir, "clean")
+	if err != nil {
+		return CleanResult{}, err
+	}
+	defer func() { _ = lock.release() }()
 	if err := os.RemoveAll(runDir); err != nil {
 		return CleanResult{}, fmt.Errorf("remove run directory: %w", err)
 	}
@@ -677,21 +696,27 @@ func sameRoot(canonical, requested string) error {
 	return nil
 }
 
-// runLock is the private per-run writer lock payload.
+// runLock is the private per-run writer lock payload. RefreshedAt is additive:
+// a heartbeat rewrites it while the holder runs, and readers treat the newest
+// of StartedAt and RefreshedAt as the last activity, so locks written by an
+// older version (no RefreshedAt) stay readable and reclaimable by age.
 type runLock struct {
 	SchemaVersion int       `json:"schemaVersion"`
 	Token         string    `json:"token"`
 	PID           int       `json:"pid"`
 	Hostname      string    `json:"hostname"`
 	StartedAt     time.Time `json:"started_at"`
+	RefreshedAt   time.Time `json:"refreshed_at,omitempty"`
 	Operation     string    `json:"operation"`
 }
 
 // runLockHandle owns one acquired lock for as long as release is not called.
 type runLockHandle struct {
-	path     string
-	token    string
-	released bool
+	mu           sync.Mutex
+	path         string
+	token        string
+	released     bool
+	heartbeatErr error
 }
 
 // lockObservation is the inspected lock state.
@@ -769,7 +794,12 @@ func acquireRunLock(runDir, operation string) (*runLockHandle, error) {
 
 // release removes the lock only when it still carries this handle's token.
 func (h *runLockHandle) release() error {
-	if h == nil || h.released {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.released {
 		return nil
 	}
 	h.released = true
@@ -793,8 +823,96 @@ func (h *runLockHandle) release() error {
 	return syncDir(filepath.Dir(h.path))
 }
 
-// inspectLock reports whether the run has a live or reclaimable lock. A
-// malformed lock is judged by its file age.
+// refresh rewrites the held lock's refreshed_at timestamp while preserving its
+// holder token, so a competing writer can tell a live holder from a crashed one.
+func (h *runLockHandle) refresh() error {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.released {
+		return nil
+	}
+	data, err := readBoundedRegular(h.path, maxLockBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("%w: run lock disappeared while held", ErrConflict)
+	}
+	if err != nil {
+		return fmt.Errorf("%w: run lock is unreadable", ErrConflict)
+	}
+	var lock runLock
+	if err := json.Unmarshal(data, &lock); err != nil {
+		return fmt.Errorf("%w: run lock is invalid", ErrConflict)
+	}
+	if lock.Token != h.token {
+		return fmt.Errorf("%w: run lock is owned by another writer", ErrConflict)
+	}
+	lock.RefreshedAt = time.Now().UTC()
+	payload, err := json.Marshal(lock)
+	if err != nil {
+		return fmt.Errorf("lock encoding unavailable")
+	}
+	if err := writeFileAtomic(h.path, payload, 0o600); err != nil {
+		return fmt.Errorf("refresh run lock: %w", err)
+	}
+	return nil
+}
+
+// startHeartbeat refreshes the lock at interval until the returned stop function
+// is called. A failed refresh ends the heartbeat and is reported by
+// heartbeatFailure so the caller does not persist evidence under a lock it may
+// have lost. The stop function is safe to call more than once.
+func (h *runLockHandle) startHeartbeat(interval time.Duration) (stop func()) {
+	if h == nil || interval <= 0 {
+		return func() {}
+	}
+	done := make(chan struct{})
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := h.refresh(); err != nil {
+					h.mu.Lock()
+					if h.heartbeatErr == nil {
+						h.heartbeatErr = err
+					}
+					h.mu.Unlock()
+					return
+				}
+			}
+		}
+	}()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			close(done)
+			<-finished
+		})
+	}
+}
+
+// heartbeatFailure reports the first refresh failure, if any.
+func (h *runLockHandle) heartbeatFailure() error {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.heartbeatErr
+}
+
+// inspectLock reports whether the run has a live or reclaimable lock. The age
+// is measured from the newest recorded activity, so a heartbeating holder stays
+// live; a malformed lock is judged by its file age. A same-host dead PID is an
+// immediate reclaim signal. PID liveness alone does not veto reclaim: a dead
+// holder's recycled PID would otherwise strand the lock forever.
 func inspectLock(runDir string) lockObservation {
 	lockPath := filepath.Join(runDir, lockFileName)
 	info, err := os.Lstat(lockPath)
@@ -811,13 +929,17 @@ func inspectLock(runDir string) lockObservation {
 		var lock runLock
 		if json.Unmarshal(data, &lock) == nil && lock.Token != "" && !lock.StartedAt.IsZero() {
 			observed.lock = lock
-			observed.age = now.Sub(lock.StartedAt)
+			lastActivity := lock.StartedAt
+			if lock.RefreshedAt.After(lastActivity) {
+				lastActivity = lock.RefreshedAt
+			}
+			observed.age = now.Sub(lastActivity)
 			if observed.age < 0 {
 				observed.age = 0
 			}
 			sameHost := lock.Hostname != "" && lock.Hostname == hostName()
 			deadOnHost := sameHost && lock.PID > 0 && !pidAlive(lock.PID)
-			observed.stale = observed.age > LockStaleAfter || deadOnHost
+			observed.stale = observed.age > lockStaleAfter || deadOnHost
 			observed.live = !observed.stale
 			return observed
 		}
@@ -826,7 +948,7 @@ func inspectLock(runDir string) lockObservation {
 	if observed.age < 0 {
 		observed.age = 0
 	}
-	observed.stale = observed.age > LockStaleAfter
+	observed.stale = observed.age > lockStaleAfter
 	observed.live = !observed.stale
 	return observed
 }

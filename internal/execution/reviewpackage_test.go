@@ -669,6 +669,75 @@ func TestReview_InvalidBase(t *testing.T) {
 	}
 }
 
+// TestReview_ExcludesRunScratchRoot covers FR-17.4/M3: a Git-visible custom run
+// root inside the repository is excluded as a whole, so sibling-run scratch is
+// not attributed to the reviewed project.
+func TestReview_ExcludesRunScratchRoot(t *testing.T) {
+	root := repoTestInit(t)
+	repo, err := OpenRepository(root)
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	baseCommit := repo.Head
+	scope, err := DirectScope(repo, "scratch exclusion")
+	if err != nil {
+		t.Fatalf("direct scope: %v", err)
+	}
+	runRoot := filepath.Join(root, "scratch-runs")
+	sibling, err := InitRun(InitRequest{Scope: scope, RunRoot: runRoot, ToolVersion: "test"})
+	if err != nil {
+		t.Fatalf("init sibling run: %v", err)
+	}
+	current, err := InitRun(InitRequest{Scope: scope, RunRoot: runRoot, ToolVersion: "test"})
+	if err != nil {
+		t.Fatalf("init current run: %v", err)
+	}
+
+	// Scratch inside the sibling run is Git-visible in every form the review
+	// package inspects: committed, staged and untracked. None of it is the
+	// reviewed project's change.
+	committedScratch := filepath.Join(sibling.RunDir, "sibling-committed.txt")
+	repoTestWrite(t, committedScratch, "sibling scratch\n")
+	repoTestGit(t, root, "add", "-f", filepath.Join("scratch-runs", sibling.RunID, "sibling-committed.txt"))
+	repoTestGit(t, root, "commit", "-q", "-m", "sibling scratch")
+	stagedScratch := filepath.Join(sibling.RunDir, "sibling-staged.txt")
+	repoTestWrite(t, stagedScratch, "sibling scratch\n")
+	repoTestGit(t, root, "add", "-f", filepath.Join("scratch-runs", sibling.RunID, "sibling-staged.txt"))
+	repoTestWrite(t, filepath.Join(sibling.RunDir, "sibling-untracked.txt"), "sibling scratch\n")
+	repoTestWrite(t, filepath.Join(root, "README.md"), "updated baseline\n")
+
+	manifest, err := BuildReviewPackage(ReviewPackageRequest{
+		RunDir: current.RunDir,
+		Base:   baseCommit,
+	})
+	if err != nil {
+		t.Fatalf("build review package: %v", err)
+	}
+	sawReadme := false
+	for _, file := range manifest.Files {
+		if strings.HasPrefix(file.Path, "scratch-runs/") {
+			t.Fatalf("review package included run scratch path %q", file.Path)
+		}
+		if file.Path == "README.md" {
+			sawReadme = true
+		}
+	}
+	if !sawReadme {
+		t.Fatalf("review package omitted the real project change: %+v", manifest.Files)
+	}
+	for _, omission := range manifest.Omissions {
+		if strings.HasPrefix(omission.Path, "scratch-runs/") {
+			t.Fatalf("review package reported run scratch as an omission: %+v", omission)
+		}
+	}
+	patch := repoTestRead(t, manifest.PatchPath)
+	for _, name := range []string{"sibling-committed.txt", "sibling-staged.txt", "sibling-untracked.txt"} {
+		if strings.Contains(patch, name) {
+			t.Fatalf("the review patch contains sibling-run scratch %q", name)
+		}
+	}
+}
+
 func TestReview_CheckpointIntegration(t *testing.T) {
 	_, runDir, identity, baseCommit := setupReviewRepo(t)
 

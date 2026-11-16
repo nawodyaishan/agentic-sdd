@@ -8,10 +8,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -57,8 +59,57 @@ func TestCheckHelperProcess(t *testing.T) {
 			}
 			milliseconds = parsed
 		}
+		if pidFile := os.Getenv("EXECUTION_CHECK_PID_FILE"); pidFile != "" {
+			if err := os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())+"\n"), 0o600); err != nil {
+				fmt.Fprintln(os.Stderr, "cannot write pid file")
+				os.Exit(99)
+			}
+		}
 		fmt.Fprintln(os.Stdout, "helper sleeping")
 		time.Sleep(time.Duration(milliseconds) * time.Millisecond)
+		os.Exit(0)
+	case "sleep-tree":
+		// A sleeping child plus a grandchild in the same process group. The
+		// recorded PIDs let the test prove the whole group is terminated.
+		pidFile := os.Getenv("EXECUTION_CHECK_PID_FILE")
+		if pidFile == "" {
+			fmt.Fprintln(os.Stderr, "missing pid file")
+			os.Exit(99)
+		}
+		child := exec.Command(os.Args[0], "-test.run=^TestCheckHelperProcess$")
+		child.Env = append(os.Environ(),
+			"EXECUTION_CHECK_HELPER=1",
+			"EXECUTION_CHECK_MODE=sleep",
+			"EXECUTION_CHECK_SLEEP_MS=30000",
+			"EXECUTION_CHECK_PID_FILE=",
+		)
+		child.Stdout = io.Discard
+		child.Stderr = io.Discard
+		if err := child.Start(); err != nil {
+			fmt.Fprintln(os.Stderr, "cannot start the grandchild")
+			os.Exit(99)
+		}
+		pids := fmt.Sprintf("%d\n%d\n", os.Getpid(), child.Process.Pid)
+		if err := os.WriteFile(pidFile, []byte(pids), 0o600); err != nil {
+			fmt.Fprintln(os.Stderr, "cannot write pid file")
+			os.Exit(99)
+		}
+		fmt.Fprintln(os.Stdout, "helper sleeping with a child")
+		_ = child.Wait()
+		os.Exit(0)
+	case "swallow-term":
+		// A child that ignores SIGTERM so the bounded grace period must
+		// escalate to a group kill.
+		ignored := make(chan os.Signal, 1)
+		signal.Notify(ignored, syscall.SIGTERM)
+		if pidFile := os.Getenv("EXECUTION_CHECK_PID_FILE"); pidFile != "" {
+			if err := os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())+"\n"), 0o600); err != nil {
+				fmt.Fprintln(os.Stderr, "cannot write pid file")
+				os.Exit(99)
+			}
+		}
+		fmt.Fprintln(os.Stdout, "helper ignoring SIGTERM")
+		time.Sleep(30 * time.Second)
 		os.Exit(0)
 	case "flood":
 		block := bytes.Repeat([]byte("flood-output-line\n"), 256)
@@ -378,6 +429,222 @@ func TestCheckSignalIsInterrupted(t *testing.T) {
 	}
 	if checkpoint.State != StateObservedPartial {
 		t.Fatalf("checkpoint state = %q, want observed-partial", checkpoint.State)
+	}
+}
+
+// waitForPIDs polls the pid fixture file until it contains want numeric PIDs.
+func waitForPIDs(t *testing.T, path string, want int) []int {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			fields := strings.Fields(string(data))
+			pids := make([]int, 0, len(fields))
+			for _, field := range fields {
+				pid, convErr := strconv.Atoi(field)
+				if convErr == nil && pid > 0 {
+					pids = append(pids, pid)
+				}
+			}
+			if len(pids) >= want {
+				return pids
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %d PIDs in %s", want, path)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// awaitCheckResult joins one asynchronous RunCheck and reports its outcome.
+func awaitCheckResult(t *testing.T, done <-chan struct{}, record *CheckRecord, runErr *error) {
+	t.Helper()
+	select {
+	case <-done:
+	case <-time.After(15 * time.Second):
+		t.Fatal("the check did not finish after the interrupt")
+	}
+	if *runErr != nil {
+		t.Fatalf("run check: %v", *runErr)
+	}
+}
+
+// assertProcessesGone polls until none of pids answers a liveness probe.
+func assertProcessesGone(t *testing.T, pids []int) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		alive := make([]int, 0, len(pids))
+		for _, pid := range pids {
+			if pidAlive(pid) {
+				alive = append(alive, pid)
+			}
+		}
+		if len(alive) == 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("processes survived the interrupt: %v", alive)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// TestCheckInterruptKillsProcessGroup covers FR-17.3: an observed interrupt is
+// forwarded to the child process group, the record is truthful, the lock is
+// released, and reconciliation does not report an interrupted writer.
+func TestCheckInterruptKillsProcessGroup(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix process groups are not available: interrupted case is not_run")
+	}
+	identity := checkTestRun(t)
+	pidFile := filepath.Join(t.TempDir(), "check-pids")
+	t.Setenv("EXECUTION_CHECK_PID_FILE", pidFile)
+	argv := checkTestArgv(t, "sleep-tree")
+
+	interrupts := make(chan os.Signal, 1)
+	var record CheckRecord
+	var runErr error
+	done := make(chan struct{})
+	go func() {
+		record, runErr = RunCheck(CheckRequest{
+			RunDir:     identity.RunDir,
+			TaskID:     "T01",
+			Argv:       argv,
+			Timeout:    time.Minute,
+			Interrupts: interrupts,
+		})
+		close(done)
+	}()
+
+	pids := waitForPIDs(t, pidFile, 2)
+	waitForCheckpointState(t, identity.RunDir, StateRunning)
+	interrupts <- syscall.SIGTERM
+	awaitCheckResult(t, done, &record, &runErr)
+
+	if record.Result != CheckInterrupted {
+		t.Fatalf("result = %q, want interrupted", record.Result)
+	}
+	if record.EndedAt == nil {
+		t.Fatal("an interrupted check has no end observation")
+	}
+	assertProcessesGone(t, pids)
+
+	if _, err := os.Lstat(filepath.Join(identity.RunDir, lockFileName)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("run lock survived the interrupted check: %v", err)
+	}
+	status, err := StatusRun(identity.RunRoot, identity.RunID)
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	if status.State != StateObservedPartial {
+		t.Fatalf("status state = %q, want observed-partial", status.State)
+	}
+	for _, reason := range status.StaleReasons {
+		if reason == ReasonInterruptedCheck {
+			t.Fatalf("reconciliation reported the writer as interrupted despite a final record: %v", status.StaleReasons)
+		}
+	}
+}
+
+// TestCheckInterruptEscalatesToKill covers the bounded grace period: a child
+// that ignores the forwarded signal is killed after the grace expires.
+func TestCheckInterruptEscalatesToKill(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix signals are not available: escalation case is not_run")
+	}
+	previousGrace := checkInterruptGrace
+	checkInterruptGrace = 100 * time.Millisecond
+	t.Cleanup(func() { checkInterruptGrace = previousGrace })
+
+	identity := checkTestRun(t)
+	pidFile := filepath.Join(t.TempDir(), "check-pids")
+	t.Setenv("EXECUTION_CHECK_PID_FILE", pidFile)
+	argv := checkTestArgv(t, "swallow-term")
+
+	interrupts := make(chan os.Signal, 1)
+	var record CheckRecord
+	var runErr error
+	done := make(chan struct{})
+	started := time.Now()
+	go func() {
+		record, runErr = RunCheck(CheckRequest{
+			RunDir:     identity.RunDir,
+			TaskID:     "T01",
+			Argv:       argv,
+			Timeout:    time.Minute,
+			Interrupts: interrupts,
+		})
+		close(done)
+	}()
+
+	pids := waitForPIDs(t, pidFile, 1)
+	waitForCheckpointState(t, identity.RunDir, StateRunning)
+	interrupts <- syscall.SIGTERM
+	awaitCheckResult(t, done, &record, &runErr)
+
+	if record.Result != CheckInterrupted {
+		t.Fatalf("result = %q, want interrupted", record.Result)
+	}
+	if record.Signal != syscall.SIGKILL.String() {
+		t.Fatalf("signal = %q, want %q after the grace period", record.Signal, syscall.SIGKILL.String())
+	}
+	if elapsed := time.Since(started); elapsed > 10*time.Second {
+		t.Fatalf("escalation was not bounded: %s", elapsed)
+	}
+	assertProcessesGone(t, pids)
+}
+
+// TestCheckHeartbeatKeepsLiveLock covers FR-17.1 end to end: the run lock of a
+// running check stays live across several shortened stale windows, then is
+// released normally when the check finishes.
+func TestCheckHeartbeatKeepsLiveLock(t *testing.T) {
+	identity := checkTestRun(t)
+	restoreLockTiming(t, 80*time.Millisecond, 20*time.Millisecond)
+	t.Setenv("EXECUTION_CHECK_SLEEP_MS", "1500")
+	argv := checkTestArgv(t, "sleep")
+
+	var record CheckRecord
+	var runErr error
+	done := make(chan struct{})
+	go func() {
+		record, runErr = RunCheck(CheckRequest{
+			RunDir:  identity.RunDir,
+			TaskID:  "T01",
+			Argv:    argv,
+			Timeout: time.Minute,
+		})
+		close(done)
+	}()
+
+	waitForCheckpointState(t, identity.RunDir, StateRunning)
+	deadline := time.Now().Add(4 * lockStaleAfter)
+	for time.Now().Before(deadline) {
+		if observed := inspectLock(identity.RunDir); !observed.live {
+			t.Fatalf("the running check's lock became %q after %s", lockStateName(observed), observed.age)
+		}
+		select {
+		case <-done:
+			t.Fatal("the check finished before the heartbeat window elapsed")
+		default:
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	select {
+	case <-done:
+	case <-time.After(15 * time.Second):
+		t.Fatal("the check did not finish")
+	}
+	if runErr != nil {
+		t.Fatalf("run check: %v", runErr)
+	}
+	if record.Result != CheckPassed {
+		t.Fatalf("result = %q, want passed", record.Result)
+	}
+	if _, err := os.Lstat(filepath.Join(identity.RunDir, lockFileName)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("run lock survived the completed check: %v", err)
 	}
 }
 

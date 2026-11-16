@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"agentic-sdd/internal/execution"
 	"agentic-sdd/internal/version"
@@ -375,6 +378,13 @@ func runRunCheck(args []string, stdout, stderr io.Writer) int {
 		}
 		taskID = "direct"
 	}
+	// SIGINT/SIGTERM end the check through the service: the child's process
+	// group receives the signal, a bounded grace period runs, then the group is
+	// killed. The interrupted observation is written and the run lock released
+	// before this adapter returns a non-zero exit code.
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(interrupts)
 	record, err := execution.RunCheck(execution.CheckRequest{
 		RunDir:         runDir,
 		RunID:          runID,
@@ -382,6 +392,7 @@ func runRunCheck(args []string, stdout, stderr io.Writer) int {
 		Argv:           command,
 		Timeout:        timeout,
 		MaxOutputBytes: maxOutput,
+		Interrupts:     interrupts,
 	})
 	if err != nil {
 		fmt.Fprintln(stderr, "error:", err)
@@ -405,6 +416,8 @@ func runRunCheck(args []string, stdout, stderr io.Writer) int {
 	case execution.CheckTimedOut:
 		return 124
 	default:
+		// failed, interrupted, output_limit and not_started reuse the existing
+		// non-success class; an interrupted check adds no exit-code class.
 		return 1
 	}
 }

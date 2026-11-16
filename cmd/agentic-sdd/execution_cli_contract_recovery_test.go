@@ -7,8 +7,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -231,6 +233,67 @@ func TestExecutionContractWriterLock(t *testing.T) {
 	}
 	if len(finalBriefs) != 0 {
 		t.Fatalf("final briefs count = %d, want 0", len(finalBriefs))
+	}
+}
+
+// TestExecutionContractCheckSignalInterrupt covers FR-17.3 at the CLI adapter:
+// SIGTERM delivered while run check is in flight is handled by the service, the
+// interrupted observation is written, the lock is released, and the wrapper
+// exits non-zero with the existing non-success code.
+func TestExecutionContractCheckSignalInterrupt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX signal delivery is not available: interrupted case is not_run")
+	}
+	shPath, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skipf("not_run: sh unavailable: %v", err)
+	}
+	setExecutionGitIsolationEnv(t)
+	dir := executionTestRepo(t)
+	identity := initExecutionIntegrityRun(t, dir)
+
+	_, join := startSleepingCheckHolder(t, dir, identity.RunID, identity.RunDir, shPath)
+	// The signal handler is registered before the running checkpoint appears, so
+	// the test process is guaranteed to have an active handler here.
+	if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
+		t.Fatalf("send SIGTERM: %v", err)
+	}
+	result := join()
+	if result.code != 1 {
+		t.Fatalf("interrupted check exit = %d, want 1 (existing non-success class): stdout=%q stderr=%q",
+			result.code, result.out, result.errOut)
+	}
+	var envelope struct {
+		SchemaVersion int                   `json:"schemaVersion"`
+		Kind          string                `json:"kind"`
+		Check         execution.CheckRecord `json:"check"`
+	}
+	if err := json.Unmarshal([]byte(result.out), &envelope); err != nil {
+		t.Fatalf("decode interrupted check: %v\n%s", err, result.out)
+	}
+	if envelope.Kind != "execution.run.check" {
+		t.Fatalf("check envelope = %+v", envelope)
+	}
+	if envelope.Check.Result != execution.CheckInterrupted {
+		t.Fatalf("record result = %q, want interrupted: %+v", envelope.Check.Result, envelope.Check)
+	}
+	if envelope.Check.EndedAt == nil {
+		t.Fatal("interrupted check has no end timestamp")
+	}
+
+	if _, statErr := os.Stat(filepath.Join(identity.RunDir, ".lock")); !os.IsNotExist(statErr) {
+		t.Fatalf("run lock survived the interrupted check: %v", statErr)
+	}
+	code, out, errOut := runExecutionCLI(t, dir, "run", "status", "--run", identity.RunID, "--format", "json")
+	if code != 0 {
+		t.Fatalf("run status exit %d: %s", code, errOut)
+	}
+	status := decodeExecutionStatus(t, out)
+	if status.State != execution.StateObservedPartial {
+		t.Fatalf("run state = %q, want observed-partial (reasons %v)", status.State, status.StaleReasons)
+	}
+	if slices.Contains(status.StaleReasons, execution.ReasonInterruptedCheck) {
+		t.Fatalf("reconciliation reported the writer as interrupted despite a final record: %v", status.StaleReasons)
 	}
 }
 

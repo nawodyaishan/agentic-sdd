@@ -288,7 +288,35 @@ func addPartialReason(list *[]string, reason string) {
 	*list = append(*list, reason)
 }
 
-// BuildReviewPackage creates a complete or partial review change package.
+// reviewScratchExclusion returns the absolute run scratch path to omit from a
+// review package, or "" when nothing should be excluded. Sibling runs share one
+// run root, so an in-repository custom root must be omitted as a whole rather
+// than only the current run. The repository root itself is never excluded: when
+// the run root is the repository root, only the current run directory is.
+func reviewScratchExclusion(repoRoot, runDir string) string {
+	if repoRoot == "" || runDir == "" {
+		return ""
+	}
+	scratchRoot := filepath.Dir(filepath.Clean(runDir))
+	if !withinPath(repoRoot, scratchRoot) {
+		return ""
+	}
+	if filepath.Clean(scratchRoot) == filepath.Clean(repoRoot) {
+		return filepath.Clean(runDir)
+	}
+	return scratchRoot
+}
+
+// isReviewScratchPath reports whether one repository-relative path belongs to
+// the excluded run scratch, matching the freshness exclusion.
+func isReviewScratchPath(scratch, repoRoot, relative string) bool {
+	if scratch == "" || relative == "" {
+		return false
+	}
+	return withinPath(scratch, filepath.Join(repoRoot, filepath.FromSlash(relative)))
+}
+
+// BuildReviewPackage assembles one review package for a run.
 func BuildReviewPackage(req ReviewPackageRequest) (ReviewManifest, error) {
 	maxFileBytes := req.MaxFileBytes
 	if maxFileBytes <= 0 {
@@ -344,6 +372,7 @@ func BuildReviewPackage(req ReviewPackageRequest) (ReviewManifest, error) {
 	if err != nil {
 		return ReviewManifest{}, err
 	}
+	scratchExclusion := reviewScratchExclusion(repo.Root, runDir)
 
 	lock, err := acquireRunLock(runDir, "review")
 	if err != nil {
@@ -440,9 +469,12 @@ func BuildReviewPackage(req ReviewPackageRequest) (ReviewManifest, error) {
 	})
 
 	for _, rec := range rawRecords {
-		committedCount++
 		p := rec.path
 		oldP := rec.oldPath
+		if isReviewScratchPath(scratchExclusion, repo.Root, p) || (oldP != "" && isReviewScratchPath(scratchExclusion, repo.Root, oldP)) {
+			continue
+		}
+		committedCount++
 
 		isSubmodule := (rec.newMode == "160000" || rec.oldMode == "160000")
 		mode := rec.newMode
@@ -604,9 +636,12 @@ func BuildReviewPackage(req ReviewPackageRequest) (ReviewManifest, error) {
 			})
 
 			for _, rec := range stagedRecs {
-				stagedCount++
 				p := rec.path
 				oldP := rec.origPath
+				if isReviewScratchPath(scratchExclusion, repo.Root, p) || (oldP != "" && isReviewScratchPath(scratchExclusion, repo.Root, oldP)) {
+					continue
+				}
+				stagedCount++
 				f, ok := filesMap[p]
 				if !ok {
 					f = &ReviewFile{Path: p, OldPath: oldP, Status: string(rec.x)}
@@ -692,8 +727,11 @@ func BuildReviewPackage(req ReviewPackageRequest) (ReviewManifest, error) {
 		})
 
 		for _, rec := range unstagedRecs {
-			unstagedCount++
 			p := rec.path
+			if isReviewScratchPath(scratchExclusion, repo.Root, p) {
+				continue
+			}
+			unstagedCount++
 			f, ok := filesMap[p]
 			if !ok {
 				f = &ReviewFile{Path: p, Status: string(rec.y)}
@@ -778,10 +816,14 @@ func BuildReviewPackage(req ReviewPackageRequest) (ReviewManifest, error) {
 					continue
 				}
 				name := string(raw)
-				if withinPath(filepath.Join(repo.Root, ".agentic-sdd", "runs"), filepath.Join(repo.Root, filepath.FromSlash(name))) {
+				full := filepath.Join(repo.Root, filepath.FromSlash(name))
+				if isReviewScratchPath(scratchExclusion, repo.Root, name) {
 					continue
 				}
-				if withinPath(runDir, filepath.Join(repo.Root, filepath.FromSlash(name))) {
+				if withinPath(filepath.Join(repo.Root, ".agentic-sdd", "runs"), full) {
+					continue
+				}
+				if withinPath(runDir, full) {
 					continue
 				}
 				untrackedNames = append(untrackedNames, name)

@@ -45,6 +45,12 @@ const (
 	kindCheckArgv = "execution.run.check.argv"
 )
 
+// checkInterruptGrace bounds how long an interrupted command may keep running
+// after the forwarded signal before the process group is killed. It is a
+// variable so a test can shorten it instead of waiting the production value;
+// production code never changes it.
+var checkInterruptGrace = 2 * time.Second
+
 // CheckRunning is the in-progress observation written when a check starts. It
 // is never a final outcome: the observed result replaces it when the command
 // ends, and it survives only when the writer was interrupted before a final
@@ -66,8 +72,11 @@ var checkFailureMarkers = []string{
 // CheckRequest executes one already-authorized local command inside a run. RunDir
 // is the run directory whose run.json carries the repository identity. Argv is
 // the exact argument vector, with no shell, glob or variable interpolation.
-// Timeout <= 0 disables the wall-clock limit; MaxOutputBytes <= 0 selects
-// DefaultMaxOutputBytes and is clamped to 1 KiB..1 GiB per stream.
+// Timeout < 0 is refused as a usage error and Timeout == 0 disables the
+// wall-clock limit; MaxOutputBytes <= 0 selects DefaultMaxOutputBytes and is
+// clamped to 1 KiB..1 GiB per stream. Interrupts,
+// when non-nil, is observed for the duration of the command; the service only
+// reads it, and the caller owns signal registration.
 type CheckRequest struct {
 	RunDir         string
 	RunID          string
@@ -75,6 +84,7 @@ type CheckRequest struct {
 	Argv           []string
 	Timeout        time.Duration
 	MaxOutputBytes int64
+	Interrupts     <-chan os.Signal
 }
 
 // checkArgvDocument is the private provenance file for one check. It keeps the
@@ -115,6 +125,7 @@ type checkRun struct {
 	startObs   GitObservation
 	timeout    time.Duration
 	maxOutput  int64
+	interrupts <-chan os.Signal
 }
 
 // RunCheck executes one explicit local command within a run, persists truthful
@@ -179,6 +190,10 @@ func RunCheck(req CheckRequest) (CheckRecord, error) {
 	if err != nil {
 		return CheckRecord{}, err
 	}
+	// A long check must not lose the lock by age: keep refreshing the lock
+	// timestamp while this writer is alive.
+	stopHeartbeat := lock.startHeartbeat(lockHeartbeatInterval)
+	defer stopHeartbeat()
 	defer func() { _ = lock.release() }()
 
 	checkpoint, err := LoadCheckpoint(runDir)
@@ -212,6 +227,7 @@ func RunCheck(req CheckRequest) (CheckRecord, error) {
 		metaPath:   filepath.Join(checkDir, checkMetaName),
 		timeout:    req.Timeout,
 		maxOutput:  normalizeCheckMaxOutputBytes(req.MaxOutputBytes),
+		interrupts: req.Interrupts,
 	}
 	run.record = CheckRecord{
 		CheckID:         checkID,
@@ -263,6 +279,10 @@ func RunCheck(req CheckRequest) (CheckRecord, error) {
 	if err != nil {
 		return record, err
 	}
+	stopHeartbeat()
+	if err := lock.heartbeatFailure(); err != nil {
+		return record, err
+	}
 	if err := lock.release(); err != nil {
 		return record, err
 	}
@@ -302,9 +322,7 @@ func (c *checkRun) execute() (CheckRecord, error) {
 		return c.complete(CheckNotStarted, "cannot start the command: "+startErr.Error(), false, false, nil, "",
 			stdout.finish(), stderr.finish())
 	}
-	waitErr := cmd.Wait()
-	stdoutCapture := stdout.finish()
-	stderrCapture := stderr.finish()
+	waitErr, stdoutCapture, stderrCapture, interrupted, interruptSignal := c.waitForCommand(cmd, stdout, stderr, cancel)
 
 	timedOut := errors.Is(ctx.Err(), context.DeadlineExceeded)
 	outputLimit := stdoutCapture.Truncated || stderrCapture.Truncated
@@ -328,6 +346,8 @@ func (c *checkRun) execute() (CheckRecord, error) {
 	}
 	result := CheckPassed
 	switch {
+	case interrupted:
+		result = CheckInterrupted
 	case outputLimit:
 		result = CheckOutputLimit
 	case timedOut:
@@ -341,7 +361,45 @@ func (c *checkRun) execute() (CheckRecord, error) {
 	case *exit != 0:
 		result = CheckFailed
 	}
+	if interrupted && cause == "" {
+		cause = "interrupted by " + interruptSignal.String()
+	}
 	return c.complete(result, cause, timedOut, outputLimit, exit, signal, stdoutCapture, stderrCapture)
+}
+
+// waitForCommand waits for the started command. When an interrupt is observed
+// while it runs, the signal is forwarded to the child's process group, the
+// command is given a bounded grace period to exit, and the group is then killed
+// through the context cancellation configured by configureCheckProcess. The
+// boolean reports that the operator interrupt, not the command, ended the check.
+func (c *checkRun) waitForCommand(cmd *exec.Cmd, stdout, stderr *checkStream, cancel context.CancelFunc) (waitErr error, stdoutCapture, stderrCapture checkCapture, interrupted bool, interruptSignal os.Signal) {
+	waitCh := make(chan error, 1)
+	go func() { waitCh <- cmd.Wait() }()
+	if c.interrupts == nil {
+		waitErr = <-waitCh
+		return waitErr, stdout.finish(), stderr.finish(), false, nil
+	}
+	select {
+	case waitErr = <-waitCh:
+	case observed := <-c.interrupts:
+		// The command may have finished at the same moment as the signal.
+		select {
+		case waitErr = <-waitCh:
+		default:
+			interrupted = true
+			interruptSignal = observed
+			interruptCheckProcessGroup(cmd, observed)
+			grace := time.NewTimer(checkInterruptGrace)
+			select {
+			case waitErr = <-waitCh:
+				grace.Stop()
+			case <-grace.C:
+				cancel()
+				waitErr = <-waitCh
+			}
+		}
+	}
+	return waitErr, stdout.finish(), stderr.finish(), interrupted, interruptSignal
 }
 
 // complete records the observed outcome, reconciles the worktree observation and

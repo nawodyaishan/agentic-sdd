@@ -416,6 +416,119 @@ func TestLockStaleReclaim(t *testing.T) {
 	})
 }
 
+// restoreLockTiming shortens the lock stale window and heartbeat interval for
+// one test. A reader sees a live holder stay fresh across several stale windows
+// without waiting the production thirty minutes.
+func restoreLockTiming(t *testing.T, stale, heartbeat time.Duration) {
+	t.Helper()
+	previousStale, previousHeartbeat := lockStaleAfter, lockHeartbeatInterval
+	lockStaleAfter, lockHeartbeatInterval = stale, heartbeat
+	t.Cleanup(func() {
+		lockStaleAfter, lockHeartbeatInterval = previousStale, previousHeartbeat
+	})
+}
+
+// waitForLockState polls the lock observation until it matches want or the
+// deadline expires.
+func waitForLockState(t *testing.T, runDir string, want string, limit time.Duration) lockObservation {
+	t.Helper()
+	deadline := time.Now().Add(limit)
+	for {
+		observed := inspectLock(runDir)
+		if lockStateName(observed) == want {
+			return observed
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("lock state did not reach %q within %s (observation %+v)", want, limit, observed)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// TestLockHeartbeatPreventsAgeReclaim proves a live holder that beats stays
+// live past the stale window, and that a stopped heartbeat still ages out so a
+// crashed holder remains reclaimable.
+func TestLockHeartbeatPreventsAgeReclaim(t *testing.T) {
+	_, _, identity := workspaceTestRun(t)
+	runDir := identity.RunDir
+	restoreLockTiming(t, 60*time.Millisecond, 10*time.Millisecond)
+
+	lock, err := acquireRunLock(runDir, "check")
+	if err != nil {
+		t.Fatalf("acquire lock: %v", err)
+	}
+	released := false
+	defer func() {
+		if !released {
+			_ = lock.release()
+		}
+	}()
+
+	stop := lock.startHeartbeat(lockHeartbeatInterval)
+	// Four stale windows with live beats: age alone must never reclaim.
+	deadline := time.Now().Add(4 * lockStaleAfter)
+	for time.Now().Before(deadline) {
+		if observed := inspectLock(runDir); !observed.live {
+			t.Fatalf("a heartbeating lock became %q after %s", lockStateName(observed), observed.age)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if _, err := acquireRunLock(runDir, "competing"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("competing acquire over a heartbeating lock error = %v, want ErrConflict", err)
+	}
+
+	stop()
+	waitForLockState(t, runDir, LockStateStale, 5*time.Second)
+	reclaimed, err := acquireRunLock(runDir, "competing")
+	if err != nil {
+		t.Fatalf("reclaim after the heartbeat stopped: %v", err)
+	}
+	if err := lock.release(); !errors.Is(err, ErrConflict) {
+		t.Fatalf("the old handle release error = %v, want ErrConflict for the reclaimed lock", err)
+	}
+	released = true
+	if err := reclaimed.release(); err != nil {
+		t.Fatalf("release reclaimed lock: %v", err)
+	}
+}
+
+// TestLockRefreshRecordsHeartbeatTimestamp checks the additive lock timestamp:
+// a refresh rewrites refreshed_at while preserving the holder token, and the
+// age is measured from the newest activity.
+func TestLockRefreshRecordsHeartbeatTimestamp(t *testing.T) {
+	_, _, identity := workspaceTestRun(t)
+	runDir := identity.RunDir
+	lockPath := filepath.Join(runDir, lockFileName)
+
+	started := time.Now().UTC().Add(-2 * LockStaleAfter)
+	payload := fmt.Sprintf(`{"schemaVersion":1,"token":"held","pid":%d,"hostname":%q,"started_at":%q,"operation":"check"}`,
+		os.Getpid(), hostName(), started.Format(time.RFC3339Nano))
+	if err := writeFileAtomic(lockPath, []byte(payload), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if observed := inspectLock(runDir); !observed.stale {
+		t.Fatalf("aged lock without a heartbeat = %+v, want stale", observed)
+	}
+	handle := &runLockHandle{path: lockPath, token: "held"}
+	if err := handle.refresh(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	observed := inspectLock(runDir)
+	if !observed.live {
+		t.Fatalf("refreshed lock = %+v, want live", observed)
+	}
+	if observed.lock.Token != "held" {
+		t.Fatalf("refresh rewrote the holder token: %q", observed.lock.Token)
+	}
+	if !observed.lock.RefreshedAt.After(observed.lock.StartedAt) {
+		t.Fatalf("refreshed_at = %s, want after started_at %s", observed.lock.RefreshedAt, observed.lock.StartedAt)
+	}
+	foreign := &runLockHandle{path: lockPath, token: "other-writer"}
+	if err := foreign.refresh(); !errors.Is(err, ErrConflict) {
+		t.Fatalf("refresh of a foreign lock error = %v, want ErrConflict", err)
+	}
+}
+
 func TestCleanPreviewApplyAndAbsent(t *testing.T) {
 	_, runRoot, identity := workspaceTestRun(t)
 	preview, err := CleanRun(runRoot, identity.RunID, false)
@@ -487,6 +600,41 @@ func TestCleanRefusesLiveLock(t *testing.T) {
 	}
 	if _, err := CleanRun(runRoot, identity.RunID, true); err != nil {
 		t.Fatalf("clean after release: %v", err)
+	}
+}
+
+// TestCleanApplyReclaimsStaleLockAndRemovesRun covers the clean-side lock
+// takeover: a crashed holder's stale lock is reclaimed, removal then succeeds,
+// and the lock file does not survive into the removed tree.
+func TestCleanApplyReclaimsStaleLockAndRemovesRun(t *testing.T) {
+	_, runRoot, identity := workspaceTestRun(t)
+	lockPath := filepath.Join(identity.RunDir, lockFileName)
+	payload := fmt.Sprintf(`{"schemaVersion":1,"token":"dead","pid":2147483647,"hostname":%q,"started_at":%q,"operation":"check"}`,
+		hostName(), time.Now().UTC().Format(time.RFC3339Nano))
+	if err := writeFileAtomic(lockPath, []byte(payload), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	preview, err := CleanRun(runRoot, identity.RunID, false)
+	if err != nil {
+		t.Fatalf("preview with a stale lock: %v", err)
+	}
+	if preview.LockState != LockStateStale || preview.Removed {
+		t.Fatalf("preview result = %+v, want a stale lock and no removal", preview)
+	}
+	if _, err := os.Lstat(lockPath); err != nil {
+		t.Fatalf("preview touched the stale lock: %v", err)
+	}
+
+	applied, err := CleanRun(runRoot, identity.RunID, true)
+	if err != nil {
+		t.Fatalf("apply with a stale lock: %v", err)
+	}
+	if !applied.Removed {
+		t.Fatalf("apply result = %+v, want removal", applied)
+	}
+	if _, err := os.Lstat(identity.RunDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("run directory survived the apply: %v", err)
 	}
 }
 
