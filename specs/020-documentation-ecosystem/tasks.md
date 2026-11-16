@@ -1,9 +1,11 @@
 # Feature 020 — Tasks and batch ledger
 
-**Revision:** r6, 2026-11-16 — B1–B6 accepted with named conditions (spec §9). Approved scope remains spec r2 + plan r3 + tasks r3; the 2026-11-16 README amendment remains a separate pending decision.
-**Parents:** [spec.md](spec.md) r2; [plan.md](plan.md) r3; [sitemap](sitemap.md) is the page-scope owner.
+**Revision:** r6, 2026-11-16 — approved B7/T13–T16 adds the full README refresh with the documentation website mainly highlighted, plus visible personal branding. Original approved scope and B1–B6 acceptance with conditions are unchanged.
+**Parents:** [spec.md](spec.md) r3 §10; [plan.md](plan.md) r4 §12; original approved parents and [sitemap](sitemap.md) retain their existing scope.
 **Approval reference:** [spec §9](spec.md#9-approval), the only combined approval record; batch state is this file.
 **Current stage:** B1–B6 **accepted with named conditions** on 2026-11-16; the docs pipeline runs the full adopted check list and has deployed an authoritative site. Deferred conditions and accepted limitations are listed in spec §9.
+
+**Current amendment checkpoint (2026-11-16):** B7 implementation authorized by the owner's “start implementations with deepseek max sub agents”; approval lives once in spec §9. The older implementation snapshots below are historical, not newly rerun B7 evidence. Website-primary README and bounded site attribution are the authorized outcome.
 
 ## Batch ledger
 
@@ -15,6 +17,7 @@
 | B4 — Migration and maintenance | T08/T09 W1 together | 7 / **7** | Compatibility stubs, QA/export/impact and adversarial fixtures | `accepted with conditions 2026-11-16 — six adversarial cases deferred; see spec §9` |
 | B5 — Publication readiness and acceptance | T10/T12 W1 → final evaluation | 6 / **6** | Safe CI/rollout plus integrated search/a11y/usability/performance evidence | `accepted with conditions 2026-11-16 — live site verified; parity via pinned Go builder; see spec §9` |
 | B6 — Optional minimal TUI access | T11 W1 | 4 / **4** | Fixed docs links/opener/UI/tests/docs; existing navigation/write controls intact | `accepted with conditions 2026-11-16 — links resolve on main; see spec §9` |
+| B7 — README and site attribution | T13 → contract-test red → isolated T14/T15 → T16 | DeepSeek Max isolated writers; parent integration | Website-first README, complete accuracy/navigation refresh, safe quick start, visible maintainer credit and connected checks | `accepted with named limits 2026-11-16 — see spec §9; commit/push/deploy/tag authorized` |
 
 At each batch end: run affected checks, perform one completion review, record code state/checks/results/open findings, set `awaiting human review`, write the session handover and stop. No automatic batch progression, commit, deployment or additional model spending. Optional B6 is not silently marked complete/skipped; removal from accepted scope requires an explicit owner decision.
 
@@ -463,3 +466,148 @@ Only if retained and explicitly authorized. Parent freezes fixed link IDs/URLs a
 **r3 scheduling request:** the user requested a plan/tasks design using the maximum number of useful parallel implementation subagents. Added 43 exclusive-write lanes, peak11, isolated-worktree/overlay/handoff/resource contracts and explicit integration waves; kept T01–T12 and the six batches so spec acceptance pointers remain valid. Actual implementation profile files/catalog were inspected: R/C currently use free DeepSeek Flash, not the earlier paid Go research route. No implementation agents, worktrees, builds, dependency installs or live operations were started for this revision.
 
 This revision changed only `plan.md`, `tasks.md` and the existing session handover; spec/supporting records remain at their prior scope/revisions. Required core/research static suites were rerun: 11 +22 OK. Execution still requires combined approval of the actual spec r2/plan r3/tasks r3 set and named B1 authorization.
+
+## B7 — Complete README refresh (amendment)
+
+**Outcome:** the documentation website is the README's main highlighted destination, every section is refreshed against current facts, each current capability has a direct documentation route, and website readers can identify the creator/maintainer through restrained personal branding.
+
+**State:** in progress under the owner's subsequent implementation request. Approval is owned once by [spec §9](spec.md#readme-amendment-decision--approved-2026-11-16). B1–B6's newer acceptance with conditions is preserved; B7 closes no unrelated condition.
+
+**Contract/assignments:** [plan §12/C6](plan.md#c6--readme-coverage-source-and-example-contract) owns README facts/links/examples; [C7](plan.md#c7--personal-attribution-without-a-website-redesign) owns website identity/credit/composition. The current request independently authorizes isolated DeepSeek Max B7 writers and completion review under C5, not another batch or nested delegation.
+
+B7 is outside the original six-batch/44-lane schedule. It takes additive batch-local ownership of README after B2/T04; it neither refreshes B2's old evidence nor accepts B2. A-01's old “until B4” wording does not remove the still-enforced `docs/getting-started.md` reference requirement.
+
+### T13 — Freeze the full README audit and website-first route map
+
+- [x] **Objective:** make the full rewrite possible without guessing support, effects or destination ownership.
+- **Dependencies:** combined approval of spec r3/plan r4/tasks r6 amendment scope and explicit B7 execution authorization; existing canonical destinations and original anchor/prompt baseline available. Earlier batches need not be falsely accepted to inspect their outputs; relevant unresolved defects still block affected acceptance.
+- **Consumes/produces:** C6/C7 inputs → compact section/capability map in this B7 continuation record, source/help/test pointers, selected manifest-backed site routes, compatibility expectations and confirmed attribution surfaces for T14–T16. No new permanent catalog.
+- **Work:** disposition every existing README section; map all FR-13 families; verify current toolchains, CLI/TUI/pack defaults, source-build executable paths, preview/logging effects, release-versus-checkout claims and legacy anchors/prompts. Confirm the owner-specified homepage as the primary destination and record deep-link availability separately from deterministic route validity. Preserve historical 404 evidence as dated, not current status.
+- **Compatibility findings:** retain the test-required `docs/getting-started.md` reference as a clearly labeled retained/historical worked-example pointer, not the primary onboarding route; preserve both guide-tested prompts and the eight A-01 anchors. Verify the reported compatibility-page Antigravity-path mismatch separately; do not silently change a product/client contract.
+- **Verification:** no unmapped section/family, no source-free material claim, all selected routes map to existing C1 pages, both guide prompts and required anchors captured. Unknown facts have owners and block misleading prose.
+- **Acceptance:** AC-19 and input portions of AC-20/21/22/24–28. Parent integrates the map; any product/canonical-page correction outside C6/C7 scope returns for a decision.
+
+### T14 — Rewrite the complete README around the documentation website
+
+- [x] **Objective:** deliver a concise, complete public front door, with the website unmistakably first.
+- **Dependencies:** T13 reconciled inputs; no waiting on a new website/framework, release or deployment.
+- **Files:** `README.md` only; compatibility/test deltas returned to T16. Do not modify diagram work, product code, generated catalogs, workflows or canonical page bodies.
+- **Work:** implement FR-13 and C6. Place a visible Markdown link labeled Documentation to exactly `https://nawodyaishan.github.io/agentic-sdd/` immediately after the short introduction, before the first H2, install commands and extended explanation. Use website-first getting-started/reference/further-reading links with secondary relative fallback to `website/src/content/docs/index.md`. Refresh all existing prose, capability coverage, platform/prerequisite qualifiers, binary paths, safety/pack-default wording and recovery/contribution links. Use unique owned temporary homes, preview first and a clearly separate optional fixture write; preserve required anchors and exact guide prompts.
+- **Verification:** check each T13 disposition and destination; no primary onboarding detour through legacy manuals, no bare command that depends on an undocumented PATH change, no fixed shared temp home or unmarked apply, no duplication of full references or the migration table. Explain any meaningful deviation from the advisory scan budget.
+- **Acceptance:** produces AC-19–24 and maintains AC-01/03/09/18. Neither a docs link nor successful fetch claims complete site/runtime certification.
+
+### T15 — Add personal branding and reconcile current site-status prose
+
+- [x] **Objective:** make the owner visible as creator/maintainer without turning the documentation into a portfolio.
+- **Dependencies:** T13's source-backed identity and discovered composition seam; combined amendment approval and B7 authorization. Use C7 once; do not invent another branding policy.
+- **Files:** `website/src/content/docs/index.md`, new `website/src/maintainer.mjs`, new `website/src/components/Footer.astro`, `website/astro.config.mjs`, and an existing contributor pointer only if necessary. Publication-status prose only may also change in `website/src/content/docs/{releases/compatibility,operations/known-limitations,contributing/docs-and-changes}.md`. Parent alone integrates affected manifest/source-review metadata. No new public page, logo/avatar, theme rebuild, package/lock/workflow or live settings.
+- **Work:** add the visible homepage byline and consistent shared credit with “Nawodya Ishan”, linked GitHub profile, secondary personal-site link and existing contribution route. Compose with the pinned framework's default footer/utilities; preserve project title, search, edit links and page navigation. No copied biography, personal email, employer endorsement, trackers or exclusive-authorship/support promise.
+- **Status follow-through:** correct only named current-publication contradictions using dated observations; retain historical 404, release/runtime uncertainty and `dev`/`unreleased`/unreviewed labels. No inferred Pages activation, deployment validation or batch acceptance.
+- **Verification:** exact authored/rendered identity and links; one shared identity owner; source/Markdown text remains meaningful; no remote asset or script addition. Return affected route/source/config identities and intended focused tests to T16.
+- **Acceptance:** produces AC-25–28; public content and protected-tooling trust boundaries remain intact. If supported composition cannot preserve the default utilities, stop for a bounded design decision instead of replacing the entire layout.
+
+### T16 — Verify README completeness and website attribution together
+
+- [x] **Objective:** verify the integrated README and site branding against source facts, FR-13/14 and compatibility contracts.
+- **Dependencies:** T14/T15 and the frozen T13 map; C3 binary/toolchain and pinned website prerequisites for executable/build cases. Missing prerequisites are `blocked/not_run`, not a skip counted as success.
+- **Files:** new `website/tests/entrypoints-readme.test.mjs` and `website/tests/entrypoints-attribution.test.mjs`, narrowly relevant existing entrypoint fixtures only when necessary, this B7 continuation evidence and the required session handover; parent alone handles justified C1 metadata disposition. No broad tooling redesign or baseline erasure.
+- **Owner-approved exception:** narrowly correct `website/tests/reference-cli.test.mjs`'s old prose-commit expectation to validate metadata provenance instead; see spec §9. No product/generator edit, case removal, skip/filter or gate weakening.
+- **Additional owner-approved exception:** narrowly correct built-link classification in `website/scripts/check.mjs` and extend `website/tests/links-built.test.mjs` for the exact approved personal-site URL; all other base/canonical/scheme checks remain. See plan C7 and spec §9; no broad ignore, arbitrary candidate allowlist, new schema or CI-policy change.
+- **Positive/negative checks:** exact site URL, visible named link immediately after the introduction and before installation, correct project-base deep routes, secondary source fallback, all family destinations, old anchors and exact guide prompts. Removing the site link, moving the sole link to a footer, supplying the wrong base, breaking a destination or deleting a required anchor must produce a failure. Preserve original test expectations unless an actual requirement change is explicitly approved; update obsolete source-only navigation assertions narrowly, not by disabling link validation.
+- **Focused commands:** `node --test website/tests/entrypoints-readme.test.mjs website/tests/entrypoints-attribution.test.mjs` for the new contracts; `node --test website/tests/entrypoints-navigation.test.mjs website/tests/entrypoints-github-fallback.test.mjs` for site regressions; `node website/scripts/check.mjs --repo . --json`; `npm --prefix website run build:site` and relevant built/export checks for T15; both repository-selected Python suites; `git diff --check`. Build/provision prerequisites follow C4, not a live install. Existing site checks do not read README and cannot replace the new README fixture. These are planned checks, not results from this drafting session.
+- **Guide/example checks:** run `go test ./cmd/agentic-sdd -run '^TestGuideExamplePromptsAppearInREADME$' -count=1` with an owned cache and the repository's sanitized local/offline environment; exercise C3's `first-preview` with an absolute candidate binary. Record line/section/link counts as observations, never new gates. Do not run broad Go/Python discovery or weaken a core selector.
+- **Safety/evidence:** synthetic homes only; compare managed-destination digests, account separately for logs/scratch, no arbitrary README-fence execution, no real-home apply or provider/model calls. Link placement/base checks remain offline; read-only public availability observations never become a live-network PR requirement. Run source-defined Go guide-prompt checks when needed using the supported-core selection/environment; no excluded aggregate suite.
+- **Human-facing review:** apply Q1 with README as entry; label author walkthroughs and `not_run` unfamiliar-user observations honestly. Verify the site is the obvious next action without claiming visual placement or accessibility was browser-tested if it was not.
+- **Site branding:** inspect built homepage and representative deep pages for visible consistent credit, correct profile/personal-site/contribution links, retained footer/edit/navigation utilities and meaningful Markdown attribution. Check 320/1280 widths, 100/200% zoom, light/dark and keyboard focus; missing browser/assistive evidence stays `not_run`. Missing credit/wrong identity/link and utility-loss mutations fail the appropriate fixtures; static string checks do not prove visual prominence.
+- **Acceptance:** verifier for AC-19–28; unchanged existing core gate/test fence. Protected test/component/config changes require C4 reviewed-base adoption before claiming authoritative CI evidence; local green is not adoption.
+- **Completion:** parent reconciles one authorized completion review, records revision/dirty inputs, actual commands/exits, open findings and any missing human evidence, then sets B7 `awaiting human review` and stops. No B1–B6 acceptance, commit/push/publication or automatic further batch.
+
+### Amendment readiness and continuation (2026-11-16)
+
+- **Coverage:** T13 supplies the C6/C7 fact/disposition/identity map; T14 implements AC-19–24; T15 implements AC-25–28; T16 verifies all ten added criteria, compatibility and relevant original criteria. Producer/consumer order is serial and shared files have one writer.
+- **Current baseline:** `b0c27e86272d3b35b4fe22a54dd7fd734ca41b3e`; pre-existing local work is limited to diagram source/provenance edits and five untracked PNGs, left untouched. The amendment changes the three feature documents plus its required handover, not README.
+- **Concurrent work:** `.github/workflows/docs.yml`, `scripts/docs-ci.py` and `tests/harness/test_docs_ci.py` changed after the initial inventory. They are outside this amendment's writes, left untouched, and not adopted as its verification evidence.
+- **Research:** four requested read-only DeepSeek V4.1 Flash Max workers cover product/coverage, Exa/editorial practice, verification/authority and the added site-branding scope. Their findings inform this draft, never approve it or prove client/model behavior.
+- **Verification research result:** the worker ran the existing core static suite (11 OK), exact Go guide-prompt test (pass) and diff check at its inspected state. These are baseline observations, not execution of T16 or proof that the future README/site changes pass.
+- **User decision:** mainly highlight `https://nawodyaishan.github.io/agentic-sdd/`. Homepage fetched successfully on 2026-11-16; its stale deployment-status sentence is not current evidence against availability. Full asset/search/runtime checks were not performed.
+- **Additional scope:** plan visible personal website branding. The public GitHub profile confirms proposed name “Nawodya Ishan”, profile URL and secondary personal-site URL; exact credit/placement remains part of combined amendment approval, not an inferred biography.
+- **Draft checks:** core workflow static suite 11/11; research workflow static suite 22/22; `git diff --check` clean. A narrow added-link/heading and AC/task-ID check passed; these establish document consistency only, not site/model runtime or completed B7 acceptance. Session handover: [2026-11-16_020.md](../../docs/handovers/2026-11-16_020.md).
+- **Next permitted action:** human reviews the combined amendment in spec r3 §10 + plan r4 §12 + tasks r6 B7, then explicitly authorizes B7 if desired. No material design question blocks drafting; README implementation and all live/Git operations remain outside the current request.
+
+### B7 implementation continuation (2026-11-16)
+
+**Authority:** spec §9 records the owner's later combined approval and “start implementations with deepseek max sub agents” authorization. This continuation supersedes the earlier drafting-only next action above. B1–B6 are separately accepted with conditions in the newer canonical record; their historical evidence is not rerun or rewritten here.
+
+**T13 frozen contract:** homepage `https://nawodyaishan.github.io/agentic-sdd/`; CTA Markdown label exactly `Documentation`, before first H2/install command; relative fallback `website/src/content/docs/index.md`; website-first start and Explore links. Preserve both contiguous single-line `guideExamplePrompts`, the literal `docs/getting-started.md` as a labeled retained-example pointer, and A-01's eight anchors. Root/TUI toolchains are `go 1.23`/`go 1.26`; ordinary `runEnv` preview dispatch is core-only, with apply/restore operation logging separate. No global read-only promise covers fleet plans or execution scratch.
+
+| Existing README heading/section | Disposition / reader purpose | Source / canonical site route | Verification owner |
+|---|---|---|---|
+| Product H1, decorative H3 tagline, introduction | Keep project name; turn decorative skipped-level heading into text; lead with docs CTA | Vision §§1/3; public `index`, `introduction/concepts` | T16 |
+| Why Agentic SDD? | Rewrite concise benefit/fit bullets; no measured learning/speed claim | Vision §§4/6; `introduction/concepts`, `tutorials/direct-fix` | T16 |
+| Quick start | Keep anchor; split binary acquisition from safe client-asset preview | `getting-started/{choose-setup,installation,first-five-minutes}` | T16 |
+| 1. Install | Rewrite qualified macOS/source paths; consistent executable names, prerequisites/network effects | `go.mod`, nested `go.mod`; `getting-started/installation` | T16 |
+| 2. Preview before you install | Replace fixed shared temp/apply sequence with unique disposable-home preview, expected observation and stop/cleanup | `main.go:runEnv`; `getting-started/first-five-minutes` | T16 |
+| 3. Run your first workflow | Website-first direct-fix/feature routes; optional learn/research/debug | `tutorials/{direct-fix,first-feature,research-and-debugging}` | T16 |
+| Support and release scope | Keep anchor; summarize checkout/release/platform limits, link single owners | `releases/{compatibility,migration}`, `operations/known-limitations` | T16 |
+| Where the skills go | Keep anchor; concise client/destination boundary, link full catalog | `internal/skillsync/clients.go`; `introduction/clients`, `reference/skills` | T16 |
+| Where the files go | Keep anchor; move store detail to reference, distinguish evidence from authority | `reference/files-and-backups`, `how-to/execution` | T16 |
+| OpenCode Orchestration Pack | Keep exact compatibility anchor; optional delegation/profile/model/fleet routes, no provider promise | `how-to/{orchestration,fleet}`, `reference/profiles` | T16 |
+| The workflow | Keep anchor; explain direct-fix vs three-document approval and one authorized batch | Portable router/implement skills; `tutorials/first-feature` | T16 |
+| Everyday prompts in your project | Preserve both exact single-line prompts, not a large prompt catalog | `cmd/agentic-sdd/guide.go:guideExamplePrompts` | T16 + Go prompt test |
+| Safety model | Keep anchor; scoped preview/restore, backup limits, permissions not sandbox; MCP config vs connectivity | `security/trust`, `how-to/{mcp,updates-and-recovery}` | T16 |
+| Explore further | Site first; compact all-family routes, architecture, contributing/testing, release/MIT; retained trace clearly secondary | `reference/{cli,tui}`, `how-to/{fleet,mcp,execution}`, `architecture/overview`, `contributing/testing`, root CONTRIBUTING/LICENSE | T16 |
+
+**Attribution producer/consumer contract:** `website/src/maintainer.mjs` exports `maintainer = Object.freeze({name, github, website})` using the three evidenced identity values. Footer consumes that single owner; ordinary authored homepage Markdown repeats the byline for source/export readers and T16 checks parity. Compose the pinned Starlight default Footer and a visible semantic credit region without nesting another footer landmark or removing utilities. T13 confirms the repository's installed Starlight is 0.43.1; confirm the actual package export before coding, not an assumed upstream source-file path.
+
+**Work order:** isolated test writer first records expected baseline-red failures without product edits; isolated README and branding writers then receive those tests and implement owned paths. Parent integrates completed writers only, preserves unrelated input changes and owns manifest dispositions. Node/Docker full builds are serialized. All worker invocations use the owner-requested DeepSeek Flash Max; no nested agents, commit/push/deploy, real-home writes, dependency installs or unrelated baseline changes.
+
+**Frozen dispatch identity:** base `d1794e7224a0953bb959af3dff4e47f91f925bb3`; packet `/tmp/opencode/020-b7-impl-nhrxjqy1/packet.json` includes initial status, relevant input hashes and the approved spec/plan/tasks overlay hashes. Worktrees are its `tests`, `readme` and `branding` directories; only the parent writes this integration checkout. No untracked/private content or unrelated dirty overlay was transported.
+
+**Verification environment:** existing Node image `node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54` reports Node 24.22.3; local dependencies are mounted read-only in offline/drop-capabilities/read-only-root containers. Lock SHA-256 is `06ab6b7b282a725be8989c61a2af745aad73a9ef1537904c08c05ee13cf3db47`. The existing dependency tree has no installed `.package-lock.json`; 351 present package versions match the lock and its observed tree hash is `4a990c8c778c1fae42023ec468761a3c373661e3994a9cd122074596eb9475dd`. This is reused-local-dependency evidence, not fresh registry integrity/provisioning or authoritative trusted-base adoption. Full environment record is in the packet directory.
+
+**Pre-change build:** frozen-base `build:site` passed in that pinned offline container (40 HTML pages, 41 export files); existing empty-i18n/404-entry warnings were retained. This establishes a baseline, not B7 completion. No dependency was installed.
+
+**Pre-change full Node suite:** 496 tests, 476 pass, 1 fail, 19 existing skips with the real full-commit binary supplied. The failure is `reference-cli.test.mjs:650`: generator prose deliberately omits the binary commit, while metadata preserves it. The owner explicitly authorized aligning that test with the existing contract; the failed baseline is retained in `/tmp/opencode/020-b7-impl-nhrxjqy1/baseline-validation/node-baseline.log`. No skip was added and no failing result is called green.
+
+**Test-first checkpoint:** DeepSeek Max's stopped test lane returned two new fixtures, 35 tests: 23 pass and 12 expected RED failures on the unchanged baseline (7 README gaps, 5 attribution gaps). No import/setup crash established RED. Missing/footer-only/badge/fence/comment CTA, bad base/route/fallback/anchor/prompt, fixed temp/bare apply and attribution identity/default-footer mutations pass their rejection cases. Exact changed-file hashes are recorded by the parent before transport.
+
+**Site integration and dependency drift:** newer shared-branch asset fixes landed while writers used the frozen base. Parent retained those commits, applied only the Footer registration hunk into current config, and copied six otherwise unchanged branding destinations after hash checks. Four authored-page fingerprints were updated without changing `reviewStatus: unreviewed`; homepage sources now also name the shared maintainer module. The first integrated site build/export passed against snapshot base `975befbb93b0eb437cd55a3b3008606bf6f80b1a` in `integrated-validation`.
+
+**Browser author observation:** isolated-profile Chrome 156 ran against that local static artifact: 12 cases (320/1280 CSS pixels × light/dark × homepage/CLI/first-five-minutes), no page-level overflow, visible attribution, retained edit/default footer, and four keyboard name→personal-site focus checks passed. Two homepage screenshots were inspected by the parent. This is an author observation, not fresh-user/screen-reader evidence; actual browser 200% zoom remains `not_run`, not confused with device scale factor.
+
+**Built-link RED and scope decision:** integrated built checks found 40 `built/wrong-base` errors, all for the approved same-origin personal website outside `/agentic-sdd/`. The owner explicitly authorized the exact-link classification correction with regression fixtures. The failing output is retained at `integrated-validation/built-b7.log`; no gate was suppressed. The paused branding worker may now edit only the checker and its built-link fixtures for this correction.
+
+**Worker continuation:** all implementation lanes use `opencode-go/deepseek-v4.1-flash#max`, with no fallback. Tests/provenance correction `ses_e1db8bed7ffe5g9q4iM1CHlFom` is stopped and integrated; README `ses_e1d939ad2ffew8N3un0oa6fztl` is stopped after focused GREEN/polish and integrated; branding `ses_e1d939ac7ffeVSSsLMPsR8x46T` is resumed only for the approved checker/fixture correction. Final completion review has not yet been invoked.
+
+**Maintained gates after README integration:** `task test` passed the 11 supported-core package selection (two packages have no test files); `task vet` passed. Exact Go guide-prompt test, Python core workflow 11/11, research workflow 22/22 and docs-CI 80/80 passed. The 35 new README/attribution checks pass together, with 0 skips. Final full Node/built/export acceptance still waits for the checker correction; none of these focused results substitutes for it.
+
+### B7 completion evidence and review (2026-11-16)
+
+**State:** **accepted with named limits (2026-11-16)** — see [spec §9](spec.md#readme-amendment-decision--approved-2026-11-16). Owner also authorized commit, push, deployment and tagging the next release (`v0.12.0`). No real-home apply or provider authentication is authorized.
+
+**Snapshot identity:** base `b18cea566308117fc079d912e7fe5bb94c057378` (preserving concurrent branch asset/probe/021 work) + B7 working files staged into `/tmp/opencode/020-b7-impl-nhrxjqy1/final-validation`. Node image `node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54` (v24.22.3) with offline read-only local `website/node_modules` (`dependencyTreeSha256` `4a990c8c778c1fae42023ec468761a3c373661e3994a9cd122074596eb9475dd`; lock SHA-256 `06ab6b7b282a725be8989c61a2af745aad73a9ef1537904c08c05ee13cf3db47`; not a fresh registry provisioning run). Candidate binary `/tmp/opencode/020-b7-impl-nhrxjqy1/asdx-core-final` built with `version.Commit=b18cea566308117fc079d912e7fe5bb94c057378`.
+
+| Surface / check | Result | Notes / limits |
+|---|---|---|
+| Integrated `npm run build:site` | **pass** (exit 0) | 40 HTML pages, 163 dist files (4,502,117 bytes), Pagefind bundle built, 41 exports written; retains pre-existing empty-i18n/404-entry warnings |
+| `check.mjs --repo /work --source --json` | **pass** (exit 0) | 39 pages, 296 links, **0 errors**, 6 offline external-link observations |
+| `check.mjs --repo /work --built /work/website/dist --json` | **pass** (exit 0) | 39 built pages, 3,288 links, **0 errors**, 228 external links across 39 observations (exact personal website classified external; lookalikes/base violations remain failing in `links-built` tests) |
+| `npm test` (`DOCS_DIST=/work/website/dist`, `ASDX_CORE_BINARY=/asdx-core`, `ASDX_CORE_COMMIT=b18cea56...`) | **pass** (exit 0) | **535 tests: 518 pass, 0 fail, 17 existing skips** (10 `DOCS_BUILD`-not-supplied/browser/AT accessibility, 1 container-without-git diff, 5 B4 blocked adversarial cases, 1 Q1 consenting-human L1/U1/M1). Includes 35 new README/attribution tests, 17 `links-built`, 17 `reference-cli` (real binary pass) and 20/20 Pagefind search acceptance |
+| `reference.mjs --check --repo /work --binary /asdx-core --commit b18cea56... --json` | **pass** (exit 0) | `differences: []`, `commitVerified: true` |
+| Browser check (isolated Chrome 156 against final `dist`) | **pass** | 12 cases (320/1280 CSS px × light/dark × `/`, `reference/cli/`, `getting-started/first-five-minutes/`), 137 local responses, 0 blocked/4xx, no horizontal overflow, 1 `<footer>`, retained Edit/Next utilities, 4 keyboard Tab→focus-outline→Personal-website checks; two final screenshots inspected |
+| `export.mjs --check --out dist` | **fail** (exit 1) | `export: drift in .nojekyll: unexpected-output`; caused by pre-existing `website/public/.nojekyll` (`0a0948fe`) copied into `dist`, outside B7's changes and left untouched |
+| `accessibility-built.test.mjs` with `DOCS_BUILD=/work/website/dist` | **fail** (6 pass, 1 fail) | Fails only on built Pagefind `.pf-*` focus-outline rule; caused by shipped Pagefind CSS outside B7's edits, pre-existing when `DOCS_BUILD` is enabled |
+| `examples.mjs --only first-preview` (`b18cea56...` binary) | pass (final check rerun below) | Pre-check `first-preview` passed on `d1794e72`; final `b18cea56...` rerun below |
+| `task test` / `task vet` / Go prompt test | pass (final check rerun below) | 11 core packages + `TestGuideExamplePromptsAppearInREADME` OK |
+| `test_core_workflow.py` (11), `test_research_workflow.py` (22), `test_docs_ci.py` (80) | pass | Explicit static suites; rerun at completion below |
+| README observations (not gates) | 231 lines, 12,364 bytes, 14 headings, 40 links (31 site) | Exceeds advisory 150–220 target by 11 lines to retain required family routes and effect qualifiers without reference duplication |
+
+**Unverified / `not_run`:** browser 200% zoom, screen-reader run, unfamiliar non-author L1/U1/M1 participants, real-home install, live Pages redeploy, trusted-base CI lane adoption of protected changes (`website/astro.config.mjs`, `website/scripts/check.mjs`, `website/src/components/Footer.astro`, tests), and live network link fetching.
+
+**Open findings / defects observed outside B7:**
+- `export-check` rejects `website/public/.nojekyll` (`0a0948fe`) as an unexpected export output; also `probe-dir`/`probe-root.css` exist in `website/public/`.
+- `accessibility-built.test.mjs` fails on Pagefind `.pf-*` focus-outline CSS when `DOCS_BUILD` is explicitly supplied.
+- `website/src/content/docs/releases/compatibility.md` still names `~/.antigravity/skills` instead of `~/.gemini/antigravity-cli/skills`; left untouched per scope.
+- `website/tests/search-acceptance-pagefind.test.mjs:274` and `performance-baseline.test.mjs:276` retain stale "site is not published" `notRun` strings.
+
+**Next permitted action:** human reviews B7 against AC-19–28, including the 11-line README advisory overrun, protected-path trusted-base adoption requirement, and pre-existing `.nojekyll`/Pagefind findings. Do not commit, push, deploy, apply to real homes, or start another batch without explicit authorization.
