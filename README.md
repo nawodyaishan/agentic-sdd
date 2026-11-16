@@ -161,6 +161,13 @@ selects core only. Profile names, permissions, and routing are owned by
 does not duplicate them. Model IDs are configuration, not availability, quota,
 cost, or behavior guarantees.
 
+The pack's real-world companion is [`agentic-sdd-fleet`](https://github.com/nawodyaishan/agentic-sdd-fleet),
+an external personal repository (observed 2026-11-16): a `schemaVersion: 1`
+`fleet.json` with 27 instances over 20 canonical sources, an `agents/` snapshot,
+and a `manifest.json` pinning one pack commit. Configuration only, no
+credentials, not part of Agentic-SDD or upstream `opencode-pack/`; that pin can
+drift, so preview under a disposable `--home` or read-only `asdx --fleet-config`.
+
 ## The workflow
 
 **Understand → Scope → Plan → Implement → Verify → Review**
@@ -227,5 +234,6 @@ connectivity. Read [Trust boundaries](https://nawodyaishan.github.io/agentic-sdd
 - [GitHub repository](https://github.com/nawodyaishan/agentic-sdd),
   [public releases](https://github.com/nawodyaishan/agentic-sdd/releases),
   [CONTRIBUTING.md](CONTRIBUTING.md), and the [MIT License](LICENSE).
+- [Real-world fleet example](https://github.com/nawodyaishan/agentic-sdd-fleet) — external, configuration only, no credentials.
 
 **Retained historical worked example:** the [original `docs/getting-started.md`](docs/getting-started.md) — a pre-website walkthrough of a direct fix and a feature, kept for continuity, not current onboarding.
