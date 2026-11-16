@@ -1,8 +1,8 @@
 # Feature 020 — Implementation plan
 
-**Revision:** r4, 2026-11-16 — §12's README/site-attribution amendment is approved for B7 implementation; the original r3 design and historical execution records remain intact.
-**Input:** [spec.md](spec.md) r3 (§10), approved r2 requirements, [evidence](evidence.md), [audiences](audiences.md), [ADR](adr-documentation-platform.md), [page contract](sitemap.md).
-**Approval owner:** [spec §9](spec.md#9-approval), including the later B7 authorization and two explicitly approved verification corrections. Current execution state is [tasks.md](tasks.md); no B7 live/Git action follows automatically.
+**Revision:** r5, 2026-11-16 — §13 external fleet reference-repository design approved for B8 implementation; approved r3/r4 designs and historical execution records remain intact.
+**Input:** [spec.md](spec.md) r4 (§11), approved r2/r3 requirements, [evidence](evidence.md), [audiences](audiences.md), [ADR](adr-documentation-platform.md), [page contract](sitemap.md).
+**Approval owner:** [spec §9](spec.md#9-approval), including B8 authorization (`opencode` free + `opencode-go/mimo-v2.6-flash` workers). Current execution state is [tasks.md](tasks.md). No commit, push, deploy or real-home apply follows automatically.
 
 ## 1. Approach and source boundaries
 
@@ -503,5 +503,54 @@ Verify rendered homepage and representative deep pages for one visible consisten
 **Assignment:** installed `ui-ux-designer` supplements public-content guidance for the new attribution hierarchy/accessibility boundary; use Context7 only for actual pinned framework hook facts. A fourth requested DeepSeek Max read-only research lane covers current branding surfaces, primary-source attribution practice and supported composition. **R15 Personal brand overreach/drift** closes through AC-25–27 and the one shared identity owner, not a new design system or scraped biography.
 
 **R16 Contradictory live-status guidance** closes through AC-28: current public prose reflects the bounded observation, historical 404 remains dated evidence and neither a successful fetch nor branding implementation marks release/runtime checks or whole-feature acceptance complete.
+
+## 13. External fleet reference-repository amendment (2026-11-16)
+
+**Input/authority:** [spec r4 §11](spec.md#11-external-fleet-reference-repository-amendment-2026-11-16); approval only in [spec §9](spec.md#fleet-reference-repository-amendment--approved-2026-11-16). This section defines B8 (T17–T19) in tasks r7. It adds zero Go code, zero website components/plugins, and zero bundled external repositories.
+
+### Design rationale — “Blueprints meet boundaries”
+
+Fleet currently ships abstract strict-JSON examples (`website/tests/examples/fleet/`, `website/tests/examples/orchestration/`) and schema rules, which accurately specify `schemaVersion: 1` but feel synthetic to a reader deciding how to organize 20+ agent lanes across providers. Meanwhile, `https://github.com/nawodyaishan/agentic-sdd-fleet` already demonstrates a complete personal deployment pattern: `fleet.json` (27 instances over 20 canonical sources), `agents/` snapshot, `manifest.json` (`v0.10.0@f7a3314` / pack `f559872`), `sync.sh` and an intentional divergence example (`sdd-implement-9r-1`).
+
+Instead of scattering bare “see also” links or mirroring its files into this repo, treat `agentic-sdd-fleet` as a **cross-referenced real-world companion case study**:
+
+1. **Concrete pattern in `how-to/fleet.md`:** add a focused section (“Study a real fleet repository” / “Case study: `agentic-sdd-fleet`”) comparing a minimal 1-instance `fleet.json` against a 27-instance multi-lane repo, showing how `fleet status` / `fleet plan` and TUI `--fleet-config` behave on an existing unmanaged snapshot (`unmanaged` / `--adopt` boundary) and why `manifest.json` pins the pack commit.
+2. **Typed anchors across subsystem pages:** add short, role-appropriate callouts in:
+   - `website/src/content/docs/reference/fleet.md` (curated prose outside generated markers: external real-world `schemaVersion: 1` specimen vs offline fixtures);
+   - `website/src/content/docs/reference/configuration.md` (curated fleet subsystem notes: why external `fleet.json` still needs explicit `--config`, never auto-discovered);
+   - `website/src/content/docs/how-to/customization.md` (supported overrides boundary: real multi-instance `fleet.json` vs local `--repo` policy rewrites);
+   - `website/src/content/docs/tutorials/specialists.md` (next-step bridge from 2-instance fixture routing to a full 27-instance personal config);
+   - `website/src/content/docs/reference/tui.md` (`--fleet-config` / Fleet Manager section: read-only inspection of an external repo checkout without scanning or source-saving).
+3. **README discovery (`README.md`):** add one crisp, creative link inside the OpenCode Orchestration Pack / Fleet sentence (and/or Explore further) positioning `agentic-sdd-fleet` as a real 27-instance `fleet.json` companion example — keeping `https://nawodyaishan.github.io/agentic-sdd/` as the sole top primary CTA, leaving the 8 A-01 anchors and 2 verbatim `guideExamplePrompts` intact, and preserving the safe `mktemp -d` quick start without adding bloat.
+
+Note: `agentic-sdd-customization` / `specialists.md` has an older pre-B3 literal path in `customization.md:72` (`website/tests/examples/research/local-source/fleet-override.json` was observed absent during inspection) and `specialists.md:195` still says `(integration-pending cross-links)` — do **not** silently alter unrelated lines outside the new fleet-reference additions unless explicitly authorized, or flag them as out-of-scope observations during T17.
+
+### C8 — External fleet reference contract, safety and freshness
+
+- **Single authoritative URL:** `https://github.com/nawodyaishan/agentic-sdd-fleet` (no unverified deep blob/commit URLs that break when the external repo advances; refer to file names such as `fleet.json`, `manifest.json`, `agents/`, `sync.sh` in prose or relative context).
+- **Generated-block protection:** edit **only** curated prose outside `<!-- generated:...:start -->` / `<!-- generated:...:end -->` markers in `reference/fleet.md` and `reference/configuration.md`. `reference.mjs --check` must stay `0` differences.
+- **No remote build/test dependency:** `check.mjs` logs external links as offline observations without HTTP fetches. New contract assertions in `website/tests/entrypoints-fleet-reference.test.mjs` (plus extending `entrypoints-readme.test.mjs` or checking via the new fixture) inspect Markdown files offline only: exact external repo URL on all 6 target site pages + `README.md`, presence of non-upstream / preview-only safety framing, and preservation of all B7 README invariants.
+- **Manifest freshness:** updating the 6 site `.md` files changes their SHA-256 hashes; parent alone updates `website/docs-manifest.json` `sha256` and `reviewDigest` for those 6 page entries while leaving `reviewStatus: unreviewed` and `appliesTo: unreleased` untouched (no automatic `reviewed` stamp).
+- **Zero product/CI expansion:** no Go files, no `astro.config.mjs` edits, no `check.mjs` exceptions (GitHub URLs are already external origin `github.com`), no `docs-ci.py` policy changes (unless adding a new test file under protected `website/tests/`, which again requires C4 reviewed-base adoption on `main` before PR CI can treat it as adopted). If the owner prefers zero protected-path churn, the new assertions can be run as T19 verification or added cleanly under `website/tests/entrypoints-fleet-reference.test.mjs` for trusted adoption on commit.
+
+### Affected files, specialist assignments and risks
+
+- **Affected paths (proposed B8):**
+  - `website/src/content/docs/how-to/fleet.md`
+  - `website/src/content/docs/reference/fleet.md`
+  - `website/src/content/docs/reference/configuration.md`
+  - `website/src/content/docs/how-to/customization.md`
+  - `website/src/content/docs/tutorials/specialists.md`
+  - `website/src/content/docs/reference/tui.md`
+  - `README.md`
+  - `website/docs-manifest.json` (parent-owned 6-page hash/digest refresh)
+  - `website/tests/entrypoints-fleet-reference.test.mjs` (new offline contract test covering AC-29–31)
+  - `specs/020-documentation-ecosystem/tasks.md` and session handover
+- **Assignments:** `documentation-generation-doc-generate` (already loaded) and existing `agentic-sdd-writing-for-agents` apply for concise, single-owner prose; `agentic-sdd-verification-review` applies at T19 completion. No UI/UX designer or ADR needed.
+- **Risks:**
+  - **R17 External repo drift:** `agentic-sdd-fleet` evolves independently (e.g., 27 instances or `v0.10.0@f7a3314` snapshot changes). Mitigation: date-stamp the observed structure (`observed 2026-11-16`), avoid brittle deep line/SHA links into the external repo, and state explicitly that it is an external personal example.
+  - **R18 Unsafe copy-paste / `--adopt` confusion:** readers cloning a personal fleet repo might copy `--adopt` or `cp agents/*.md` blindly into real `$HOME`. Mitigation: frame every CLI snippet with `--home /tmp/...` or read-only `status`/`plan`/`--fleet-config`, and point to `how-to/fleet.md` conflict/adoption review rules.
+  - **R19 Protected-test CI friction:** adding `website/tests/entrypoints-fleet-reference.test.mjs` touches protected `website/tests/` under C4; local tests prove correctness while `main` adoption activates it in trusted `docs-ci.py`.
+*** End Patch
 
 **Owner-approved link-classification correction:** the first integrated build produced 40 `built/wrong-base` failures solely for `https://nawodyaishan.github.io/` (the shared footer plus homepage). Preserve that approved direct link. The checker may use its own trusted shared `maintainer.website` constant to classify this **exact absolute HTTPS href** as external when outside the docs base; never load a candidate-provided allowlist or execute a candidate identity module from `--repo`. Keep all other base/path/canonical/scheme/fragment checks. Extend `website/tests/links-built.test.mjs` with positive attribution coverage and negative wrong-base, unapproved same-origin, HTTP, query/fragment/credential/relative variants. The parent must verify source-relative imports remain available in fixture/trusted staging; protected-tooling adoption is still required, not bypassed. No CI-policy or manifest-schema redesign is authorized.

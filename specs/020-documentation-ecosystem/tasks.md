@@ -1,11 +1,11 @@
 # Feature 020 — Tasks and batch ledger
 
-**Revision:** r6, 2026-11-16 — approved B7/T13–T16 adds the full README refresh with the documentation website mainly highlighted, plus visible personal branding. Original approved scope and B1–B6 acceptance with conditions are unchanged.
-**Parents:** [spec.md](spec.md) r3 §10; [plan.md](plan.md) r4 §12; original approved parents and [sitemap](sitemap.md) retain their existing scope.
+**Revision:** r7, 2026-11-16 — approved B8/T17–T19 adds the external `agentic-sdd-fleet` companion reference across the relevant site docs and README. B1–B7 accepted states are preserved.
+**Parents:** [spec.md](spec.md) r4 §11; [plan.md](plan.md) r5 §13; earlier approved parents and [sitemap](sitemap.md) retain their existing scope.
 **Approval reference:** [spec §9](spec.md#9-approval), the only combined approval record; batch state is this file.
-**Current stage:** B1–B6 **accepted with named conditions** on 2026-11-16; the docs pipeline runs the full adopted check list and has deployed an authoritative site. Deferred conditions and accepted limitations are listed in spec §9.
+**Current stage:** B1–B6 accepted with named conditions; B7 accepted with named limits, committed, pushed (`ee536f3`), deployed via Docs (`43805308416`) and released as `v0.12.0` (`43805342896`). B8 is **in progress — authorized 2026-11-16** (`opencode` free + `opencode-go/mimo-v2.6-flash` isolated writers).
 
-**Current amendment checkpoint (2026-11-16):** B7 implementation authorized by the owner's “start implementations with deepseek max sub agents”; approval lives once in spec §9. The older implementation snapshots below are historical, not newly rerun B7 evidence. Website-primary README and bounded site attribution are the authorized outcome.
+**Current amendment checkpoint (2026-11-16):** implementing [B8](#b8--external-fleet-reference-repository) under [spec §9](spec.md#fleet-reference-repository-amendment--approved-2026-11-16).
 
 ## Batch ledger
 
@@ -18,6 +18,7 @@
 | B5 — Publication readiness and acceptance | T10/T12 W1 → final evaluation | 6 / **6** | Safe CI/rollout plus integrated search/a11y/usability/performance evidence | `accepted with conditions 2026-11-16 — live site verified; parity via pinned Go builder; see spec §9` |
 | B6 — Optional minimal TUI access | T11 W1 | 4 / **4** | Fixed docs links/opener/UI/tests/docs; existing navigation/write controls intact | `accepted with conditions 2026-11-16 — links resolve on main; see spec §9` |
 | B7 — README and site attribution | T13 → contract-test red → isolated T14/T15 → T16 | DeepSeek Max isolated writers; parent integration | Website-first README, complete accuracy/navigation refresh, safe quick start, visible maintainer credit and connected checks | `accepted with named limits 2026-11-16 — see spec §9; commit/push/deploy/tag authorized` |
+| B8 — External fleet reference repo | T17 → T18 → T19 | OpenCode Free & Go MiMo Flash isolated writers; parent integration | Creative real-world companion case study for `nawodyaishan/agentic-sdd-fleet` across fleet site docs and `README.md` | `in progress — authorized 2026-11-16`; completion review and human acceptance pending |
 
 At each batch end: run affected checks, perform one completion review, record code state/checks/results/open findings, set `awaiting human review`, write the session handover and stop. No automatic batch progression, commit, deployment or additional model spending. Optional B6 is not silently marked complete/skipped; removal from accepted scope requires an explicit owner decision.
 
@@ -611,3 +612,54 @@ B7 is outside the original six-batch/44-lane schedule. It takes additive batch-l
 - `website/tests/search-acceptance-pagefind.test.mjs:274` and `performance-baseline.test.mjs:276` retain stale "site is not published" `notRun` strings.
 
 **Next permitted action:** human reviews B7 against AC-19–28, including the 11-line README advisory overrun, protected-path trusted-base adoption requirement, and pre-existing `.nojekyll`/Pagefind findings. Do not commit, push, deploy, apply to real homes, or start another batch without explicit authorization.
+
+**B7 execution & release note (2026-11-16):** after owner approval, B7 changes landed in four atomic commits (`a671adf`, `cf4e160`, `8a32cf8`, `ee536f3`), pushed to `origin/main`, deployed via Docs (`43805308416`, `43805308840`), passed CI (`43805308409`), and shipped as tag/release [`v0.12.0`](https://github.com/nawodyaishan/agentic-sdd/releases/tag/v0.12.0) (`43805342896`).
+
+## B8 — External fleet reference repository
+
+**Outcome:** readers exploring or configuring `asdx-core fleet` and `asdx --fleet-config` find `https://github.com/nawodyaishan/agentic-sdd-fleet` integrated as a live-world companion blueprint and boundary case study across the relevant documentation website pages and `README.md`, with clear safety, provenance and non-upstream disclaimers and zero remote build/test coupling.
+
+**State:** **in progress — authorized 2026-11-16**. Combined approval and worker model authorization (`opencode` free + `opencode-go/mimo-v2.6-flash`) live in [spec §9](spec.md#fleet-reference-repository-amendment--approved-2026-11-16).
+
+**Contract:** [plan §13 / C8](plan.md#c8--external-fleet-reference-contract-safety-and-freshness) owns the URL, generated-marker preservation, offline-test rule, 6-page manifest freshness rule and risk mitigations.
+
+### T17 — Integrate `agentic-sdd-fleet` into the six fleet-relevant documentation pages
+
+- [ ] **Objective:** turn the external personal fleet repository into a practical blueprint and boundary lesson across the website's fleet journey without duplicating its files or touching generated blocks.
+- **Dependencies:** combined approval of spec r4 §11 + plan r5 §13 + tasks r7 B8 and explicit B8 authorization.
+- **Files:** curated prose only in `website/src/content/docs/how-to/fleet.md`, `website/src/content/docs/reference/fleet.md`, `website/src/content/docs/reference/configuration.md`, `website/src/content/docs/how-to/customization.md`, `website/src/content/docs/tutorials/specialists.md`, and `website/src/content/docs/reference/tui.md`; parent alone updates SHA-256 and `reviewDigest` in `website/docs-manifest.json` while keeping `reviewStatus: unreviewed` and `appliesTo: unreleased`.
+- **Work:**
+  - Add the "Study a real fleet repository" case-study block to `how-to/fleet.md` (27 instances over 20 canonical sources, `manifest.json` pack commit `f559872` / tool `v0.10.0@f7a3314`, intentional divergence example `sdd-implement-9r-1`, `unmanaged` / `--adopt` conflict behavior, separate backup/snapshot layers, `sync.sh` vs `fleet apply`, and no credentials).
+  - Add concise, role-specific cross-references in `reference/fleet.md`, `reference/configuration.md`, `how-to/customization.md`, `tutorials/specialists.md`, and `reference/tui.md` strictly outside `<!-- generated:...:start/end -->` markers.
+  - Ensure every CLI snippet uses isolated `--home /tmp/...` or read-only `status`/`plan`/`--fleet-config`, never raw real-home `--adopt`.
+  - Refresh/note any dated drift observed on `nawodyaishan/agentic-sdd-fleet` at execution time.
+- **Verification:** `reference.mjs --check` stays 0 differences; `check.mjs --source` stays 0 errors after parent manifest refresh; no broken Markdown syntax or duplicated full `fleet.json` body.
+- **Acceptance:** AC-29, AC-31, AC-32 (site pages portion).
+
+### T18 — Highlight `agentic-sdd-fleet` concisely in `README.md`
+
+- [ ] **Objective:** give README readers a direct, memorable route to the real-world fleet blueprint without bloating the front door or displacing the documentation website CTA.
+- **Dependencies:** combined amendment approval, B8 authorization, and T17 target page framing agreed.
+- **Files:** `README.md` only.
+- **Work:**
+  - Add a crisp reference to `https://github.com/nawodyaishan/agentic-sdd-fleet` in the OpenCode Orchestration Pack / fleet context (and optionally a short bullet/entry in Explore further), framing it as an external 27-instance `fleet.json` example repository (configuration only, no credentials, separate from upstream `opencode-pack/`).
+  - Keep `https://nawodyaishan.github.io/agentic-sdd/` as the sole top primary `Documentation` CTA, preserve all 19 capability routes, 8 A-01 anchors, both verbatim single-line `guideExamplePrompts`, the labeled `docs/getting-started.md` historical pointer, and the unique `mktemp -d` preview quick start.
+- **Verification:** `entrypoints-readme.test.mjs` 25/25 pass, `TestGuideExamplePromptsAppearInREADME` pass, `test_core_workflow.py` pass, `git diff --check` clean; observe README line/link counts honestly.
+- **Acceptance:** AC-30, AC-31, maintains AC-19–24.
+
+### T19 — Add offline contract tests and run connected B8 verification
+
+- [ ] **Objective:** prove all six site pages and `README.md` carry the exact reference, safety framing, freshness hashes and offline build integrity with zero remote network fetches.
+- **Dependencies:** T17, T18 and parent manifest refresh complete.
+- **Files:** new `website/tests/entrypoints-fleet-reference.test.mjs` (plus any narrow README extension if needed), `website/docs-manifest.json` (parent-owned hash refresh only), this B8 completion record and session handover.
+- **Work & checks:**
+  - Author `website/tests/entrypoints-fleet-reference.test.mjs` offline (Node built-ins + `loadManifest` / `collectBaseline`) checking: exact `https://github.com/nawodyaishan/agentic-sdd-fleet` presence on the 6 site pages and `README.md`, presence of non-upstream/preview-safe framing, absence of bare real-home `--adopt` advice, and non-modification of generated reference sections.
+  - Run `npm run build:site`, `check.mjs --source`, `check.mjs --built`, `reference.mjs --check`, `npm test` in pinned offline Node 24.22.3 container, plus `test_core_workflow.py`, `test_research_workflow.py`, `test_docs_ci.py`, `task test`, `task vet`, and `git diff --check`.
+  - Note pre-existing unrelated `.nojekyll` `export-check` / Pagefind `.pf-*` `DOCS_BUILD` behavior honestly; never weaken gates.
+- **Acceptance:** verifier for AC-29–32; record C4 protected-test adoption note for `entrypoints-fleet-reference.test.mjs`. Stop with `awaiting human review` — no automatic commit, push, deploy or tag.
+
+### B8 amendment readiness (2026-11-16)
+
+- **Observed external baseline:** inspected `https://github.com/nawodyaishan/agentic-sdd-fleet` via `webfetch` and `gh api` on `2026-11-16` (`public`, `MIT`, 27 instances in `fleet.json`, `manifest.json` pinning `asdx-core v0.10.0@f7a3314` and pack `f559872`, `agents/`, `sync.sh`, `README.md`).
+- **Drafting checks:** core static suite (11), research static suite (22) and `git diff --check` verified after drafting spec r4 + plan r5 + tasks r7; no `README.md` or `website/` edits performed yet.
+- **Next permitted action:** parent prepares isolated worktrees (`tests`, `site`, `readme`) from `HEAD` (`ee536f3`) with frozen overlay, dispatches `opencode` free (`opencode/deepseek-v4.1-flash-free`) for TDD contract fixtures (`entrypoints-fleet-reference.test.mjs`) first, then `opencode-go/mimo-v2.6-flash` for T17 (6 site pages) and `opencode/deepseek-v4.1-flash-free` for T18 (`README.md`), integrates returns, refreshes manifest hashes, runs offline verification (`T19`), and stops at `awaiting human review`.
