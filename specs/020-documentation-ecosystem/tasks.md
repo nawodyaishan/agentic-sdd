@@ -18,7 +18,7 @@
 | B5 — Publication readiness and acceptance | T10/T12 W1 → final evaluation | 6 / **6** | Safe CI/rollout plus integrated search/a11y/usability/performance evidence | `accepted with conditions 2026-11-16 — live site verified; parity via pinned Go builder; see spec §9` |
 | B6 — Optional minimal TUI access | T11 W1 | 4 / **4** | Fixed docs links/opener/UI/tests/docs; existing navigation/write controls intact | `accepted with conditions 2026-11-16 — links resolve on main; see spec §9` |
 | B7 — README and site attribution | T13 → contract-test red → isolated T14/T15 → T16 | DeepSeek Max isolated writers; parent integration | Website-first README, complete accuracy/navigation refresh, safe quick start, visible maintainer credit and connected checks | `accepted with named limits 2026-11-16 — see spec §9; commit/push/deploy/tag authorized` |
-| B8 — External fleet reference repo | T17 → T18 → T19 | OpenCode Free & Go MiMo Flash isolated writers; parent integration | Creative real-world companion case study for `nawodyaishan/agentic-sdd-fleet` across fleet site docs and `README.md` | `in progress — authorized 2026-11-16`; completion review and human acceptance pending |
+| B8 — External fleet reference repo | T17 → T18 → T19 | OpenCode Free & Go MiMo Flash isolated writers; parent integration | Creative real-world companion case study for `nawodyaishan/agentic-sdd-fleet` across fleet site docs and `README.md` | `awaiting human review 2026-11-16 — B8 checks green (565 Node tests, 0 fail; 77 contract tests); self-review Ready` |
 
 At each batch end: run affected checks, perform one completion review, record code state/checks/results/open findings, set `awaiting human review`, write the session handover and stop. No automatic batch progression, commit, deployment or additional model spending. Optional B6 is not silently marked complete/skipped; removal from accepted scope requires an explicit owner decision.
 
@@ -619,7 +619,7 @@ B7 is outside the original six-batch/44-lane schedule. It takes additive batch-l
 
 **Outcome:** readers exploring or configuring `asdx-core fleet` and `asdx --fleet-config` find `https://github.com/nawodyaishan/agentic-sdd-fleet` integrated as a live-world companion blueprint and boundary case study across the relevant documentation website pages and `README.md`, with clear safety, provenance and non-upstream disclaimers and zero remote build/test coupling.
 
-**State:** **in progress — authorized 2026-11-16**. Combined approval and worker model authorization (`opencode` free + `opencode-go/mimo-v2.6-flash`) live in [spec §9](spec.md#fleet-reference-repository-amendment--approved-2026-11-16).
+**State:** **awaiting human review 2026-11-16** — T17–T19 implemented and integrated; self-review **Ready**. Combined approval and worker model authorization (`opencode` free + `opencode-go/mimo-v2.6-flash`) live in [spec §9](spec.md#fleet-reference-repository-amendment--approved-2026-11-16).
 
 **Contract:** [plan §13 / C8](plan.md#c8--external-fleet-reference-contract-safety-and-freshness) owns the URL, generated-marker preservation, offline-test rule, 6-page manifest freshness rule and risk mitigations.
 
@@ -662,4 +662,31 @@ B7 is outside the original six-batch/44-lane schedule. It takes additive batch-l
 
 - **Observed external baseline:** inspected `https://github.com/nawodyaishan/agentic-sdd-fleet` via `webfetch` and `gh api` on `2026-11-16` (`public`, `MIT`, 27 instances in `fleet.json`, `manifest.json` pinning `asdx-core v0.10.0@f7a3314` and pack `f559872`, `agents/`, `sync.sh`, `README.md`).
 - **Drafting checks:** core static suite (11), research static suite (22) and `git diff --check` verified after drafting spec r4 + plan r5 + tasks r7; no `README.md` or `website/` edits performed yet.
-- **Next permitted action:** parent prepares isolated worktrees (`tests`, `site`, `readme`) from `HEAD` (`ee536f3`) with frozen overlay, dispatches `opencode` free (`opencode/deepseek-v4.1-flash-free`) for TDD contract fixtures (`entrypoints-fleet-reference.test.mjs`) first, then `opencode-go/mimo-v2.6-flash` for T17 (6 site pages) and `opencode/deepseek-v4.1-flash-free` for T18 (`README.md`), integrates returns, refreshes manifest hashes, runs offline verification (`T19`), and stops at `awaiting human review`.
+- **Next permitted action:** parent prepared isolated worktrees (`tests`, `site`, `readme`) from `HEAD` (`ed68941` then `49a6051`) with frozen overlay and dispatched `opencode/deepseek-v4.1-flash-free` for the TDD contract fixture, `opencode/deepseek-v4.1-flash-free` and `opencode/glm-5.3-flash-free` for T17, and `opencode/deepseek-v4.1-flash-free` for T18; returns were hash-verified, integrated, manifest-refreshed and verified under T19. See completion evidence below.
+
+### B8 completion evidence and review (2026-11-16)
+
+**State:** `awaiting human review` (self-review verdict: **Ready** with named limits). No commit, push, deployment, tag, release, real-home apply or provider authentication executed.
+
+**Worker dispatch:** test-first fixture and site/README writers ran on the owner-named `opencode/*-free` models (`opencode/deepseek-v4.1-flash-free`, `opencode/glm-5.3-flash-free`) in three isolated worktrees; the requested paid `opencode-go/mimo-v2.6-flash` lane was dispatched twice but returned without edits, so the user-authorized free lane carried the work. No unrequested paid/cloud fallback was used. Concurrent writers in the shared `site` worktree were reconciled by inspection rather than replay; one AC-31 gap (missing explicit non-upstream statement in `reference/configuration.md`) was corrected and re-hashed before integration.
+
+| Surface / check | Result | Notes / limits |
+|---|---|---|
+| `website/tests/entrypoints-fleet-reference.test.mjs` (new, offline) | **pass** | 30 tests: exact URL on 6 pages + README outside fences, curated-only placement outside generated markers, non-upstream/credential/preview framing, no real-home `--adopt`, no >15-instance copy, no deep blob URLs; 12 compliant/negative mutation fixtures. Baseline RED was 17 fail / 13 pass, so every real-corpus assertion was observed failing before implementation |
+| `node --test` combined entrypoint suites | **pass** | 77 tests (fleet-reference, readme, attribution, navigation, github-fallback), 0 fail |
+| Pinned offline `npm run build:site` | **pass** | 40 HTML pages, Pagefind index, 41 exports, 0 changes |
+| `check.mjs --source` | **pass** | 39 pages, 305 links, **0 errors**, 20 offline external-link observations (incl. the new `agentic-sdd-fleet` URL on 6 pages) |
+| `check.mjs --built` | **pass** | 39 built pages, 3,303 links, **0 errors**, 234 external links across 39 observations |
+| `reference.mjs --check --commit 49a6051…` | **pass** | `differences: []`, `commitVerified: true` (generated blocks untouched by the curated edits) |
+| `npm test` (`DOCS_DIST` + real `ASDX_CORE_BINARY`) | **pass** | **565 tests: 548 pass, 0 fail, 17 existing skips**; Pagefind search acceptance 20/20 |
+| `task test` / `task vet` | **pass** | 11 supported-core packages; no Go source change in B8 |
+| `test_core_workflow.py` / `test_research_workflow.py` / `test_docs_ci.py` | **pass** | 11 / 22 / 80 |
+| `git diff --check` | **pass** | clean |
+
+**Manifest disposition:** six site pages refreshed (`how-to/fleet`, `reference/fleet`, `reference/configuration`, `how-to/customization`, `tutorials/specialists`, `reference/tui`) with new source SHA-256 and `reviewDigest`, while `reviewStatus: unreviewed` and `appliesTo: unreleased` were preserved — no automatic review stamp.
+
+**Unverified / `not_run`:** rendered visual review of the six pages, live-site publication of this change, trusted-base C4 adoption of the new protected test file, external-repository availability/state after 2026-11-16, and any provider/quota claim for the example model lanes.
+
+**Out-of-scope findings observed, not changed:** `how-to/customization.md` still cites `website/tests/examples/research/local-source/fleet-override.json`, which does not exist at that path; `tutorials/specialists.md` still ends with an `(integration-pending cross-links)` note.
+
+**Next permitted action:** human review of B8 (six site pages, `README.md`, the new contract test and this evidence), then an explicit decision on acceptance and on any separate commit/push/deploy/release.
