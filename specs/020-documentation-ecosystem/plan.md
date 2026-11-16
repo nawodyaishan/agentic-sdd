@@ -1,6 +1,6 @@
 # Feature 020 — Implementation plan
 
-**Revision:** r5, 2026-11-16 — §13 external fleet reference-repository design approved for B8 implementation; approved r3/r4 designs and historical execution records remain intact.
+**Revision:** r6, 2026-11-16 — §14 execution documentation and 016 corrective design approved for B9 implementation; §13 fleet design (B8) preserved; approved r3/r4 designs and historical execution records remain intact.
 **Input:** [spec.md](spec.md) r4 (§11), approved r2/r3 requirements, [evidence](evidence.md), [audiences](audiences.md), [ADR](adr-documentation-platform.md), [page contract](sitemap.md).
 **Approval owner:** [spec §9](spec.md#9-approval), including B8 authorization (`opencode` free + `opencode-go/mimo-v2.6-flash` workers). Current execution state is [tasks.md](tasks.md). No commit, push, deploy or real-home apply follows automatically.
 
@@ -554,3 +554,32 @@ Note: `agentic-sdd-customization` / `specialists.md` has an older pre-B3 literal
 *** End Patch
 
 **Owner-approved link-classification correction:** the first integrated build produced 40 `built/wrong-base` failures solely for `https://nawodyaishan.github.io/` (the shared footer plus homepage). Preserve that approved direct link. The checker may use its own trusted shared `maintainer.website` constant to classify this **exact absolute HTTPS href** as external when outside the docs base; never load a candidate-provided allowlist or execute a candidate identity module from `--repo`. Keep all other base/path/canonical/scheme/fragment checks. Extend `website/tests/links-built.test.mjs` with positive attribution coverage and negative wrong-base, unapproved same-origin, HTTP, query/fragment/credential/relative variants. The parent must verify source-relative imports remain available in fixture/trusted staging; protected-tooling adoption is still required, not bypassed. No CI-policy or manifest-schema redesign is authorized.
+
+## 14. Execution documentation and 016 corrective design (2026-11-16)
+
+**Parent:** [spec §12](spec.md#12-execution-documentation-and-016-corrective-amendment-2026-11-16), FR-16/FR-17, AC-33–AC-39.
+
+### 14.1 Design
+
+- **Lock liveness (I1):** keep the existing `O_EXCL` lock file and holder token. While `run check` runs, a background ticker rewrites the lock's timestamp (heartbeat) at a fraction of the 30-minute stale window; stale reclaim keys on the heartbeat age, so a live holder is never reclaimed and a crashed holder is reclaimed after the window. Same-host PID liveness may additionally veto age-based reclaim. No new file format beyond an additive timestamp refresh; old locks stay readable.
+- **Clean (I1):** `CleanRun` acquires the run lock (conflict → existing lock-conflict exit class), then removes. Preview stays read-only.
+- **Interruption (I2):** `run check` installs `signal.Notify` for SIGINT/SIGTERM for the duration of the child; on signal it sends the signal to the child's process group, waits a bounded grace period, escalates to kill, writes a record with a truthful interrupted result into the existing result vocabulary, releases the lock and exits non-zero. No new exit-code class.
+- **Review package scope (M3):** exclude the resolved run-root directory entirely when it lies inside the repository.
+- **Documentation (FR-16):** correct statements to code; do not expand claims. The D05 fix prefers aligning prose/alt/source with the image plus correcting execution order in the `.mmd`; PNG regeneration happens only if an offline approved renderer is available, otherwise the lane records `blocked` and the parent decides. Add a secret-in-excerpt warning to how-to, security trust and reference pages.
+- **Fixtures (I5):** add `website/tests/examples/execution/` with a fake check command, disposable repo fixture, expected outputs and one offline test using the existing stub/fixture runner conventions; Markdown fences are never executed.
+- **Wave order:** W1 (parallel, disjoint files): code lane and docs lane. Parent integrates. W2 (small, after W1): the docs lane (or parent) updates the I1/I2 hazard text to the integrated behavior. Then W3 verification and completion review.
+
+### 14.2 Lane ownership (disjoint files)
+
+| Lane | Agent / model | Files |
+|---|---|---|
+| B9-W1-A code | `sdd-implement-deepseek-2` (DeepSeek) | `internal/execution/{workspace,checks,checks_unix,reviewpackage}.go` and their tests; `cmd/agentic-sdd/{run,execution_cli}.go` and tests; help text only if M4/M5 source is there |
+| B9-W1-B docs | `sdd-implement-haiku` (Claude Haiku `#high`) | `website/src/content/docs/{how-to,reference,architecture,security,operations}/` execution/evidence/trust/troubleshooting pages (curated regions only), `website/src/assets/diagrams/D05*`, `website/tests/examples/execution/`, `docs/execution-runs.md`, `README.md` execution sentence, `website/tests/` fixture test for execution examples |
+| Parent | — | `website/docs-manifest.json` hash refresh, generated reference blocks, spec/plan/tasks ledgers, handover |
+
+### 14.3 Risks
+
+- **R20 Concurrency regression in lock code:** mitigate with fake-clock/PID tests and `go test -race`; no real long sleep.
+- **R21 Signal-handling portability:** Unix process-group code stays in `checks_unix.go`; non-Unix build must still compile (existing split).
+- **R22 Docs lane touches generated blocks:** forbidden; generated sections are parent-owned and `reference.mjs --check` must pass.
+- **R23 Scope creep into 016 semantics:** FR-17 is limited to restoring the promised behavior; anything else is reported, not changed.

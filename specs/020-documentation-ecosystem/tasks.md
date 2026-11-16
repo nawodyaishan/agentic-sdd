@@ -1,6 +1,6 @@
 # Feature 020 — Tasks and batch ledger
 
-**Revision:** r7, 2026-11-16 — approved B8/T17–T19 adds the external `agentic-sdd-fleet` companion reference across the relevant site docs and README. B1–B7 accepted states are preserved.
+**Revision:** r8, 2026-11-16 — approved B9/T20–T22 (execution documentation and 016 corrective); earlier: approved B8/T17–T19 adds the external `agentic-sdd-fleet` companion reference across the relevant site docs and README. B1–B7 accepted states are preserved.
 **Parents:** [spec.md](spec.md) r4 §11; [plan.md](plan.md) r5 §13; earlier approved parents and [sitemap](sitemap.md) retain their existing scope.
 **Approval reference:** [spec §9](spec.md#9-approval), the only combined approval record; batch state is this file.
 **Current stage:** B1–B6 accepted with named conditions; B7 accepted with named limits, committed, pushed (`ee536f3`), deployed via Docs (`43805308416`) and released as `v0.12.0` (`43805342896`). B8 is **in progress — authorized 2026-11-16** (`opencode` free + `opencode-go/mimo-v2.6-flash` isolated writers).
@@ -19,6 +19,7 @@
 | B6 — Optional minimal TUI access | T11 W1 | 4 / **4** | Fixed docs links/opener/UI/tests/docs; existing navigation/write controls intact | `accepted with conditions 2026-11-16 — links resolve on main; see spec §9` |
 | B7 — README and site attribution | T13 → contract-test red → isolated T14/T15 → T16 | DeepSeek Max isolated writers; parent integration | Website-first README, complete accuracy/navigation refresh, safe quick start, visible maintainer credit and connected checks | `accepted with named limits 2026-11-16 — see spec §9; commit/push/deploy/tag authorized` |
 | B8 — External fleet reference repo | T17 → T18 → T19 | OpenCode Free & Go MiMo Flash isolated writers; parent integration | Creative real-world companion case study for `nawodyaishan/agentic-sdd-fleet` across fleet site docs and `README.md` | `awaiting human review 2026-11-16 — B8 checks green (565 Node tests, 0 fail; 77 contract tests); self-review Ready` |
+| B9 — Execution documentation and 016 corrective | T20 (code) ∥ T21 (docs) → integrate → T22 | DeepSeek (`sdd-implement-deepseek-2`) + Claude Haiku (`sdd-implement-haiku`) isolated writers; parent integration | Lock heartbeat/clean lock, signal handling, review-package scope; corrected execution pages, D05, fixtures, legacy doc and README | `awaiting human review 2026-11-16 — T20–T22 integrated; see B9 completion evidence` |
 
 At each batch end: run affected checks, perform one completion review, record code state/checks/results/open findings, set `awaiting human review`, write the session handover and stop. No automatic batch progression, commit, deployment or additional model spending. Optional B6 is not silently marked complete/skipped; removal from accepted scope requires an explicit owner decision.
 
@@ -690,3 +691,50 @@ B7 is outside the original six-batch/44-lane schedule. It takes additive batch-l
 **Out-of-scope findings observed, not changed:** `how-to/customization.md` still cites `website/tests/examples/research/local-source/fleet-override.json`, which does not exist at that path; `tutorials/specialists.md` still ends with an `(integration-pending cross-links)` note.
 
 **Next permitted action:** human review of B8 (six site pages, `README.md`, the new contract test and this evidence), then an explicit decision on acceptance and on any separate commit/push/deploy/release.
+
+## B9 — Execution documentation and 016 corrective
+
+**Parents:** [spec §12](spec.md#12-execution-documentation-and-016-corrective-amendment-2026-11-16); [plan §14](plan.md#14-execution-documentation-and-016-corrective-design-2026-11-16). Authorization: [spec §12.3](spec.md#123-approval--approved-2026-11-16).
+
+### T20 — 016 corrective code (FR-17, AC-33–35)
+
+- [x] **Objective:** fix I1, I2 and M3 in the shipped execution service per plan §14.1.
+- **Files:** `internal/execution/{workspace,checks,checks_unix,reviewpackage}.go`, their tests, `cmd/agentic-sdd/{run,execution_cli}.go` and tests; help text only if needed for M4/M5.
+- **Work:** test-first. Lock heartbeat (or live-PID veto); `CleanRun` takes the lock; SIGINT/SIGTERM kills the child group, records an interrupted result, releases the lock; review package excludes the whole in-repo run root. No new command/flag/exit class/dependency. Report the exact interrupted-result name and exit code chosen.
+- **Acceptance:** AC-33, AC-34, AC-35. `go test -race ./internal/execution ./cmd/agentic-sdd`, `task test`, `task vet`, `git diff --check`.
+- **Does not:** touch 016 spec/tasks/approval, other packages or generated docs; commit.
+
+### T21 — Execution documentation corrections (FR-16, AC-36–38)
+
+- [x] **Objective:** fix I3, I4, I5, M1, M2, M4–M11 per spec §12.1 and plan §14.1, outside generated blocks.
+- **Files:** per plan §14.2 lane B9-W1-B.
+- **Work:** secret-in-excerpt warning; D05 consistency; create execution fixtures plus an offline test; update `docs/execution-runs.md` (017 status, link to website, keep anchors) and repoint website citations; correct wording per FR-16.6 to the code; document `progress_updated` observed behavior; describe the I1/I2 hazards as they behave now, with a clearly marked line to be updated after T20 integration.
+- **Acceptance:** AC-36–38 for the touched pages; no generated-block edit; no unsupported claim; report any mismatch whose source is generated or Go code instead of fixing it.
+
+### T22 — Integration, W2 hazard text, verification and completion review
+
+- [x] **Objective:** integrate T20/T21, update the I1/I2 hazard text to the integrated behavior, refresh manifest hashes (unreviewed preserved), run AC-39 verification and one completion review.
+- **Acceptance:** AC-39; record models actually used and any failure/fallback; stop at `awaiting human review`. No commit, push, deploy or tag.
+
+### B9 completion evidence and review (2026-11-16)
+
+**State:** `awaiting human review`. No commit, push, deploy, tag, release, real-home apply or provider authentication executed. 016 B1–B3 remain `awaiting human review`; this batch does not accept them.
+
+**Workers (actual):** T20 `sdd-implement-deepseek-2` (`opencode/deepseek-v4.1-flash-free`); T21 `sdd-implement-haiku` (`claude-haiku-5-5`). Each first launch failed with "Agent not found" because the agents were renamed (`sdd-implement-2`, `sdd-implement-9r-2`); both were relaunched under the new names. No model fallback. The T20 lane found a partial implementation already in the working tree, reviewed it against FR-17 and kept it with two small fixes.
+
+**T20 result:** heartbeat `lockStaleAfter/6` (5 min) refreshing `refreshed_at`; lock stale iff newest activity older than 30 min or same-host PID dead; `CleanRun` takes the lock and refuses a live holder (exit 2); SIGINT/SIGTERM kill the child process group after a 2 s grace, record `interrupted` and exit 1 (no new exit class); review packages exclude the run-root scratch. Residual: narrow refresh TOCTOU after a suspended holder; run root equal to repo root falls back to excluding only the current run; `SIGKILL`/host crash can still orphan the child (documented).
+
+**T22 parent integration:** corrected generator lines (`configuration.mjs` run-root mode, existing `running` result; `cli.mjs` timeout text was already corrected), regenerated the reference with a commit-bound binary, refreshed `sha256`/`reviewDigest` for five pages (`reference/{configuration,execution,fleet,mcp,files-and-backups}`) preserving `reviewStatus: unreviewed`.
+
+| Check | Result |
+|---|---|
+| `go test -race ./internal/execution ./cmd/agentic-sdd` (T20) | pass |
+| `task test` / `task vet` / `go mod verify` / `git diff --check` | pass |
+| `reference.mjs --check --commit HEAD` | pass, 0 drifted, commit verified |
+| `check.mjs` (source) | 0 errors, 39 pages, 312 links (external links not fetched) |
+| `node --test tests/*.test.mjs` with `ASDX_CORE_BINARY` | 571 tests, 553 pass, 0 fail, 18 skipped |
+| `test_core_workflow.py` / `test_research_workflow.py` / `test_docs_ci.py` | 11 / 22 / 80 pass |
+
+**Unverified / `not_run`:** pinned Node `>=24.22.3` container (ran on v24.21.0); `npm run build:site`, `check.mjs --built` and export drift check; Pagefind search acceptance; D05 PNG was not re-rendered (verified to match the `.mmd` order only); M12 partial-clone fetch; whether `progress_updated` semantics are intended (owner decision, docs describe observed behavior). A separate Opus re-review of the corrected code and pages has not been run, so this is a self-review, not a final technical verdict.
+
+**Next permitted action:** human review of B9, then an explicit decision on acceptance and on any separate commit/push/deploy/release.

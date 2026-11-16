@@ -1,6 +1,6 @@
 # Feature 020 — Documentation Ecosystem Modernization & AI-Ready Developer Experience
 
-**Revision:** r4, 2026-11-16 — spec r3/B7 accepted and released (`v0.12.0`); the fleet reference-repository extension in §11 is approved for B8 implementation in §9.
+**Revision:** r5, 2026-11-16 — B8 awaiting human review; the execution documentation and 016 corrective amendment in §12 is approved for B9 implementation (recorded in §12.3).
 **Sources:** [product vision](../../docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md) §§3, 6–8, 10–11; [repository instructions](../../AGENTS.md); [documentation index](../../docs/README.md); [test inventory](../../docs/testing/test-cases-report.md).
 **Supporting records:** [implementation/documentation audit](evidence.md), [audiences](audiences.md), [platform ADR](adr-documentation-platform.md), [page inventory](sitemap.md).
 
@@ -243,6 +243,10 @@ Implementation proceeds in the batches in [tasks.md](tasks.md), after one combin
   - **Accepted limitations:** no fresh-user usability observation, no screen-reader run, no real-browser/PTY interaction, no real-home install, no Windows support claim, and no analytics or ranking measurement.
   - **Deferred conditions with owners:** six blocked adversarial cases (B4 coverage, owners named in `tasks.md`); live rollback rehearsal; release-documentation sync comparison; reference parity depends on the pinned Go builder image and is unproven on a cold runner until observed.
 
+### Execution documentation and 016 corrective amendment
+
+Recorded in [§12.3](#123-approval--approved-2026-11-16): B9/T20–T22.
+
 ### README amendment decision — approved 2026-11-16
 
 - **Requested drafting scope (2026-11-16):** the owner requested a Feature 020 amendment to fully update README, parallel DeepSeek Max research, Exa best-practice research, and corresponding amendments to spec, plan and tasks.
@@ -346,3 +350,52 @@ This extends FR-02, FR-04, FR-05, FR-12 and §10 FR-13 without adding any produc
 | AC-32 | Site build, source/built checks and manifest freshness stay valid with zero remote fetch dependency | Offline pinned build, `check.mjs --source`, `check.mjs --built`, refreshed unreviewed manifest fingerprints for touched site pages, and repo static/Go checks pass; T19 verifier |
 
 The combined approval and B8 authorization are recorded in §9. Implementation proceeds in `T17–T19` with isolated writers, parent integration and one completion review before stopping at `awaiting human review`.
+
+## 12. Execution documentation and 016 corrective amendment (2026-11-16)
+
+**Origin:** an independent read-only architecture review (Opus, `claude-opus-5-5`, 2026-11-16) of Feature 016 and of 020's execution pages found no Critical issue, two Important operational risks in the shipped 016 code, three Important documentation defects and a set of Minor wording drifts. The review is a technical verdict, not approval. This amendment turns each finding into a bounded fix. Finding IDs (I1–I5, M1–M12) refer to that review.
+
+### 12.1 Requirements
+
+**FR-16 — Documentation matches the shipped execution behavior.** Execution pages, the D05 diagram, README, troubleshooting and the legacy `docs/execution-runs.md` describe what the code actually does, and carry no overclaim about safety, read-only behavior or flag semantics.
+
+| ID | Requirement | Finding |
+|---|---|---|
+| FR-16.1 | Output excerpts (up to 40 lines per stream) are stored in `checkpoint.json` and printed; the child inherits the full environment. The how-to, the security trust page and the reference warn that a check must not print secrets into a run agents will read. | I3 |
+| FR-16.2 | D05 prose, alt text and image/source agree. Either regenerate to the store-level diagram the prose describes (no cross arrow, correct order) or correct prose/alt to the real image and fix the `.mmd` order; provenance refreshed. | I4 |
+| FR-16.3 | Either the inert execution fixtures promised at `how-to/execution.md:21` exist under `website/tests/examples/execution/` (fake commands, disposable roots only, no real home/model/network/MCP) or the claim is removed. This amendment selects **create** the fixtures; the gap is recorded as a named B3 condition now closed or remaining. | I5 |
+| FR-16.4 | `docs/execution-runs.md` states 017 B1 as accepted 2026-11-13 and links the canonical website pages while keeping old anchors; website citations point at the website pages. | M1 |
+| FR-16.5 | `progress_updated` is documented as the code behaves (any edit outside the selected batch triggers it; `tasks_changed` never appears without `batch_changed`). Whether that is the intended semantics stays an open owner decision; this amendment documents observed behavior only. | M2 |
+| FR-16.6 | Correct: negative `--timeout` exits 2 (M4); `--max-output-bytes` clamps and is not rejected (M5); an existing run root keeps its mode and only a newly created root is `0700` (M6); `running` is a persisted check result (M7); fix the invalid recovery command in `operations/troubleshooting.md` (M8); README states that `run check` runs an arbitrary command with the user's authority (M9); a lock conflict exits 2 (M10); git probes neutralise global/system config only (M11). | M4–M11 |
+| FR-16.7 | Document the long-check lock hazard and the orphaned-child hazard exactly as the 016 code behaves **after** FR-17 lands, or as the current code behaves if FR-17 is not integrated. | I1, I2 |
+
+**FR-17 — Bounded 016 corrective changes.** Narrow code fixes to Feature 016's shipped execution service. They add no command, no flag, no exit-code class, no dependency and no approval semantics, and do not alter the frozen CLI contract.
+
+| ID | Requirement | Finding |
+|---|---|---|
+| FR-17.1 | A live `run check` must not lose its lock by age alone. Refresh the lock timestamp periodically while the holder is alive (heartbeat), or never reclaim by age a lock whose recorded PID is alive on the same host. Stale detection after a crash is preserved. | I1 |
+| FR-17.2 | `CleanRun` takes the run lock before deleting, and refuses (existing lock-conflict class) while a live holder exists. | I1 |
+| FR-17.3 | `run check` handles SIGINT/SIGTERM: terminate the child process group, record a truthful interrupted result in the run, release the lock, and exit non-zero. No new exit-code class; reuse the closest existing class and record it. | I2 |
+| FR-17.4 | Review-package assembly excludes the whole run scratch root (not just the current run) when the run root is inside the repository, matching freshness checks. | M3 |
+| FR-17.5 | If the CLI help text or flag parser is the source of M4/M5 inaccuracy, correct it only to match the behavior above; do not change accepted/clamped values. | M4, M5 |
+
+The 016 spec §14 approval stays the sole authority for 016 scope. FR-17 is authorized here as a **cross-feature corrective** only to the extent that it restores behavior 016's plan already promised (plan 016 lines 164 and 209). 016 B1–B3 remain `awaiting human review`; this amendment does not accept them.
+
+### 12.2 Acceptance criteria
+
+| ID | Criterion | Verification |
+|---|---|---|
+| AC-33 | A held lock whose holder is alive is not reclaimable by age, and `run clean --yes` refuses against it. A dead holder is still reclaimed. | Go tests with a fake clock/PID; `go test ./internal/execution ./cmd/agentic-sdd` |
+| AC-34 | SIGINT/SIGTERM during `run check` kills the child process group, writes an interrupted record, releases the lock and exits non-zero. | Go test using a fixture child that sleeps; assert no surviving child and a status that is not `interrupted_check` from reconciliation |
+| AC-35 | Review package excludes sibling-run scratch in a Git-visible custom run root. | Go test with two runs |
+| AC-36 | Output-excerpt, lock, interruption, exit-code, mode and flag-semantics statements on every execution page match the code and the FR-16 table. | Source read by the verifier; `reference.mjs --check`; no remaining false statement from the review's drift table |
+| AC-37 | D05 prose, alt text, source and image are mutually consistent; provenance current. | Diagram test/provenance check; manifest hashes |
+| AC-38 | `website/tests/examples/execution/` exists with inert fake-command fixtures and a test using them; no real home, model, network or MCP. | `npm test` (pinned offline) + fixture test |
+| AC-39 | Existing gates stay green: `task test`, `task vet`, `go mod verify`, `git diff --check`, `check.mjs --source/--built`, `reference.mjs --check`, `npm test`, `test_core_workflow.py`, `test_research_workflow.py`, `test_docs_ci.py`. No skip, filter or weakened gate. | Verifier T22 |
+
+### 12.3 Approval — approved 2026-11-16
+
+- **Requested drafting scope:** after the architecture review report, the owner instructed: “write amendmend as fixes to above issues , and dispatch claude agent haiku and deepseek agents to implement those”, then clarified “to spec 020”.
+- **Decision:** approved by the repository owner in this conversation on 2026-11-16 for spec r5 §12, plan r6 §14 and tasks r8 B9/T20–T22.
+- **Execution authorization:** B9 implementation, focused verification and completion review using `claude-agent/haiku#high` (`sdd-implement-haiku`) and DeepSeek (`sdd-implement-deepseek-1`/`sdd-implement-deepseek-2`) child sessions with parent integration. Model fallback only as listed in repository guidance and reported.
+- **Boundary:** Excludes commit, push, deploy, tag/release, real-home apply, provider authentication and any change to the 016 spec approval or batch state. M2 intended semantics, I1/I2 design alternatives beyond FR-17 and M12 (partial-clone fetch, unverified) are not decided here. B1–B8 states are preserved.
