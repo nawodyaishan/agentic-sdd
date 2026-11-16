@@ -1,26 +1,41 @@
 # Diagrams D01–D05 (Feature 020, B3-W1-K)
 
 Purpose: five small, legible Mermaid sources backing the architecture/security
-explanations. The `.mmd` source is authoritative; any PNG is a generated
+explanations. The `.mmd` source is authoritative; the PNG is a generated
 projection, never a second editable diagram.
 
-Authoring tool expectation: Mermaid source authored by hand; projection
-rendered by the maintainer with a pinned `mermaid-cli` (`mmdc`) invocation.
-No runtime Mermaid integration and no headless-browser dependency in CI.
+## Rendering
 
-Exact render command (maintainer, network install if needed):
+Projections are produced with a **digest-pinned** Mermaid CLI container. No
+runtime Mermaid integration and no headless-browser dependency in the site
+build or CI.
 
 ```sh
+IMG='ghcr.io/mermaid-js/mermaid-cli/mermaid-cli@sha256:18938e53497376d524e04b1fc0bf7b6d61a491ce9ff7032bb2855d57155acb10'
 for f in D01-context D02-components D03-install-transaction D04-delegation D05-evidence; do
-  mmdc -i website/src/assets/diagrams/$f.mmd -o website/src/assets/diagrams/$f.png -b white
+  docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$PWD/website/src/assets/diagrams:/data" "$IMG" \
+    -i "$f.mmd" -o "$f.png" -b white
 done
 ```
 
-Source revision: `449245a`.
+Pinned image digest: `sha256:18938e53497376d524e04b1fc0bf7b6d61a491ce9ff7032bb2855d57155acb10`
+(observed 2026-11-14; the same digest is published as `minlag/mermaid-cli`).
+Rendered 2026-11-16 from source revision `449245a`.
 
-Provenance: PNGs are `blocked` in this lane — no `mermaid-cli` exists locally
-and no network install is authorized. `.mmd` files only; maintainer renders
-and records tool version + source/image hashes at integration.
+Note for editors: Mermaid treats `;` as a statement separator inside sequence
+notes and messages. Write `Report, then await approval`, not `Report; await
+approval`, or the parser splits the line and fails.
+
+## Projections
+
+| Source | Size (px) |
+|---|---|
+| `D01-context.mmd` | 784 × 296 |
+| `D02-components.mmd` | 784 × 689 |
+| `D03-install-transaction.mmd` | 784 × 342 |
+| `D04-delegation.mmd` | 784 × 458 |
+| `D05-evidence.mmd` | 542 × 1173 |
 
 Alt text (one line each):
 

@@ -10,5 +10,5 @@ sequenceDiagram
   M->>C: Compact brief (scope + format)
   C-->>M: Evidence + result (no auto-apply)
   M->>M: Reconcile against sources<br/>(spec/plan/tasks)
-  M->>H: Report; await combined approval
-  Note over M,C: No daemon, no automatic routing;<br/>continuation only via tasks.md batch state
+  M->>H: Report, then await combined approval
+  Note over M,C: No daemon and no automatic routing<br/>continuation only via tasks.md batch state
