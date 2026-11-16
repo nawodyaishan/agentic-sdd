@@ -22,7 +22,7 @@ export default defineConfig({
 	// GitHub Pages applies the Jekyll underscore rule to served paths even for
 	// Actions deployments, so the default `_astro` directory 404s. `assets`
 	// keeps CSS, JS and images servable without relying on `.nojekyll`.
-	build: { assets: 'assets-v2' },
+	build: { assets: 'assets-v3' },
 	outDir,
 	cacheDir: cacheRoot,
 	vite: {
