@@ -77,6 +77,7 @@ import {
 } from './lib/manifest.mjs';
 import { CONTENT_ROOT, PublicTreeError, classifyLinkTarget, scanContentRoot } from './lib/public-paths.mjs';
 import { RouteError, resolveLink } from './lib/routes.mjs';
+import { maintainer } from '../src/maintainer.mjs';
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_REPO_ROOT = path.resolve(MODULE_DIR, '..', '..');
@@ -1868,6 +1869,19 @@ function displayBuiltPath(repoRoot, absolute) {
   return relative;
 }
 
+// The homepage and shared footer intentionally link the maintainer's personal
+// site, which can share this project site's origin while sitting outside its
+// project base. Only the exact trusted URL from the checker's own identity
+// module is external; lookalikes, unapproved paths, root-relative URLs and a
+// root project base keep normal containment validation. A candidate repository
+// can never supply this value, because the module is imported statically from
+// this checkout rather than through `repoRoot` or `--repo`.
+function isApprovedPersonalSiteExternal(href, target, base) {
+  if (href !== maintainer.website) return false;
+  if (base === '/') return false;
+  return target.pathname !== base && !target.pathname.startsWith(`${base}/`);
+}
+
 function builtPathForUrl(builtRoot, base, pathname) {
   const decodedSegments = [];
   for (const segment of pathname.split('/')) {
@@ -1977,6 +1991,10 @@ function checkBuiltLinks({ report, page, document, pageUrl, builtRoot, base, cac
       continue;
     }
     if (target.origin !== siteOrigin) {
+      external.push(href);
+      continue;
+    }
+    if (isApprovedPersonalSiteExternal(href, target, base)) {
       external.push(href);
       continue;
     }

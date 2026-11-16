@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import { computeReviewDigest } from '../scripts/lib/manifest.mjs';
 import { checkBuilt, checkDocumentation } from '../scripts/check.mjs';
+import { maintainer } from '../src/maintainer.mjs';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const websiteDir = path.resolve(testsDir, '..');
@@ -19,6 +20,8 @@ const checkScript = path.join(websiteDir, 'scripts/check.mjs');
 const DOCS = 'website/src/content/docs';
 const SITE = 'https://docs.example.test';
 const BASE = '/agentic-sdd';
+const MAINTAINER_ORIGIN = new URL(maintainer.website).origin;
+const MAINTAINER_HOST = new URL(maintainer.website).host;
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -39,16 +42,16 @@ function pageEntry(id, source, text) {
   };
 }
 
-function canonicalFor(id, base = BASE) {
+function canonicalFor(id, base = BASE, site = SITE) {
   const prefix = base === '/' ? '' : base;
-  return `${SITE}${prefix}${id === 'index' ? '/' : `/${id}/`}`;
+  return `${site}${prefix}${id === 'index' ? '/' : `/${id}/`}`;
 }
 
 function html({ canonical, body }) {
   return `<!doctype html>\n<html lang="en">\n<head>\n<link rel="canonical" href="${canonical}" />\n</head>\n<body>${body}</body>\n</html>\n`;
 }
 
-function makeFixture(t, { base = BASE, indexHtml, nextHtml, extra = {} } = {}) {
+function makeFixture(t, { base = BASE, site = SITE, indexHtml, nextHtml, extra = {} } = {}) {
   mkdirSync('/tmp/opencode', { recursive: true });
   const repoRoot = mkdtempSync('/tmp/opencode/spec020-b4-built-');
   t.after(() => rmSync(repoRoot, { recursive: true, force: true }));
@@ -58,7 +61,7 @@ function makeFixture(t, { base = BASE, indexHtml, nextHtml, extra = {} } = {}) {
   ].map(([id, source, body]) => [id, source, `---\ntitle: ${id}\n---\n\n${body}`]);
   const manifest = {
     schemaVersion: 1,
-    site: SITE,
+    site,
     base,
     repository: 'https://github.com/example/repo',
     docsVersion: 'dev',
@@ -74,8 +77,8 @@ function makeFixture(t, { base = BASE, indexHtml, nextHtml, extra = {} } = {}) {
 
   const dist = path.join(repoRoot, 'dist');
   const files = {
-    'index.html': indexHtml ?? html({ canonical: canonicalFor('index', base), body: '<h1 id="home">Home</h1>' }),
-    'next/index.html': nextHtml ?? html({ canonical: canonicalFor('next', base), body: '<h2 id="target">Target</h2>' }),
+    'index.html': indexHtml ?? html({ canonical: canonicalFor('index', base, site), body: '<h1 id="home">Home</h1>' }),
+    'next/index.html': nextHtml ?? html({ canonical: canonicalFor('next', base, site), body: '<h2 id="target">Target</h2>' }),
     ...extra,
   };
   for (const [relative, content] of Object.entries(files)) {
@@ -230,6 +233,104 @@ test('supports a root project base', (t) => {
   });
   const result = checkBuilt({ repoRoot, builtDir });
   assert.equal(result.ok, true, JSON.stringify(result.errors));
+});
+
+test('accepts the trusted maintainer personal-site root as external outside the project base', (t) => {
+  const { repoRoot, builtDir } = makeFixture(t, {
+    site: MAINTAINER_ORIGIN,
+    indexHtml: html({
+      canonical: canonicalFor('index', BASE, MAINTAINER_ORIGIN),
+      body: `<a href="${maintainer.website}">Personal website</a>`,
+    }),
+  });
+  const result = checkBuilt({ repoRoot, builtDir });
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  assert.equal(result.summary.external, 1);
+  const external = result.observations.find((entry) => entry.code === 'built/external');
+  assert.ok(external, JSON.stringify(result.observations));
+  assert.deepEqual(external.details.hrefs, [maintainer.website]);
+});
+
+test('does not widen the trusted personal-site exception to unsafe or lookalike variants', (t) => {
+  const httpDowngrade = `http://${MAINTAINER_HOST}/`;
+  const variants = [
+    httpDowngrade,
+    `//${MAINTAINER_HOST}/`,
+    `https://${MAINTAINER_HOST}`,
+    '/',
+    `${maintainer.website}?utm=1`,
+    `${maintainer.website}#top`,
+    `https://user:pass@${MAINTAINER_HOST}/`,
+    `${MAINTAINER_ORIGIN}/unapproved/`,
+    `${MAINTAINER_ORIGIN}/agentic-sd/`,
+  ];
+  const { repoRoot, builtDir } = makeFixture(t, {
+    site: MAINTAINER_ORIGIN,
+    indexHtml: html({
+      canonical: canonicalFor('index', BASE, MAINTAINER_ORIGIN),
+      body: variants.map((href) => `<a href="${href}">variant</a>`).join(''),
+    }),
+  });
+  const result = checkBuilt({ repoRoot, builtDir });
+  assert.equal(result.ok, false);
+  assert.deepEqual(
+    result.errors
+      .filter((entry) => entry.code === 'built/wrong-base')
+      .map((entry) => entry.details.href)
+      .sort(),
+    variants.filter((href) => href !== httpDowngrade).sort(),
+  );
+  assert.deepEqual(
+    result.errors
+      .filter((entry) => entry.code === 'built/unsafe-scheme')
+      .map((entry) => entry.details.href),
+    [httpDowngrade],
+    'an HTTP same-host link must still fail as a downgrade',
+  );
+  assert.equal(result.summary.external, 0);
+});
+
+test('root-base documentation validates its own homepage instead of treating the trusted URL as external', (t) => {
+  const { repoRoot, builtDir } = makeFixture(t, {
+    site: MAINTAINER_ORIGIN,
+    base: '/',
+    nextHtml: html({
+      canonical: canonicalFor('next', '/', MAINTAINER_ORIGIN),
+      body: `<a href="${maintainer.website}">home</a>`,
+    }),
+  });
+  const result = checkBuilt({ repoRoot, builtDir });
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  assert.equal(result.summary.external, 0, 'a root base must keep the same-origin homepage internal');
+});
+
+test('candidate repository identity data cannot widen the trusted personal-site exception', (t) => {
+  const candidateOrigin = 'https://candidate.example.test';
+  const { repoRoot, builtDir } = makeFixture(t, {
+    site: candidateOrigin,
+    indexHtml: html({
+      canonical: canonicalFor('index', BASE, candidateOrigin),
+      body: `<a href="${candidateOrigin}/">candidate</a>`,
+    }),
+  });
+  const candidateModule = path.join(repoRoot, 'website/src/maintainer.mjs');
+  mkdirSync(path.dirname(candidateModule), { recursive: true });
+  writeFileSync(
+    candidateModule,
+    [
+      'export const maintainer = Object.freeze({',
+      "  name: 'Candidate',",
+      "  github: 'https://github.com/candidate',",
+      `  website: '${candidateOrigin}/',`,
+      '});',
+      "throw new Error('candidate identity module must never be executed');",
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  const result = checkBuilt({ repoRoot, builtDir });
+  assert.ok(codes(result).includes('built/wrong-base'), JSON.stringify(codes(result)));
+  assert.equal(result.summary.external, 0, 'candidate data must not add an allowlist entry');
 });
 
 test('reports a missing built directory actionably', (t) => {

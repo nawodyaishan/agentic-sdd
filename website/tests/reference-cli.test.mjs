@@ -647,7 +647,27 @@ test(
     assert.equal(section.metadata.binary.product, 'asdx-core');
     assert.match(section.metadata.binary.commit, /^[0-9a-f]{40}$/);
     assert.equal(first.inventory.provenance.binary.commit, section.metadata.binary.commit);
-    assert.ok(section.markdown.includes('commit `' + section.metadata.binary.commit + '`'));
+    assert.deepEqual(first.inventory.provenance, section.metadata, 'inventory and page provenance agree');
+    if (candidateExpectedCommit) {
+      const expectedCommit = candidateExpectedCommit.toLowerCase();
+      assert.equal(section.metadata.expectedCommit, expectedCommit);
+      assert.equal(section.metadata.commitVerified, true);
+      assert.equal(first.inventory.provenance.expectedCommit, expectedCommit);
+      assert.equal(first.inventory.provenance.commitVerified, true);
+    }
+    assert.equal(section.metadata.commitVerified, section.metadata.expectedCommit !== null);
+    // AD3: the committed page must not embed the candidate's own commit, build
+    // date or toolchain; their identity lives in provenance and CI build
+    // evidence instead of a self-referential page.
+    assert.match(section.markdown, /captured by running the candidate `asdx-core` binary/);
+    assert.match(section.markdown, /recorded in the build evidence, not in this page/);
+    assert.ok(!section.markdown.includes(section.metadata.binary.commit), 'page must not leak the binary commit');
+    if (section.metadata.binary.date && section.metadata.binary.date !== 'unknown') {
+      assert.ok(!section.markdown.includes(section.metadata.binary.date), 'page must not leak the build date');
+    }
+    if (section.metadata.binary.goVersion && section.metadata.binary.goVersion !== 'unknown') {
+      assert.ok(!section.markdown.includes(section.metadata.binary.goVersion), 'page must not leak the toolchain');
+    }
     assert.ok(!section.markdown.includes('\x1b'));
     assert.ok(!section.markdown.includes(worktreeRoot));
     assert.ok(!section.markdown.includes(candidateBinaryPath));
