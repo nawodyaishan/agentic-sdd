@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "run_id": "run-20261113T114500Z-a1b2c3",
+  "updated_at": "2026-11-13T12:10:00Z",
+  "state": "observed-failed",
+  "tasks": {
+    "T05": {
+      "task_id": "T05",
+      "state": "observed-failed",
+      "brief_path": "briefs/T05.md",
+      "brief_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "last_check_id": "chk-20261113T120000Z-d4e5f6"
+    }
+  },
+  "checks": [
+    {
+      "check_id": "chk-20261113T120000Z-d4e5f6",
+      "task_id": "T05",
+      "result": "failed",
+      "command_program": "node",
+      "command_arg_count": 1,
+      "argv_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "argv_path": "checks/chk-20261113T120000Z-d4e5f6/argv.json",
+      "working_dir": "/example/repo",
+      "started_at": "2026-11-13T12:00:00Z",
+      "ended_at": "2026-11-13T12:00:01Z",
+      "exit_code": 1,
+      "timed_out": false,
+      "output_limit": false,
+      "stdout_path": "checks/chk-20261113T120000Z-d4e5f6/stdout.log",
+      "stderr_path": "checks/chk-20261113T120000Z-d4e5f6/stderr.log",
+      "stdout_bytes": 29,
+      "stderr_bytes": 33,
+      "stdout_truncated": false,
+      "stderr_truncated": false,
+      "summary": ["--- FAIL: ExampleSummary (0.00s)"],
+      "summary_truncated": false,
+      "worktree_changed_during_check": false
+    }
+  ],
+  "records": [],
+  "blockers": []
+}

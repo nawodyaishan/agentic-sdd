@@ -241,8 +241,10 @@ implicit shell, and globs are not expanded.
 **Expected result.** A command vector is captured exactly, with your permissions, in the
 repository root.
 
-**Recovery.** Use `asdx-core run check -- run <args>`, or `sh -c '<command>'` if shell
-semantics are what you intend. Remember that the check inherits your authority and
+**Recovery.** Use `asdx-core run check --run RUN_ID [--task TASK_ID] -- <program> [args...]`
+with the run ID from `run init` and the command's program and arguments as separate words.
+`--task` is required for a feature-scope run and defaults to `direct` for a direct-scope run.
+For shell semantics, use `asdx-core run check --run RUN_ID [--task TASK_ID] -- sh -c '<command>'`. Remember that the check inherits your authority and
 environment; see [Execution run reference](../reference/execution.md). Related usage
 errors, such as `--feature and --batch are required unless --direct is used` and
 `--run and --result are required`, mean the required identifying flags were omitted; run

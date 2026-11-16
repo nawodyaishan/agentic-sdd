@@ -75,9 +75,11 @@ check once per session automatically, and `AGENTIC_SDD_NO_UPDATE_CHECK=1` disabl
 guide has no automatic equivalent.
 
 Execution's repository probes are the one other child-process surface: `git` is invoked
-read-only with global and system configuration neutralized and optional locks disabled
-(`internal/execution/repository.go`). That keeps a repository probe from picking up a
-user's Git configuration; it does not sandbox the check command you run yourself.
+read-only, with `HOME` and the global and system Git configuration pointed at the null
+device and optional locks disabled (`internal/execution/repository.go`). Those probes
+neutralize global and system configuration only: repo-local Git configuration and
+gitattributes filters still apply to them. The probes do not sandbox the check command you
+run yourself.
 
 The TUI companion is resolved as a real sibling of the running binary and identity-checked
 before it starts; a missing, symlinked or mismatched companion is refused rather than
@@ -163,6 +165,14 @@ These are the places where local state can outlive the reason it was written.
 - **Execution inherits your authority.** `run check` runs the command you give it with
   your permissions; the service adds no isolation, and a run is never approval,
   verification or a sandbox (`internal/execution/checks.go`, [Execution run reference](../reference/execution.md)).
+- **Check output and environment reach the run.** The child process inherits your full
+  environment, unfiltered. A bounded output summary (up to 40 failure-marker lines from
+  stdout and stderr together, or the last 20 lines when none match) is stored in
+  `checkpoint.json` and printed, and it is not redacted. The capped `stdout.log` and
+  `stderr.log` under `checks/` keep more output on disk. A check that prints a secret puts
+  it into a run that agents may read, so never let a check print secrets. Do not pass them
+  as arguments either. Arguments are process-visible, and the exact vector sits in the
+  private `argv.json` (`internal/execution/checks.go`).
 
 ## Safe execution
 

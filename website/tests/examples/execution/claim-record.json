@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "result": "partial",
+  "summary": "Example only: one focused check observed; integration checks not run.",
+  "changedPaths": ["internal/example/example.go"],
+  "checks": [
+    {
+      "command": "node fake-check.mjs",
+      "exitCode": 1
+    }
+  ],
+  "agent": {
+    "role": "implementation",
+    "model": "example-model-name"
+  },
+  "unknowns": ["Integration behavior was not exercised."]
+}

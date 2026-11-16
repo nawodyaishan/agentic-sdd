@@ -101,13 +101,18 @@ If a shell really is the intended command, say so explicitly with `sh -c '...'`;
 What is observed:
 
 - The command runs in the repository root recorded by the run identity, with the invoker's environment and permissions.
-- `--timeout` defaults to 15 minutes; `0` disables the wall-clock limit.
-- `--max-output-bytes` caps each of stdout and stderr at 64 MiB by default and accepts 1 KiB to 1 GiB per stream. Reaching the cap cancels the command and marks the result `output_limit` and the stream truncated.
+- `--timeout` defaults to 15 minutes; `0` disables the wall-clock limit. A negative value is a usage error and exits `2`.
+- `--max-output-bytes` caps each of stdout and stderr at 64 MiB by default. `0` or a negative value selects that default. Other values are clamped silently, not rejected, to the range 1 KiB to 1 GiB per stream. Reaching the cap cancels the command and marks the result `output_limit` and the stream truncated.
 - The full-to-cap `stdout.log` and `stderr.log` are kept under `checks/<check-id>/`. `argv.json` keeps the exact vector privately; the run-level record stores the program name, argument count and an argv digest instead of the full vector.
 - Exit `0` means the supplied command passed. Exit `1` means it failed, was interrupted or exceeded a limit. Exit `124` means the wall-clock limit fired. The command's own exit code and signal, when observed, are inside the record rather than the wrapper's exit code.
 - A worktree change during the check, or a missing end observation, downgrades the observation to `observed-partial`; a passing process exit alone does not justify `verified-evidence`.
 
 A check is not a sandbox. Tests can write files, reach the network or cost money. Run only commands whose side effects are already authorized.
+
+> **Warning: a check can publish secrets into a run that agents will read.** `run check` stores a bounded output summary in `checkpoint.json` and prints it, and JSON output includes it too: up to 40 failure-marker lines from stdout and stderr together, or the last 20 lines when no line matches. The full capped logs stay under `checks/<check-id>/`. The child process inherits your full environment, unfiltered, and the summary is not redacted. Never let a check print secrets, tokens or credentials, and do not pass them as arguments either: arguments are visible to other processes running as your user. Check the summary before you hand a run to an agent.
+
+<!-- Updated in B9 T22 for the integrated T20 behavior. -->
+**Lock and interruption limits.** While `run check` holds a run, it refreshes the lock every five minutes (one sixth of the 30-minute stale window), so a live long check or a check with `--timeout 0` is not reclaimed by age alone. When the holder stops refreshing, its lock is reclaimable immediately if its recorded PID is dead on the same host, and otherwise after 30 minutes without a heartbeat. `run clean --yes` now takes the lock before deleting and refuses a live holder with exit `2`; the preview stays read-only. `run check` handles SIGINT and SIGTERM by forwarding the signal to the child's process group, waiting up to two seconds, then killing the group; it records `interrupted`, releases the lock and exits `1`, adding no new exit-code class. The remaining gap is a signal the wrapper cannot catch (`SIGKILL`) or a host crash: the child's process group can keep running. The dead holder's lock then becomes reclaimable at once, so `run clean` can remove the run while that orphan still executes, and the check record stays `running`. After a crash, read `run status` and the process list before you rerun or clean.
 
 ## 4. Attach a caller record (a claim)
 
@@ -184,12 +189,16 @@ States are `prepared`, `running`, `observed-partial`, `observed-failed`, `awaiti
 | Symptom | What it means | Safe next action |
 | --- | --- | --- |
 | `observed-partial` with `interrupted_check` | The writer stopped before a final check outcome, or the run was marked running without a live lock. | Inspect the check logs; rerun an authorized check in the current worktree. Do not treat the partial record as a pass. |
-| `stale` with `spec_changed`, `tasks_changed` or `batch_changed` | Source scope no longer matches the run's recorded digests. A checkbox-only or status-line-only edit appears as `progress_updated` and does not stale the run. | Reconcile the source with the human decision. Do not repoint or rewrite the run implicitly; start a new run only for a scope that is already authorized. |
+| `stale` with `spec_changed`, `tasks_changed` or `batch_changed` | Source scope no longer matches the run's recorded digests. `tasks_changed` always comes with `batch_changed`. | Reconcile the source with the human decision. Do not repoint or rewrite the run implicitly; start a new run only for a scope that is already authorized. |
+| `progress_updated` (informational, does not stale) | `tasks.md` differs from its recorded digest, but the selected batch's normalized scope is unchanged. This covers checkbox and status-line edits and any edit outside the selected batch. | No reconciliation is needed for this reason alone. |
 | `stale` with `head_changed` or `worktree_changed` | Git identity or the worktree moved since the recorded observation. | Inspect the changed paths, then rerun the authorized check against the current state. |
 | `stale` with `missing_artifact`, `brief_digest_mismatch`, `unregistered_brief` or `brief_inspection_failed` | A registered brief or check artifact is missing, changed or was never registered. | Inspect the artifact. Re-issuing `task brief` may register only byte-identical content; differing bytes require `--force` and a reconciled source scope. |
 | Exit `2` naming a foreign checkpoint or run identity | The checkpoint belongs to a different run ID or the selected run root does not match. | Preserve it for investigation. Never edit it into agreement and never consume it as this run's state. |
-| Lock conflict | Another writer owns the run, or a stale lock is not yet reclaimable. | Wait for the live writer to finish. A lock is reclaimed only when its PID is dead or it is older than 30 minutes. Repeated lock failures are a stop condition. |
+| Lock conflict, exit `2` | Another writer owns the run. The lock is refreshed while its holder runs; it is reclaimed only when the recorded PID is dead on this host or it has not been refreshed for 30 minutes. | Wait for the live writer to finish, then observe with `run status`. Repeated lock failures are a stop condition. `run clean --yes` also conflicts with a live lock. |
 | `blocked` | A claim reported a blocker or the checkpoint carries one. | Resolve the blocker with the responsible human; `run status` permits only `resolve_blocker`. |
+
+<!-- Updated in B9 T22 for the integrated T20 behavior. -->
+After a `SIGKILL` or host crash, the dead holder's lock is immediately reclaimable while its orphaned check may still run. A lock conflict in that state can come from a new writer racing the orphan, so read `run status` and the process list before any cleanup; §3 describes the limits.
 
 The status output names one permitted next investigation: `inspect_changed_paths`, `rerun_authorized_check`, `reconcile_source_change`, `resolve_blocker` or `none`. It never says "resume", "approved" or "start the next batch". A stale or blocked run stays stopped until the source, batch or worktree is reconciled and a human decides what happens next.
 
@@ -207,7 +216,7 @@ Delete exactly that run's directory only after the preview is what you expect:
 asdx-core run clean --run run-20261113T114500Z-a1b2c3 --yes
 ```
 
-`run clean` removes only the owned run directory. It refuses a live writer lock, a symlink or a directory without matching ownership evidence, and it treats an already-absent run as success. There is no "clean all". Removing scratch changes no skill, backup, approval or batch state.
+`run clean` removes only the owned run directory. The preview is read-only; `--yes` takes the run lock first and refuses a live writer lock, a symlink or a directory without matching ownership evidence, and it treats an already-absent run as success. There is no "clean all". Removing scratch changes no skill, backup, approval or batch state.
 
 ## Boundaries to keep
 

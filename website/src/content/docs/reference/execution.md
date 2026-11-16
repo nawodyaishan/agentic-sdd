@@ -37,13 +37,13 @@ The default root is `<repo>/.agentic-sdd/runs`; `--run-root` selects another pri
 | Review manifest | `review.json` |
 | Review patch | `review.patch` |
 
-Run IDs match `^run-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$`. The run root and run directory use mode 0700, identity and checkpoint files use mode 0600, and those two writes are atomic.
+Run IDs match `^run-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$`. A newly created run root and each run directory use mode 0700 (an existing run root keeps its current mode), identity and checkpoint files use mode 0600, and those two writes are atomic.
 
 ## Observed state
 
 - Checkpoint states: `prepared`, `running`, `observed-partial`, `observed-failed`, `awaiting-verification`, `verified-evidence`, `stale`, `blocked`
 - Caller claim results: `passed`, `failed`, `partial`, `blocked`, `needs_input`
-- Observed check results: `passed`, `failed`, `timed_out`, `interrupted`, `output_limit`, `not_started`
+- Observed check results: `running`, `passed`, `failed`, `timed_out`, `interrupted`, `output_limit`, `not_started`
 - Scope kinds: `feature`, `direct`
 
 Precedence, severity and reconciliation belong to `run status`; a reported state is an observation even when it is stale or blocked.
@@ -71,6 +71,16 @@ Documented exit codes are `0`, `1`, `2`, `3`, `124`. `124` is the check-timeout 
 
 The service observes local state and writes only private run artifacts. It does not approve work, call a model, or act as a sandbox; the repository, batch authorization and human review remain authoritative.
 <!-- generated:reference/execution:end -->
+
+## Curated notes on the generated facts
+
+These hand-written notes add the operational meaning the generated fields do not carry.
+
+- **Modes.** The run directory is created `0700` by the service, and identity, checkpoint, lock, record, brief and check files are `0600`. The run root is created `0700` only when it is newly created; an existing root keeps its own mode, including a user-supplied `--run-root`.
+- **Check results.** `running` is the in-progress marker written when a check starts; the final outcome replaces it. A record that still reads `running` means no final outcome was written, and `run status` reports it as `observed-partial` with `interrupted_check`, never as a pass.
+- **Lock conflicts.** A lock conflict exits `2`. A live holder refreshes its lock every five minutes; a dead same-host holder is reclaimable at once, and any other holder after 30 minutes without a refresh. `run clean --yes` takes the lock before deleting.
+- **Output and environment.** A check's checkpoint record and printed result carry a bounded summary of its output (up to 40 failure-marker lines from stdout and stderr together, or the last 20 lines when no line matches), and the summary is not redacted. The child process inherits the full environment. A check must not print secrets into a run that agents will read; see the [how-to's warning](../how-to/execution.md#3-run-one-authorized-check).
+- **Limits of interruption.** SIGINT and SIGTERM terminate the child's process group after a bounded grace period and record `interrupted`. An uncatchable `SIGKILL` or host crash leaves the child running; the stale lock then permits cleanup while that orphan may still execute. The [architecture evidence page](../architecture/evidence.md) and the how-to describe this in full.
 
 ## Cleanup
 

@@ -1,6 +1,8 @@
 # Execution runs — task briefs, check evidence and review packages
 
-**Status:** the approved contract for [Feature 016](../specs/016-agent-execution-context-evidence-recovery/spec.md), whose combined approval is recorded once in [spec §14](../specs/016-agent-execution-context-evidence-recovery/spec.md#14-approval). Implementation batches B1–B3 are complete and awaiting human review. [Feature 017](../specs/017-agent-context-upgrade/spec.md) adds run-bound brief provenance and conservative reuse of schema-v1 runs without changing the other command families; its B1 implementation awaits human review. This page describes the frozen public contract: it is not a shipped-capability claim, a security certification or an approval.
+> **Canonical website pages:** [how to use execution runs](https://nawodyaishan.github.io/agentic-sdd/how-to/execution/), [execution run reference](https://nawodyaishan.github.io/agentic-sdd/reference/execution/) and [architecture evidence](https://nawodyaishan.github.io/agentic-sdd/architecture/evidence/). The website pages carry the current, corrected wording; this page keeps the 016 contract and its anchors.
+
+**Status:** the approved contract for [Feature 016](../specs/016-agent-execution-context-evidence-recovery/spec.md), whose combined approval is recorded once in [spec §14](../specs/016-agent-execution-context-evidence-recovery/spec.md#14-approval). Implementation batches B1–B3 are complete and awaiting human review. [Feature 017](../specs/017-agent-context-upgrade/spec.md) adds run-bound brief provenance and conservative reuse of schema-v1 runs without changing the other command families; its B1 is accepted 2026-11-13 (see [017 batch ledger](../specs/017-agent-context-upgrade/tasks.md)). This page describes the frozen public contract: it is not a shipped-capability claim, a security certification or an approval.
 
 The `run`, `task` and `review` command families give the main agent one private local place for a task brief, truthful check evidence, a review package and a recoverable checkpoint. They are ordinary CLI commands: offline, explicit arguments, no prompt, no model call, no network call, no telemetry, and no change to an existing command's output or exit codes.
 
@@ -47,8 +49,8 @@ Defaults and limits fixed by the plan:
 | Flag | Default and range |
 |---|---|
 | `--format` | `text`; `json` adds a versioned object with `schemaVersion: 1` and a `kind` value, exact artifact paths and `unknown` where a value is not observable |
-| `--timeout` (`run check`) | `15m`; `0` disables the wall-clock limit |
-| `--max-output-bytes` (`run check`) | `64 MiB` per stream; `1 KiB`–`1 GiB` |
+| `--timeout` (`run check`) | `15m`; `0` disables the wall-clock limit; a negative value exits `2` |
+| `--max-output-bytes` (`run check`) | `64 MiB` per stream; `0` or negative selects the default; other values are clamped silently to `1 KiB`–`1 GiB`, not rejected |
 | `--max-file-bytes` (`review package`) | `2 MiB` per file |
 | `--max-total-bytes` (`review package`) | `32 MiB` total |
 
@@ -78,7 +80,7 @@ Default root: `<repo>/.agentic-sdd/runs`, with a generated `runs/.gitignore` con
     untracked/<path>       verbatim copies or symlink metadata
 ```
 
-Run, check, record and package IDs are path-safe and deterministic in shape (`run-20261113T114500Z-a1b2c3`, `chk-…`, `rec-…`, `pkg-…`). Directories are `0700` and files `0600`; checkpoint writes are atomic, so an interrupted write leaves the previous valid file. One writer at a time per run: concurrent checks or run-backed brief mutations on one run fail on the lock instead of interleaving, and a run-ID collision is rejected rather than reused.
+Run, check, record and package IDs are path-safe and deterministic in shape (`run-20261113T114500Z-a1b2c3`, `chk-…`, `rec-…`, `pkg-…`). Directories created by the service are `0700` and files `0600`; an existing `--run-root` keeps its own mode, and only a newly created root is `0700`; checkpoint writes are atomic, so an interrupted write leaves the previous valid file. One writer at a time per run: concurrent checks or run-backed brief mutations on one run fail on the lock instead of interleaving, and a run-ID collision is rejected rather than reused.
 
 ## Exit codes
 
@@ -86,7 +88,7 @@ Run, check, record and package IDs are path-safe and deterministic in shape (`ru
 |---|---|
 | `0` | Command completed successfully. For `run status`, the observation was read successfully even when the reported state is `stale` or `blocked` — inspect the state field. For `run check`, the supplied command passed. |
 | `1` | Runtime, I/O, interrupted or failed check. For `run check`, the command failed, was interrupted or exceeded a limit; its own exit code and signal are in the result, not the wrapper's exit code. |
-| `2` | Usage, invalid arguments, ambiguous or missing task, unsafe path, an unresolved required reference, or a conflicting run/checkpoint identity. Text on stderr; no partial JSON object. |
+| `2` | Usage, invalid arguments, ambiguous or missing task, unsafe path, an unresolved required reference, a lock conflict, or a conflicting run/checkpoint identity. Text on stderr; no partial JSON object. |
 | `3` | `review package` wrote a partial package. The artifact and omissions are real, and the package must not be called complete. |
 | `124` | `run check` timed out. |
 
@@ -99,7 +101,7 @@ A failed, timed-out or interrupted `run check` and a partial `review package` st
 - `verified-evidence` means a passing check matches the current source and worktree with no contradicting claim or blocker. It is still not human approval.
 - An interrupted `run check` can leave a checkpoint record with `result: running`; `run status` reports `observed-partial` with `interrupted_check`, never a pass.
 - A `run record` entry is a **claim**. A `passed` claim yields `awaiting-verification`; only a fresh check in the current code state, or the parent's own inspection, supports a verified observation.
-- Freshness reasons are explicit: `spec_changed`, `tasks_changed`, `batch_changed`, `head_changed`, `worktree_changed`, `scope_mismatch`, `missing_artifact`, `brief_digest_mismatch`, `unregistered_brief`, `brief_inspection_failed`, `interrupted_check`, `stale_lock`, `contradictory_evidence`. A checkbox or status-line-only edit is reported as `progress_updated` and does not stale the run.
+- Freshness reasons are explicit: `spec_changed`, `tasks_changed`, `batch_changed`, `head_changed`, `worktree_changed`, `scope_mismatch`, `missing_artifact`, `brief_digest_mismatch`, `unregistered_brief`, `brief_inspection_failed`, `interrupted_check`, `stale_lock`, `contradictory_evidence`. `progress_updated` is informational and does not stale the run. It is reported when `tasks.md` differs from its recorded digest but the selected batch's normalized scope digest is unchanged: checkbox and status-line edits, and any edit outside the selected batch. `tasks_changed` is only ever reported together with `batch_changed`.
 - `run status` also reports a next permitted investigation — `inspect_changed_paths`, `rerun_authorized_check`, `reconcile_source_change`, `resolve_blocker` or `none`. It never prints “resume”, “start next batch” or “approved”.
 
 After compaction, restart or interruption, read `run status` before acting. A `stale` or `blocked` run stays stopped until the changed source, batch or worktree is reconciled; reconcile, re-observe, then decide with the human. No writer, check, reviewer or next batch resumes automatically because a checkpoint looks nearly done.
@@ -134,10 +136,10 @@ Tracked binary changes keep their binary patch and are flagged `binary: true`. U
 ## Privacy and safety limits
 
 - No network, model, MCP, telemetry or credential access in the execution service. It works completely offline.
-- No environment dump. Command arguments stay private run metadata by default: summaries show the program basename, argument count and an argv digest, not raw arguments, so a token embedded in a command is not echoed.
+- No environment dump. Command arguments stay private run metadata by default: summaries show the program basename, argument count and an argv digest, not raw arguments, so a token embedded in a command is not echoed. The check command inherits the full environment, and its bounded output summary (up to 40 failure-marker lines, or the last 20 lines) is stored in the checkpoint and printed without redaction; a check must not print secrets.
 - Review packaging screens sensitive paths by pattern. That is omission, not redaction, and it is not a guarantee that a package is safe to share; the manifest records what was left out.
 - Run scratch is private but not encrypted. Treat `.agentic-sdd/runs/` as local, disposable project data: keep it out of Git (it self-ignores), out of backups and out of any upload, and remove it with `run clean` when it is no longer needed.
-- `run clean` removes only the owned run directory, refuses a live lock, never follows a symlink and treats an already-absent run as success. There is no “clean all” and no background purging.
+- `run clean` removes only the owned run directory, refuses a live lock, never follows a symlink and treats an already-absent run as success. `--yes` takes the run lock before deleting; a live writer always conflicts, and the lock is refreshed every five minutes while a check runs. After a `SIGKILL` or host crash, the dead holder's lock is reclaimable at once and an orphaned check can still be executing, so read `run status` and the process list before cleaning. There is no “clean all” and no background purging.
 - Permission and path checks reduce mistakes between cooperative local tools; they are not protection against another process running as the same user.
 
 ## Boundaries: no sandbox, no approval, no model calls

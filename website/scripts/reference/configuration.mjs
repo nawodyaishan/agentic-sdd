@@ -879,8 +879,11 @@ function verifyExecution(sources) {
     'execution.claimResults',
   );
   const checkResults = expectEqual(
-    enumStrings(types, typesFile, 'execution.checkResults', 'CheckPassed'),
-    ['passed', 'failed', 'timed_out', 'interrupted', 'output_limit', 'not_started'],
+    [
+      typedStringConst(sources.get('internal/execution/checks.go'), 'internal/execution/checks.go', 'execution.checkResults', 'CheckRunning'),
+      ...enumStrings(types, typesFile, 'execution.checkResults', 'CheckPassed'),
+    ],
+    ['running', 'passed', 'failed', 'timed_out', 'interrupted', 'output_limit', 'not_started'],
     typesFile,
     'execution.checkResults',
   );
@@ -1792,7 +1795,7 @@ ${table(
     ],
   )}
 
-Run IDs match ${code(facts.runIdPattern)}. The run root and run directory use mode 0700, identity and checkpoint files use mode 0600, and those two writes are atomic.
+Run IDs match ${code(facts.runIdPattern)}. A newly created run root and each run directory use mode 0700 (an existing run root keeps its current mode), identity and checkpoint files use mode 0600, and those two writes are atomic.
 
 ## Observed state
 

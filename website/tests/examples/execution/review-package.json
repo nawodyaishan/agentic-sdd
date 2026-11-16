@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "execution.review.package",
+  "package_id": "pkg-20261113T121500Z-0a1b2c",
+  "run_id": "run-20261113T114500Z-a1b2c3",
+  "created_at": "2026-11-13T12:15:00Z",
+  "repo_root": "/example/repo",
+  "base": "1111111111111111111111111111111111111111",
+  "head": "2222222222222222222222222222222222222222",
+  "branch": "main",
+  "scope": {
+    "kind": "feature",
+    "repo_root": "/example/repo",
+    "feature_dir": "specs/016-example",
+    "batch_id": "B3"
+  },
+  "complete": false,
+  "partial_reasons": ["head_not_current"],
+  "files": [
+    {
+      "path": "internal/example/example.go",
+      "status": "M",
+      "unstaged": true,
+      "included": true,
+      "size": 1234,
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "omissions": [
+    {
+      "path": ".env",
+      "reason": "sensitive_path"
+    },
+    {
+      "path": "docs/large-example.bin",
+      "reason": "max_file_bytes_exceeded"
+    }
+  ],
+  "counts": {
+    "committed": 0,
+    "staged": 0,
+    "unstaged": 1,
+    "untracked": 0,
+    "omitted": 2
+  },
+  "patch_path": "review/pkg-20261113T121500Z-0a1b2c/review.patch",
+  "run_state": "observed-failed",
+  "stale_reasons": ["worktree_changed"]
+}

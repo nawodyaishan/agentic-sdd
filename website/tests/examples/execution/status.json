@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "kind": "execution.run.status",
+  "run_id": "run-20261113T114500Z-a1b2c3",
+  "scope": {
+    "kind": "feature",
+    "repo_root": "/example/repo",
+    "feature_dir": "specs/016-example",
+    "spec_path": "specs/016-example/spec.md",
+    "tasks_path": "specs/016-example/tasks.md",
+    "batch_id": "B3"
+  },
+  "state": "observed-failed",
+  "stale_reasons": [],
+  "progress_updated": true,
+  "checks": [
+    {
+      "check_id": "chk-20261113T120000Z-d4e5f6",
+      "task_id": "T05",
+      "result": "failed",
+      "exit_code": 1
+    }
+  ],
+  "records": [],
+  "blockers": [],
+  "next_permitted_investigation": "rerun_authorized_check",
+  "run_dir": "/example/repo/.agentic-sdd/runs/run-20261113T114500Z-a1b2c3",
+  "updated_at": "2026-11-13T12:10:00Z"
+}

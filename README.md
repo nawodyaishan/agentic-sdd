@@ -209,7 +209,8 @@ and one operation log, and applying a restore writes destinations and a log. The
 `asdx` TUI makes one bounded read-only HTTPS update check per session unless
 `AGENTIC_SDD_NO_UPDATE_CHECK=1` is set. Fleet and execution are not globally
 read-only: `fleet plan --output` writes the named file, and execution writes
-private scratch. `--home` is not an OS sandbox.
+private scratch. `run check` runs the command you supply with your own user
+authority and side effects; it is not a sandbox. `--home` is not an OS sandbox.
 
 The guide and TUI are alternate front ends over the same engine; neither writes
 before explicit confirmation (default **No**). Profile permissions and workflow

@@ -519,10 +519,10 @@
         },
         {
           "path": "website/src/content/docs/how-to/orchestration.md",
-          "sha256": "ddc199e2b4d32acde813ed65dbb0b6e35bacdb828a6d222b575ee39822d2ed02"
+          "sha256": "e997d0a6d372261ca2fd6b9911ceacb9e93acd206bbf280c3b40ca228015fe62"
         }
       ],
-      "reviewDigest": "f90c31414b19835aeb6b9b707ecaa85454bf1d64c8c47bfce197c354d9782e94",
+      "reviewDigest": "b1956602db45fb65d61a823587dccdcc05526f0a727ccb57b818589feec25be6",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -631,7 +631,7 @@
         },
         {
           "path": "cmd/agentic-sdd/run.go",
-          "sha256": "2971f04848762aaa71e29a48d2609370a54cdc68b4ad74d31ba7002b391f91aa"
+          "sha256": "54ee75a548141e54b5d583fc8023e6243da7099f67a696fd293181f92ded1349"
         },
         {
           "path": "cmd/agentic-sdd/task.go",
@@ -639,10 +639,10 @@
         },
         {
           "path": "website/src/content/docs/how-to/execution.md",
-          "sha256": "06df443d6a680c5c25038bcf0a852e27fb3ef45df9b96c1369de485d5a973fbb"
+          "sha256": "da3aaafc2d5f14578577ff61171945209cc5c7e1a6bafd6a70f75fe32930cc1e"
         }
       ],
-      "reviewDigest": "2225dc3a319d76d03c195dc6f5aa8104dacb58d73f34697c27de553f649108b9",
+      "reviewDigest": "bc8d7f7599ac7e9df5946be0c941a274bac2ac862a8529431e1863db478502ae",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -770,7 +770,7 @@
         },
         {
           "path": "cmd/agentic-sdd/run.go",
-          "sha256": "2971f04848762aaa71e29a48d2609370a54cdc68b4ad74d31ba7002b391f91aa"
+          "sha256": "54ee75a548141e54b5d583fc8023e6243da7099f67a696fd293181f92ded1349"
         },
         {
           "path": "cmd/agentic-sdd/task.go",
@@ -802,14 +802,14 @@
         },
         {
           "path": "website/scripts/reference/cli.mjs",
-          "sha256": "2c40f7943c82ad7ecefaf5c5f450894c7a5274147555b15f1f8c03e24abb2384"
+          "sha256": "99b51fcd91405cee4d7fb2a3f6a797ca32a43c78756dd8377d274138bfba361d"
         },
         {
           "path": "website/src/content/docs/reference/cli.md",
-          "sha256": "a756f8a9c68780aafe6d5468f53f6760cdafc1e14d9cd38b2b14d228e891e54a"
+          "sha256": "7b7c88d70a57be1d6c35a13051d9d174216ecce0779ecaa750839bf3862b4ad6"
         }
       ],
-      "reviewDigest": "3b6e6dc3394a54edf5141574a1e93e201a9a7750b6e9384b2a061a9892d3188e",
+      "reviewDigest": "6006d51e0718730c2bcf3c7da0fe418db7d0a09d97bf599af3d5073f56ddd6e5",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -893,7 +893,7 @@
       "sources": [
         {
           "path": "internal/execution/workspace.go",
-          "sha256": "4293689ad4c4dfd241cd7a6bdbf6dc9d8b5e28ccd5d8e0cab6c185ffacbec04b"
+          "sha256": "5b76eff1a04e17449d11086054fddb2c44c7027d2857e4c57164669308546a17"
         },
         {
           "path": "internal/fleet/manifest.go",
@@ -929,14 +929,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
         },
         {
           "path": "website/src/content/docs/reference/files-and-backups.md",
           "sha256": "63db724790d3480c435eb9d8fa45d9f2fcf63ebac4d282e0f10cdb80ac3877c0"
         }
       ],
-      "reviewDigest": "0e74feded3c16fa069a9dc666cdd217c3fbb5c2d33a481af941394740cb4170a",
+      "reviewDigest": "659ebcec849f1902e363f0465b719df400e2ae5eefb0667235f76cc534625284",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1331,7 +1331,7 @@
         },
         {
           "path": "internal/execution/workspace.go",
-          "sha256": "4293689ad4c4dfd241cd7a6bdbf6dc9d8b5e28ccd5d8e0cab6c185ffacbec04b"
+          "sha256": "5b76eff1a04e17449d11086054fddb2c44c7027d2857e4c57164669308546a17"
         },
         {
           "path": "internal/fleet/fleet.go",
@@ -1375,14 +1375,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
         },
         {
           "path": "website/src/content/docs/reference/configuration.md",
           "sha256": "177e4260a00fec7b347fdd821ed59bf756678df4c52e83a06cfacfd948f24407"
         }
       ],
-      "reviewDigest": "408515d5bd5a9a6ab3311258d95859b572e13cf61dea2868cbb41ac47568ee22",
+      "reviewDigest": "580117c4942ef659475f9280a6cb5cde4b2f2f5a717d7dc96a90c006d762fdb6",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1500,14 +1500,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
         },
         {
           "path": "website/src/content/docs/reference/fleet.md",
           "sha256": "cf4acb21bf7987fcd60c447fa99adce54d24d34e60ba54e1958ebb12a6f2e366"
         }
       ],
-      "reviewDigest": "e82d59505fbb8f82d8a4c47825b4efbeb3e4727fe67a381171543ac6465c0b06",
+      "reviewDigest": "ce061dd108c30224f07b7ee4b07d93eeb5eed8f6f6103cecefd566f62e45abe2",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1572,14 +1572,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
         },
         {
           "path": "website/src/content/docs/reference/mcp.md",
           "sha256": "f9d8914ef9f81dd2af20a34ea5a4c5a82da5ec2795932b75fabd34d0bd1a77d0"
         }
       ],
-      "reviewDigest": "a1c64d5e95682657b2ca5cbf1e2ef26323fd358ad6292b606fef9b74f608892e",
+      "reviewDigest": "72b42e9ba9e8df53d49eaaf4ceae91e5c00704812656bb947bf9eaa37e8640ea",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1617,7 +1617,7 @@
         },
         {
           "path": "cmd/agentic-sdd/run.go",
-          "sha256": "2971f04848762aaa71e29a48d2609370a54cdc68b4ad74d31ba7002b391f91aa"
+          "sha256": "54ee75a548141e54b5d583fc8023e6243da7099f67a696fd293181f92ded1349"
         },
         {
           "path": "internal/execution/checkpoint.go",
@@ -1625,7 +1625,7 @@
         },
         {
           "path": "internal/execution/checks.go",
-          "sha256": "34575e2a2bb6d27332f95f84a5a7dcb77edc711d31d099676334dd59d53f9b2d"
+          "sha256": "4cee5187be55fa3a0e17cc6fc8e7b43644052354f126c300dd912e71ca9e54cd"
         },
         {
           "path": "internal/execution/record.go",
@@ -1633,7 +1633,7 @@
         },
         {
           "path": "internal/execution/reviewpackage.go",
-          "sha256": "2b5ef5c27f8ebad1bb0cdb7dc07b77817c9b3b7636abaa96b0c8c2eecc83d163"
+          "sha256": "eea5dc4e0f76174a6769c8b25e3fbed531a2bbfb067f8e10ffc472c4c10d06fc"
         },
         {
           "path": "internal/execution/taskbrief.go",
@@ -1645,7 +1645,7 @@
         },
         {
           "path": "internal/execution/workspace.go",
-          "sha256": "4293689ad4c4dfd241cd7a6bdbf6dc9d8b5e28ccd5d8e0cab6c185ffacbec04b"
+          "sha256": "5b76eff1a04e17449d11086054fddb2c44c7027d2857e4c57164669308546a17"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -1653,14 +1653,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "f3fafc1f3f2a549978dfe573c1f276b72469b2993205fe148642986aa35932ad"
+          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
         },
         {
           "path": "website/src/content/docs/reference/execution.md",
-          "sha256": "f0b7d793977c2c5975ba59c5e794e290e59b6fcdcd56087ce35caee2f75d3095"
+          "sha256": "dfc9d7eba873343de0bca8424129b662635f270addbda96d827267ebba40053a"
         }
       ],
-      "reviewDigest": "60fd69df730082c48470dcb2341da86070df52b273fdd69efb06450d0fce6a38",
+      "reviewDigest": "97080632b5f805fffc85052a6cd1d5ca00c016689b252672e6d2889dacdee24e",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1792,7 +1792,7 @@
         },
         {
           "path": "cmd/agentic-sdd/run.go",
-          "sha256": "2971f04848762aaa71e29a48d2609370a54cdc68b4ad74d31ba7002b391f91aa"
+          "sha256": "54ee75a548141e54b5d583fc8023e6243da7099f67a696fd293181f92ded1349"
         },
         {
           "path": "cmd/agentic-sdd/tui.go",
@@ -1827,7 +1827,7 @@
           "sha256": "baa3583025ba28e88ec1f21f025e7b9539fc2672bc1f4b72d1a8b1327a13cb51"
         }
       ],
-      "reviewDigest": "73580b77e46a5660cdc47704a05d74e3c8122650d15bfaeee520492192f892b7",
+      "reviewDigest": "ae86ef0eb0ed026e3a5f9f9fbc6749e7d1c55c2dbbefb807443066ce66f58959",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1895,10 +1895,10 @@
         },
         {
           "path": "website/src/content/docs/architecture/evidence.md",
-          "sha256": "0d376cbb8b4bea62905772fe13439f6c191ad05a7a74a8c113cf6f104d0d75dc"
+          "sha256": "b204c3956ef2417854c53018eacb5539d2eafbf7d7f700f409daa504882d46d3"
         }
       ],
-      "reviewDigest": "af86cde1f7634d390cd10a447aa34422d3acdda18149bc5d2926afa6761e9ee6",
+      "reviewDigest": "e1b99e362f7c6189d76ab8c6ee086e0139e5aba2e40d66704604fcfc860d93bc",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1919,10 +1919,10 @@
         },
         {
           "path": "website/src/content/docs/operations/troubleshooting.md",
-          "sha256": "58082e843a148690822f932fb3d0ad33a5f685c408a0f055099c44b6020d387c"
+          "sha256": "044634b0a1e7d86a8b4ff84039054597852da9f10c80813519cdb5eb0ee856f9"
         }
       ],
-      "reviewDigest": "ab6befa4511d37254ae84cfcac2f4db2df6554c5e768d6a7aef911dfdb0ef488",
+      "reviewDigest": "b33dba1ead892ef4256a6005034a7816ccb1cdddda70f8a91da59b43cfe810b7",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -2040,7 +2040,7 @@
         },
         {
           "path": "internal/execution/checks.go",
-          "sha256": "34575e2a2bb6d27332f95f84a5a7dcb77edc711d31d099676334dd59d53f9b2d"
+          "sha256": "4cee5187be55fa3a0e17cc6fc8e7b43644052354f126c300dd912e71ca9e54cd"
         },
         {
           "path": "internal/execution/repository.go",
@@ -2048,7 +2048,7 @@
         },
         {
           "path": "internal/execution/reviewpackage.go",
-          "sha256": "2b5ef5c27f8ebad1bb0cdb7dc07b77817c9b3b7636abaa96b0c8c2eecc83d163"
+          "sha256": "eea5dc4e0f76174a6769c8b25e3fbed531a2bbfb067f8e10ffc472c4c10d06fc"
         },
         {
           "path": "internal/fleet/plan.go",
@@ -2084,10 +2084,10 @@
         },
         {
           "path": "website/src/content/docs/security/trust.md",
-          "sha256": "956fba1348469d4104162927b1ce47e64a9cdd2fac901452937dd7b4f0cb4ec8"
+          "sha256": "fae44fa615e2eebf3b576b7581e155a4216ba9a7d65be1759d20a74da140aafd"
         }
       ],
-      "reviewDigest": "87afd623e3a2a9d17bcc68a49acf4f485aa19430ef4bb48526dc7729585f62b1",
+      "reviewDigest": "6469355775befa17558ddc142a5f95d4aca0556b9eb0631d913c4777bdfab2e7",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },

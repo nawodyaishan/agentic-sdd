@@ -24,7 +24,7 @@ done
 
 Pinned image digest: `sha256:18938e53497376d524e04b1fc0bf7b6d61a491ce9ff7032bb2855d57155acb10`
 (observed 2026-11-14; the same digest is published as `minlag/mermaid-cli`).
-Rendered 2026-11-16 from source revision `449245a`.
+Rendered 2026-11-16 from source revision `449245a`. D05 was re-rendered on the same date after its execution-order correction, with the same pinned image (`minlag/mermaid-cli` is the same image ID).
 
 Note for editors: Mermaid treats `;` as a statement separator inside sequence
 notes and messages. Write `Report, then await approval`, not `Report; await
@@ -38,7 +38,7 @@ approval`, or the parser splits the line and fails.
 | `D02-components.mmd` → `public/diagrams/d02-components.png` | 784 × 689 |
 | `D03-install-transaction.mmd` → `public/diagrams/d03-install-transaction.png` | 784 × 342 |
 | `D04-delegation.mmd` → `public/diagrams/d04-delegation.png` | 784 × 458 |
-| `D05-evidence.mmd` → `public/diagrams/d05-evidence.png` | 542 × 1173 |
+| `D05-evidence.mmd` → `public/diagrams/d05-evidence.png` | 542 × 1461 |
 
 Alt text (one line each):
 
@@ -46,4 +46,4 @@ Alt text (one line each):
 - D02-components: CLI dispatches directly to skillsync/fleet/MCP/execution engines; TUI pairs with a same-install companion after a buildinfo handshake; legacy names forward.
 - D03-install-transaction: preview stops before writes; apply goes plan, backup, write, verify with rollback; restore reloads a backup; fleet/MCP/execution stores are separate.
 - D04-delegation: human authorizes one bounded brief, child returns evidence, main reconciles, human approves; no daemon or automatic routing.
-- D05-evidence: MCP applies config under a lock with snapshot verify/rollback; execution records briefs/checkpoints and evaluates freshness for review; neither implies sandbox or live auth.
+- D05-evidence: two flows with a dotted "separate stores" connector between them. MCP: plan, lock, apply, verify, with rollback on failure. Execution: run init, task brief, run check, run record, run status, review package, run clean, in that order; neither implies sandbox or live auth.

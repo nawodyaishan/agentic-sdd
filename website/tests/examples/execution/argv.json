@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "kind": "execution.run.check.argv",
+  "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "argv": ["node", "fake-check.mjs"]
+}

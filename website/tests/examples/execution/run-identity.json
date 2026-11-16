@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "execution.run.identity",
+  "run_id": "run-20261113T114500Z-a1b2c3",
+  "created_at": "2026-11-13T11:45:00Z",
+  "tool_version": "example-fixture",
+  "run_root": "/example/repo/.agentic-sdd/runs",
+  "run_dir": "/example/repo/.agentic-sdd/runs/run-20261113T114500Z-a1b2c3",
+  "scope": {
+    "kind": "feature",
+    "repo_root": "/example/repo",
+    "feature_dir": "specs/016-example",
+    "spec_path": "specs/016-example/spec.md",
+    "spec_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "tasks_path": "specs/016-example/tasks.md",
+    "tasks_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "batch_id": "B3",
+    "batch_scope_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "baseline": {
+    "head": "1111111111111111111111111111111111111111",
+    "branch": "main",
+    "worktree_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "observed_at": "2026-11-13T11:45:00Z"
+  },
+  "workspace_git_visible": false
+}

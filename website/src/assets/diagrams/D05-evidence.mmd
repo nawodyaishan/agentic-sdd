@@ -1,7 +1,8 @@
-%% D05 — MCP/execution evidence flows (Feature 020, B3-W1-K)
-%% Purpose: MCP = config digest/lock/recovery; execution = brief/record/freshness/review; neither implies sandbox nor live auth.
-%% Source revision: 449245a
-%% Encodes: internal/skillsync/mcp_transaction.go (ApplyMCPPlan, acquireMCPLock, mcpVerifySnapshotEntries, RestoreMCPConfig, ReadMCPTransactionIntent), internal/execution (WriteCheckpoint/LoadCheckpoint, StatusRun/evaluateFreshness, registerTaskBrief, checks.go, reviewpackage.go)
+%% D05 — MCP/execution evidence flows (Feature 020, B3-W1-K; execution order corrected in B9-W1-B)
+%% Purpose: MCP = config digest/lock/recovery; execution = run init/brief/check/record/status/review/clean; neither implies sandbox nor live auth.
+%% Source revision: c542b4a plus the B9/T20 corrective working tree (2026-11-16)
+%% Encodes: internal/skillsync/mcp_transaction.go (ApplyMCPPlan, acquireMCPLock, mcpVerifySnapshotEntries, RestoreMCPConfig, ReadMCPTransactionIntent), internal/execution (InitRun, registerTaskBrief, RunCheck with checks.go evidence, IngestRecord, StatusRun/evaluateFreshness, BuildReviewPackage, CleanRun, WriteCheckpoint/LoadCheckpoint)
+%% Order: the arrows show the typical lifecycle of one run. A check or a record can repeat before status; status and review read the checkpoint and do not write evidence.
 flowchart TB
   subgraph MCP["MCP config flow (no live-auth claim)"]
     MPlan["MCPPlan"] --> MLock["acquireMCPLock"]
@@ -12,10 +13,12 @@ flowchart TB
     MRestore["RestoreMCPConfig"] --> MVerify
   end
   subgraph EXEC["Execution evidence flow (no sandbox claim)"]
-    Brief["registerTaskBrief"] --> CP["WriteCheckpoint"]
-    CP --> Run["child command runs"]
-    Run --> Status["StatusRun / evaluateFreshness<br/>LoadCheckpoint"]
-    Status --> Checks["checks.go evidence"]
-    Checks --> Review["reviewpackage.go"]
+    Init["InitRun (run init)"] --> Brief["registerTaskBrief (task brief)"]
+    Brief --> Check["RunCheck (run check)<br/>child command, capped logs, checkpoint"]
+    Check --> Record["IngestRecord (run record)<br/>caller claim"]
+    Check --> Status["StatusRun / evaluateFreshness (run status)"]
+    Record --> Status
+    Status --> Review["BuildReviewPackage (review package)"]
+    Review --> Clean["CleanRun (run clean)"]
   end
   MCP -.->|separate stores| EXEC

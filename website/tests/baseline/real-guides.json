@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "baseCommit": "449245a990225f2234685dee8314dff1c3b1d3b2",
-  "capturedFrom": "uncommitted B4/T08 post-migration working tree after B4-W1-C integration, 2026-11-14",
+  "capturedFrom": "uncommitted B4/T08 post-migration working tree after B4-W1-C integration, 2026-11-14; docs/execution-runs.md refreshed for B9/T21, 2026-11-16",
   "preMigrationSnapshotCommit": "2fc31e9f9c4d019e2b9f3b4f004978028808c74b",
   "purpose": "T08 post-migration docs/ guide heading and link snapshot and reviewed dispositions; a drift gate for the migrated files, not a pre-migration equality claim. The pre-migration inventory stays readable at the recorded commit.",
   "paths": [
@@ -641,61 +641,61 @@
           "slug": "execution-runs--task-briefs-check-evidence-and-review-packages"
         },
         {
-          "line": 7,
+          "line": 9,
           "level": 2,
           "text": "What a run is — and is not",
           "slug": "what-a-run-is--and-is-not"
         },
         {
-          "line": 17,
+          "line": 19,
           "level": 2,
           "text": "Commands",
           "slug": "commands"
         },
         {
-          "line": 59,
+          "line": 61,
           "level": 2,
           "text": "Artifact layout",
           "slug": "artifact-layout"
         },
         {
-          "line": 83,
+          "line": 85,
           "level": 2,
           "text": "Exit codes",
           "slug": "exit-codes"
         },
         {
-          "line": 95,
+          "line": 97,
           "level": 2,
           "text": "Observed state, stale runs and reconciliation",
           "slug": "observed-state-stale-runs-and-reconciliation"
         },
         {
-          "line": 107,
+          "line": 109,
           "level": 2,
           "text": "Task briefs: provenance and recovery",
           "slug": "task-briefs-provenance-and-recovery"
         },
         {
-          "line": 119,
+          "line": 121,
           "level": 2,
           "text": "Review packages and partial reasons",
           "slug": "review-packages-and-partial-reasons"
         },
         {
-          "line": 134,
+          "line": 136,
           "level": 2,
           "text": "Privacy and safety limits",
           "slug": "privacy-and-safety-limits"
         },
         {
-          "line": 143,
+          "line": 145,
           "level": 2,
           "text": "Boundaries: no sandbox, no approval, no model calls",
           "slug": "boundaries-no-sandbox-no-approval-no-model-calls"
         },
         {
-          "line": 150,
+          "line": 152,
           "level": 2,
           "text": "Related",
           "slug": "related"
@@ -704,31 +704,51 @@
       "links": [
         {
           "line": 3,
+          "href": "https://nawodyaishan.github.io/agentic-sdd/how-to/execution/",
+          "text": "how to use execution runs"
+        },
+        {
+          "line": 3,
+          "href": "https://nawodyaishan.github.io/agentic-sdd/reference/execution/",
+          "text": "execution run reference"
+        },
+        {
+          "line": 3,
+          "href": "https://nawodyaishan.github.io/agentic-sdd/architecture/evidence/",
+          "text": "architecture evidence"
+        },
+        {
+          "line": 5,
           "href": "../specs/016-agent-execution-context-evidence-recovery/spec.md",
           "text": "Feature 016"
         },
         {
-          "line": 3,
+          "line": 5,
           "href": "../specs/016-agent-execution-context-evidence-recovery/spec.md#14-approval",
           "text": "spec §14"
         },
         {
-          "line": 3,
+          "line": 5,
           "href": "../specs/017-agent-context-upgrade/spec.md",
           "text": "Feature 017"
         },
         {
-          "line": 152,
+          "line": 5,
+          "href": "../specs/017-agent-context-upgrade/tasks.md",
+          "text": "017 batch ledger"
+        },
+        {
+          "line": 154,
           "href": "../specs/016-agent-execution-context-evidence-recovery/spec.md",
           "text": "Feature 016 specification"
         },
         {
-          "line": 153,
+          "line": 155,
           "href": "../specs/016-agent-execution-context-evidence-recovery/plan.md",
           "text": "Plan"
         },
         {
-          "line": 154,
+          "line": 156,
           "href": "../specs/016-agent-execution-context-evidence-recovery/tasks.md",
           "text": "Tasks"
         }

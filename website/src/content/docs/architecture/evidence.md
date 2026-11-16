@@ -22,18 +22,18 @@ The `run`, `task` and `review` families exist so an agent can leave a truthful l
 
 ### Diagram D05 — MCP and execution are separate stores
 
-![Diagram D05: the MCP transaction (lock, snapshot, intent, target config) and an execution run (lock, run.json, checkpoint, checks, records, review) are separate stores with no arrow between them.](/diagrams/d05-evidence.png)
+![Diagram D05: two flows with a dotted connector labelled "separate stores" between them. The top MCP flow runs plan, lock, apply and verify, with a rollback branch on verification failure. The bottom execution flow runs run init, task brief, run check, run record, run status, review package and run clean in that order.](/diagrams/d05-evidence.png)
 
-*Figure D05 — MCP and execution stores. Source: `assets/diagrams/D05-evidence.mmd`.*
+*Figure D05 — MCP and execution flows. Source: `assets/diagrams/D05-evidence.mmd`; the PNG is its rendered projection.*
 
-- On the left, the MCP transaction: lock at `~/.agentic-sdd/mcp/.lock`, snapshot and intent records under `~/.agentic-sdd/mcp/backups`, target `~/.config/opencode/opencode.json`.
-- On the right, an execution run: lock at `<run>/.lock`, `run.json`, `checkpoint.json`, `briefs/`, `checks/`, `records/`, `review/` under `.agentic-sdd/runs`.
-- There is no arrow between them. The MCP engine never reads a checkpoint. The execution package itself never opens a client config or writes outside a run root, though a check command it runs is arbitrary and executes with the invoker's own permissions.
+- The top flow is the MCP transaction: `MCPPlan`, `acquireMCPLock`, `ApplyMCPPlan`, `mcpVerifySnapshotEntries`, with `mcpApplyRollback` on failure. Its lock and snapshot and intent records live under `~/.agentic-sdd/mcp/` and its target is `~/.config/opencode/opencode.json`; the figure does not draw those paths.
+- The bottom flow is one execution run: `InitRun`, `registerTaskBrief`, `RunCheck` (the child command, capped logs and the checkpoint), `IngestRecord`, `StatusRun` with `evaluateFreshness`, `BuildReviewPackage` and `CleanRun`. Its files are `<run>/.lock`, `run.json`, `checkpoint.json` and the `briefs/`, `checks/`, `records/` and `review/` directories under the run root; the figure does not draw those paths.
+- The dotted connector is a boundary marker, not a data path. The two flows share no store: the MCP engine never reads a checkpoint, and the execution package never opens a client config or writes outside a run root. A check command it runs is arbitrary and executes with the invoker's own permissions.
 - Both are opt-in: MCP writes only through `appops.MCPApply`/`MCPRestore` after a digest check, and execution writes only when a `run`-family command is invoked.
 
 ## Locks and interruption state
 
-Each run has one writer at a time. `acquireRunLock` creates `.lock` with `O_CREATE|O_EXCL`, records token, PID, hostname, start time and operation, and releases by comparing its own token. A stale lock is reclaimed only when its PID is dead on this host or it is older than `LockStaleAfter` (30 minutes); any other existing lock is a conflict.
+Each run has one writer at a time. `acquireRunLock` creates `.lock` with `O_CREATE|O_EXCL`, records token, PID, hostname, start time, operation and a heartbeat timestamp, and releases by comparing its own token. A `run check` holder refreshes that timestamp every five minutes (one sixth of `LockStaleAfter`, 30 minutes), so age alone never reclaims a live check. A stale lock is reclaimed when its PID is dead on this host or when it has not been refreshed for `LockStaleAfter`; any other existing lock is a conflict. `run clean --yes` acquires the same lock before deleting, and its preview stays read-only. `run check` turns SIGINT and SIGTERM into a child-process-group termination, a bounded grace period, an `interrupted` record and a released lock; it exits `1`, adding no exit-code class.
 
 | Recorded state | Lock observation | Effective state | Reason |
 |---|---|---|---|
@@ -42,13 +42,16 @@ Each run has one writer at a time. `acquireRunLock` creates `.lock` with `O_CREA
 | any | — | `blocked` wins over everything | blocker recorded |
 | any with source/identity/artifact drift | — | `stale` | e.g. `spec_changed`, `head_changed`, `missing_artifact` |
 
-`effectiveState` applies that precedence, and `HighestState` orders `blocked`, `running`, `stale`, `observed-failed`, `observed-partial`, `awaiting-verification`, `verified-evidence`, `prepared`. `TestLockConflictAndRelease`, `TestLockStaleReclaim` and `TestStatusInterruptedCheck` pin the lock and interruption behavior. `run clean` previews or removes exactly one owned run and refuses a live lock, an unowned or symlinked run, or a moved run (`TestCleanRefusesLiveLock`, `TestCleanRefusesUnownedAndSymlinkedRuns`, `TestCleanRefusesMovedRun`).
+`effectiveState` applies that precedence, and `HighestState` orders `blocked`, `running`, `stale`, `observed-failed`, `observed-partial`, `awaiting-verification`, `verified-evidence`, `prepared`. `TestLockConflictAndRelease`, `TestLockStaleReclaim`, `TestLockHeartbeatPreventsAgeReclaim`, `TestCheckInterruptKillsProcessGroup`, `TestCleanApplyReclaimsStaleLockAndRemovesRun` and `TestStatusInterruptedCheck` pin the lock and interruption behavior. `run clean` previews or removes exactly one owned run, takes the lock for deletion and refuses a live lock, an unowned or symlinked run, or a moved run (`TestCleanRefusesLiveLock`, `TestCleanRefusesUnownedAndSymlinkedRuns`, `TestCleanRefusesMovedRun`).
+
+<!-- Updated in B9 T22 for the integrated T20 behavior. -->
+**Limits after the corrective.** A live writer is protected by the heartbeat, `run clean --yes` takes the lock, and SIGINT/SIGTERM terminate the child's process group and leave an `interrupted` record. The remaining gap is a signal the wrapper cannot catch: after `SIGKILL` or a host crash the child's process group may keep running, while the dead holder's lock is reclaimable at once (or after 30 minutes without a refresh on another host). `run clean` can then remove the run directory while that orphan still executes, and the check record stays `running`; `run status` reports `observed-partial` with `interrupted_check`. These are not sandbox or approval properties; they are local state limits to observe with `run status` before acting.
 
 ## Freshness is computed, not remembered
 
 `run status` never trusts the checkpoint alone. `evaluateFreshness` compares the recorded identity with current state and re-observes the worktree through `ObserveRun`, which hashes HEAD, branch, status, diff, untracked content (bounded) and a worktree digest while excluding the run directory. It never mutates the checkpoint.
 
-Reasons are explicit: `spec_changed`, `tasks_changed`, `batch_changed`, `head_changed`, `worktree_changed`, `scope_mismatch`, `missing_artifact`, `brief_digest_mismatch`, `unregistered_brief`, `brief_inspection_failed`, `interrupted_check`, `stale_lock`, `contradictory_evidence`. `progress_updated` is the only informational reason; a checkbox-only edit does not stale a run.
+Reasons are explicit: `spec_changed`, `tasks_changed`, `batch_changed`, `head_changed`, `worktree_changed`, `scope_mismatch`, `missing_artifact`, `brief_digest_mismatch`, `unregistered_brief`, `brief_inspection_failed`, `interrupted_check`, `stale_lock`, `contradictory_evidence`. `progress_updated` is the only informational reason. It is reported when `tasks.md` no longer matches its recorded digest but the selected batch's normalized scope digest still matches: checkbox and status-line edits, and any edit outside the selected batch. `tasks_changed` is only reported together with `batch_changed`, and that pair stales the run.
 
 The same evaluation also names one permitted next investigation: `inspect_changed_paths`, `rerun_authorized_check`, `reconcile_source_change`, `resolve_blocker` or `none`. It never says "resume", "approved" or "start next batch". `TestStatusSourceAndWorktreeFreshness`, `TestStatusMissingArtifact`, `TestStatusScopeMismatch`, `TestStatusContradictoryEvidence` and `TestStatusStateMachineTable` cover the matrix.
 
@@ -63,6 +66,7 @@ A foreign or mismatched checkpoint is a conflict, not data to adopt: a `checkpoi
 - Outcomes are `passed`, `failed`, `timed_out`, `interrupted`, `output_limit`, `not_started`; the in-progress marker `running` survives only when no final outcome could be written.
 - Exit code, signal, timing and bounded summary lines are recorded. `argv_digest` and `argv_path` live in the checkpoint metadata; the full argv stays in the private run directory.
 - A worktree change during the check is recorded as `worktree_changed_during_check`.
+- The checkpoint and the printed result carry a bounded output summary: up to 40 failure-marker lines from stdout and stderr together, or the last 20 lines when no line matches. The child inherits the full environment, and the summary is not redacted. A check that prints secrets puts them into the run; see the [how-to's secret warning](../how-to/execution.md#3-run-one-authorized-check).
 - Public exit codes: `0` passed, `124` timed out, `1` failed/interrupted/limited, `2` usage or validation.
 
 `TestCheckPassReachesVerifiedEvidence`, `TestCheckArtifactsAndPrivateProvenance`, `TestCheckTimeout`, `TestCheckSignalIsInterrupted` and `TestCheckOutputLimitTerminatesAndTruncates` prove those outcomes.

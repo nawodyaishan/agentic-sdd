@@ -1,0 +1,5 @@
+{
+  "exitCode": 1,
+  "stdout": "ok   example/pkg/fast 0.010s\n",
+  "stderr": "--- FAIL: ExampleSummary (0.00s)\n"
+}
