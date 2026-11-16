@@ -242,7 +242,7 @@ test('SEO head metadata, JSON-LD and raster icons are emitted for both bases', (
 
 		// SEO-02: one descriptive home title, an unchanged brand heading and og:type=website.
 		assert.equal((result.indexHtml.match(/<title>/g) ?? []).length, 1, `${scenario}: single <title>`);
-		assert.match(result.indexHtml, /<title>Agentic-SDD — spec-driven engineering skills and CLI<\/title>/);
+		assert.match(result.indexHtml, /<title>Agentic-SDD: spec-driven engineering skills and CLI<\/title>/);
 		assert.doesNotMatch(result.indexHtml, /<title>Agentic-SDD \| Agentic-SDD<\/title>/);
 		assert.match(result.indexHtml, /<meta property="og:title" content="Agentic-SDD"\/>/);
 		assert.match(result.indexHtml, /<meta property="og:type" content="website"\/>/);

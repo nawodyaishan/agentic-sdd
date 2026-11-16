@@ -21,7 +21,7 @@ type SidebarNode = {
 	entries?: SidebarNode[];
 };
 
-const HOME_TITLE = 'Agentic-SDD — spec-driven engineering skills and CLI';
+const HOME_TITLE = 'Agentic-SDD: spec-driven engineering skills and CLI';
 const OG_IMAGE_ALT = 'Agentic-SDD — spec-driven engineering skills and CLI';
 const basePath = manifest.base.endsWith('/') ? manifest.base : `${manifest.base}/`;
 
