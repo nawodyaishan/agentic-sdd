@@ -28,10 +28,14 @@
       "sources": [
         {
           "path": "website/src/content/docs/index.md",
-          "sha256": "26b0f05e8eb97ae4f6d7c2a9f0a73acff7576ea3140dfa886be126bf644b9194"
+          "sha256": "6328ed431cf637d31cb8fe57eb6c45cf0cc13407704a7aa2359d64523d9801d4"
+        },
+        {
+          "path": "website/src/maintainer.mjs",
+          "sha256": "6c88e8b16748512aeb9ead9cbdb352e9663d4b65dd608d70c930cf838d341d7d"
         }
       ],
-      "reviewDigest": "1428b4a77ada5d70d77c67346517808a2810a82730b361c4f4cb6666f3f33652",
+      "reviewDigest": "8f8a47c317cb33138c5766b3cd70d11727295113c13d2b8660a2479ecabae3ce",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1967,10 +1971,10 @@
         },
         {
           "path": "website/src/content/docs/operations/known-limitations.md",
-          "sha256": "e9f41bd15fb522194ee911b1b55060769340581b7decd43abf73f678326b5062"
+          "sha256": "43a027b805105fd5546cbb4062d5ffc26a6f59267c4aa5e91dc21b5b1ce619ab"
         }
       ],
-      "reviewDigest": "80f62e43e20ce55e84e8786f8afba751dbb22935554befaec8a01394dc8d04af",
+      "reviewDigest": "12e3e1ea91973995f292aa627f12622d7c3be3554585e6a59125ad5a3e8c31cd",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -2210,10 +2214,10 @@
         },
         {
           "path": "website/src/content/docs/contributing/docs-and-changes.md",
-          "sha256": "a0214f9760d6dc61304c231c342bb9585efcc4d763a98b4affa4c8d95923d0ad"
+          "sha256": "112bbab3ad4b9b12776463e1cc6376d78a16708a6e290741a5433be20fcc783e"
         }
       ],
-      "reviewDigest": "641eff71a1e3730b0432078897422e94fa0317db99dd8b54d2982814c010d6b4",
+      "reviewDigest": "ad514ce45f9f2ef1c098a04bbeccff4a3e84bb28cb3d4765857a77402087cf28",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -2230,10 +2234,10 @@
       "sources": [
         {
           "path": "website/src/content/docs/releases/compatibility.md",
-          "sha256": "8c21d2b7d043987694c6b9bde9778280ad979af9d91854c2194bc75d3a00020e"
+          "sha256": "03db1853d105706557fa074c9e127e3ab5ea4188bf1eb3892bb53828a4737fdc"
         }
       ],
-      "reviewDigest": "6d74e773eaf48e3a30313fe6a429e50165ec2d0f1b07635d0150425cf9a45abe",
+      "reviewDigest": "c1e36dad4fdd72ad4ba8f167ca9cf8454695d3187aabc1c07321e51f57ae7201",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },

@@ -5,7 +5,9 @@ description: Spec-driven engineering skills and preview-first installer for codi
 
 Agentic-SDD is an open-source toolkit of **18 portable core engineering skills** (`skills-files/`) plus an **optional OpenCode orchestration pack** (`opencode-pack/`), delivered by a preview-first Go CLI (`asdx-core`) and terminal UI companion (`asdx`). It helps you scope work clearly, keep human approval explicit, verify changes with real checks, and learn as you build.
 
-> **Status note:** This documentation covers the current repository checkout (`unreleased`). Public metadata for release `v0.11.0` (tag and Homebrew cask formula/archive digest) is observed, while archive binary execution, live macOS installation, and public GitHub Pages deployment are not yet verified.
+Created and maintained by [Nawodya Ishan](https://github.com/nawodyaishan). [Personal website](https://nawodyaishan.github.io/) · [Contributing](contributing/development.md).
+
+> **Status note:** This documentation covers the current repository checkout (`unreleased`). Public metadata for release `v0.11.0` (tag and Homebrew cask formula/archive digest) is observed, while archive binary execution and live macOS installation are not verified. The documentation website homepage and the `getting-started/first-five-minutes` deep page responded on 2026-11-16; that dated observation is not a full deployment, asset, search, or accessibility audit.
 
 ## Who Agentic-SDD is for
 

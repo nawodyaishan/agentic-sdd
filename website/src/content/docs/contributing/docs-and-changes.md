@@ -26,7 +26,9 @@ Do not repeat a full reference table inside a tutorial; link the reference page.
   (for example [CLI reference](../reference/cli.md) or
   [skills reference](../reference/skills.md)) and repository source paths,
   which are written as plain code spans rather than links. Never link
-  `docs/*.md` migration sources or a live site URL; the site is not live.
+  `docs/*.md` migration sources. Do not add hardcoded public-site navigation
+  links: the site was observed reachable on 2026-11-16, and relative `.md`
+  links keep the project base correct.
 - Every table states its scope in the surrounding prose, and every diagram or
   image needs a text equivalent or caption. Do not rely on color alone.
 - Keep generated sections intact. Text between markers such as

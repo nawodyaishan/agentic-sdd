@@ -18,8 +18,11 @@ to an artifact applies only to the tag that produced it.
 - Tag `v0.11.0` exists and its tag and cask metadata are verified.
 - Archive contents, runtime identity, and a live macOS install from that tag
   are not verified. Do not describe them as tested.
-- The website itself is not live, so public pages link repository source
-  paths rather than a published site.
+- The documentation website was observed reachable on 2026-11-16, including the
+  homepage and the `getting-started/first-five-minutes` deep page under
+  `/agentic-sdd/`. The earlier 2026-11-14 `has_pages: false`/404 observation
+  remains historical; the newer observation is availability evidence, not a
+  full deployment, asset, search, or accessibility audit.
 
 ## Release history and changelog
 
@@ -74,4 +77,4 @@ the releases page. Specifically:
 
 ## Documentation availability
 
-The documentation site is not live. Docs ship from this repository; no deployment claim is made about a published URL.
+The documentation site was observed reachable at `https://nawodyaishan.github.io/agentic-sdd/` on 2026-11-16, including the homepage and the `getting-started/first-five-minutes` deep page. The earlier 2026-11-14 `has_pages: false`/404 observation remains historical. This is a dated availability observation, not a deployment-validation, asset, search, or accessibility claim. Documentation source still ships from this repository, and no deployment settings are inferred or changed here.

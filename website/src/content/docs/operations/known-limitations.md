@@ -38,7 +38,7 @@ different pieces of evidence.
 | MCP configuration transactions | implemented | digest-bound plan/apply, entry-level backup and restore, `{env:NAME}` placeholders (`internal/skillsync/mcp*.go`); wave state in `specs/015-fleet-manager-tui/tasks.md` | authentication, connectivity or that a server works |
 | Execution `run` / `task` / `review` | implemented, human review pending | private run scratch, brief integrity, check evidence and review packages (`internal/execution/`, [Execution run reference](../reference/execution.md)); state in `specs/016-agent-execution-context-evidence-recovery/tasks.md` | sandboxing, reviewer isolation, approval or tamper-proof storage |
 | Release v0.11.0 metadata | verified, 2026-11-14 | public release, tag and cask metadata checked unauthenticated; see `specs/020-documentation-ecosystem/evidence.md` | archive member contents, executable protocol identity and a live macOS install |
-| Documentation site | implemented, unpublished | pages exist in the repository | a live site: `has_pages: false` and a 404 response were observed on 2026-11-14 |
+| Documentation site | implemented, homepage observed 2026-11-16 | pages exist in the repository; the homepage and the `getting-started/first-five-minutes` deep page responded at the `/agentic-sdd/` base on 2026-11-16 (`specs/020-documentation-ecosystem/spec.md` §10) | a full deployment, asset, search, or accessibility audit; `has_pages: false` and a 404 response observed on 2026-11-14 remain historical evidence |
 
 Counts are the counts in this checkout. Package tests assert the packaged sets, not a
 catalogue count, and they change when the repository changes.
