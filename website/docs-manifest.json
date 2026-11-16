@@ -1741,10 +1741,10 @@
         },
         {
           "path": "website/src/content/docs/architecture/overview.md",
-          "sha256": "72c465dfa042218b405658fa2920a40716c3df29289b24ae681f731fdf471753"
+          "sha256": "443ea62dbe417425d0ec567185d79a448c926338b55917b6c98586bfe5fa9e7a"
         }
       ],
-      "reviewDigest": "5cc9e02ed23268c19fa062a495baebd2ab4fa841432f104c52f047c2256d2e7b",
+      "reviewDigest": "12d990073943b18bfe86105dc860f916578d75bfed93e635e92bdfb09bcbbc55",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1868,10 +1868,10 @@
         },
         {
           "path": "website/src/content/docs/architecture/workflows.md",
-          "sha256": "2f795a3616ea9b0e2069a7563cf38375980fab95c9b537d29e2506d07438b1ab"
+          "sha256": "b9e78c816c0f69b62e9cf86a2cda79921f0c409674228084ccaa463f66831604"
         }
       ],
-      "reviewDigest": "fe56e91ad60482fdce4f1dba68db8119ece2cca07920ee1ba2a19473c79aba96",
+      "reviewDigest": "a6a8f0662ed596e36eac7255c71c4bf25659bf2afd6a85bca2d351c247f7d440",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1891,10 +1891,10 @@
         },
         {
           "path": "website/src/content/docs/architecture/evidence.md",
-          "sha256": "381a140e1dd97b00d5208730c113ce302f356b800ff8710b932eb8a9e9dc1c3a"
+          "sha256": "592c58b6c672c140575681fc78625f9e26e78ce0646b5e96d62a2472fc9e3635"
         }
       ],
-      "reviewDigest": "28dc002a6179986bf872ac7394306d8de2c4d968118073b04a68a0c96feb8213",
+      "reviewDigest": "f51d6569997af6dde5dd81019a5a2786a7f0583087fe7d60a2560b5bb10f9570",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },

@@ -26,7 +26,7 @@ The root module is `agentic-sdd` on Go 1.23 (`go.mod`); the TUI is a separate ne
 
 ### Diagram D01 — context and components
 
-![Diagram D01: a human runs asdx-core or asdx; both reach the same Go packages, which read only the embedded or --repo skill sources and write client skill directories, agent profiles, backups, MCP config and run scratch.](../../../assets/diagrams/D01-context.png)
+![Diagram D01: a human runs asdx-core or asdx; both reach the same Go packages, which read only the embedded or --repo skill sources and write client skill directories, agent profiles, backups, MCP config and run scratch.](../../../assets/diagrams/diagram-d01-context.png)
 
 *Figure D01 — context and components. Source: `assets/diagrams/D01-context.mmd`.*
 
@@ -55,7 +55,7 @@ There is more than one writer, and the boundaries are narrow:
 
 ### Diagram D02 — installer versus clients
 
-![Diagram D02: the installer is the only arrow into client destinations; each client reads its own copied SKILL.md files and never calls the installer.](../../../assets/diagrams/D02-components.png)
+![Diagram D02: the installer is the only arrow into client destinations; each client reads its own copied SKILL.md files and never calls the installer.](../../../assets/diagrams/diagram-d02-components.png)
 
 *Figure D02 — installer versus clients. Source: `assets/diagrams/D02-components.mmd`.*
 

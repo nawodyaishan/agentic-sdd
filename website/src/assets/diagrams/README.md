@@ -31,11 +31,11 @@ approval`, or the parser splits the line and fails.
 
 | Source | Size (px) |
 |---|---|
-| `D01-context.mmd` | 784 × 296 |
-| `D02-components.mmd` | 784 × 689 |
-| `D03-install-transaction.mmd` | 784 × 342 |
-| `D04-delegation.mmd` | 784 × 458 |
-| `D05-evidence.mmd` | 542 × 1173 |
+| `D01-context.mmd` → `diagram-d01-context.png` | 784 × 296 |
+| `D02-components.mmd` → `diagram-d02-components.png` | 784 × 689 |
+| `D03-install-transaction.mmd` → `diagram-d03-install-transaction.png` | 784 × 342 |
+| `D04-delegation.mmd` → `diagram-d04-delegation.png` | 784 × 458 |
+| `D05-evidence.mmd` → `diagram-d05-evidence.png` | 542 × 1173 |
 
 Alt text (one line each):
 
