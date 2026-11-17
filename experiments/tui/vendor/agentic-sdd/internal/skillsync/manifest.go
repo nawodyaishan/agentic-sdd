@@ -1,0 +1,187 @@
+package skillsync
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// ErrUnsupportedDigestVersion reports a recorded digest_version this build does
+// not know. Such an entry is refused, never reinterpreted under another digest.
+var ErrUnsupportedDigestVersion = errors.New("unsupported backup digest_version")
+
+// manifest is the on-disk record written to <backup>/manifest.json by every
+// apply or restore that changes anything. The format 1 fields (Created,
+// Source, Targets, Skills) are unchanged from the original backup format and
+// keep their JSON names and meaning, so an older reader (or a human) can
+// still make sense of them. Format 2 adds the remaining fields additively;
+// a format 1 manifest simply omits them (they are all `omitempty`).
+type manifest struct {
+	// Format 1 fields.
+	Created string   `json:"created"`
+	Source  string   `json:"source"`
+	Targets []string `json:"targets"`
+	Skills  []string `json:"skills"`
+
+	// Format 2 & 3 fields.
+	Format          int       `json:"format,omitempty"`
+	ID              string    `json:"id,omitempty"`
+	CreatedAt       string    `json:"created_at,omitempty"`
+	Operation       string    `json:"operation,omitempty"`
+	RestoredFrom    string    `json:"restored_from,omitempty"`
+	Tool            *toolInfo `json:"tool,omitempty"`
+	Home            string    `json:"home,omitempty"`
+	BackupRoot      string    `json:"backup_root,omitempty"`
+	OpenCodeTargets []string  `json:"opencode_targets,omitempty"`
+	Entries         []entry   `json:"entries,omitempty"`
+}
+
+// toolInfo records the agentic-sdd build that wrote a format 2 manifest.
+type toolInfo struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	Date      string `json:"date"`
+	GoVersion string `json:"go_version"`
+}
+
+// entry records what happened to one destination skill directory during
+// the operation that wrote this manifest. Action is "replaced" when the
+// skill existed before the operation (its previous tree is saved under
+// Backup, with SHA256 over that saved tree), or "installed" when it did
+// not (nothing to save).
+//
+// DigestVersion is the per-entry discriminator for the saved tree digest. It is
+// absent or 0 for the legacy TreeDigest (a skill tree written before FR-10) and 2
+// for TreeDigestV2. Agent-profile entries are a single file and always use the
+// raw file SHA-256, so they never carry a nonzero DigestVersion.
+type entry struct {
+	Kind          string `json:"kind,omitempty"`
+	Client        string `json:"client"`
+	Skill         string `json:"skill"`
+	Path          string `json:"path"`
+	Action        string `json:"action"`
+	Backup        string `json:"backup,omitempty"`
+	SHA256        string `json:"sha256,omitempty"`
+	DigestVersion int    `json:"digest_version,omitempty"`
+}
+
+const (
+	actionReplaced  = "replaced"
+	actionInstalled = "installed"
+)
+
+// isLegacy reports whether m was written before format 2 (no per-entry
+// records, no recorded location or tool version).
+func (m manifest) isLegacy() bool {
+	return m.Format < 2
+}
+
+// readManifest loads and parses the manifest.json at path. It returns
+// whatever format the file was written in: a legacy caller distinguishes
+// the two with isLegacy.
+func readManifest(path string) (manifest, error) {
+	data, err := readBoundedRegularFile(path, maxManifestFileBytes)
+	if err != nil {
+		return manifest{}, err
+	}
+	var m manifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return manifest{}, fmt.Errorf("parse %s: %w", path, err)
+	}
+	return m, nil
+}
+
+// checkTreeDigestVersion accepts only the skill-tree digest versions this build
+// writes or verifies: absent/0 (legacy TreeDigest) and TreeDigestVersion2.
+func checkTreeDigestVersion(version int) error {
+	switch version {
+	case 0, TreeDigestVersion2:
+		return nil
+	}
+	return fmt.Errorf("%w: %d for a skill tree entry", ErrUnsupportedDigestVersion, version)
+}
+
+// treeEntryDigest hashes the saved skill tree at backupDir/rel under the digest
+// its manifest entry recorded. An unknown version is refused, never guessed.
+func treeEntryDigest(backupDir, rel string, version int) (string, error) {
+	if err := checkTreeDigestVersion(version); err != nil {
+		return "", err
+	}
+	if version == TreeDigestVersion2 {
+		return TreeDigestV2(filepath.Join(backupDir, rel))
+	}
+	return treeDigest(os.DirFS(backupDir), rel)
+}
+
+// treeDigest returns a hex-encoded SHA-256 digest over the subtree at root
+// in source: its relative paths, entry kinds (file or directory) and file
+// contents, walked in the stable lexical order fs.WalkDir already provides.
+// It detects a changed or truncated backup copy; it is not a security
+// signature.
+func treeDigest(source fs.FS, root string) (string, error) {
+	h := sha256.New()
+	err := fs.WalkDir(source, root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel := strings.TrimPrefix(p, root+"/")
+		if rel == root {
+			return nil
+		}
+		if d.IsDir() {
+			fmt.Fprintf(h, "d %s\n", rel)
+			return nil
+		}
+		fmt.Fprintf(h, "f %s\n", rel)
+		f, openErr := source.Open(p)
+		if openErr != nil {
+			return openErr
+		}
+		defer f.Close()
+		_, copyErr := io.Copy(h, f)
+		return copyErr
+	})
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// fileDigest returns a hex-encoded SHA-256 digest over the raw bytes of the
+// regular file at relPath in source.
+func fileDigest(source fs.FS, relPath string) (string, error) {
+	info, err := fs.Stat(source, relPath)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("refusing special file %s", relPath)
+	}
+	f, err := source.Open(relPath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// FileDigest exports fileDigest for internal packages such as internal/fleet.
+func FileDigest(source fs.FS, relPath string) (string, error) {
+	return fileDigest(source, relPath)
+}
+
+// TreeDigest exports treeDigest for internal packages such as internal/fleet.
+func TreeDigest(source fs.FS, root string) (string, error) {
+	return treeDigest(source, root)
+}

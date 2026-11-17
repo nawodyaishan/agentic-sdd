@@ -1,0 +1,209 @@
+version: 2
+
+project_name: agentic-sdd
+
+before:
+  hooks:
+    - go mod tidy
+
+# Four applications, one paired archive. Never merge them into one fat binary:
+#   cli-core       - canonical scriptable CLI, installed as asdx-core
+#   cli-legacy     - legacy CLI compatibility wrapper, installed as agentic-sdd;
+#                    dual-built from the same source with legacyTarget=asdx-core
+#   tui-canonical  - canonical zero-argument human entrypoint, installed as asdx
+#   tui-legacy     - legacy TUI compatibility wrapper, installed as agentic-sdd-tui;
+#                    dual-built from the same nested source with legacyTarget=asdx
+# Every build injects the same shared buildinfo identity. Every distribution
+# marker is generic: bare-launch behavior no longer depends on the marker, so no
+# Homebrew-specific build exists. The two builds of one source differ only in
+# their injected legacy identity.
+builds:
+  - id: cli-core
+    main: ./cmd/agentic-sdd
+    binary: asdx-core
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - >-
+        -s -w
+        -X agentic-sdd/internal/version.Version={{ .Version }}
+        -X agentic-sdd/internal/version.Commit={{ .ShortCommit }}
+        -X agentic-sdd/internal/version.Date={{ .CommitDate }}
+        -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
+        -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
+        -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if index .Env "SDD_SOURCE_DIGEST" }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.DistributionMarker=generic
+
+  - id: cli-legacy
+    main: ./cmd/agentic-sdd
+    binary: agentic-sdd
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - >-
+        -s -w
+        -X agentic-sdd/internal/version.Version={{ .Version }}
+        -X agentic-sdd/internal/version.Commit={{ .ShortCommit }}
+        -X agentic-sdd/internal/version.Date={{ .CommitDate }}
+        -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
+        -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
+        -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if index .Env "SDD_SOURCE_DIGEST" }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.DistributionMarker=generic
+        -X main.legacyTarget=asdx-core
+        -X main.legacyName=agentic-sdd
+
+  - id: tui-canonical
+    dir: experiments/tui
+    main: ./cmd/tui-companion
+    binary: asdx
+    env:
+      - CGO_ENABLED=0
+      # The nested module requires Go 1.26 or newer. Use the reviewed host
+      # toolchain; never download one implicitly during a release build.
+      - GOTOOLCHAIN=local
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - >-
+        -s -w
+        -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
+        -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if index .Env "SDD_SOURCE_DIGEST" }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.DistributionMarker=generic
+
+  - id: tui-legacy
+    dir: experiments/tui
+    main: ./cmd/tui-companion
+    binary: agentic-sdd-tui
+    env:
+      - CGO_ENABLED=0
+      - GOTOOLCHAIN=local
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - >-
+        -s -w
+        -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
+        -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
+        -X agentic-sdd/internal/buildinfo.SourceDigest={{ if index .Env "SDD_SOURCE_DIGEST" }}{{ .Env.SDD_SOURCE_DIGEST }}{{ else }}git:{{ .FullCommit }}{{ end }}
+        -X agentic-sdd/internal/buildinfo.DistributionMarker=generic
+        -X main.legacyTarget=asdx
+        -X main.legacyName=agentic-sdd-tui
+
+# One universal entry per application: explicit input build IDs, replace the
+# single-arch artifacts, and distinct output names so no application can be
+# merged into another. The universal name is the installed command name.
+universal_binaries:
+  - id: cli-core-universal
+    ids:
+      - cli-core
+    replace: true
+    name_template: asdx-core
+    mod_timestamp: "{{ .CommitTimestamp }}"
+  - id: cli-legacy-universal
+    ids:
+      - cli-legacy
+    replace: true
+    name_template: agentic-sdd
+    mod_timestamp: "{{ .CommitTimestamp }}"
+  - id: tui-canonical-universal
+    ids:
+      - tui-canonical
+    replace: true
+    name_template: asdx
+    mod_timestamp: "{{ .CommitTimestamp }}"
+  - id: tui-legacy-universal
+    ids:
+      - tui-legacy
+    replace: true
+    name_template: agentic-sdd-tui
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+# One paired archive with four unique members: canonical asdx + asdx-core and
+# the legacy wrappers agentic-sdd + agentic-sdd-tui. The Homebrew cask consumes
+# this archive exclusively.
+archives:
+  - id: pair
+    ids:
+      - cli-core-universal
+      - cli-legacy-universal
+      - tui-canonical-universal
+      - tui-legacy-universal
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+
+# Prebuilt artifacts only: no source compilation, no install-time launch.
+# The cask links all four shipped names. Casks are quarantined by macOS; the
+# binaries are unsigned, so the post-install hook removes the quarantine bit
+# from each executable. Signing/notarization is the alternative, but requires
+# Apple credentials. The cask and repository keep the agentic-sdd name because
+# the update check and appops code depend on them.
+homebrew_casks:
+  - name: agentic-sdd
+    ids:
+      - pair
+    binaries:
+      - asdx
+      - asdx-core
+      - agentic-sdd
+      - agentic-sdd-tui
+    repository:
+      owner: nawodyaishan
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
+    homepage: "https://github.com/nawodyaishan/agentic-sdd"
+    description: "Spec-driven development workflow skills, kept in sync across Codex, Claude Code, and Antigravity CLI"
+    license: MIT
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/asdx"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/asdx-core"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/agentic-sdd"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/agentic-sdd-tui"]
+          end

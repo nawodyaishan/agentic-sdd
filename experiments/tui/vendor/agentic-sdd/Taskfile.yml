@@ -1,0 +1,311 @@
+version: '3'
+
+vars:
+  GOCACHE: '{{.GOCACHE | default (printf "%s/.cache/go-build" .ROOT_DIR)}}'
+  SDD_OUTPUT: '{{.SDD_OUTPUT | default ""}}'
+  SDD_TRUSTED: '{{.SDD_TRUSTED | default ""}}'
+  SDD_CANDIDATE: '{{.SDD_CANDIDATE | default .ROOT_DIR}}'
+  V: '{{.V | default ""}}'
+  MSG: '{{.MSG | default ""}}'
+
+tasks:
+  default:
+    desc: Show available commands
+    cmds: [task --list]
+  help:
+    desc: Show available commands
+    cmds: [task --list]
+  run:
+    desc: Interact with the animated guide locally using a disposable temporary home
+    interactive: true
+    cmds:
+      - |
+        sh -c '
+        umask 077
+        demo_home=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-demo.XXXXXX") || exit 2
+        cleanup() { rm -rf -- "$demo_home"; }
+        trap cleanup EXIT
+        echo "Demo: this task uses a temporary home that is deleted when the task exits; recovery snapshots and logs are lost."
+        GOCACHE="$1" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= AGENTIC_SDD_TRACE= AGENTIC_SDD_FORCE_INTERACTIVE= AGENTIC_SDD_ANIMATE=1 go run ./cmd/agentic-sdd guide --home "$demo_home"
+        ' sh {{.GOCACHE | shellQuote}}
+  preview:
+    desc: Preview skill installation
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd preview']
+  apply:
+    desc: Back up and install skills (requires explicit live authorization)
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd apply']
+  backups:
+    desc: List backups
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd backups']
+  logs:
+    desc: Show the latest apply or restore log
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go run ./cmd/agentic-sdd logs']
+  test:
+    desc: Run Go tests
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go test . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./internal/buildinfo ./internal/fleet ./internal/execution ./cmd/agentic-sdd ./cmd/sdd-check']
+  test-core:
+    desc: Run supported-core Go tests only (compatible alias for the core gate)
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} sh tests/supported-core-go.sh test']
+  vet:
+    desc: Run Go static analysis
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go vet . ./internal/version ./internal/skillsync ./internal/harnesscheck ./internal/harnessevidence ./internal/appops ./internal/buildinfo ./internal/fleet ./internal/execution ./cmd/agentic-sdd ./cmd/sdd-check']
+  vet-core:
+    desc: Run supported-core Go vet only (compatible alias for the core gate)
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} sh tests/supported-core-go.sh vet']
+  docker-e2e:
+    desc: Exercise installer in an isolated Docker container
+    cmds: [sh tests/docker-e2e.sh]
+  docker-guide-e2e:
+    desc: Exercise guided CLI journeys and flow tracing in an isolated Docker container
+    cmds: [sh tests/guide-e2e.sh]
+  docker-guide:
+    desc: Interact with the animated guide in a disposable offline Docker container
+    interactive: true
+    cmds:
+      - >-
+        printf '%s\n' 'Demo: this container and its temporary /tmp/demo-home are deleted when the task exits; recovery snapshots and logs are lost.'
+      - >-
+        docker run --rm -it --pull=never --network none
+        --mount {{printf "type=bind,src=%s,dst=/src,readonly" .ROOT_DIR | shellQuote}}
+        --workdir /src
+        -e TERM -e NO_COLOR -e COLUMNS
+        -e AGENTIC_SDD_ANIMATE=1
+        -e GOTOOLCHAIN=local -e GOPROXY=off -e GOSUMDB=off
+        -e GOENV=off -e GOWORK=off -e GOFLAGS= -e GOCACHE=/tmp/go-cache
+        golang:1.25-alpine
+        go run ./cmd/agentic-sdd guide --home /tmp/demo-home
+  hooks-install:
+    desc: Install Lefthook Git hooks
+    cmds: [lefthook install]
+  mod-verify:
+    desc: Verify Go module dependencies
+    cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go mod verify']
+  tidy-check:
+    desc: Check module tidiness with external evidence
+    cmds:
+      - |
+        sh -c '
+        umask 077
+        output="$1"
+        if [ -z "$output" ]; then output=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-tidy.XXXXXX") || exit 2; output=$(cd "$output" && pwd -P); fi
+        GOCACHE="$2" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go run ./cmd/sdd-check --scope focused --check tidy-check --workspace . --contract ./harness/checks.json --output "$output"
+        ' sh {{.SDD_OUTPUT | shellQuote}} {{.GOCACHE | shellQuote}}
+  build-darwin:
+    desc: Cross-compile both CLIs for Darwin amd64 and arm64
+    cmds:
+      - GOOS=darwin GOARCH=amd64 go build -trimpath -o bin/agentic-sdd_darwin_amd64 ./cmd/agentic-sdd
+      - GOOS=darwin GOARCH=arm64 go build -trimpath -o bin/agentic-sdd_darwin_arm64 ./cmd/agentic-sdd
+      - GOOS=darwin GOARCH=amd64 go build -trimpath -o bin/sdd-check_darwin_amd64 ./cmd/sdd-check
+      - GOOS=darwin GOARCH=arm64 go build -trimpath -o bin/sdd-check_darwin_arm64 ./cmd/sdd-check
+  build:
+    desc: Build the canonical CLI (asdx-core) for the current platform
+    cmds: [go build -trimpath -o bin/asdx-core ./cmd/agentic-sdd]
+  verify:
+    desc: Run required checks with external evidence
+    cmds:
+      - |
+        sh -c '
+        umask 077
+        output="$1"
+        if [ -z "$output" ]; then output=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-verify.XXXXXX") || exit 2; output=$(cd "$output" && pwd -P); fi
+        GOCACHE="$2" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go run ./cmd/sdd-check --scope required --workspace . --contract ./harness/checks.json --output "$output"
+        ' sh {{.SDD_OUTPUT | shellQuote}} {{.GOCACHE | shellQuote}}
+  verify-trusted:
+    desc: Run the reviewed base's isolated gate against a separate candidate
+    cmds:
+      - |
+        sh -c '
+        umask 077
+        SDD_TRUSTED="$1"; SDD_CANDIDATE="$2"
+        if [ -z "$SDD_TRUSTED" ] || [ ! -f "$SDD_TRUSTED/tests/harness/trusted_ci.py" ]; then
+          echo "SDD_TRUSTED must name a separate reviewed base containing the B7 bootstrap" >&2; exit 2
+        fi
+        output="$3"
+        if [ -z "$output" ]; then output=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-trusted.XXXXXX") || exit 2; fi
+        python3 -B "$SDD_TRUSTED/tests/harness/trusted_ci.py" run --trusted "$SDD_TRUSTED" --candidate "$SDD_CANDIDATE" --output "$output"
+        ' sh {{.SDD_TRUSTED | shellQuote}} {{.SDD_CANDIDATE | shellQuote}} {{.SDD_OUTPUT | shellQuote}}
+  tag:
+    desc: Create an annotated tag (separate live authorization required)
+    cmds:
+      - |
+        sh -c '
+        if [ -z "$1" ]; then echo "V is required (e.g. V=v0.1.0)" >&2; exit 1; fi
+        if [ -z "$2" ]; then echo "MSG is required" >&2; exit 1; fi
+        git tag -a "$1" -m "$2"
+        echo "Tagged $1 — push with: git push origin $1"
+        ' sh {{.V | shellQuote}} {{.MSG | shellQuote}}
+  # Documented nonpublishing snapshot policy (shared with the experimental
+  # snapshot entrypoint):
+  #   - Prerequisites: git, goreleaser (pinned version), go (pinned patch),
+  #     sha256sum/shasum, valid .goreleaser.yml (`goreleaser check`), offline
+  #     experiments/tui module cache, and a clean git working tree.
+  #   - Dirty working trees are refused (exit 2) so snapshots never carry a
+  #     misleading commit-only identity.
+  #   - Snapshot outputs and build/tool caches (GOCACHE, XDG_CACHE_HOME, clean
+  #     source clone) always live outside the source tree.
+  #   - Never tags, pushes, reads release tokens, or publishes.
+  release:
+    desc: Run a local nonpublishing GoReleaser snapshot into an external output directory (never tags, pushes or publishes)
+    dir: '{{.ROOT_DIR}}'
+    silent: true
+    vars:
+      SDD_RELEASE_GO_PATCH: '{{.SDD_RELEASE_GO_PATCH | default "go1.27.1"}}'
+      SDD_RELEASE_GORELEASER_VERSION: '{{.SDD_RELEASE_GORELEASER_VERSION | default "v2.14.0"}}'
+      SDD_SNAPSHOT_OUTPUT: '{{.SDD_SNAPSHOT_OUTPUT | default .SDD_OUTPUT}}'
+    cmds:
+      - |
+        sh -c '
+        set -eu
+        blocked() { printf "snapshot: BLOCKED - %s This is not a pass.\n" "$*" >&2; exit 2; }
+        resolve_path() {
+          target=$1
+          case "$target" in /*) ;; *) target="$PWD/$target" ;; esac
+          suffix=""
+          cur=$target
+          while [ ! -d "$cur" ]; do
+            parent=$(dirname "$cur")
+            base=$(basename "$cur")
+            if [ "$parent" = "$cur" ]; then break; fi
+            suffix="$base${suffix:+/$suffix}"
+            cur=$parent
+          done
+          resolved=$(cd "$cur" 2>/dev/null && pwd -P) || return 1
+          if [ -n "$suffix" ]; then
+            printf "%s/%s\n" "${resolved%/}" "$suffix"
+          else
+            printf "%s\n" "$resolved"
+          fi
+        }
+        inside_root() {
+          case "$1" in
+            "$root_real"|"$root_real"/*) return 0 ;;
+            *) return 1 ;;
+          esac
+        }
+
+        root=$(pwd)
+        root_real=$(cd "$root" && pwd -P)
+
+        missing=""
+        command -v git >/dev/null 2>&1 || missing="$missing git"
+        command -v goreleaser >/dev/null 2>&1 || missing="$missing goreleaser"
+        command -v go >/dev/null 2>&1 || missing="$missing go"
+        if [ -n "$missing" ]; then
+          blocked "missing prerequisites:$missing. GoReleaser creates macOS universal binaries internally; no external lipo is required. The local snapshot did not run; no archive, Mach-O slice or cask evidence exists."
+        fi
+        if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+          blocked "missing prerequisites: sha256sum or shasum. The local snapshot did not run."
+        fi
+
+        found_goreleaser=$(goreleaser --version 2>/dev/null | sed -n "s/^GitVersion:[[:space:]]*//p" | head -n 1) || found_goreleaser=""
+        if [ "$found_goreleaser" != "$3" ]; then
+          blocked "reviewed GoReleaser version is $3; found ${found_goreleaser:-unknown}. Update SDD_RELEASE_GORELEASER_VERSION deliberately after review."
+        fi
+        goreleaser check >/dev/null || blocked "goreleaser check rejected the current .goreleaser.yml."
+
+        version=$(GOTOOLCHAIN=local GOENV=off go env GOVERSION) || blocked "GOTOOLCHAIN=local go env GOVERSION failed; an explicit reviewed toolchain is required."
+        if [ "$version" != "$2" ]; then
+          blocked "reviewed release-build Go patch is $2; found ${version:-unknown}. Update SDD_RELEASE_GO_PATCH deliberately after review; do not download a toolchain."
+        fi
+
+        if [ -n "$(git status --porcelain)" ]; then
+          blocked "working tree is dirty; reproducible snapshots refuse uncommitted or untracked changes."
+        fi
+
+        gomodcache=$(GOTOOLCHAIN=local GOENV=off go env GOMODCACHE 2>/dev/null || true)
+        if ! (cd experiments/tui && GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= GOMODCACHE="$gomodcache" go list -deps ./cmd/tui-companion >/dev/null 2>&1); then
+          blocked "the nested companion dependencies are not available offline. Populate the module cache before retrying; this task never downloads."
+        fi
+
+        out_arg=$4
+        if [ -n "$out_arg" ]; then
+          out_real=$(resolve_path "$out_arg") || blocked "cannot resolve snapshot output path: $out_arg"
+          if inside_root "$out_real"; then
+            blocked "snapshot output must be outside the source tree: $out_real"
+          fi
+        fi
+
+        work=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-snapwork.XXXXXX") || blocked "cannot create external temporary workspace."
+        work_real=$(resolve_path "$work") || { rm -rf -- "$work"; blocked "cannot resolve external temporary workspace."; }
+        if inside_root "$work_real"; then
+          rm -rf -- "$work"
+          blocked "temporary workspace must be outside the source tree: $work_real"
+        fi
+        trap "rm -rf -- \"$work_real\"" EXIT INT TERM
+
+        if [ -n "$out_arg" ]; then
+          mkdir -p "$out_real" || blocked "cannot create snapshot output directory: $out_real"
+        else
+          out_real=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-snapshot.XXXXXX") || blocked "cannot create external snapshot output directory."
+          out_real=$(resolve_path "$out_real") || blocked "cannot resolve external snapshot output directory."
+          if inside_root "$out_real"; then
+            blocked "snapshot output must be outside the source tree: $out_real"
+          fi
+        fi
+
+        ext_gocache=""
+        if [ -n "$1" ]; then
+          gocache_real=$(resolve_path "$1") || gocache_real=""
+          if [ -n "$gocache_real" ] && ! inside_root "$gocache_real"; then
+            ext_gocache="$gocache_real"
+          fi
+        fi
+        if [ -z "$ext_gocache" ]; then
+          ext_gocache="$work_real/go-build"
+        fi
+        mkdir -p "$ext_gocache" "$work_real/xdg-cache"
+
+        head_sha=$(git rev-parse HEAD) || blocked "cannot resolve HEAD commit."
+        revision=$(git describe --tags --exact-match 2>/dev/null || printf "dev+%s" "$(git rev-parse --short=12 HEAD)")
+        git clone --local --quiet "$root_real" "$work_real/src" || blocked "cannot create clean external source clone."
+        git -C "$work_real/src" checkout --quiet "$head_sha" || blocked "cannot check out $head_sha in external clone."
+
+        unset HOMEBREW_TAP_TOKEN GITHUB_TOKEN GH_TOKEN GITLAB_TOKEN GITEA_TOKEN SDD_SOURCE_DIGEST
+        umask 077
+        (
+          cd "$work_real/src"
+          GOCACHE="$ext_gocache" \
+          GOMODCACHE="$gomodcache" \
+          XDG_CACHE_HOME="$work_real/xdg-cache" \
+          GOVERSION="$version" \
+          GOTOOLCHAIN=local \
+          GOPROXY=off \
+          GOSUMDB=off \
+          GOENV=off \
+          GOWORK=off \
+          GOFLAGS= \
+          goreleaser release --snapshot --clean
+        )
+        cp -R "$work_real/src/dist/." "$out_real/"
+        echo "snapshot: local nonpublishing snapshot complete for $revision; artifacts written outside source tree to $out_real"
+        ' sh {{.GOCACHE | shellQuote}} {{.SDD_RELEASE_GO_PATCH | shellQuote}} {{.SDD_RELEASE_GORELEASER_VERSION | shellQuote}} {{.SDD_SNAPSHOT_OUTPUT | shellQuote}}
+  # Additive documentation-tooling wrappers (Feature 020 / T09 + T10). They
+  # never replace `task test`, `task vet` or `task verify`, are not part of
+  # required-check selection and add nothing to `task test`. Extra arguments
+  # pass through after `--`, for example: task docs:check -- --json
+  'docs:check':
+    desc: 'Check docs links, fragments, metadata and freshness (pass-through args, e.g. --json)'
+    cmds: ['node website/scripts/check.mjs --repo . {{.CLI_ARGS}}']
+  'docs:reference':
+    desc: 'Generate then verify reference pages from a candidate binary: task docs:reference -- --binary /abs/asdx-core [--commit SHA] (or set ASDX_CORE_BINARY)'
+    cmds:
+      - 'node website/scripts/reference.mjs --generate {{.CLI_ARGS}}'
+      - 'node website/scripts/reference.mjs --check {{.CLI_ARGS}}'
+  'docs:reference:build':
+    desc: 'Print the exact reproducible asdx-core build recipe for reference parity (no build runs here)'
+    cmds: ['node website/scripts/reference.mjs --recipe']
+  'docs:examples':
+    desc: 'Run the fixed safe CLI examples; --binary ABSOLUTE_PATH is required: task docs:examples -- --binary /abs/path'
+    cmds: ['node website/scripts/examples.mjs {{.CLI_ARGS}}']
+  'docs:export':
+    desc: 'Export Markdown twins and llms.txt; --out DIR is required: task docs:export -- --out /abs/out'
+    cmds: ['node website/scripts/export.mjs {{.CLI_ARGS}}']
+  'docs:site':
+    desc: 'Build the deployable docs artifact: Astro build plus llms.txt, index.json and Markdown twins in website/dist'
+    cmds: ['npm --prefix website run build:site']
+  'docs:impact':
+    desc: 'Report documentation impact for changed paths; pass --base <rev> or --paths <file|->'
+    cmds: ['node website/scripts/impact.mjs {{.CLI_ARGS}}']
+  'docs:ci':
+    desc: 'Run the trusted docs launcher; requires --trusted DIR --output DIR --mode pr|main|release|rollback|links (see --help)'
+    cmds: ['python3 -B scripts/docs-ci.py {{.CLI_ARGS}}']

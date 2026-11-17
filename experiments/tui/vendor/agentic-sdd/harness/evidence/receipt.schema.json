@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic SDD observation receipt v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["version", "synthetic", "run_id", "session_id", "mode", "workspace", "request_ref", "authorization_ref", "feature", "batch", "task_ids", "allowed_effects", "profile", "tools", "limits", "identity", "model", "selection", "checks", "execution", "review", "workflow_state", "findings", "affected_files", "next_action", "cost_usd", "unknowns"],
+  "properties": {
+    "version": {"const": 1}, "synthetic": {"type": "boolean"},
+    "run_id": {"type": "string", "minLength": 1},
+    "session_id": {"$ref": "#/$defs/nullableText"},
+    "mode": {"enum": ["draft", "build", "direct-fix", "review", "resume"]},
+    "workspace": {"type": "string", "minLength": 1},
+    "request_ref": {"type": "string", "minLength": 1},
+    "authorization_ref": {"$ref": "#/$defs/nullableText"},
+    "feature": {"$ref": "#/$defs/nullableText"}, "batch": {"$ref": "#/$defs/nullableText"},
+    "task_ids": {"$ref": "#/$defs/strings"}, "allowed_effects": {"$ref": "#/$defs/strings"},
+    "profile": {"$ref": "#/$defs/nullableText"}, "tools": {"$ref": "#/$defs/strings"},
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["deadline_seconds", "steps", "transient_retries", "paid_authorized", "spend_usd"],
+      "properties": {
+        "deadline_seconds": {"type": "integer", "minimum": 1}, "steps": {"type": "integer", "minimum": 1},
+        "transient_retries": {"type": "integer", "minimum": 0}, "paid_authorized": {"type": "boolean"},
+        "spend_usd": {"type": ["number", "null"], "minimum": 0}
+      }
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["base_revision", "diff", "config", "skills", "environment", "runtime", "harness", "contract"],
+      "properties": {
+        "base_revision": {"$ref": "#/$defs/nullableText"}, "diff": {"$ref": "#/$defs/nullableText"},
+        "config": {"$ref": "#/$defs/nullableText"}, "skills": {"$ref": "#/$defs/nullableText"},
+        "environment": {"$ref": "#/$defs/nullableText"}, "runtime": {"$ref": "#/$defs/nullableText"},
+        "harness": {"$ref": "#/$defs/nullableText"}, "contract": {"$ref": "#/$defs/nullableText"}
+      }
+    },
+    "model": {
+      "type": "object", "additionalProperties": false, "required": ["provider", "id", "variant"],
+      "properties": {"provider": {"$ref": "#/$defs/nullableText"}, "id": {"$ref": "#/$defs/nullableText"}, "variant": {"$ref": "#/$defs/nullableText"}}
+    },
+    "selection": {
+      "type": "object", "additionalProperties": false, "required": ["scope", "check_ids"],
+      "properties": {"scope": {"enum": ["baseline", "focused", "required"]}, "check_ids": {"$ref": "#/$defs/strings"}}
+    },
+    "checks": {"type": "array", "items": {"$ref": "#/$defs/checkResult"}},
+    "execution": {"enum": ["completed", "incomplete", "blocked", "cancelled", "failed"]},
+    "review": {"enum": [null, "Ready", "Needs changes", "Blocked"]},
+    "workflow_state": {"$ref": "#/$defs/nullableText"},
+    "findings": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false, "required": ["id", "location", "impact", "evidence", "disposition"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "location": {"type": "string", "minLength": 1},
+        "impact": {"type": "string", "minLength": 1}, "evidence": {"type": "string", "minLength": 1},
+        "disposition": {"enum": ["valid", "disputed", "needs evidence"]}
+      }
+    }},
+    "affected_files": {"$ref": "#/$defs/strings"}, "next_action": {"type": "string", "minLength": 1},
+    "cost_usd": {"type": ["number", "null"], "minimum": 0},
+    "unknowns": {"type": "object", "propertyNames": {"pattern": "^/"}, "additionalProperties": {"type": "string", "minLength": 1}}
+  },
+  "allOf": [{
+    "if": {"properties": {"mode": {"const": "direct-fix"}}},
+    "then": {"properties": {"feature": {"type": "null"}, "batch": {"type": "null"}, "task_ids": {"maxItems": 0}}}
+  }],
+  "$defs": {
+    "nullableText": {"type": ["string", "null"], "minLength": 1},
+    "strings": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "checkResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "status", "exit_code", "started_at", "ended_at", "evidence", "truncated", "reason"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "status": {"enum": ["passed", "failed", "blocked", "incomplete", "cancelled", "not_run"]},
+        "exit_code": {"type": ["integer", "null"]},
+        "started_at": {"type": ["string", "null"], "format": "date-time"},
+        "ended_at": {"type": ["string", "null"], "format": "date-time"},
+        "evidence": {"type": ["string", "null"], "minLength": 1},
+        "truncated": {"type": "boolean"}, "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/deepseek-v4.1-flash-free",
+  "default_agent": "sdd-draft",
+  "warming": false,
+  "formatter": false,
+  "snapshots": false,
+  "permissions": [
+    {"action": "*", "resource": "*", "effect": "deny"}
+  ],
+  "policies": [
+    {"action": "provider.use", "resource": "*", "effect": "deny"},
+    {"action": "integration.use", "resource": "mcp:*", "effect": "deny"},
+    {"action": "integration.use", "resource": "plugin:*", "effect": "deny"},
+    {"action": "integration.use", "resource": "skill:*", "effect": "deny"},
+    {"action": "integration.use", "resource": "skill:agentic-sdd-*", "effect": "allow"},
+    {"action": "tool.use", "resource": "subagent:*", "effect": "deny"},
+    {"action": "tool.use", "resource": "external_directory:*", "effect": "deny"},
+    {"action": "tool.use", "resource": "execute:*", "effect": "deny"}
+  ],
+  "agents": {
+    "sdd-draft": {
+      "description": "Draft only the selected feature documents; no execution approval implied",
+      "mode": "primary",
+      "model": "opencode/deepseek-v4.1-flash-free",
+      "steps": 20,
+      "system": "Use the Agentic SDD drafting skills. Resolve the requested action first. Draft only the requested documents for the selected feature. Do not implement or invent approval. No model subprocesses, credentials, integrations or delegation.",
+      "permissions": [
+        {"action": "*", "resource": "*", "effect": "deny"},
+        {"action": "read", "resource": "*", "effect": "allow"},
+        {"action": "skill", "resource": "agentic-sdd-*", "effect": "allow"},
+        {"action": "question", "resource": "*", "effect": "allow"},
+        {"action": "edit", "resource": "specs/__FEATURE__/spec.md", "effect": "allow"},
+        {"action": "edit", "resource": "specs/__FEATURE__/plan.md", "effect": "allow"},
+        {"action": "edit", "resource": "specs/__FEATURE__/tasks.md", "effect": "allow"},
+        {"action": "read", "resource": "*.env*", "effect": "deny"},
+        {"action": "read", "resource": "*.db*", "effect": "deny"},
+        {"action": "read", "resource": "*.pem", "effect": "deny"},
+        {"action": "read", "resource": ".git/*", "effect": "deny"},
+        {"action": "read", "resource": "secrets/*", "effect": "deny"},
+        {"action": "read", "resource": "*/secrets/*", "effect": "deny"},
+        {"action": "read", "resource": ".opencode/*", "effect": "deny"}
+      ]
+    },
+    "sdd-build": {
+      "description": "One authorized batch or direct fix; checks require explicit permission",
+      "mode": "primary",
+      "model": "opencode/deepseek-v4.1-flash-free",
+      "steps": 20,
+      "system": "Use agentic-sdd-implement for one authorized batch or direct fix. Reconcile authorization with current files; stop at the batch boundary. Shell requires a separate decision. Never launch model subprocesses, copy credential stores, probe providers or escalate models. No delegation or live operations inferred from feature approval.",
+      "permissions": [
+        {"action": "*", "resource": "*", "effect": "deny"},
+        {"action": "read", "resource": "*", "effect": "allow"},
+        {"action": "skill", "resource": "agentic-sdd-*", "effect": "allow"},
+        {"action": "question", "resource": "*", "effect": "allow"},
+        {"action": "edit", "resource": "__BUILD_PATH__/*", "effect": "allow"},
+        {"action": "edit", "resource": "specs/__FEATURE__/tasks.md", "effect": "allow"},
+        {"action": "shell", "resource": "*", "effect": "ask"},
+        {"action": "read", "resource": "*.env*", "effect": "deny"},
+        {"action": "read", "resource": "*.db*", "effect": "deny"},
+        {"action": "read", "resource": "*.pem", "effect": "deny"},
+        {"action": "read", "resource": ".git/*", "effect": "deny"},
+        {"action": "read", "resource": "secrets/*", "effect": "deny"},
+        {"action": "read", "resource": "*/secrets/*", "effect": "deny"},
+        {"action": "read", "resource": ".opencode/*", "effect": "deny"},
+        {"action": "edit", "resource": "*.env*", "effect": "deny"},
+        {"action": "edit", "resource": "*.db*", "effect": "deny"},
+        {"action": "edit", "resource": "*.pem", "effect": "deny"},
+        {"action": "edit", "resource": ".git/*", "effect": "deny"},
+        {"action": "edit", "resource": "secrets/*", "effect": "deny"},
+        {"action": "edit", "resource": "*/secrets/*", "effect": "deny"},
+        {"action": "edit", "resource": ".opencode/*", "effect": "deny"}
+      ]
+    },
+    "sdd-review": {
+      "description": "Observe a sanitized read-only export; return findings without mutation",
+      "mode": "primary",
+      "model": "opencode/deepseek-v4.1-flash-free",
+      "steps": 20,
+      "system": "Use agentic-sdd-verification-review. Consume supplied current-diff and deterministic evidence in a sanitized read-only export. Report missing evidence as Blocked. Do not run tests, edit task state or add logging. No shell, search, integrations, Code Mode, credentials or children.",
+      "permissions": [
+        {"action": "*", "resource": "*", "effect": "deny"},
+        {"action": "read", "resource": "*", "effect": "allow"},
+        {"action": "skill", "resource": "agentic-sdd-*", "effect": "allow"},
+        {"action": "question", "resource": "*", "effect": "allow"},
+        {"action": "read", "resource": "*.env*", "effect": "deny"},
+        {"action": "read", "resource": "*.db*", "effect": "deny"},
+        {"action": "read", "resource": "*.pem", "effect": "deny"},
+        {"action": "read", "resource": ".git/*", "effect": "deny"},
+        {"action": "read", "resource": "secrets/*", "effect": "deny"},
+        {"action": "read", "resource": "*/secrets/*", "effect": "deny"},
+        {"action": "read", "resource": ".opencode/*", "effect": "deny"}
+      ]
+    }
+  },
+  "commands": {
+    "sdd-draft": {
+      "description": "Draft the requested feature documents for combined review",
+      "agent": "sdd-draft", "model": "opencode/deepseek-v4.1-flash-free", "subagent": false,
+      "template": "Classify and draft only the requested artifacts using agentic-sdd-router. No implementation. Request: $ARGUMENTS"
+    },
+    "sdd-build": {
+      "description": "Execute one explicitly authorized batch or direct fix",
+      "agent": "sdd-build", "model": "opencode/deepseek-v4.1-flash-free", "subagent": false,
+      "template": "Reconcile current authorization and use agentic-sdd-implement for exactly the authorized batch or direct fix. Implementation owns one completion review. No provider probing or model subprocess. Request: $ARGUMENTS"
+    },
+    "sdd-review": {
+      "description": "Return findings only from supplied sanitized evidence",
+      "agent": "sdd-review", "model": "opencode/deepseek-v4.1-flash-free", "subagent": false,
+      "template": "Review only using agentic-sdd-verification-review. Make no project changes and do not run checks. Missing evidence blocks the affected conclusion. Request: $ARGUMENTS"
+    },
+    "sdd-resume": {
+      "description": "Reconcile state without granting new effects",
+      "agent": "sdd-review", "model": "opencode/deepseek-v4.1-flash-free", "subagent": false,
+      "template": "Use agentic-sdd-router to reconcile supplied current state and authorization. Report the next permitted action only; this read-only entry cannot resume writes. Select a separately authorized draft/build command to act. Request: $ARGUMENTS"
+    }
+  }
+}

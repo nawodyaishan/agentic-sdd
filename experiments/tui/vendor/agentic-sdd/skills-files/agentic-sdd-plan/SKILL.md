@@ -1,0 +1,27 @@
+---
+name: agentic-sdd-plan
+description: "Draft a feature plan from the draft spec with specialist and tool assignments, then continue to tasks for one combined approval."
+---
+
+# Agentic SDD Plan
+
+For consequential unresolved design choices or returned stakeholder answers,
+use the [human-input contract](../agentic-sdd-router/references/human-input.md).
+Clarification resolves inputs, not implementation authority; do not restart
+an interview for facts already discoverable or decisions already settled.
+
+Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist and tool map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
+
+Use for `specs/<nnn-slug>/plan.md`, drafted from this feature's `spec.md` — the draft spec is sufficient input; no separate spec approval is required first. A sufficient top-level technical specification informs this plan; it does not replace the feature design.
+
+Read the spec draft, relevant `Docs/High Level Spec.md` sections, affected architecture/ADRs and targeted code/tests. Record the spec revision used and source links. Cover the approach, affected components, design and contract decisions, and the risks that actually apply. For a bounded established-pattern change, keep it short; add alternatives, migration, security, rollout and failure-mode detail in proportion to real risk.
+
+Where tasks cross a meaningful boundary, specify the shared contract once in this plan or in the repository's existing canonical API/schema source. Cover inputs and outputs, relevant error semantics, the invariant that must remain true, state transitions or side effects, and important units, versions or concurrency assumptions. State why the selected approach fits the requirements. Keep alternatives proportional: established patterns need a short justification, not a forced architecture debate. Make unresolved design choices and material assumptions visible; do not present them as user decisions.
+
+Assign specialists and tools here, once, for the whole feature: the actual installed skill name, its availability in the active client, and why it applies — or an explicit "no additional specialist needed" with a one-line reason when repository guidance is adequate. Name the tools the work will actually need (local code discovery, versioned library docs, external search, browser checks, repository gates) as conditional selections, not mandatory calls. When a named API, version or tradeoff uncertainty blocks a design decision, use [agentic-sdd-research-spec](../agentic-sdd-research-spec/SKILL.md) with bounded effort and record the cited impact in the relevant `plan.md` section, not in a separate `research.md`. Return to this plan with the decision resolved. A role label in a plan is not an invocation. If a named skill or tool is missing, restricted or unsuitable, record that gap instead of silently substituting or inventing an identifier. Task-specific exceptions belong in `tasks.md`, not repeated here.
+
+Surface material conflicts with approved upstream decisions rather than changing them. Continue to `agentic-sdd-tasks`; the spec, plan and tasks are then presented together for ONE combined human approval. Do not stop here for a separate plan approval, and do not implement. If the user asked only for a plan, deliver only the plan and do not create the downstream documents. Use the [task and readiness contracts](../agentic-sdd-router/references/task-contracts.md) when defining boundaries that tasks must reference.
+
+Use `agentic-sdd-architecture-review` as an extra risk review when warranted; its verdict never replaces the human approval. Draft a contract, ADR, data model, test plan or runbook separately only for an independent consumer or explicit request. Designing infrastructure changes does not authorize applying them; live operations need their own execution authorization.
+
+Output design decisions, affected components, assigned specialists and tools, risks, checks and the next document to draft.
