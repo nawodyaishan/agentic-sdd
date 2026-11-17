@@ -118,6 +118,31 @@ name: Docs
 # changes a setting, protection rule, retention policy or environment, or
 # deploys.
 #
+# Observation routes (Feature 022 B7/T16, plan K5, AC-08). Publication in this
+# repository runs with the workflow's own `GITHUB_TOKEN`, and GitHub does not
+# start a new workflow run for an event that a `GITHUB_TOKEN` created. The
+# `release: published` trigger below therefore cannot deliver an in-repo
+# publication to `release-status`; it stays only as a fallback for a
+# publication created outside this repository's token. The route that reaches
+# observation is the read-only reusable entrypoint `post-publish-observation`
+# (`workflow_call`): a publishing workflow calls it directly as a job, and a
+# call is not an event, so no token suppression applies to it. It requires the
+# published revision as a full SHA and refuses to record an observation of a
+# different source. Both observation jobs are read-only and non-blocking: they
+# hold `contents: read`, use no secrets, no OIDC and no environment, deploy and
+# publish nothing, and record `authoritative:false` and
+# `blocking_release:false`. Route evidence is written next to the launcher
+# record as `observation.json`.
+#
+# Asset and deployment observation. `smoke` resolves every asset reference
+# through one origin/base resolver (`SITE_ORIGIN` plus `SITE_BASE`, the values
+# in `website/docs-manifest.json`), so a root-relative href that already
+# contains the base path cannot get it twice. Its CDN retry policy is
+# unchanged, its evidence is uploaded even when the observation fails, and a
+# failed or delayed observation is recorded as `observed-unservable` or
+# `observed-incomplete`: it never becomes a successful observation and never
+# becomes a new blocking CDN policy.
+#
 # Live status is unverified: the site is not published (`has_pages:false`,
 # 404 observed 2026-11-14) and no run of this workflow has executed. Actual
 # Actions behaviour, Pages state, artifact retention and deploy/rollback
@@ -132,10 +157,30 @@ on:
   # The only trusted source of a publication artifact.
   push:
     branches: ["main"]
-  # Independent read-only release-doc observation. Separate from the product
-  # release pipeline, so it cannot block a release.
+  # Independent read-only release-doc observation. Fallback route only: an
+  # in-repo publish uses `GITHUB_TOKEN`, whose events start no workflow run, so
+  # this trigger cannot deliver it (see "Observation routes" above).
   release:
     types: [published]
+  # Read-only post-publish observation, called directly by a publishing
+  # workflow. Separate from the product release pipeline; it holds no token and
+  # can never block the release that calls it.
+  workflow_call:
+    inputs:
+      revision:
+        description: "Full 40-character lowercase SHA of the published commit"
+        type: string
+        required: true
+      tag:
+        description: "Published tag name; recorded as provenance only, never used as a ref"
+        type: string
+        required: false
+        default: ""
+      source_run_id:
+        description: "Id of the publishing run; recorded as provenance only"
+        type: string
+        required: false
+        default: ""
   # Optional weekly read-only observation. Inert by default: the job
   # additionally requires the DOCS_SCHEDULED_CHECKS_ENABLED repository
   # variable. See the job comment for its exact, limited scope.
@@ -741,6 +786,12 @@ jobs:
   # ---------------------------------------------------------------------------
   release-status:
     name: Release documentation observation (read-only)
+    # `github.event_name == 'release'` cannot select this job for an in-repo
+    # publish: `release-publish.yml` creates the release with `GITHUB_TOKEN`, and
+    # GitHub starts no workflow run for a token-created event. The reusable
+    # `post-publish-observation` job below is the route that reaches
+    # observation; this job survives as the manual / out-of-token fallback and
+    # is not required for a release to be observed.
     if: github.event_name == 'release'
     permissions:
       contents: read
@@ -755,7 +806,7 @@ jobs:
           submodules: false
           persist-credentials: false
 
-      - name: Record observed release metadata identity
+      - name: Record the observed release metadata identity
         env:
           TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
           OUT_DIR: ${{ runner.temp }}/docs-ci/release
@@ -777,6 +828,31 @@ jobs:
             --output "$OUT_DIR" \
             --image "$DOCS_IMAGE"
 
+      - name: Record the delivery route of this observation
+        env:
+          OUT_DIR: ${{ runner.temp }}/docs-ci/release
+          OBSERVATION_ROUTE: release-event
+          OBSERVATION_DELIVERY: publication-event
+          OBSERVATION_RUN_ID: ${{ github.run_id }}
+          PUBLISHED_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          # Recorded so a reader can tell which route delivered the observation.
+          # This one is reachable only for a publication created outside this
+          # repository's `GITHUB_TOKEN` (see the job comment): a token-created
+          # release event starts no workflow run, so an absent
+          # `docs-release-observation` artifact is expected for an in-repo
+          # publish and is not read as a failure.
+          install -d -m 0700 "$OUT_DIR"
+          tag="${PUBLISHED_TAG:-}"
+          if ! printf '%s' "$tag" | grep -Eq '^([A-Za-z0-9._+-]{1,100})?$'; then
+            echo "::error::the release tag contains characters this record will not store"
+            exit 1
+          fi
+          printf '{"schema":"docs-observation-route/1","route":"%s","delivery":"%s","event":"release","observation_run_id":"%s","tag":"%s","result":"observed","authoritative":false,"blocking_release":false,"artifact_identity":"not-inspected"}\n' \
+            "$OBSERVATION_ROUTE" "$OBSERVATION_DELIVERY" "$OBSERVATION_RUN_ID" "$tag" \
+            > "$OUT_DIR/observation.json"
+
       - name: Upload release observation evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
@@ -785,6 +861,154 @@ jobs:
           # because tag text may contain characters artifact names reject.
           name: docs-release-observation
           path: ${{ runner.temp }}/docs-ci/release
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Post-publish observation reached by a direct call - the only route that
+  # survives GitHub's `GITHUB_TOKEN` event suppression (B7/T16, AC-08).
+  # ---------------------------------------------------------------------------
+  post-publish-observation:
+    name: Post-publish documentation observation (read-only, non-blocking)
+    # A call, not an event: a publishing workflow invokes this job through
+    # `workflow_call`, which `GITHUB_TOKEN` suppression cannot drop. Every other
+    # trigger in this file stays unselected here.
+    if: github.event_name == 'workflow_call'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate the supplied revision, tag and source run id
+        env:
+          REVISION: ${{ inputs.revision }}
+          OBSERVED_TAG: ${{ inputs.tag }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          # The revision is used as a checkout ref, so it is constrained before
+          # any use: a branch, tag or shortened SHA is refused rather than
+          # resolved. `tag` and `source_run_id` are provenance only and are
+          # constrained to characters this record can store unescaped.
+          if ! printf '%s' "$REVISION" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::revision must be the full 40-character lowercase SHA of the published commit"
+            exit 1
+          fi
+          if ! printf '%s' "$OBSERVED_TAG" | grep -Eq '^([A-Za-z0-9._+-]{1,100})?$'; then
+            echo "::error::tag is empty or contains characters this observation will not record"
+            exit 1
+          fi
+          if ! printf '%s' "$SOURCE_RUN_ID" | grep -Eq '^([0-9]{1,20})?$'; then
+            echo "::error::source_run_id must be a numeric Actions run id"
+            exit 1
+          fi
+
+      - name: Checkout the published revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          ref: ${{ inputs.revision }}
+          path: docs-trusted
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Bind the observation to the published revision
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          REVISION: ${{ inputs.revision }}
+          OUT_DIR: ${{ runner.temp }}/docs-ci/post-publish
+          HOME: ${{ runner.temp }}/docs-ci/home-post-publish
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT_DIR" "$HOME"
+          observed="$(git -C "$TRUSTED_DIR" rev-parse HEAD)"
+          # The binding record is written before the verdict so a mismatch is
+          # still evidence, and the step fails loudly instead of recording an
+          # observation of a different source.
+          if [ "$observed" = "$REVISION" ]; then
+            matched=true
+          else
+            matched=false
+          fi
+          printf '{"schema":"docs-observation-binding/1","expected_revision":"%s","observed_revision":"%s","matched":%s}\n' \
+            "$REVISION" "$observed" "$matched" > "$OUT_DIR/binding.json"
+          if [ "$matched" != "true" ]; then
+            echo "::error::checked-out $observed does not match the published revision $REVISION; refusing to observe a different source"
+            exit 1
+          fi
+
+      - name: Record the observed published-revision identity
+        env:
+          TRUSTED_DIR: ${{ github.workspace }}/docs-trusted
+          OUT_DIR: ${{ runner.temp }}/docs-ci/post-publish
+          HOME: ${{ runner.temp }}/docs-ci/home-post-publish
+          RUN_ID: ${{ github.run_id }}
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT_DIR" "$HOME"
+          # Same read-only `--action identity` the fallback lane uses. In
+          # `--mode release` it always exits 0, writes only `identity.json` and
+          # uses no tap token.
+          python3 "$TRUSTED_DIR/scripts/docs-ci.py" \
+            --mode release \
+            --action identity \
+            --trusted "$TRUSTED_DIR" \
+            --output "$OUT_DIR" \
+            --run-id "$RUN_ID" \
+            --image "$DOCS_IMAGE"
+
+      - name: Record the delivery route of this observation
+        env:
+          OUT_DIR: ${{ runner.temp }}/docs-ci/post-publish
+          OBSERVATION_ROUTE: workflow-call
+          OBSERVATION_DELIVERY: reusable-workflow-call
+          OBSERVATION_RUN_ID: ${{ github.run_id }}
+          REVISION: ${{ inputs.revision }}
+          PUBLISHED_TAG: ${{ inputs.tag }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          # Duplicate validation because this step is the one that writes the
+          # values; it never trusts an earlier step's environment. The output
+          # directory is created here too, so this record never depends on
+          # another step having run.
+          install -d -m 0700 "$OUT_DIR"
+          if ! printf '%s' "$REVISION" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::refusing to record a revision that is not a full commit SHA"
+            exit 1
+          fi
+          if ! printf '%s' "$OBSERVATION_RUN_ID" | grep -Eq '^[0-9]{1,20}$'; then
+            echo "::error::refusing to record a non-numeric observation run id"
+            exit 1
+          fi
+          if ! printf '%s' "$SOURCE_RUN_ID" | grep -Eq '^([0-9]{1,20})?$'; then
+            echo "::error::refusing to record a non-numeric source run id"
+            exit 1
+          fi
+          tag="${PUBLISHED_TAG:-}"
+          if ! printf '%s' "$tag" | grep -Eq '^([A-Za-z0-9._+-]{1,100})?$'; then
+            echo "::error::the published tag contains characters this record will not store"
+            exit 1
+          fi
+          # `route: workflow-call` is the route a token-created release event
+          # could not deliver. `artifact_identity` says plainly that this
+          # observation inspected the published revision, not a build artifact:
+          # the site artifact is verified by `rollback` and bound by
+          # `main-build`, never inferred here.
+          printf '{"schema":"docs-observation-route/1","route":"%s","delivery":"%s","event":"workflow_call","revision":"%s","tag":"%s","source_run_id":"%s","observation_run_id":"%s","result":"observed","authoritative":false,"blocking_release":false,"artifact_identity":"not-inspected","source_binding":"binding.json"}\n' \
+            "$OBSERVATION_ROUTE" "$OBSERVATION_DELIVERY" "$REVISION" "$tag" \
+            "$SOURCE_RUN_ID" "$OBSERVATION_RUN_ID" > "$OUT_DIR/observation.json"
+
+      - name: Upload post-publish observation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          name: docs-post-publish-observation
+          # Response only: `binding.json` is written before the verdict, so a
+          # mismatched source still leaves a record.
+          path: ${{ runner.temp }}/docs-ci/post-publish
           if-no-files-found: warn
           retention-days: 7
 
@@ -911,17 +1135,27 @@ jobs:
           retention-days: 14
 
 # ---------------------------------------------------------------------------
-# Post-deploy smoke gate.
+# Post-deploy deployment observation.
 #
 # GitHub Pages invalidates its CDN at deploy time and can take ~10 minutes to
 # propagate; repeated requests while it is still deploying are cached as 404s
-# (actions/deploy-pages#86). This job is the only place that polls, and it
-# revalidates with `Cache-Control: no-cache` so a stale 404 cannot be baked in
-# or mistaken for a real failure. It runs after the protected deploy and fails
-# the workflow if the deployment never becomes servable.
+# (actions/deploy-pages#86). This job is the only place that polls. Its retry
+# policy is unchanged (40 attempts, 15 s apart, `Cache-Control: no-cache` so a
+# stale 404 cannot be baked in). It is an observation, not a gate: it records
+# `authoritative:false` and `blocking:false`, uploads its evidence even when it
+# fails, and never alters the deploy result or the CDN policy.
+#
+# One origin/base resolver handles every reference. Asset hrefs are absolute
+# (`https://host/base/assets-vN/x.css`), root-relative with the base already
+# applied (`/agentic-sdd/assets-vN/x.css`, what Astro emits), root-relative
+# without it (`/assets-vN/x.css`) or page-relative (`./assets-vN/x.css`). The
+# previous form concatenated the base-qualified site URL with a base-qualified
+# href, which produced `/agentic-sdd/agentic-sdd/...` for every stylesheet and
+# script. `SITE_ORIGIN` and `SITE_BASE` mirror `website/docs-manifest.json`
+# (`site` and `base`); a drift check in the T16 fixtures compares them.
 # ---------------------------------------------------------------------------
   smoke:
-    name: Observe the deployed site (non-blocking)
+    name: Observe the deployed site (evidence recorded, non-blocking)
     needs: [deploy]
     if: needs.deploy.result == 'success'
     # GitHub Pages CDN propagation can take well over ten minutes and cached
@@ -934,25 +1168,135 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Poll for a servable deployment
+      - name: Poll for a servable deployment and record the observation
         env:
-          SITE: https://nawodyaishan.github.io/agentic-sdd
+          SITE_ORIGIN: https://nawodyaishan.github.io
+          SITE_BASE: /agentic-sdd
+          OUT_DIR: ${{ runner.temp }}/docs-ci/smoke
+          MAX_ATTEMPTS: "40"
+          RETRY_DELAY: "15"
+          # Always-present routes of the published site; `assets-vN` names are
+          # discovered from the page instead of being hardcoded.
+          REQUIRED_ROUTES: /diagrams/d01-context.png /llms.txt /sitemap-index.xml
         run: |
-          set -euo pipefail
-          fetch() {
-            curl -fsS --retry 40 --retry-delay 15 --retry-all-errors \
-              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$1" >/dev/null
+          # No `-e`: every failed request is an observation, and the exit
+          # status is decided from the recorded outcome, not from the first
+          # error. The record is written before the exit either way.
+          set -uo pipefail
+          if ! install -d -m 0700 "$OUT_DIR"; then
+            echo "::error::cannot create the observation directory $OUT_DIR"
+            exit 1
+          fi
+
+          # The single place where origin, base path and a reference meet.
+          # Each branch applies the base path at most once.
+          resolve_url() {
+            local ref="$1"
+            case "$ref" in
+              http://*|https://*) printf '%s\n' "$ref" ;;
+              //*) printf 'https:%s\n' "$ref" ;;
+              /*)
+                case "$ref" in
+                  "$SITE_BASE"/*|"$SITE_BASE") printf '%s%s\n' "$SITE_ORIGIN" "$ref" ;;
+                  *) printf '%s%s%s\n' "$SITE_ORIGIN" "$SITE_BASE" "$ref" ;;
+                esac
+                ;;
+              *)
+                ref="${ref#./}"
+                printf '%s%s/%s\n' "$SITE_ORIGIN" "$SITE_BASE" "$ref"
+                ;;
+            esac
           }
-          fetch "$SITE/"
-          CSS=$(curl -fsS -H 'Cache-Control: no-cache' "$SITE/" | grep -o '/agentic-sdd/assets-v[0-9]*/[^"]*\.css' | head -1)
-          JS=$(curl -fsS -H 'Cache-Control: no-cache' "$SITE/" | grep -o '/agentic-sdd/assets-v[0-9]*/[^"]*\.js' | head -1)
-          test -n "$CSS"
-          test -n "$JS"
-          echo "stylesheet: $CSS"
-          echo "script: $JS"
-          fetch "$SITE$CSS"
-          fetch "$SITE$JS"
-          fetch "$SITE/diagrams/d01-context.png"
-          fetch "$SITE/llms.txt"
-          fetch "$SITE/sitemap-index.xml"
-          echo "deployed site is servable"
+
+          page_url="$(resolve_url "$SITE_BASE/")"
+          attempts=0
+          html=""
+          outcome="observed-unservable"
+          while [ "$attempts" -lt "$MAX_ATTEMPTS" ]; do
+            attempts=$((attempts + 1))
+            if html="$(curl -fsS --max-time 30 \
+                -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+                "$page_url" 2>"$OUT_DIR/last-error.txt")"; then
+              break
+            fi
+            html=""
+            printf 'attempt %s: %s not servable yet\n' "$attempts" "$page_url"
+            if [ "$attempts" -lt "$MAX_ATTEMPTS" ]; then
+              sleep "$RETRY_DELAY"
+            fi
+          done
+
+          css_refs=""
+          js_refs=""
+          if [ -n "$html" ]; then
+            css_refs="$(printf '%s' "$html" | grep -o 'href="[^"]*\.css"' \
+              | sed -e 's/^href="//' -e 's/"$//' | sort -u)"
+            js_refs="$(printf '%s' "$html" | grep -o 'src="[^"]*\.js"' \
+              | sed -e 's/^src="//' -e 's/"$//' | sort -u)"
+          fi
+
+          : > "$OUT_DIR/assets.txt"
+          if [ -z "$html" ]; then
+            outcome="observed-unservable"
+          elif [ -z "$css_refs" ] || [ -z "$js_refs" ]; then
+            # A servable page with no stylesheet or script reference is an
+            # incomplete observation, never a success.
+            outcome="observed-incomplete"
+          else
+            seen=" "
+            failed=0
+            for ref in $css_refs $js_refs $REQUIRED_ROUTES; do
+              url="$(resolve_url "$ref")"
+              case "$seen" in
+                *" $url "*) continue ;;
+              esac
+              seen="$seen$url "
+              status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 \
+                -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+                "$url" 2>/dev/null)"
+              printf '%s\t%s\t%s\n' "$status" "$ref" "$url" >> "$OUT_DIR/assets.txt"
+              if [ "$status" != "200" ]; then
+                failed=$((failed + 1))
+              fi
+            done
+            if [ "$failed" -eq 0 ] && [ -s "$OUT_DIR/assets.txt" ]; then
+              outcome="observed-servable"
+            else
+              outcome="observed-unservable"
+            fi
+          fi
+
+          if [ "$outcome" = "observed-servable" ]; then
+            servable=true
+          else
+            servable=false
+          fi
+          urls_json="$(awk -F'\t' '{
+              status = ($1 ~ /^[0-9]+$/) ? $1 + 0 : "null"
+              printf "%s{\"status\":%s,\"reference\":\"%s\",\"url\":\"%s\"}",
+                (NR > 1 ? "," : ""), status, $2, $3
+            }' "$OUT_DIR/assets.txt")"
+          printf '{"schema":"docs-deployment-observation/1","observed":true,"page":"%s","outcome":"%s","servable":%s,"attempts":%s,"max_attempts":%s,"retry_delay_seconds":%s,"retry_policy":"%s attempts, %s s apart, no new blocking gate","authoritative":false,"blocking":false,"blocking_release":false,"urls":[%s]}\n' \
+            "$page_url" "$outcome" "$servable" "$attempts" "$MAX_ATTEMPTS" \
+            "$RETRY_DELAY" "$MAX_ATTEMPTS" "$RETRY_DELAY" "$urls_json" > "$OUT_DIR/observation.json"
+
+          cat "$OUT_DIR/assets.txt"
+          if [ "$outcome" != "observed-servable" ]; then
+            echo "::error::deployment observation recorded $outcome after $attempts attempt(s); the deploy result is unchanged and no CDN policy was changed"
+            exit 1
+          fi
+          echo "deployed site is servable ($outcome)"
+
+      - name: Upload the deployment observation
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          # Written before the exit code, so a failed or delayed observation is
+          # still evidence rather than an absent artifact.
+          name: docs-deployment-observation
+          path: |
+            ${{ runner.temp }}/docs-ci/smoke/observation.json
+            ${{ runner.temp }}/docs-ci/smoke/assets.txt
+            ${{ runner.temp }}/docs-ci/smoke/last-error.txt
+          if-no-files-found: warn
+          retention-days: 7
