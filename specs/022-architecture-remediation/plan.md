@@ -613,6 +613,11 @@ owner-supplied quote with its date, or the line "consent not recoverable
 (recorded 2026-11-17)". Never reconstructed from runs or tags. A template is
 drafted for the owner; missing items stay missing.
 
+**Owner disposition 2026-11-17:** record as "not recoverable" today. Applied as a
+dated note to specs 014, 018 and 019. Spec 016 has no B5 consent annotation, and the
+verbatim 016 release quote was not located; it stays "not recoverable" here and the
+owner may replace any note by supplying the original words and date.
+
 ### 13.4 R4 — 014 closeout table (D-07)
 A read-only per-AC and per-finding table with evidence pointers and explicit
 `not_run`/`blocked` entries, built from the B5 disposition report and the
@@ -643,3 +648,24 @@ source SHA of `internal/skillsync` and `internal/fleet` at vendor time; the chec
 fails early when those trees changed since. Wire it into the trusted-CI TUI lane
 only after review. `replace` to the root module already exists in `go.mod`, so the
 vendored copy is the offline mechanism, not a replacement for it.
+
+### 13.8 Owner decisions recorded 2026-11-17 (after amendment r4)
+
+1. **Push:** the four r4 commits were pushed (`7313566`).
+2. **A1:** re-run on a clean commit via an isolated detached worktree (`/dev/shm/wt-a1`), not the live tree.
+3. **014 closeout:** require more evidence first; an argon evidence pass writes `/dev/shm/022-A5/evidence-014.md`. The draft stays unaccepted.
+4. **D-02:** record "not recoverable" (13.3).
+5. **Trusted base:** options to be offered to the owner; no SHA chosen.
+6. **O-02 pack overlay:** adopted (already committed at HEAD). A7/B8 unblocked.
+7. **R7 CI wiring:** best-approach decision in 13.9.
+8. **Parallel batches:** T16, B8 and B10 launched together on DeepSeek implement agents with disjoint paths; B11 waits for B8 and final B10 notes, B12/B13 wait for B1-B11.
+
+### 13.9 R7 wiring decision (parent, 2026-11-17)
+
+The drift check is a gate-contract change if made a required CI check, and the
+trusted base rejects unadopted definitions, so it is **not** added to `harness/checks.json`
+now. It runs locally as `task tui-vendor-check` and as a lefthook pre-commit job
+limited to the root packages and nested module. The diff ignores root-level docs and
+config (`*.md`, `LICENSE`, `Taskfile*.yml`, `lefthook.yml`) so documentation edits no
+longer force a re-vendor; Go sources, embedded skills and pack files stay compared.
+Promoting it to a required status check is a later adoption step with the trusted base.

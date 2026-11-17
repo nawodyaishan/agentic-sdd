@@ -469,6 +469,7 @@ Stop for human review. A technical `Ready`, green CI, a model profile being avai
 `v0.9.0`–`v0.13.0`. Tag ancestry does not establish Feature 014 release consent or
 acceptance; that provenance and the human/Opus acceptance remain missing and pending
 owner disposition.)*
+*(Owner disposition 2026-11-17, Feature 022 R3: release consent for this feature is recorded as **not recoverable**. It was not reconstructed from workflow runs or tags. If the owner later supplies the original words and date, replace this note.)*
 
 ### References and provenance
 
