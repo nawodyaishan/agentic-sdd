@@ -339,11 +339,20 @@ func TestT19FullscreenFallbackReachesAllContent(t *testing.T) {
 		"Pre-Execution Policy",
 		"Default is No",
 		"Target Configuration",
-		"Target home: " + install.install.home,
 		"Selected clients:",
 	} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("install fallback never reached %q:\n%s", want, plain)
+		}
+	}
+	// The fallback word-wraps the "Target home:" row (Section -> Paragraph), so
+	// the label and the path may sit on separate rows, and a long path may break
+	// across rows. Wrapping only inserts whitespace; compare with whitespace
+	// removed so a dropped character still fails while a wrapped row does not.
+	squeezed := strings.Join(strings.Fields(plain), "")
+	for _, want := range []string{"Targethome:", strings.Join(strings.Fields(install.install.home), "")} {
+		if !strings.Contains(squeezed, want) {
+			t.Fatalf("install fallback never reached the full target home %q:\n%s", install.install.home, plain)
 		}
 	}
 

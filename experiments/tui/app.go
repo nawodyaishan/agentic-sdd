@@ -743,10 +743,10 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return *a, cmd
 	}
 	if a.activeRoute == RouteInstall && a.installSection == installSectionFleet && a.fleet.IsInputFocused() {
-		return a.handleInstallRouteKey(msg)
+		return a.routeFocusedInstallKey(msg)
 	}
-	if a.activeRoute == RouteInstall && a.installSection == installSectionMCP && a.mcp.IsInputFocused() {
-		return a.handleInstallRouteKey(msg)
+	if a.activeRoute == RouteInstall && a.installSection == installSectionMCP && (a.mcp.IsInputFocused() || a.mcp.OwnsConfirmation()) {
+		return a.routeFocusedInstallKey(msg)
 	}
 
 	key := msg.String()
@@ -1065,7 +1065,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case RouteInstall:
-		return a.handleInstallRouteKey(msg)
+		return a.dispatchInstallKey(msg)
 
 	case RouteActivity:
 		return a.handleActivityRouteKey(msg)
@@ -1075,6 +1075,97 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return *a, nil
+}
+
+// childConfirmationRefusal is the notice shown when an affirmative key arrives
+// while the decision it would confirm is not on screen.
+const childConfirmationRefusal = "Confirmation controls are not fully visible at this size. Resize or scroll until the decision shows, then press y. Nothing was written."
+
+// childConfirmation reports whether the MCP apply/restore or Fleet apply/restore
+// confirmation is open in the active install section. Install and restore use the
+// root modal instead, so they are not included here.
+func (a App) childConfirmation() bool {
+	if a.activeRoute != RouteInstall {
+		return false
+	}
+	switch a.installSection {
+	case installSectionMCP:
+		return a.mcp.OwnsConfirmation()
+	case installSectionFleet:
+		return a.fleet.IsConfirmingApply() || a.fleet.IsConfirmingRestore()
+	}
+	return false
+}
+
+// childAffirmativeKey reports whether key would dispatch a write from the open
+// child confirmation. Enter is affirmative only after Yes has been focused.
+func (a App) childAffirmativeKey(key string) bool {
+	switch key {
+	case "y", "Y":
+		return true
+	case "enter":
+		return a.installSection == installSectionMCP && a.mcp.ConfirmSelected()
+	}
+	return false
+}
+
+// childDecisionVisible reports whether every essential fact of the open child
+// confirmation is in the body window the viewport paints now, at the current
+// size and scroll offset. It reads the same rows and offset that renderBackdropMode
+// pages (before the sidebar is composited), so wrapped paths are judged as the
+// user reads them. Affirmative input is judged against what the user can see: a
+// resize or scroll that hides the decision also withdraws the authority to
+// confirm it.
+func (a App) childDecisionVisible() bool {
+	var facts []string
+	switch a.installSection {
+	case installSectionMCP:
+		facts = a.mcp.ConfirmFacts()
+	case installSectionFleet:
+		facts = a.fleet.ConfirmFacts()
+	}
+	if len(facts) == 0 || !a.usableGeometry() {
+		return false
+	}
+	width := a.childContentWidth()
+	rows := a.viewportLines(strings.Join(a.getContentLines(width), "\n"), width)
+	window := strings.Join(strings.Fields(ansi.Strip(strings.Join(pageRows(rows, a.bodyBudget(), a.contentScroll), "\n"))), "")
+	for _, fact := range facts {
+		if !strings.Contains(window, strings.Join(strings.Fields(fact), "")) {
+			return false
+		}
+	}
+	return true
+}
+
+// routeFocusedInstallKey gives an open MCP or Fleet confirmation first claim on
+// keys, ahead of the global shell. Ctrl+C still exits. An affirmative key is
+// refused unless the decision is on screen now. Every other key reaches the child,
+// whose default No, Esc and cancellation rules are unchanged.
+func (a *App) routeFocusedInstallKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	if a.childConfirmation() {
+		if key == "ctrl+c" {
+			return *a, a.requestShutdown(ShutdownRequestMsg{Reason: ShutdownReasonInterruptKey})
+		}
+		if a.childAffirmativeKey(key) && !a.childDecisionVisible() {
+			a.notice = childConfirmationRefusal
+			return *a, nil
+		}
+	}
+	return a.dispatchInstallKey(msg)
+}
+
+// dispatchInstallKey forwards one key to the install route. A child confirmation
+// that opens starts at the top of its content, so an earlier scroll offset cannot
+// hide the decision it asks for.
+func (a *App) dispatchInstallKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	wasConfirming := a.childConfirmation()
+	model, cmd := a.handleInstallRouteKey(msg)
+	if !wasConfirming && a.childConfirmation() {
+		a.contentScroll = 0
+	}
+	return model, cmd
 }
 
 // handleConfirmationModalKey dispatches one key while an install or restore

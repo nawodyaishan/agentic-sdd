@@ -270,6 +270,9 @@ func (m FleetModel) deploymentReviewLines(width int) []string {
 		sub = m.theme.Subtitle.Render(sub)
 	}
 	lines = append(lines, sub, "")
+	// The apply decision is the first thing under the header, above the source
+	// diff, so a small or scrolled terminal cannot hide it behind long content.
+	lines = append(lines, m.applyConfirmLines()...)
 
 	if m.previewLoading {
 		lines = append(lines, "  Computing source diff preview...", "")
@@ -347,8 +350,29 @@ func (m FleetModel) deploymentReviewLines(width int) []string {
 	return lines
 }
 
-// deploymentSection renders the fresh plan identity, counts, last real result
-// and the default-No apply prompt.
+// applyConfirmLines renders the default-No apply decision for the open plan. It
+// is empty unless an apply confirmation is open for a previewed plan.
+func (m FleetModel) applyConfirmLines() []string {
+	if !m.confirmApply || !m.planPreview.Available || m.planPreview.Plan == nil {
+		return nil
+	}
+	prompt := "Apply to OpenCode files? [y/N]"
+	if m.theme.Color {
+		prompt = m.theme.Warn.Bold(true).Render(prompt)
+	}
+	preview := m.planPreview
+	return []string{
+		"  " + prompt,
+		fmt.Sprintf("  This writes the %d planned managed file change(s) under %s.",
+			preview.Counts[fleet.FileOpCreate]+preview.Counts[fleet.FileOpUpdate]+preview.Counts[fleet.FileOpRemove], preview.Plan.TargetRoot),
+		"  No Git operation, no prompt/permission change and no model call occurs.",
+		"  Press y to confirm; n, Enter or Esc keeps the default No.",
+		"",
+	}
+}
+
+// deploymentSection renders the fresh plan identity, counts and the last real
+// result.
 func (m FleetModel) deploymentSection(width int) []string {
 	var lines []string
 	title := "OpenCode deployment plan"
@@ -423,19 +447,6 @@ func (m FleetModel) deploymentSection(width int) []string {
 
 	if !m.applyOutcome.Empty() {
 		lines = append(lines, m.renderApplyOutcome(width)...)
-		lines = append(lines, "")
-	}
-
-	if m.confirmApply {
-		prompt := "Apply to OpenCode files? [y/N]"
-		if m.theme.Color {
-			prompt = m.theme.Warn.Bold(true).Render(prompt)
-		}
-		lines = append(lines, "  "+prompt)
-		lines = append(lines, fmt.Sprintf("  This writes the %d planned managed file change(s) under %s.",
-			preview.Counts[fleet.FileOpCreate]+preview.Counts[fleet.FileOpUpdate]+preview.Counts[fleet.FileOpRemove], preview.Plan.TargetRoot))
-		lines = append(lines, "  No Git operation, no prompt/permission change and no model call occurs.")
-		lines = append(lines, "  Press y to confirm; n, Enter or Esc keeps the default No.")
 		lines = append(lines, "")
 	}
 

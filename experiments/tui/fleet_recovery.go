@@ -167,6 +167,9 @@ func (m FleetModel) recoveryLines(width int) []string {
 		sub = m.theme.Subtitle.Render(sub)
 	}
 	lines = append(lines, sub, "")
+	// The restore decision sits above the backup list and diff so a small or
+	// scrolled terminal cannot hide it behind the long restore preview.
+	lines = append(lines, m.restoreConfirmLines()...)
 
 	// 1. Managed backup list.
 	var listRows []string
@@ -249,18 +252,6 @@ func (m FleetModel) recoveryLines(width int) []string {
 		capability = m.theme.Warn.Render(capability)
 	}
 	lines = append(lines, "  "+capability)
-
-	if m.confirmRestore {
-		prompt := "Restore this managed backup? [y/N]"
-		if m.theme.Color {
-			prompt = m.theme.Warn.Bold(true).Render(prompt)
-		}
-		lines = append(lines, "")
-		lines = append(lines, "  "+prompt)
-		lines = append(lines, fmt.Sprintf("  This reverses the recorded transaction %s and creates a pre-restore backup.", m.restorePreview.BackupID))
-		lines = append(lines, "  No Git operation, prompt/permission change or model call occurs.")
-		lines = append(lines, "  Press y to confirm; n, Enter or Esc keeps the default No.")
-	}
 	lines = append(lines, "")
 
 	if !m.restoreOutcome.Empty() {
@@ -281,6 +272,25 @@ func (m FleetModel) recoveryLines(width int) []string {
 
 // restorePreviewLines renders the exact counts, ownership limit and bounded
 // per-file diff for one restore preview.
+// restoreConfirmLines renders the default-No restore decision. It is empty
+// unless a restore confirmation is open.
+func (m FleetModel) restoreConfirmLines() []string {
+	if !m.confirmRestore {
+		return nil
+	}
+	prompt := "Restore this managed backup? [y/N]"
+	if m.theme.Color {
+		prompt = m.theme.Warn.Bold(true).Render(prompt)
+	}
+	return []string{
+		"  " + prompt,
+		fmt.Sprintf("  This reverses the recorded transaction %s and creates a pre-restore backup.", m.restorePreview.BackupID),
+		"  No Git operation, prompt/permission change or model call occurs.",
+		"  Press y to confirm; n, Enter or Esc keeps the default No.",
+		"",
+	}
+}
+
 func (m FleetModel) restorePreviewLines(width int) []string {
 	var lines []string
 	preview := m.restorePreview

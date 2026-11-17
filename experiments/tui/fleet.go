@@ -370,6 +370,24 @@ func (m FleetModel) IsConfirmingApply() bool { return m.confirmApply }
 // IsConfirmingRestore reports whether the default-No restore confirmation is active.
 func (m FleetModel) IsConfirmingRestore() bool { return m.confirmRestore }
 
+// ConfirmFacts lists the essential facts of the open apply or restore
+// confirmation (action, target, consequences and the default-No decision
+// controls). The root shell refuses an affirmative key unless all of them are
+// on screen at dispatch time. It is nil when no confirmation is open.
+func (m FleetModel) ConfirmFacts() []string {
+	switch {
+	case m.confirmApply:
+		target := ""
+		if m.planPreview.Plan != nil {
+			target = m.planPreview.Plan.TargetRoot
+		}
+		return []string{"Apply to OpenCode files? [y/N]", "This writes the", target, "Press y to confirm"}
+	case m.confirmRestore:
+		return []string{"Restore this managed backup? [y/N]", "This reverses the recorded transaction", m.restorePreview.BackupID, "Press y to confirm"}
+	}
+	return nil
+}
+
 // PlanPreview returns the current read-only deployment projection.
 func (m FleetModel) PlanPreview() FleetPlanPreview { return m.planPreview }
 

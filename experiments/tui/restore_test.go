@@ -426,7 +426,8 @@ func TestRestorePreviewShowsExactOverwriteAndRemovalPaths(t *testing.T) {
 	if replace != 1 || remove != 3 {
 		t.Fatalf("planned replace/remove = %d/%d, want 1/3", replace, remove)
 	}
-	text := restoreLines(m, 120)
+	rawLines := m.Lines(120)
+	text := joinWrappedLines(rawLines)
 	overwritePath := filepath.Join(home, ".claude", "skills", "agentic-sdd-plan")
 	removePath := filepath.Join(home, ".agents", "skills", "agentic-sdd-plan")
 	for _, want := range []string{
@@ -436,12 +437,34 @@ func TestRestorePreviewShowsExactOverwriteAndRemovalPaths(t *testing.T) {
 		removePath,
 	} {
 		if !strings.Contains(text, want) {
-			t.Fatalf("preview missing %q:\n%s", want, text)
+			t.Fatalf("preview missing %q:\n%s", want, strings.Join(rawLines, "\n"))
 		}
 	}
 	if !strings.Contains(text, "Nothing has been written") {
 		t.Fatal("preview does not state that nothing was written")
 	}
+}
+
+// joinWrappedLines removes wrap-inserted line breaks and continuation
+// indentation within indented blocks so wrapped paths can be compared in full.
+func joinWrappedLines(lines []string) string {
+	var out []string
+	prevIndented := false
+	for _, line := range lines {
+		indented := strings.HasPrefix(line, "  ")
+		if indented {
+			content := strings.TrimPrefix(line, "  ")
+			if prevIndented && len(out) > 0 {
+				out[len(out)-1] += content
+			} else {
+				out = append(out, content)
+			}
+		} else {
+			out = append(out, line)
+		}
+		prevIndented = indented
+	}
+	return strings.Join(out, "\n")
 }
 
 // TestRestoreDriftInvalidatesConsent proves changed destination state forces a

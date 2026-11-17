@@ -268,6 +268,30 @@ func (m MCPModel) ShouldScrollBody(key string) bool {
 // IsInputFocused reports whether a printable key belongs to the MCP filter.
 func (m MCPModel) IsInputFocused() bool { return m.isFiltering }
 
+// OwnsConfirmation reports whether an apply or restore confirmation is open. It
+// owns the root keyboard focus, so route-jump, Tab and settings keys cannot
+// move the user away from the decision it is asking for.
+func (m MCPModel) OwnsConfirmation() bool {
+	return m.view == MCPViewConfirm || (m.view == MCPViewRecovery && m.confirmRestore)
+}
+
+// ConfirmSelected reports whether the Yes choice is focused in the open
+// confirmation. Default No keeps it false.
+func (m MCPModel) ConfirmSelected() bool { return m.confirmSelection }
+
+// ConfirmFacts lists the essential decision facts (action, target, consequences
+// and decision controls) that must be on screen before an affirmative key may
+// dispatch. It is nil when no confirmation is open.
+func (m MCPModel) ConfirmFacts() []string {
+	switch {
+	case m.view == MCPViewConfirm:
+		return []string{"Apply configuration changes", m.planPreview.TargetPath, "Safety policy", "Yes, apply changes", "No, cancel"}
+	case m.view == MCPViewRecovery && m.confirmRestore:
+		return []string{"Restore managed MCP backup", m.restorePreview.BackupID, m.restorePreview.TargetPath, "Safety policy", "Yes, restore backup", "No, cancel"}
+	}
+	return nil
+}
+
 // Reload discards the current status projection and starts a fresh lazy read.
 // It is used after a successful MCP write; it never writes or executes a binary.
 func (m MCPModel) Reload() (MCPModel, tea.Cmd) {

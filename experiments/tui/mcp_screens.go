@@ -334,7 +334,7 @@ func mcpConfirmLines(m MCPModel, width int) []string {
 	var b strings.Builder
 
 	b.WriteString(m.theme.Title.Render("Install & Manage / MCP Tools · Confirm Changes"))
-	b.WriteString("\n\n")
+	b.WriteString("\n")
 
 	if m.tinyGeometry {
 		b.WriteString(m.theme.Bad.Render("Terminal geometry too small (<60 cols or <8 rows)."))
@@ -343,12 +343,13 @@ func mcpConfirmLines(m MCPModel, width int) []string {
 		return strings.Split(b.String(), "\n")
 	}
 
+	// The block is kept compact (no spacer rows between the facts) so the
+	// action, target, consequences and decision controls fit a 100x16 body.
+	// Affirmative input is refused by the root shell when they do not show.
 	target := m.planPreview.TargetPath
-	b.WriteString(fmt.Sprintf("Apply configuration changes to %s?", m.theme.Accent.Render(target)))
-	b.WriteString("\n\n")
-
-	b.WriteString(fmt.Sprintf("Base digest: %s\n", m.theme.Hint.Render(m.planPreview.BaseDigest)))
-	b.WriteString(fmt.Sprintf("Plan digest: %s\n\n", m.theme.Hint.Render(m.planPreview.PlanDigest)))
+	b.WriteString(fmt.Sprintf("Apply configuration changes to %s?\n", m.theme.Accent.Render(target)))
+	b.WriteString(fmt.Sprintf("Base digest: %s · Plan digest: %s\n",
+		m.theme.Hint.Render(m.planPreview.BaseDigest), m.theme.Hint.Render(m.planPreview.PlanDigest)))
 
 	for _, line := range wrapPath("Safety policy: "+WritePolicyText, width) {
 		b.WriteString(m.theme.Warn.Render(line) + "\n")
@@ -367,7 +368,7 @@ func mcpConfirmLines(m MCPModel, width int) []string {
 	}
 
 	b.WriteString("  " + noBtn + "        " + yesBtn + "\n\n")
-	b.WriteString(m.theme.Hint.Render("controls: Tab/Arrow toggle · Enter confirm · Esc cancel"))
+	b.WriteString(m.theme.Hint.Render("controls: Tab or ←/→ switch choice · Enter applies the selected choice · Esc cancels"))
 
 	return strings.Split(b.String(), "\n")
 }
@@ -514,8 +515,8 @@ func mcpRecoveryLines(m MCPModel, width int) []string {
 			return strings.Split(b.String(), "\n")
 		}
 
-		b.WriteString(fmt.Sprintf("Restore managed MCP backup %s?", m.theme.Accent.Render(m.restorePreview.BackupID)))
-		b.WriteString("\n\n")
+		b.WriteString(fmt.Sprintf("Restore managed MCP backup %s?\n", m.theme.Accent.Render(m.restorePreview.BackupID)))
+		b.WriteString(fmt.Sprintf("Target: %s\n", m.theme.Accent.Render(m.restorePreview.TargetPath)))
 
 		for _, line := range wrapPath("Safety policy: "+WritePolicyText, width) {
 			b.WriteString(m.theme.Warn.Render(line) + "\n")
@@ -533,7 +534,7 @@ func mcpRecoveryLines(m MCPModel, width int) []string {
 		}
 
 		b.WriteString("  " + noBtn + "        " + yesBtn + "\n\n")
-		b.WriteString(m.theme.Hint.Render("controls: Tab/Arrow toggle · Enter confirm · Esc cancel"))
+		b.WriteString(m.theme.Hint.Render("controls: Tab or ←/→ switch choice · Enter applies the selected choice · Esc cancels"))
 		return strings.Split(b.String(), "\n")
 	}
 
