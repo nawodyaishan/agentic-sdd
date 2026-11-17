@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "evidence_type": "static mandatory-word inventory and read-only instruction scenarios",
+  "runtime_token_measurement": "not_run",
+  "model_compliance": "not_run",
+  "word_count_method": "whitespace-separated tokens of the file body after any YAML frontmatter; the baseline is the current entry file plus its declared baseline references, the new count is the same entry plus the transitive mandatory set; conditional references are excluded",
+  "branches": {
+    "wait-what": {
+      "entry": "skills-files/agentic-sdd-wait-what/SKILL.md",
+      "baseline_references": [
+        "skills-files/agentic-sdd-router/references/workflow-policy.md"
+      ],
+      "mandatory_references": [
+        "skills-files/agentic-sdd-router/references/lightweight-authority.md"
+      ]
+    },
+    "teach": {
+      "entry": "skills-files/agentic-sdd-teach/SKILL.md",
+      "baseline_references": [
+        "skills-files/agentic-sdd-router/references/workflow-policy.md"
+      ],
+      "mandatory_references": [
+        "skills-files/agentic-sdd-router/references/lightweight-authority.md"
+      ]
+    },
+    "handoff": {
+      "entry": "skills-files/agentic-sdd-handoff/SKILL.md",
+      "baseline_references": [
+        "skills-files/agentic-sdd-router/references/workflow-policy.md"
+      ],
+      "mandatory_references": [
+        "skills-files/agentic-sdd-router/references/lightweight-authority.md"
+      ]
+    }
+  },
+  "conditional_references": [
+    "skills-files/agentic-sdd-router/references/workflow-policy.md",
+    "skills-files/agentic-sdd-router/references/human-input.md",
+    "skills-files/agentic-sdd-router/references/review-resolution.md",
+    "skills-files/agentic-sdd-router/references/testing.md",
+    "skills-files/agentic-sdd-router/references/independent-review.md"
+  ],
+  "prohibitions": [
+    {"id": "no-state-change", "pattern": "Change no project state"},
+    {"id": "approval-stays-human", "pattern": "Approval stays human"},
+    {"id": "privacy", "pattern": "Preserve privacy"},
+    {"id": "no-delegation-or-spend", "pattern": "Do not delegate or spend"},
+    {"id": "no-unrequested-files", "pattern": "creates no lesson files or assets unless a persistent workspace is explicitly requested"},
+    {"id": "report-next-action", "pattern": "name the single next permitted action"}
+  ],
+  "read_only_scenarios": [
+    {
+      "id": "unindexed-read-only-review",
+      "mode": "review-only",
+      "tree": "unindexed disposable checkout",
+      "expected_route": "targeted_local_read",
+      "bootstrap": "not_allowed",
+      "expected_created_artifacts": [],
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "stale-index-read-only-review",
+      "mode": "review-only",
+      "tree": "existing index with stale entries",
+      "expected_route": "read_with_staleness_flag",
+      "bootstrap": "not_allowed",
+      "expected_created_artifacts": [],
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "write-authorized-bootstrap",
+      "mode": "implementation",
+      "tree": "ordinary project checkout without an index",
+      "expected_route": "bootstrap_allowed",
+      "bootstrap": "allowed",
+      "expected_created_artifacts": [".codegraph/"],
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "broad-research-without-sdd-decision",
+      "mode": "research",
+      "tree": "not applicable",
+      "expected_route": "separately_authorized_method",
+      "bootstrap": "not_applicable",
+      "expected_created_artifacts": [],
+      "agent_observation": "not_run"
+    },
+    {
+      "id": "named-sdd-blocker-research",
+      "mode": "research",
+      "tree": "not applicable",
+      "expected_route": "agentic-sdd-research-spec",
+      "bootstrap": "not_applicable",
+      "expected_created_artifacts": [],
+      "agent_observation": "not_run"
+    }
+  ]
+}

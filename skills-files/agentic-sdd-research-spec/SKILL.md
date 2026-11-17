@@ -1,13 +1,13 @@
 ---
 name: agentic-sdd-research-spec
-description: "Resolve a named, consequential fact blocking an SDD stage (spec, plan, tasks, review, debugging or direct fix) and return to that stage. Not for generic research, topic reports, background delegation or mandatory research files."
+description: "Resolve a named, consequential fact blocking an SDD stage (spec, plan, tasks, review, debugging or direct fix) and return to that stage; an explicit broad request must still name the affected SDD decision. Not for generic research, topic reports, background delegation or mandatory research files."
 ---
 
 # Agentic SDD Research Spec
 
 Read the [shared workflow policy](../agentic-sdd-router/references/workflow-policy.md) once per unchanged context; it also applies to direct invocation. Consult the [specialist and tool map](../agentic-sdd-router/references/specialists.md) only when assigning or loading domain expertise.
 
-Trigger only on an explicit research request or a named, consequential fact that actually blocks the current SDD stage — not generic research, topic reports, background delegation or a mandatory file. Return to the interrupted stage after answering it.
+Trigger on a named, consequential fact that actually blocks the current SDD stage, including when the user explicitly requests research for it — not generic research, topic reports, background delegation or a mandatory file. An explicit broad research request must still name the affected SDD decision; a request without one is a separately authorized method outside this skill, with its own effects and privacy limits. Return to the interrupted stage after answering it.
 
 ## Effort and brief
 

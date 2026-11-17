@@ -6,8 +6,7 @@ disable-model-invocation: true
 
 # Agentic SDD Handoff
 
-Read the [shared policy](../agentic-sdd-router/references/workflow-policy.md) once
-per unchanged context. Use actual repository recovery/storage conventions, not
+Read the [lightweight branch authority](../agentic-sdd-router/references/lightweight-authority.md) once per unchanged context; it bounds this invocation's effects. Read the full [shared policy](../agentic-sdd-router/references/workflow-policy.md) only if the request becomes feature drafting, implementation, review or another workflow-state change. Use actual repository recovery/storage conventions, not
 the temporary-only storage rule from an upstream example.
 
 1. Resolve current mode, requested next-session focus, actual authorization and

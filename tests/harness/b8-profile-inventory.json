@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "evidence_type": "static pack inventory and profile projection",
+  "authority": "opencode-pack/routing.md",
+  "runtime_model_calls": "not_run",
+  "provider_availability": "not_run",
+  "profile_sets": {
+    "with_opencode": [
+      "sdd-orchestrator",
+      "sdd-debug-diagnose",
+      "sdd-test-design",
+      "sdd-research-librarian",
+      "sdd-docs-worker",
+      "sdd-architecture-advisor",
+      "sdd-visual-inspector",
+      "sdd-openai-architect",
+      "sdd-openai-implement",
+      "sdd-architecture-review-9r",
+      "sdd-code-review-9r",
+      "sdd-review-verification-1",
+      "sdd-review-verification-2",
+      "sdd-lightweight"
+    ],
+    "free_first": [
+      "sdd-implement-1",
+      "sdd-implement-2",
+      "sdd-test-implement-1",
+      "sdd-test-implement-2"
+    ],
+    "fleet_adapter": [
+      "sdd-spec-9r",
+      "sdd-plan-9r"
+    ]
+  },
+  "profiles": {
+    "sdd-orchestrator": {"mode": "primary", "lane": "session", "review_class": null, "writer": false},
+    "sdd-debug-diagnose": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": false},
+    "sdd-test-design": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": false},
+    "sdd-research-librarian": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": false},
+    "sdd-docs-worker": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": true},
+    "sdd-architecture-advisor": {"mode": "subagent", "lane": "9router", "review_class": "ordinary-advisory", "writer": false},
+    "sdd-visual-inspector": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": false},
+    "sdd-openai-architect": {"mode": "subagent", "lane": "openai", "review_class": "ordinary-advisory", "writer": false},
+    "sdd-openai-implement": {"mode": "subagent", "lane": "openai", "review_class": null, "writer": true},
+    "sdd-architecture-review-9r": {"mode": "subagent", "lane": "9router", "review_class": "ordinary-advisory", "writer": false},
+    "sdd-code-review-9r": {"mode": "subagent", "lane": "9router", "review_class": "ordinary-advisory", "writer": false},
+    "sdd-review-verification-1": {"mode": "subagent", "lane": "go", "review_class": "ordinary-advisory", "writer": false},
+    "sdd-review-verification-2": {"mode": "subagent", "lane": "console-free", "review_class": "ordinary-advisory", "writer": false},
+    "sdd-lightweight": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": false},
+    "sdd-implement-1": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": true},
+    "sdd-implement-2": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": true},
+    "sdd-test-implement-1": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": true},
+    "sdd-test-implement-2": {"mode": "subagent", "lane": "console-free", "review_class": null, "writer": true},
+    "sdd-spec-9r": {"mode": "subagent", "lane": "9router", "review_class": null, "writer": false},
+    "sdd-plan-9r": {"mode": "subagent", "lane": "9router", "review_class": null, "writer": false}
+  },
+  "writer_sets": {
+    "with_opencode": ["sdd-docs-worker", "sdd-openai-implement"],
+    "free_first": ["sdd-implement-1", "sdd-implement-2", "sdd-test-implement-1", "sdd-test-implement-2"]
+  },
+  "strict_independent_method": {
+    "profile": null,
+    "reference": "skills-files/agentic-sdd-router/references/independent-review.md",
+    "runtime": "not_installed",
+    "certification_claim": "none"
+  }
+}

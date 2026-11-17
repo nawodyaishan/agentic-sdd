@@ -1,6 +1,8 @@
 # Routing and model policy (opt-in OpenCode pack)
 
-This pack pins a model per agent profile and documents the permitted manual alternatives. **A written ladder is policy, not automatic failover.** The parent agent decides whether to retry, checks compatibility first, and reports the model that actually ran.
+This file is the upstream owner of the pack's model, lane and fallback policy. Profile frontmatter implements it, the CLI/TUI routing projection is read-only display metadata derived from it, and tests compare the two. A personal host configuration — including a local `~/.config/opencode/AGENTS.md` — is a personal override, not this policy: do not import host renames, pins or provider restrictions into the pack merely because they are installed here.
+
+This pack pins a model per agent profile and documents the permitted manual alternatives. **A written ladder is policy, not automatic failover.** The parent agent decides whether to retry, checks compatibility first, and reports the model that actually ran. Provider access, credentials, quota, pricing and availability remain unverified runtime facts.
 
 ## Provider lanes
 
@@ -36,6 +38,8 @@ Lanes are not interchangeable: a Go model is not a substitute for a free Console
 
 `--with-opencode` leaves the 9Router spec/plan/writer agents (`sdd-spec-9r`, `sdd-plan-9r`, `sdd-implement-9r-*`, `sdd-implement-9r-cheap-*`), the Console free writers (`sdd-implement-free-*`), `vision`, `opencode.json` and `AGENTS.md` untouched.
 
+The fleet-only render sources `adapters/sdd-spec-9r.md` and `adapters/sdd-plan-9r.md` pin `9router/ag/claude-opus-5-5-medium` and follow the same Claude-agent exception. They are never installed by `--with-opencode` or `--opencode-free-first`, so they are not part of the installed profile count; Feature 014's fleet resolver/render tests cover them.
+
 ## Free-first ladder
 
 When the free-first preset is installed and free DeepSeek is unavailable, the parent may try each of these **once**, in order:
@@ -66,6 +70,14 @@ Compatibility checks before switching: Claude is 1,000,000 context / 128,000 out
 1. **No automatic cross-lane switch.** A Beam failure does not authorize a Go model. The parent must obtain explicit human authorization for that specific retry and must state that it may incur charges.
 2. **Report and keep it supplementary.** Once authorized, use the documented Go fallback, report the model that actually ran, and keep `sdd-review-verification-2` a supplementary assessment rather than the sole consequential reviewer. `sdd-lightweight` remains a bounded read-only discovery role even on the fallback model.
 
+## Reviewer authority
+
+The pack ships **ordinary advisory reviewers**, not the strict independent review method. `sdd-architecture-review-9r`, `sdd-code-review-9r`, `sdd-architecture-advisor`, `sdd-review-verification-1`, `sdd-review-verification-2` and the optional `sdd-openai-architect` are labelled advisory in their profile descriptions. They may use read-only `read`/`glob`/`grep`, CodeGraph, Context7 and ordinary `execute` because advisory review inspects repository evidence. That tool contract is incompatible with the strict method, so none of them may present its result as an independent review.
+
+The strict independent method stays portable, in `../skills-files/agentic-sdd-router/references/independent-review.md` (installed as `../agentic-sdd-router/references/independent-review.md` next to the orchestrate skill). It requires a fresh, inspection-only reviewer context with verified permissions and an explicit model binding, and it forbids edits, test or build execution, and remote, MCP or code-execution routes. No shipped profile provides that runtime, no installed strict-review runtime is promised, and Feature 006 certification is not claimed; when the runtime cannot supply such a context, the independent route is reported as `blocked`.
+
+Correction review follows the portable policy: an ordinary scoped re-review of corrected work belongs to the current effort budget and is not a new authorization. A new independent review, a different reviewer model or a different provider is a separate, explicitly authorized action. A fallback architecture or code review is provisional and needs the Opus review before it is the final consequential technical verdict.
+
 ## MCP access rules
 
 - Every deny-by-default subagent allows `execute` together with `codegraph_*` and `context7_*`. That covers both Code Mode (servers exposed through `execute`) and direct MCP exposure when a server sets `codemode: false`. Tools called inside `execute` still enforce their own `<server>_<tool>` permission.
@@ -73,6 +85,11 @@ Compatibility checks before switching: Claude is 1,000,000 context / 128,000 out
 - External query rule: never put private repository code, file contents, internal identifiers, credentials, secrets or infrastructure details into an external search or fetch query.
 - Review roles may read outside the workspace and run only `git diff` and `git status --short`. All other subagents deny shell entirely, and every subagent denies `subagent` and `edit` (writers allow `edit` but still deny `subagent`).
 - `.env` files, and `*secret*` / `*credential*` paths on `sdd-lightweight`, are denied last so the last matching rule wins.
+- The strict independent method does not permit MCP or code-execution routes, which is why it is not shipped as a profile; the advisory profiles above are not a substitute for it.
+
+## Writer inventory
+
+The writer list is derived from profile frontmatter, so a permission change updates it in one place. Exactly two `--with-opencode` profiles allow `edit`: `sdd-docs-worker`, and the optional `sdd-openai-implement` writer, which needs its own OpenAI access and spending authorization. `--opencode-free-first` additionally installs four writers: `sdd-implement-1`, `sdd-implement-2`, `sdd-test-implement-1` and `sdd-test-implement-2`. Every other installed profile is read-only and denies `edit`; every writer still denies `subagent`, so no installed profile can delegate further. Profiles a host already has (`sdd-implement-9r-*`, `sdd-implement-free-*`, `vision`) are outside this pack's inventory and are never modified.
 
 ## CLI usage
 
