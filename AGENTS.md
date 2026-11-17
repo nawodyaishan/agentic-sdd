@@ -125,3 +125,11 @@ Temporary fence for Feature 008 test and validation selection. It applies until 
 - A preserved or committed 005/006/007 work-in-progress change stays out of scope: being committed is not evidence and does not re-enable that work.
 
 Canonical sources: [spec 008](specs/008-core-release-quality/spec.md) §Approval, [plan 008](specs/008-core-release-quality/plan.md) §1 deprecated-feature work fence, and [tasks 008](specs/008-core-release-quality/tasks.md) for batch state. They own scope, approval and batch state; this section only restates the selection fence for test and validation runs.
+
+## Release and tap history (2026-11-17)
+
+- Tap: `Casks/agentic-sdd.rb` exists; the formula was migrated (`07a088f`). Refuse a missing cask or a leftover formula.
+- Tap is behind releases: tags `v0.12.0`/`v0.13.0` exist; the tap's last update is `v0.11.0` (`10ec389`). Reconcile before trusting the tap.
+- Publishing: `Release build` (tag, no tokens) then `Release publish` (default branch, `workflow_run`). Publisher runs only after its file is on the default branch.
+- Owner must set `RELEASE_TOOLS_SHA` (environment variable on `release`). Until then, publishing fails closed.
+- Decisions: `specs/022-architecture-remediation/plan.md` §12.
