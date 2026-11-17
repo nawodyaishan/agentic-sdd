@@ -1,0 +1,252 @@
+name: Release publish
+
+# Publisher for a tag built by "Release build" (B7/T14, plan 12.4 and 12.8-12.9).
+#
+# Trigger and trust (owner decision 2026-11-17, "Tag trust"): this workflow runs only
+# from a workflow_run event for a completed "Release build" run. GitHub takes the
+# workflow file from the default branch, not from the tag, so a tag cannot change the
+# code that holds the tap token, the RELEASE_TOOLS_SHA pin, the ancestry check or the
+# token boundary. The job runs only when that build succeeded, was a push, and its
+# branch name begins with v. The first step then checks the tag name and the 40-hex
+# commit against a strict pattern before any other use.
+#
+# Identity: TAG_NAME is the build run's head_branch and TAG_COMMIT is its head_sha.
+# The usual commit and ref variables describe the default branch in this context, so
+# they are never read. GITHUB_RUN_ID is this publisher run, used for own-suite exclusion.
+#
+# Steps (each token-bearing step runs after the tooling checkout and the ancestry check):
+#   1. validate the tag name and commit from the build run's payload (strict pattern).
+#   2. check out the tagged commit with its tags, no persisted credentials.
+#   3. pin release tooling: RELEASE_TOOLS_SHA must be a full 40-character lowercase SHA.
+#   4. check out that reviewed tooling commit; the tap scripts never run from the tag.
+#   5. confirm the tag resolves to the build commit and that commit is on the default branch.
+#   6. wait up to 40 minutes for every CI check run outside this run's check suite to
+#      complete, and require each to pass (fails closed on timeout, failure or no runs).
+#   7. download the verified artifacts from the build run by run id and re-hash them.
+#   8. confirm the tag and checkout are the build commit, and re-verify the manifest.
+#   9. preflight the Homebrew tap (token used for reads only) and refuse a downgrade.
+#  10. create or reuse the GitHub release and upload assets without overwrite.
+#  11. render the cask from the verified manifest and push it (token used here only).
+#
+# Permissions: workflow-level is empty. The job holds contents write, checks read and
+# actions read, and nothing else.
+# RELEASE_TOOLS_SHA is an environment-scoped variable on `release`. The owner sets it
+# after reviewing and committing the release scripts; until then the publisher fails
+# closed.
+#
+# Recovery (manual, after a publish run fails or is cancelled):
+#   - Rerun the failed publish run. It reuses the same build run and tag commit.
+#     Do not retag.
+#   - GitHub can replace a pending run, and a cancelled run is not resumed.
+#   - If release assets were uploaded but the tap was not updated, the upload step
+#     refuses existing asset names (no clobber). Delete only the partial assets of that
+#     tag after reviewing them, then rerun.
+#   - If the tap already moved to the tag, the downgrade guard refuses on purpose.
+#     Reconcile the tap by hand; do not force the cask backwards.
+#   - A second release queues behind the first (fixed concurrency group, up to 50 min).
+
+on:
+  workflow_run:
+    workflows: ["Release build"]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
+    runs-on: ubuntu-latest
+    environment: release
+    # 40-minute bounded CI wait (plan 12.8) plus the remaining publish steps.
+    timeout-minutes: 50
+    # checks: read lists check runs on the tagged commit. actions: read resolves this
+    # run's check-suite id, which the CI gate uses to exclude its own check runs, and
+    # downloads the build run's artifacts. Any scope not listed here is none.
+    permissions:
+      contents: write
+      checks: read
+      actions: read
+    # Fixed group: one tap-affecting publisher at a time. This serializes runs but is
+    # not a durable queue; GitHub can replace a pending run.
+    concurrency:
+      group: agentic-sdd-release-publish
+      cancel-in-progress: false
+    env:
+      TAG_NAME: ${{ github.event.workflow_run.head_branch }}
+      TAG_COMMIT: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Validate the tag and commit from the build run (fails closed)
+        run: |
+          set -euo pipefail
+          if [[ ! "${TAG_NAME:-}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "the build run's branch is not a release tag vX.Y.Z; refusing to publish" >&2
+            exit 1
+          fi
+          if [[ ! "${TAG_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "the build run's commit is not a full lowercase SHA; refusing to publish" >&2
+            exit 1
+          fi
+
+      - name: Checkout the tagged commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Pin release tooling (fails closed before any tap use)
+        env:
+          RELEASE_TOOLS_SHA: ${{ vars.RELEASE_TOOLS_SHA }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${RELEASE_TOOLS_SHA:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "repository variable RELEASE_TOOLS_SHA must be a full 40-character lowercase commit SHA; refusing to publish" >&2
+            exit 1
+          fi
+
+      - name: Checkout reviewed release tooling
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ vars.RELEASE_TOOLS_SHA }}
+          path: release-tools
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Confirm the tag is the build commit and is on the default branch (fails closed)
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          # A tag can point at any commit that has green CI. Publish only the tag that
+          # points at the build's commit, and only when that commit is reachable from the
+          # default branch. The default branch is fetched explicitly; any fetch or
+          # ancestry error refuses the release. No token is used here.
+          if [[ ! "${DEFAULT_BRANCH:-}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || [[ "$DEFAULT_BRANCH" == *..* ]]; then
+            echo "default branch name is missing or unsafe; refusing to publish" >&2
+            exit 1
+          fi
+          if ! git fetch --no-tags --quiet origin "+refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"; then
+            echo "cannot fetch default branch $DEFAULT_BRANCH; refusing to publish" >&2
+            exit 1
+          fi
+          tag_commit=$(git rev-parse --verify "refs/tags/${TAG_NAME}^{commit}") || {
+            echo "tag $TAG_NAME does not resolve to a commit; refusing to publish" >&2
+            exit 1
+          }
+          if [ "$tag_commit" != "$TAG_COMMIT" ]; then
+            echo "tag $TAG_NAME resolves to $tag_commit, not the build commit $TAG_COMMIT; refusing to publish" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" "origin/$DEFAULT_BRANCH"; then
+            echo "cannot confirm $TAG_COMMIT is reachable from default branch $DEFAULT_BRANCH; refusing to publish" >&2
+            exit 1
+          fi
+
+      - name: Wait for CI on the tagged commit, then require it to pass (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # This publisher run's check-suite id. Its own check runs are excluded by exact
+          # suite match, never by URL. Check runs of the build run, a different suite on
+          # the same commit, are not excluded and must pass. A failed lookup or a
+          # non-positive-integer id refuses.
+          suite="$(gh api "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}" --jq '.check_suite_id')" || {
+            echo "cannot resolve the check-suite id of run $GITHUB_RUN_ID; refusing to publish" >&2
+            exit 1
+          }
+          if [[ ! "$suite" =~ ^[1-9][0-9]*$ ]]; then
+            echo "check-suite id '$suite' is not a positive integer; refusing to publish" >&2
+            exit 1
+          fi
+          runs="$RUNNER_TEMP/check-runs.jsonl"
+          # Bounded wait: 80 polls, 30 s apart (about 40 minutes). Only a pending
+          # verdict (exit 4) polls again; a failure, no runs or an API error ends
+          # the step at once.
+          polls=80
+          for ((attempt = 1; attempt <= polls; attempt++)); do
+            # One compact JSON object per check run; --paginate follows every page. The
+            # projection keeps the suite id and drops URLs, which are never used for ownership.
+            gh api --paginate --jq '.check_runs[] | {name, status, conclusion, check_suite: {id: .check_suite.id}} | @json' "repos/${GH_REPO}/commits/${TAG_COMMIT}/check-runs?filter=latest&per_page=100" > "$runs"
+            rc=0
+            python3 -I -B release-tools/scripts/release_manifest.py wait-ci --runs "$runs" --commit "$TAG_COMMIT" --suite-id "$suite" || rc=$?
+            if [ "$rc" -eq 0 ]; then
+              break
+            fi
+            if [ "$rc" -ne 4 ]; then
+              exit "$rc"
+            fi
+            if [ "$attempt" -eq "$polls" ]; then
+              echo "check runs on $TAG_COMMIT did not complete within 40 minutes; refusing to publish" >&2
+              exit 1
+            fi
+            sleep 30
+          done
+          # Final decision on the last snapshot.
+          python3 -I -B release-tools/scripts/release_manifest.py check-ci --runs "$runs" --commit "$TAG_COMMIT" --suite-id "$suite"
+
+      - name: Download verified artifacts from the build run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-artifacts
+          path: release-artifacts
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Confirm the tagged commit and re-verify artifacts
+        run: |
+          set -euo pipefail
+          tag_commit=$(git rev-parse --verify "refs/tags/${TAG_NAME}^{commit}")
+          head_commit=$(git rev-parse HEAD)
+          if [ "$tag_commit" != "$TAG_COMMIT" ] || [ "$head_commit" != "$TAG_COMMIT" ]; then
+            echo "tag commit $tag_commit or checkout $head_commit differs from the build commit $TAG_COMMIT; refusing to publish" >&2
+            exit 1
+          fi
+          python3 -I -B release-tools/scripts/release_manifest.py verify --dir release-artifacts --manifest release-artifacts/manifest.json --tag "$TAG_NAME" --commit "$TAG_COMMIT"
+
+      - name: Read Homebrew tap (preflight; token used for reads only)
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Token-read check only: readability does not prove write scope. The
+          # write is proven, or refused, by the push in the final tap step.
+          gh api repos/nawodyaishan/homebrew-tap --jq .default_branch
+          gh auth setup-git
+          tap="$RUNNER_TEMP/homebrew-tap"
+          git clone --quiet https://github.com/nawodyaishan/homebrew-tap.git "$tap"
+          # Refuse before any release asset is published.
+          python3 -I -B release-tools/scripts/release_cask.py check-downgrade --tag "$TAG_NAME" --cask "$tap/Casks/agentic-sdd.rb"
+
+      - name: Create or reuse the GitHub release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" --verify-tag --title "$TAG_NAME" --generate-notes
+          fi
+          # No overwrite: an asset that already exists fails this step.
+          gh release upload "$TAG_NAME" release-artifacts/*.tar.gz release-artifacts/checksums.txt release-artifacts/manifest.json
+
+      - name: Update Homebrew tap (write; token used only here)
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          tap="$RUNNER_TEMP/homebrew-tap"
+          git -C "$tap" pull --ff-only --quiet
+          python3 -I -B release-tools/scripts/release_cask.py check-downgrade --tag "$TAG_NAME" --cask "$tap/Casks/agentic-sdd.rb"
+          python3 -I -B release-tools/scripts/release_cask.py render --dir release-artifacts --manifest release-artifacts/manifest.json --tag "$TAG_NAME" --commit "$TAG_COMMIT" --out "$tap/Casks/agentic-sdd.rb"
+          git -C "$tap" add Casks/agentic-sdd.rb
+          # The guard above refuses an equal or newer tap version, so the render always
+          # changes the cask. If it ever did not, this commit fails and the step fails.
+          git -C "$tap" -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit --quiet -m "agentic-sdd $TAG_NAME"
+          git -C "$tap" push --quiet origin HEAD

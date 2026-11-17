@@ -1,57 +1,92 @@
-name: Release
+name: Release build
+
+# Tag build (B7/T14, plan 12.4; owner decision 2026-11-17, "Tag trust", plan 12.9).
+#   This workflow is loaded from the tag's own commit, so it holds no environment,
+#   secret, OIDC or token. It builds the paired archive without publishing, writes a
+#   manifest that binds each artifact to its SHA-256 digest, size, tag and commit,
+#   re-verifies that set, and uploads it as a run artifact. Nothing else.
+#   Publication is in release-publish.yml ("Release publish"). GitHub runs that
+#   workflow only after this run completes successfully, from the default branch's
+#   copy of its file, so a tag cannot change the code that holds the tap token.
+#   The publisher downloads this run's artifacts by run id and re-hashes every byte.
+#
+# Recovery (manual, after a run fails or is cancelled):
+#   - Rerun the failed run on the original tag commit; do not retag.
+#   - GitHub can replace a pending run, and a cancelled run is not resumed.
+#   - Artifacts are kept for 7 days. A publisher rerun after that cannot download
+#     them and refuses; rerun this build first, then the publisher.
 
 on:
   push:
     tags:
       - "v*"
 
-permissions:
-  contents: write
-  id-token: write
+permissions: {}
 
 jobs:
-  goreleaser:
+  verify:
     runs-on: ubuntu-latest
-    environment: release
+    timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           # Reviewed patch satisfying both root `go 1.23` and nested `go 1.26`.
           # setup-go pins GOTOOLCHAIN=local, so the release never downloads one.
           go-version: '1.27.1'
           cache-dependency-path: experiments/tui/go.sum
 
-      - name: Install Task
-        uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2
-        with:
-          version: '3.54.0'
-
-      - name: Verify
-        run: task verify
-
       - name: Get Go version
         run: echo "GOVERSION=$(go version | awk '{print $3}')" >> $GITHUB_ENV
 
-      - name: Validate Homebrew tap token
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: gh api repos/nawodyaishan/homebrew-tap --jq .default_branch
-
-      - name: Run GoReleaser
+      - name: Build artifacts without publishing
         uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
         with:
           distribution: goreleaser
           # Pinned to the locally proven version; GoReleaser creates universal
           # binaries internally, so no macOS runner or external lipo is needed.
           version: "v2.14.0"
-          args: release --clean
+          # --skip=publish keeps the artifacts in dist/ and never creates a
+          # release or pushes to the tap. No token is passed to this job.
+          args: release --clean --skip=publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           GOVERSION: ${{ env.GOVERSION }}
+
+      - name: Write artifact manifest and verify digests
+        run: |
+          set -euo pipefail
+          python3 -I -B scripts/release_manifest.py write --dist dist --out release-artifacts --tag "$GITHUB_REF_NAME" --commit "$GITHUB_SHA"
+          python3 -I -B scripts/release_manifest.py verify --dir release-artifacts --manifest release-artifacts/manifest.json --tag "$GITHUB_REF_NAME" --commit "$GITHUB_SHA"
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-artifacts
+          path: release-artifacts
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Record verification evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          python3 -I -B scripts/release_manifest.py record --out release-verification/verification-record.json --tag "$GITHUB_REF_NAME" --commit "$GITHUB_SHA" --status "$JOB_STATUS" --manifest release-artifacts/manifest.json
+
+      - name: Upload verification record
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-verification
+          path: release-verification
+          if-no-files-found: warn
+          retention-days: 30
