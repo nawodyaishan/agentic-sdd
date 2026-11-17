@@ -1,6 +1,6 @@
 # Installer reference
 
-> Migration stub (Feature 020, T08, lane B4-W1-A). This file is no longer the installer manual. Canonical ownership moves to the pages below; this stub preserves the old fragment anchors and labels their exact destinations. Review status: unreviewed. Applies to: unreleased.
+> Historical migration stub (Feature 020, T08, lane B4-W1-A; links checked 2026-11-17). This file is no longer the installer manual. Canonical ownership moves to the pages below; this stub preserves the old fragment anchors and labels their exact destinations. Review status: unreviewed. Applies to: unreleased.
 
 ## Canonical destinations
 

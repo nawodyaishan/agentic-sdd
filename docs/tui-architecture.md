@@ -1,5 +1,11 @@
 # TUI Architecture and Toolchain Migration Blueprint
 
+> **Owner pointer (2026-11-17).** The current TUI behaviour, keys and limits are owned by
+> [TUI reference](../website/src/content/docs/reference/tui.md) and
+> [Architecture interfaces](../website/src/content/docs/architecture/interfaces.md). The
+> status lines and version notes below are dated history (Feature 012/013 era, including
+> pre-v0.11 release statuses); they are kept for context and are subordinate to those pages.
+
 **Current support (Feature 013, owner-accepted):** Feature 012 delivered the
 read-only nested shell/catalog spike as historical evidence below. Feature 013
 B1–B13 are accepted and published. The nested TUI now includes the shared

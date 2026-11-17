@@ -1,5 +1,10 @@
 # Current state: research skills and subagents
 
+> **Dated study (2026-11-12, historical).** This page records the state observed on
+> that date, including facts that have since changed (for example, the pack's research
+> librarian and the written precedence rule). It is not current policy. Current owners
+> are listed in [docs/README.md](README.md#current-status-and-next-decisions).
+
 **Date:** 2026-11-12
 **Scope:** how research is represented, routed, delegated and evidenced in this
 repository and on the current machine.

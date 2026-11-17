@@ -1,12 +1,13 @@
 # Full Usage & Orchestration Guide
 
-> Migration stub (Feature 020, T08, lane B4-W1-B). This file is no longer the usage manual. Canonical ownership moves to the pages below; this stub preserves old fragment anchors and records the operational caveats a maintainer still needs. Review status: unreviewed. Applies to: unreleased.
+> Historical migration stub (Feature 020, T08, lane B4-W1-B; links resolved 2026-11-17). This file is no longer the usage manual. Canonical ownership moves to the pages below; this stub preserves old fragment anchors and records the operational caveats a maintainer still needs. Review status: unreviewed. Applies to: unreleased.
 
 ## Canonical destinations
 
-- How-to orchestration: `how-to/orchestration` (integration-pending — authored in a parallel lane).
-- Profile reference: `reference/profiles` (integration-pending — authored in a parallel lane).
-- Core workflow and first-feature tutorial material: `tutorials/first-feature`, `tutorials/specialists` (integration-pending where parallel-owned).
+- How-to orchestration: [`how-to/orchestration`](../website/src/content/docs/how-to/orchestration.md).
+- Profile reference: [`reference/profiles`](../website/src/content/docs/reference/profiles.md).
+- Core workflow and first-feature tutorial material: [`tutorials/first-feature`](../website/src/content/docs/tutorials/first-feature.md) and [`tutorials/specialists`](../website/src/content/docs/tutorials/specialists.md).
+- Routing policy: [`opencode-pack/routing.md`](../opencode-pack/routing.md) is the upstream route authority.
 - Client matrix, skill installation and backup/recovery detail live with their canonical owners, not here.
 
 ## Retained operational notes

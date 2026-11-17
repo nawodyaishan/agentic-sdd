@@ -5,11 +5,16 @@ Repository instructions and the feature approval and task records take precedenc
 over advisory or historical documents. Existing paths are retained so links in
 specifications, evidence and handovers continue to work.
 
-This index is split in two: **public manual** (active guides whose procedures
-move to the new site) versus **engineering records** (specs, continuations,
-evidence and historical research, kept with historical-entry framing). The new
-site's canonical page inventory is the [Feature 020 sitemap](../specs/020-documentation-ecosystem/sitemap.md);
-site pages authored in parallel lanes are integration-pending here, never invented.
+**Start with the documentation site.** It is the current entry for setup, commands,
+references and limits: <https://nawodyaishan.github.io/agentic-sdd/>, with the source
+under [`website/src/content/docs/`](../website/src/content/docs/index.md). The
+[Feature 020 sitemap](../specs/020-documentation-ecosystem/sitemap.md) records the page
+inventory those pages were authored against.
+
+This index is split in two: **public manual** (the old guides below, now
+historical migration stubs or dated guides, each pointing to its site page) versus
+**engineering records** (specs, continuations, evidence and dated research, kept with
+historical-entry framing). The pages named in this index exist; none is invented here.
 
 ## Product vision
 
@@ -20,20 +25,23 @@ site pages authored in parallel lanes are integration-pending here, never invent
 
 ## Current status and next decisions
 
-### Public manual — active guides
+### Public manual — migrated, with historical stubs
 
-Procedures in these guides move to the new site pages listed in the
-[Feature 020 sitemap](../specs/020-documentation-ecosystem/sitemap.md)
-(integration-pending until the parallel content lanes land). Until then the
-guides below remain the readable source; they are not engineering verdicts.
+The procedures that lived in these files now have canonical site pages. The
+retained files are migration stubs or a dated guide; they are not current
+instructions and not engineering verdicts.
 
-- [Getting started](getting-started.md) — safe preview and three compact core
-  experiences: direct fix, one approved feature batch, and review/resume.
-- [Full usage and orchestration guide](orchestration-guide.md) — complete guide
-  to core skills, `--with-opencode`, `--opencode-free-first`, OpenAI/Claude/Gemini/DeepSeek
-  specialist subagents, MCP tools (`codegraph`, `context7`, `exa`), and backup/restore.
-- [Installer reference](installer-reference.md) — commands, flags, backups,
-  restore, file permissions, and logs.
+- [Getting started](getting-started.md) — dated pre-website walkthrough of a
+  safe preview, a direct fix and one approved feature batch. Current onboarding:
+  [First five minutes](../website/src/content/docs/getting-started/first-five-minutes.md)
+  and [Choose your setup](../website/src/content/docs/getting-started/choose-setup.md).
+- [Full usage and orchestration guide](orchestration-guide.md) — **historical migration
+  stub** (Feature 020). Current pages: [Orchestrate optional specialist agents](../website/src/content/docs/how-to/orchestration.md)
+  and [Agent profile catalog](../website/src/content/docs/reference/profiles.md).
+- [Installer reference](installer-reference.md) — **historical migration stub**
+  (Feature 020). Current pages: [CLI reference](../website/src/content/docs/reference/cli.md),
+  [Files and backups](../website/src/content/docs/reference/files-and-backups.md) and
+  [Updates and recovery](../website/src/content/docs/how-to/updates-and-recovery.md).
 - [Execution runs](execution-runs.md) — the approved Feature 016 `run`, `task`
   and `review` contract: private task briefs, truthful check evidence, review
   packages, and `.agentic-sdd/runs/` scratch that is observation, never approval,
@@ -42,9 +50,13 @@ guides below remain the readable source; they are not engineering verdicts.
   MCP/CLI fallback, sync checks and troubleshooting; never committed.
 - [Default MCP integration study](mcp-default-integration-study.md) — CodeGraph,
   Context7 and Exa install-time checks, config merge and missing-piece options.
-- [Research skills and subagents: current state](research-skills-and-subagents-current-state.md) —
-  how research is routed, delegated and evidenced across the portable skills,
-  the opt-in pack and the installed machine fleet.
+- [Research skills and subagents: dated study (2026-11-12)](research-skills-and-subagents-current-state.md) —
+  a **historical observation** of routing, delegation and installed state on that date
+  (for example, the pack's research librarian was then "not installed" and no written
+  precedence rule existed). It is not current policy. Current owners:
+  [the research-spec skill](../skills-files/agentic-sdd-research-spec/SKILL.md),
+  the [workflow policy](../skills-files/agentic-sdd-router/references/workflow-policy.md),
+  and the [skill catalog](../website/src/content/docs/reference/skills.md).
 
 ### Engineering records — specs, continuations and operational boundaries
 

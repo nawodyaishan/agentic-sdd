@@ -41,8 +41,10 @@ writes to your client skill directories or `~/.agentic-sdd/`.
 
 **macOS (Homebrew cask).** Requires Homebrew. The cask puts `asdx-core` and
 `asdx` on `PATH`, fetches the release archive over the network, and writes
-inside your Homebrew prefix. The `v0.11.0` tag and cask metadata are verified; a
-live macOS install is not.
+inside your Homebrew prefix. Release metadata was observed for `v0.11.0` (2026-11-14)
+and the tap declared `0.13.0` (2026-11-17); a live macOS install of either is not verified.
+The [compatibility page](https://nawodyaishan.github.io/agentic-sdd/releases/compatibility/)
+owns the exact release facts.
 
 ```sh
 brew install --cask nawodyaishan/tap/agentic-sdd
@@ -102,9 +104,10 @@ then follow one website tutorial:
 ## Support and release scope
 
 These instructions describe the current checkout (`dev`, `unreleased`). A
-release tag is not a support guarantee: for `v0.11.0`, the tag, release
-metadata, and cask declaration are verified, while archive contents, binary
-execution, and a live macOS install are not. The documentation site was observed
+release tag is not a support guarantee. Dated release evidence: `v0.11.0` tag and
+release metadata observed on 2026-11-14, and a tap cask declaration of `0.13.0`
+recorded on 2026-11-17. Archive contents, binary execution, and a live macOS
+install are not verified for any tag. The documentation site was observed
 reachable on 2026-11-16; that is not full-site, accessibility, release, or
 runtime verification.
 
