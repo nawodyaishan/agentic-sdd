@@ -5,17 +5,20 @@ route reaches observation, that root/relative CSS/JS references resolve the base
 path once, and that delayed or failed observations stay recorded without
 silently becoming successful or becoming a new blocking CDN policy.
 
-Nothing here runs a workflow, contacts GitHub, fetches a URL or publishes. The
-workflow is read as text, the observation step bodies are extracted verbatim and
-executed as local shell with stub `curl`, `sleep` and `git` binaries on `PATH`,
-and the resulting records are asserted. Stdlib only, matching the repository
-harness style (no YAML dependency).
+Two workflows are read as text: ``docs.yml`` (the callable observation entrypoint
+and the deployment observation) and the dedicated ``docs-observe.yml`` observer
+that reaches a completed ``Release publish`` run through ``workflow_run``. The
+observation step bodies are extracted verbatim and executed as local shell with
+stub ``curl``, ``sleep``, ``git`` and ``gh`` binaries on ``PATH``, and the
+resulting records are asserted. Stdlib only, matching the repository harness
+style (no YAML dependency).
 
 Event model used below (`TOKEN_SUPPRESSED_EXCEPTIONS`): GitHub starts no new
 workflow run for an event that the repository's `GITHUB_TOKEN` created, with
 `workflow_dispatch` and `repository_dispatch` as the documented exceptions. A
 reusable `workflow_call` is a direct call from the calling job, not an event, so
-suppression does not apply to it.
+suppression does not apply to it; a `workflow_run` event is created by the
+platform for a completed run, so it is not token-suppressed either.
 """
 
 import json
@@ -30,6 +33,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "docs.yml"
+OBSERVE_WORKFLOW = ROOT / ".github" / "workflows" / "docs-observe.yml"
+PUBLISH_WORKFLOW = ROOT / ".github" / "workflows" / "release-publish.yml"
 MANIFEST = ROOT / "website" / "docs-manifest.json"
 
 OBSERVATION_JOB = "post-publish-observation"
@@ -39,6 +44,13 @@ ROUTE_STEP = "Record the delivery route of this observation"
 BINDING_STEP = "Bind the observation to the published revision"
 SMOKE_STEP = "Poll for a servable deployment and record the observation"
 SMOKE_UPLOAD_STEP = "Upload the deployment observation"
+
+OBSERVE_JOB = "observe"
+RESOLVE_STEP = "Resolve the released tag and commit (read-only)"
+OBSERVE_UPLOAD_STEP = "Upload post-publish observation evidence"
+OBSERVE_ROUTE = "workflow-run"
+OBSERVE_DELIVERY = "post-publish-run-event"
+
 
 REVISION = "0123456789abcdef0123456789abcdef01234567"
 OTHER_REVISION = "fedcba9876543210fedcba9876543210fedcba98"
@@ -248,6 +260,85 @@ def step_env(block):
     return values
 
 
+def observe_text():
+    return OBSERVE_WORKFLOW.read_text(encoding="utf-8")
+
+
+def trigger_block(text, name):
+    """Member lines of one `on:` trigger, comments and blanks removed."""
+    lines = text.splitlines()
+    try:
+        start = lines.index("on:")
+    except ValueError:
+        return None
+    body = []
+    collecting = False
+    for line in lines[start + 1:]:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if not line.startswith(" "):
+            break
+        indent = len(line) - len(line.lstrip(" "))
+        if not collecting:
+            if indent == 2 and line.strip() == name + ":":
+                collecting = True
+            continue
+        if indent <= 2:
+            break
+        body.append(line)
+    return body if collecting else None
+
+
+def job_permissions(job_lines):
+    """A job's `permissions:` map; `permissions: {}` is an empty map."""
+    for index, line in enumerate(job_lines):
+        match = re.match(r"^(\s*)permissions:\s*(\{\s*\})?\s*$", line)
+        if not match:
+            continue
+        if match.group(2):
+            return {}
+        base = len(match.group(1))
+        values = {}
+        for item in job_lines[index + 1:]:
+            if not item.strip():
+                continue
+            if len(item) - len(item.lstrip(" ")) <= base:
+                break
+            key, value = item.strip().split(":", 1)
+            values[key.strip()] = value.strip()
+        return values
+    return None
+
+
+def run_bodies(text):
+    """Every `run: |` block scalar in a workflow, dedented."""
+    lines = text.splitlines()
+    bodies = []
+    index = 0
+    while index < len(lines):
+        match = re.match(r"^(\s*)run:\s*\|\s*$", lines[index])
+        if not match:
+            index += 1
+            continue
+        base = len(match.group(1))
+        body = []
+        index += 1
+        while index < len(lines):
+            line = lines[index]
+            if not line.strip():
+                body.append("")
+                index += 1
+                continue
+            if len(line) - len(line.lstrip(" ")) <= base:
+                break
+            body.append(line[base + 2:] if line.startswith(" " * (base + 2))
+                        else line.lstrip())
+            index += 1
+        bodies.append("\n".join(body))
+    return bodies
+
+
+
 # ---------------------------------------------------------------------------
 # Offline execution of an extracted step body
 # ---------------------------------------------------------------------------
@@ -329,6 +420,66 @@ esac
 echo "unexpected git call: $*" >&2
 exit 99
 '''
+
+FAKE_GH = '''#!/usr/bin/env python3
+"""Serve one scripted read-only API document per path and apply the tested --jq field.
+
+Only `gh api PATH --jq .a.b` is supported, which is all the resolve step uses. A
+path without a scripted document fails like an unavailable API. No network.
+"""
+import json
+import os
+import sys
+
+state = os.environ["FAKE_STATE"]
+argv = sys.argv[1:]
+if not argv or argv[0] != "api":
+    sys.stderr.write("fake gh: only `api` is supported\\n")
+    sys.exit(99)
+
+path = None
+jq = None
+index = 1
+while index < len(argv):
+    item = argv[index]
+    if item in ("--jq", "-q"):
+        jq = argv[index + 1]
+        index += 2
+        continue
+    if item.startswith("-"):
+        index += 1
+        continue
+    if path is None:
+        path = item
+    index += 1
+
+with open(os.path.join(state, "gh-calls"), "a", encoding="utf-8") as handle:
+    handle.write((path or "") + "\\n")
+
+with open(os.path.join(state, "gh-responses.json"), encoding="utf-8") as handle:
+    responses = json.load(handle)
+document = responses.get(path)
+if document is None:
+    sys.stderr.write("fake gh: no scripted response for %s\\n" % path)
+    sys.exit(1)
+
+if jq is None:
+    sys.stdout.write(json.dumps(document))
+    sys.exit(0)
+
+value = document
+for field in jq.lstrip(".").split("."):
+    if not isinstance(value, dict):
+        value = None
+        break
+    value = value.get(field)
+if value is None:
+    sys.stdout.write("null\\n")
+else:
+    sys.stdout.write(str(value) + "\\n")
+sys.exit(0)
+'''
+
 
 
 def base_environment(home):
@@ -430,6 +581,22 @@ class ObservationRouteTests(OfflineStepCase):
         self.assertIn("does not start a new workflow run for an event", prose)
         self.assertIn("publication in this repository runs with the workflow's own",
                       prose.lower())
+
+    def test_in_repo_route_is_the_dedicated_workflow_run_observer(self):
+        """The in-repo route is docs-observe.yml; workflow_call stays for others."""
+        prose = comment_prose(workflow_text())
+        self.assertIn("docs-observe.yml", prose,
+                      "the header must name the in-repo observation route")
+        self.assertIn("workflow_run", prose)
+        self.assertIn("workflow_call", prose,
+                      "the reusable entrypoint stays for suitably-scoped callers")
+        # The permission caveat: the deploy job's scopes are why a
+        # `contents: read` publisher cannot call this file, and why the
+        # publisher is not widened.
+        self.assertIn("pages: write", prose)
+        self.assertIn("id-token: write", prose)
+        self.assertIn("contents: read", prose)
+        self.assertIn("deliberately not widened", prose)
 
     def test_reusable_observation_requires_a_full_sha_revision(self):
         inputs = workflow_call_inputs(workflow_text())
@@ -837,6 +1004,349 @@ class DeploymentObservationTests(OfflineStepCase):
         self.assertIsNotNone(upload, "a failed observation would leave no evidence")
         self.assertIn("if: always()", "\n".join(upload))
         self.assertIn("docs-deployment-observation", "\n".join(upload))
+
+
+# ---------------------------------------------------------------------------
+# AC-08: the dedicated observer for a completed publish run
+# ---------------------------------------------------------------------------
+
+
+API_ROOT = "repos/nawodyaishan/agentic-sdd"
+TAG_OBJECT = "b" * 40
+
+
+def release_documents(tag="v0.13.0", commit=REVISION, status="ahead",
+                      object_type="commit", object_sha=None):
+    """The read-only API documents the resolve step reads for one release."""
+    sha = object_sha if object_sha is not None else commit
+    documents = {
+        API_ROOT + "/releases/latest": {"tag_name": tag},
+        API_ROOT + "/git/ref/tags/" + tag: {
+            "object": {"type": object_type, "sha": sha}},
+        API_ROOT + "/compare/%s...main" % commit: {"status": status},
+    }
+    if object_type == "tag":
+        documents[API_ROOT + "/git/tags/" + sha] = {
+            "object": {"type": "commit", "sha": commit}}
+    return documents
+
+
+class WorkflowRunObserverTests(OfflineStepCase):
+    """docs-observe.yml: read-only, non-blocking observation of a publish run."""
+
+    def setUp(self):
+        super().setUp()
+        gh = self.bin / "gh"
+        gh.write_text(FAKE_GH, encoding="utf-8")
+        gh.chmod(0o755)
+        (self.state / "gh-responses.json").write_text("{}", encoding="utf-8")
+        self.github_env = self.root / "github-env"
+        self.github_env.write_text("", encoding="utf-8")
+
+    def job(self):
+        jobs = job_blocks(observe_text())
+        self.assertIn(OBSERVE_JOB, jobs, "docs-observe.yml declares no observer job")
+        return jobs[OBSERVE_JOB]
+
+    def resolve(self, documents, branch="main", **overrides):
+        (self.state / "gh-responses.json").write_text(
+            json.dumps(documents), encoding="utf-8")
+        env = {
+            "GH_TOKEN": "ghs_fixture_read_only",
+            "GH_REPO": "nawodyaishan/agentic-sdd",
+            "DEFAULT_BRANCH": branch,
+            "GITHUB_ENV": str(self.github_env),
+        }
+        env.update(overrides)
+        return self.run_step(job_run_text(self.job(), RESOLVE_STEP), env)
+
+    def resolved(self):
+        values = {}
+        for line in self.github_env.read_text(encoding="utf-8").splitlines():
+            if "=" in line:
+                key, value = line.split("=", 1)
+                values[key] = value
+        return values
+
+    def api_calls(self):
+        path = self.state / "gh-calls"
+        return path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+
+    # ------------------------------------------------------------ structure
+
+    def test_trigger_is_a_completed_publish_run_only(self):
+        text = observe_text()
+        self.assertEqual(trigger_names(text), ["workflow_run"],
+                         "the observer must be selected by a workflow_run only")
+        block = trigger_block(text, "workflow_run")
+        self.assertIsNotNone(block, "no workflow_run trigger is declared")
+        stripped = [line.strip() for line in block]
+        self.assertIn('workflows: ["Release publish"]', stripped)
+        self.assertIn("types: [completed]", stripped)
+        # The observed workflow name must be the publisher that actually exists.
+        publish_name = re.search(
+            r"(?m)^name:\s*(.+?)\s*$",
+            PUBLISH_WORKFLOW.read_text(encoding="utf-8")).group(1)
+        self.assertEqual(publish_name, "Release publish")
+        self.assertIn('workflows: ["%s"]' % publish_name, stripped)
+
+    def test_only_a_successful_publish_is_observed(self):
+        condition = (job_scalar(self.job(), "if") or "").replace(" ", "")
+        self.assertEqual(condition,
+                         "github.event.workflow_run.conclusion=='success'",
+                         "a failed or cancelled publish must not be observed")
+
+    def test_workflow_and_job_hold_read_scope_only(self):
+        text = observe_text()
+        self.assertRegex(text, r"(?m)^permissions:\s*\{\s*\}\s*$",
+                         "workflow-level permissions must be empty")
+        job = self.job()
+        self.assertEqual(job_permissions(job), {"contents": "read"},
+                         "the observer must hold contents: read and nothing else")
+        joined = "\n".join(job)
+        for forbidden in ("secrets.", "environment:", "id-token", "pages:",
+                          "deploy-pages", "upload-pages-artifact",
+                          "persist-credentials: true", "workflow_call", "needs:"):
+            self.assertNotIn(forbidden, joined,
+                             "the observer must not contain %r" % forbidden)
+        timeout = job_scalar(job, "timeout-minutes")
+        self.assertIsNotNone(timeout, "the observer job has no timeout")
+        self.assertLessEqual(int(timeout), 10)
+
+    def test_the_default_branch_head_is_never_used_as_the_observed_revision(self):
+        """The publish run's head_sha is the default branch, not the release."""
+        text = observe_text()
+        self.assertNotIn("workflow_run.head_sha", text)
+        self.assertNotIn("github.sha", text)
+        checkout = step_block(self.job(), "Checkout the published revision")
+        self.assertIsNotNone(checkout, "the observer never checks out the revision")
+        joined = "\n".join(checkout)
+        self.assertIn("ref: ${{ env.RESOLVED_REVISION }}", joined)
+        self.assertIn("persist-credentials: false", joined)
+
+    def test_every_action_uses_a_pin_an_existing_workflow_already_uses(self):
+        pins = set()
+        for path in (WORKFLOW, PUBLISH_WORKFLOW):
+            pins.update(re.findall(r"(?m)^\s+uses:\s*\S+@(\S+)",
+                                   path.read_text(encoding="utf-8")))
+        uses = re.findall(r"(?m)^\s+uses:\s*(\S+)@(\S+)", observe_text())
+        self.assertTrue(uses, "the observer declares no action at all")
+        for action, ref in uses:
+            with self.subTest(action=action):
+                self.assertRegex(ref, r"^[0-9a-f]{40}$")
+                self.assertIn(ref, pins,
+                              "unpinned or foreign action %s@%s" % (action, ref))
+
+    def test_every_run_body_parses_and_interpolates_no_expression(self):
+        bodies = run_bodies(observe_text())
+        self.assertTrue(bodies, "docs-observe.yml declares no run body")
+        script = self.root / "parse.sh"
+        for body in bodies:
+            first = body.splitlines()[0] if body.strip() else "<empty>"
+            with self.subTest(body=first):
+                self.assertNotIn("${{", body,
+                                 "an expression inside a run body is a script injection surface")
+                script.write_text(body, encoding="utf-8")
+                completed = subprocess.run(["bash", "-n", str(script)],
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+                self.assertEqual(completed.returncode, 0,
+                                 completed.stderr.decode("utf-8", "replace"))
+
+    # ------------------------------------------------------ revision resolve
+
+    def test_strict_tag_with_a_commit_on_the_default_branch_is_resolved(self):
+        completed = self.resolve(release_documents())
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        self.assertEqual(self.resolved(), {"RESOLVED_TAG": "v0.13.0",
+                                           "RESOLVED_REVISION": REVISION})
+        calls = self.api_calls()
+        self.assertIn(API_ROOT + "/releases/latest", calls)
+        self.assertIn(API_ROOT + "/compare/%s...main" % REVISION, calls)
+
+    def test_an_identical_commit_is_still_on_the_default_branch(self):
+        completed = self.resolve(release_documents(status="identical"))
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        self.assertEqual(self.resolved().get("RESOLVED_REVISION"), REVISION)
+
+    def test_annotated_tag_is_dereferenced_once_to_its_commit(self):
+        completed = self.resolve(release_documents(object_type="tag",
+                                                   object_sha=TAG_OBJECT))
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        self.assertEqual(self.resolved().get("RESOLVED_REVISION"), REVISION)
+        self.assertIn(API_ROOT + "/git/tags/" + TAG_OBJECT, self.api_calls())
+        # The tag object itself is never used as the observed revision.
+        self.assertNotEqual(self.resolved().get("RESOLVED_REVISION"), TAG_OBJECT)
+
+    def test_anything_that_is_not_a_strict_release_tag_is_refused(self):
+        for tag in ("v0.13", "0.13.0", "v0.13.0-rc1", "v01.2.3", "main", "",
+                    "v0.13.0 ", "v0.13.0\nv0.14.0", "v0.13.0.1",
+                    "v0.13.0; rm -rf /", "release/v0.13.0"):
+            with self.subTest(tag=tag):
+                completed = self.resolve(release_documents(tag=tag))
+                self.assertNotEqual(completed.returncode, 0,
+                                    "tag %r was accepted" % tag)
+                self.assertEqual(self.resolved(), {},
+                                 "a refused tag must not export a revision")
+
+    def test_a_tag_that_does_not_resolve_to_a_full_commit_is_refused(self):
+        for sha in ("A" * 40, "a" * 39, "a" * 41, "g" * 40, "main", "",
+                    REVISION + "\nX", " " + REVISION):
+            with self.subTest(sha=sha):
+                completed = self.resolve(release_documents(commit=sha,
+                                                           object_sha=sha))
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertEqual(self.resolved(), {})
+
+    def test_a_tag_that_points_at_something_other_than_a_commit_is_refused(self):
+        for object_type in ("tree", "blob"):
+            with self.subTest(object_type=object_type):
+                completed = self.resolve(release_documents(object_type=object_type))
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertEqual(self.resolved(), {})
+
+        documents = release_documents(object_type="tag", object_sha=TAG_OBJECT)
+        documents[API_ROOT + "/git/tags/" + TAG_OBJECT] = {
+            "object": {"type": "tree", "sha": REVISION}}
+        completed = self.resolve(documents)
+        self.assertNotEqual(completed.returncode, 0,
+                            "an annotated tag of a tree must not be observed")
+        self.assertEqual(self.resolved(), {})
+
+    def test_a_released_commit_outside_the_default_branch_is_refused(self):
+        for status in ("behind", "diverged", "unknown", ""):
+            with self.subTest(status=status):
+                completed = self.resolve(release_documents(status=status))
+                self.assertNotEqual(completed.returncode, 0,
+                                    "an ancestry answer of %r was accepted" % status)
+                self.assertEqual(self.resolved(), {})
+
+        # An unavailable compare answer refuses rather than passing by default.
+        documents = release_documents()
+        documents.pop(API_ROOT + "/compare/%s...main" % REVISION)
+        completed = self.resolve(documents)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(self.resolved(), {})
+
+    def test_an_unavailable_release_api_refuses(self):
+        completed = self.resolve({})
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(self.resolved(), {})
+
+    def test_a_missing_or_unsafe_default_branch_refuses_before_any_api_call(self):
+        for branch in ("", "-x", "a..b", "ma in", "main;rm", " main"):
+            with self.subTest(branch=branch):
+                completed = self.resolve(release_documents(), branch=branch)
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertEqual(self.resolved(), {})
+                self.assertEqual(self.api_calls(), [],
+                                 "no API call may follow an unsafe branch name")
+
+    # ------------------------------------------------------------- evidence
+
+    def binding_env(self, git_head, git_rc="0"):
+        return {
+            "TRUSTED_DIR": str(self.root / "trusted"),
+            "REVISION": REVISION,
+            "OUT_DIR": str(self.out),
+            "HOME": str(self.home),
+            "FAKE_GIT_HEAD": git_head,
+            "FAKE_GIT_RC": git_rc,
+        }
+
+    def test_the_observed_checkout_is_bound_to_the_resolved_revision(self):
+        completed = self.run_step(job_run_text(self.job(), BINDING_STEP),
+                                  self.binding_env(REVISION))
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        record = self.record("binding.json")
+        self.assertEqual(record["schema"], "docs-observation-binding/1")
+        self.assertEqual(record["expected_revision"], REVISION)
+        self.assertEqual(record["observed_revision"], REVISION)
+        self.assertIs(record["matched"], True)
+
+    def test_a_mismatched_checkout_fails_before_an_observation_is_recorded(self):
+        completed = self.run_step(job_run_text(self.job(), BINDING_STEP),
+                                  self.binding_env(OTHER_REVISION))
+        self.assertNotEqual(completed.returncode, 0)
+        record = self.record("binding.json")
+        self.assertIs(record["matched"], False)
+        self.assertEqual(record["observed_revision"], OTHER_REVISION)
+        self.assertFalse((self.out / "observation.json").exists(),
+                         "no observation may be recorded for another source")
+
+    def route_env(self, **overrides):
+        env = {
+            "OUT_DIR": str(self.out),
+            "OBSERVATION_ROUTE": OBSERVE_ROUTE,
+            "OBSERVATION_DELIVERY": OBSERVE_DELIVERY,
+            "OBSERVATION_RUN_ID": OBSERVATION_RUN,
+            "REVISION": REVISION,
+            "PUBLISHED_TAG": "v0.13.0",
+            "SOURCE_RUN_ID": SOURCE_RUN,
+        }
+        env.update(overrides)
+        return env
+
+    def test_route_record_matches_the_callable_observation_shape(self):
+        completed = self.run_step(job_run_text(self.job(), ROUTE_STEP),
+                                  self.route_env())
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        record = self.record("observation.json")
+        self.assertEqual(record["schema"], "docs-observation-route/1")
+        self.assertEqual(record["route"], OBSERVE_ROUTE)
+        self.assertEqual(record["delivery"], OBSERVE_DELIVERY)
+        self.assertEqual(record["event"], "workflow_run")
+        self.assertEqual(record["revision"], REVISION)
+        self.assertEqual(record["tag"], "v0.13.0")
+        self.assertEqual(record["source_run_id"], SOURCE_RUN)
+        self.assertEqual(record["observation_run_id"], OBSERVATION_RUN)
+        self.assertEqual(record["result"], "observed")
+        self.assertIs(record["authoritative"], False)
+        self.assertIs(record["blocking_release"], False)
+        self.assertEqual(record["artifact_identity"], "not-inspected")
+        self.assertEqual(record["source_binding"], "binding.json")
+
+    def test_route_record_refuses_a_mismatched_or_non_strict_identifier(self):
+        fixtures = (
+            {"REVISION": "main"},
+            {"REVISION": REVISION[:-1]},
+            {"REVISION": REVISION + "\nX"},
+            {"SOURCE_RUN_ID": "abc"},
+            {"SOURCE_RUN_ID": ""},
+            {"SOURCE_RUN_ID": SOURCE_RUN + "\n9"},
+            {"PUBLISHED_TAG": 'x"y'},
+            {"PUBLISHED_TAG": "v0.13"},
+            {"PUBLISHED_TAG": ""},
+            {"PUBLISHED_TAG": "v0.13.0\nv0.14.0"},
+            {"OBSERVATION_RUN_ID": "x1"},
+        )
+        for fixture in fixtures:
+            with self.subTest(fixture=fixture):
+                completed = self.run_step(job_run_text(self.job(), ROUTE_STEP),
+                                          self.route_env(**fixture))
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertFalse((self.out / "observation.json").exists(),
+                                 "a refused route must not write an observation record")
+
+    def test_evidence_upload_is_unconditional(self):
+        upload = step_block(self.job(), OBSERVE_UPLOAD_STEP)
+        self.assertIsNotNone(upload, "a failed observation would leave no evidence")
+        text = "\n".join(upload)
+        self.assertIn("if: always()", text)
+        self.assertIn("if-no-files-found: warn", text)
+        self.assertIn("docs-post-publish-observation", text)
+
+    def test_the_publisher_is_neither_widened_nor_given_a_callsite(self):
+        text = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
+        for marker in ("docs-observe", "docs.yml", "workflow_call",
+                       "workflows/docs.yml"):
+            with self.subTest(marker=marker):
+                self.assertNotIn(marker, text)
 
 
 if __name__ == "__main__":

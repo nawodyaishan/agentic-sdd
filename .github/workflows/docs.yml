@@ -123,13 +123,20 @@ name: Docs
 # start a new workflow run for an event that a `GITHUB_TOKEN` created. The
 # `release: published` trigger below therefore cannot deliver an in-repo
 # publication to `release-status`; it stays only as a fallback for a
-# publication created outside this repository's token. The route that reaches
-# observation is the read-only reusable entrypoint `post-publish-observation`
-# (`workflow_call`): a publishing workflow calls it directly as a job, and a
-# call is not an event, so no token suppression applies to it. It requires the
-# published revision as a full SHA and refuses to record an observation of a
-# different source. Both observation jobs are read-only and non-blocking: they
-# hold `contents: read`, use no secrets, no OIDC and no environment, deploy and
+# publication created outside this repository's token. The in-repo route is the
+# separate `.github/workflows/docs-observe.yml` workflow: a `workflow_run` event
+# for a completed `Release publish` run selects it, its file comes from the
+# default branch, it holds `contents: read` only, and it records the same route
+# evidence as the job below after resolving the released tag to a full commit
+# on the default branch. It is separate because the protected `deploy` job here
+# requests `pages: write` and `id-token: write`: calling this file from a
+# `contents: read` publisher would fail at workflow startup, and the publisher
+# is deliberately not widened. The reusable entrypoint `post-publish-observation`
+# (`workflow_call`) remains for other callers that can grant the permissions
+# this file's jobs need; it requires the published revision as a full SHA and
+# refuses to record an observation of a different source. The observation jobs
+# here and in `docs-observe.yml` are read-only and non-blocking: they hold
+# `contents: read`, use no secrets, no OIDC and no environment, deploy and
 # publish nothing, and record `authoritative:false` and
 # `blocking_release:false`. Route evidence is written next to the launcher
 # record as `observation.json`.
@@ -788,10 +795,12 @@ jobs:
     name: Release documentation observation (read-only)
     # `github.event_name == 'release'` cannot select this job for an in-repo
     # publish: `release-publish.yml` creates the release with `GITHUB_TOKEN`, and
-    # GitHub starts no workflow run for a token-created event. The reusable
-    # `post-publish-observation` job below is the route that reaches
-    # observation; this job survives as the manual / out-of-token fallback and
-    # is not required for a release to be observed.
+    # GitHub starts no workflow run for a token-created event. The in-repo route
+    # is `.github/workflows/docs-observe.yml` (see "Observation routes" above);
+    # the reusable `post-publish-observation` job below stays for callers that
+    # can grant its permissions, and this job survives as the manual /
+    # out-of-token fallback. None of them is required for a release to be
+    # observed.
     if: github.event_name == 'release'
     permissions:
       contents: read
