@@ -57,7 +57,7 @@ The release workflow ran `task verify`, validated the Homebrew tap token, and co
 - No real-home `apply`, no real `~/.config/opencode` write, no backup restore against a user home.
 - No product model, network, MCP, OAuth, telemetry, or paid-inference call.
 - No fresh reviewer dispatch or reviewer-isolation certification; `IR-06-01` remains open.
-- No tag, release, push, deployment, or Homebrew tap change.
+- Before the separate 2026-11-13 `v0.10.0` release authorization, pre-release B3 verification performed no tag, release, push, deployment, or Homebrew tap change. The owner-authorized `v0.10.0` release and Homebrew cask `0.10.0` publication (2026-11-13) are recorded above and remain distinct from implementation or feature acceptance, which is still pending human review.
 - No model-based subagent smoke test; it remains optional and separately authorized.
 
 ## Residual limits

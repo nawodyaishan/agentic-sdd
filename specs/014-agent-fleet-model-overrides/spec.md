@@ -464,7 +464,11 @@ Stop for human review. A technical `Ready`, green CI, a model profile being avai
 **FR-15 Deferral:** Human approval authorizes deferral of FR-15 (machine profile import preview) to preserve the zero-side-effects CLI boundary and frozen command grammar (`plan.md` §2.3); adoption of existing unmanaged profiles is supported via explicit `fleet plan --adopt`.
 **Permission to inspect real global agent files or private personal Git:** **Not granted by this spec**.
 **Permission to write real OpenCode config or call models:** **Not granted**.
-**Permission to publish/release:** **Not granted**.
+**Permission to publish/release (at the 2026-11-11 combined approval):** **Not granted**.
+*(Reconciled 2026-11-16, Feature 022 B5: commit `d5eaa7a` is included in tags
+`v0.9.0`–`v0.13.0`. Tag ancestry does not establish Feature 014 release consent or
+acceptance; that provenance and the human/Opus acceptance remain missing and pending
+owner disposition.)*
 
 ### References and provenance
 

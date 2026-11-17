@@ -247,13 +247,15 @@ The parent confirms each child's actual model before launch and reports fallback
 
 **Commit, tag and release (2026-11-16):** owner authorized commit/push and a new version. Commits `f77765a` (`test(execution): verify CLI contract and align orchestration skills`) and `bd1fbb9` (`chore(docs): remove superseded handovers`); tag `v0.13.0`; Release workflow [43821612662](https://github.com/nawodyaishan/agentic-sdd/actions/runs/43821612662) succeeded; release https://github.com/nawodyaishan/agentic-sdd/releases/tag/v0.13.0; cask `0.13.0`; paired archive contains `asdx`, `asdx-core`, `agentic-sdd`, `agentic-sdd-tui`. Release publication is not feature acceptance.
 
+**Homebrew tap check (2026-11-17):** `origin/main` of `nawodyaishan/homebrew-tap` has `Casks/agentic-sdd.rb` at `0.13.0` (commit `435e299`; prior cask commits `b1e3b99` for `0.12.0` and `10ec389` for `0.11.0`) and no `Formula/agentic-sdd.rb`. An earlier claim that the tap was behind was retracted because it inspected a stale local clone.
+
 **Review fixes applied (2026-11-16):**
 - G14 now asserts the 017 recovery rules against `failure-and-reconciliation.md` alone (not `docs`), asserts the dispatch handoff fields, scopes `run record`/`claim` to its table row, and scopes exit tokens to the exit bullet rather than headings.
 - The record adapter test uses its own repo for the inside-repository run root and resolves `sh` via `exec.LookPath("sh")`, asserting the direct-check `TaskID`.
 - The lock holder now sleeps 3s with a 2s observation deadline; G1/G3 skip on Windows with an explicit `not_run` reason.
 - Gates rerun after the fixes: `go test ./internal/execution ./cmd/agentic-sdd`, `task test`, `task vet`, `go test -race`, `git diff --check` and `task verify` all pass.
 
-**Not_run:** real `os.Exit`/built-binary/EPIPE, legacy `agentic-sdd` wrapper execution, ENOSPC, PTY/macOS/Windows runtime, live model/MCP/network, real-home apply, release/tag/tap/cask.
+**Not_run (during pre-release B7 verification on 2026-11-16, before the separate `v0.13.0` release authorization on line 248):** real `os.Exit`/built-binary/EPIPE, legacy `agentic-sdd` wrapper execution, ENOSPC, PTY/macOS/Windows runtime, live model/MCP/network, real-home apply, and (at pre-release time) release/tag/tap/cask. The owner later authorized the `v0.13.0` release (line 248); the non-release items above remain unexecuted.
 
 ## Readiness reconciliation
 

@@ -244,6 +244,15 @@ This is section 12 and the sole combined-approval record for [spec r1](spec.md),
 
 - **Release authorization (2026-11-07):** The owner requested “release the version using tag” and selected `v0.5.0` after being informed that pushing a `v*` tag triggers GitHub Release and Homebrew tap publication and that cleanup is uncommitted, trusted-reference designation remains open, and review verdicts remain provisional. This authorizes committing the final cleanup, creating and pushing `v0.5.0`, and the resulting existing release workflow publication. It does not retrospectively mark missing checks, Opus review, independent reference designation, native macOS execution, or full-feature acceptance complete. Prior no-publication statements above describe earlier authorization boundaries.
 
+- **G-008-01 disposition status (reconciled 2026-11-16, Feature 022 B5):** **Open
+  (`owner-decision-pending`).** The 2026-11-07 `v0.5.0` release authorization above
+  preserved `G-008-01` as open and the provisional subagent reviews as unverified by
+  Opus. Closure requires (1) explicit owner designation of an exact clean commit SHA as
+  the reviewed trusted reference, with any separate live adoption authorization,
+  (2) fresh base-owned trusted-gate execution against an identified candidate SHA
+  without a `trusted == candidate` shortcut, and (3) a recorded Opus verdict.
+  Full-feature acceptance remains unrecorded.
+
 The recorded decisions cover their stated revisions and scope. B1 completion review does not start B2.
 
 ## 13. References

@@ -199,7 +199,7 @@ A tool's advertised capability is not a connection test; a SKILL.md instruction 
 **Authorized implementation batches:** **B1 and B2 in parallel** (owner decision 2026-11-13). T03 authored tests against the frozen plan contract while T01–T02 implemented; T04 integration and completion evidence followed the lanes.
 **Human acceptance of the integrated B1/B2 result:** **Recorded 2026-11-14.** The owner accepted the delivered skill/reference, five stage pointers, policy/librarian parity, packaging assertion and dedicated static/fixture suite, including the MCP-guard false-positive correction.
 **Permission to modify local OpenCode profiles/configuration or use paid tools:** None.
-**Release/commit/push:** None. Acceptance is not authorization for a commit, push, tag, release, real-home apply, MCP install or live model/MCP evaluation.
+**Release/commit/push:** None. Acceptance is not authorization for a commit, push, tag, release, real-home apply, MCP install or live model/MCP evaluation. *(Reconciled 2026-11-16, Feature 022 B5: commit `973ba02` is included in tags `v0.11.0`–`v0.13.0`; separate commit or release consent is missing from this §9 record and cannot be inferred from tag ancestry.)*
 
 ### Handoff
 

@@ -129,7 +129,7 @@ Canonical sources: [spec 008](specs/008-core-release-quality/spec.md) §Approval
 ## Release and tap history (2026-11-17)
 
 - Tap: `Casks/agentic-sdd.rb` exists; the formula was migrated (`07a088f`). Refuse a missing cask or a leftover formula.
-- Tap is behind releases: tags `v0.12.0`/`v0.13.0` exist; the tap's last update is `v0.11.0` (`10ec389`). Reconcile before trusting the tap.
+- Tap is current on GitHub: `origin/main` has the v0.13.0 cask (`435e299`). A local tap clone can be stale; always `git fetch` before judging the tap.
 - Publishing: `Release build` (tag, no tokens) then `Release publish` (default branch, `workflow_run`). Publisher runs only after its file is on the default branch.
 - Owner must set `RELEASE_TOOLS_SHA` (environment variable on `release`). Until then, publishing fails closed.
 - Decisions: `specs/022-architecture-remediation/plan.md` §12.
