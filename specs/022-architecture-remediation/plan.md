@@ -643,7 +643,7 @@ certification claim. C-09 stays unblocked.
 ### 13.7 R7 — nested TUI vendor drift
 Add a `task tui-vendor-check` (read-only): re-vendor into a temporary directory
 using the same offline settings as the existing TUI lane, diff against
-`experiments/tui/vendor`, and run `go mod verify`. Add a stamp file recording the
+`experiments/tui/vendor`, and resolve the companion's dependencies from `vendor/` (`go mod verify` cannot check the path-replaced root module). Add a stamp file recording the
 source SHA of `internal/skillsync` and `internal/fleet` at vendor time; the check
 fails early when those trees changed since. Wire it into the trusted-CI TUI lane
 only after review. `replace` to the root module already exists in `go.mod`, so the
