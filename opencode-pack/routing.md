@@ -22,12 +22,12 @@ Lanes are not interchangeable: a Go model is not a substitute for a free Console
 | `sdd-test-design` | subagent | `opencode/deepseek-v4.1-flash-free` | `opencode-go/deepseek-v4.1-flash`, `9router/ag/gemini-3.8-flash-high` |
 | `sdd-research-librarian` | subagent | `opencode/deepseek-v4.1-flash-free` | `opencode-go/deepseek-v4.1-flash`, `9router/ag/gemini-3.8-flash-high` |
 | `sdd-docs-worker` | subagent | `opencode/deepseek-v4.1-flash-free` | `opencode-go/deepseek-v4.1-flash`, `9router/ag/gemini-3.8-flash-high` |
-| `sdd-architecture-advisor` | subagent | `9router/ag/claude-sonnet-5-5-high` | `9router/ag/gemini-4-argon-high`, `opencode-go/deepseek-v4.1-flash#max` |
+| `sdd-architecture-advisor` | subagent | `9router/ag/claude-sonnet-5-5-medium` | `9router/ag/gemini-4-argon-high`, `opencode-go/deepseek-v4.1-flash#max` |
 | `sdd-visual-inspector` | subagent | `opencode/glm-5.3-flash-free` | `opencode-go/glm-5.3-flash` |
 | `sdd-openai-architect` | subagent | `openai/gpt-6.1-sol` | `openai/gpt-6.1-sol-fast`, `openrouter/openai/gpt-6.1-sol` (stop if unauthorized/unavailable; no silent fallback) |
 | `sdd-openai-implement` | subagent | `openai/gpt-6.1-terra` | `openai/gpt-6.1-terra-fast`, `openrouter/openai/gpt-6.1-terra` (stop if unauthorized/unavailable; no silent fallback) |
-| `sdd-architecture-review-9r` | subagent | `9router/ag/claude-opus-5-5-high` | Claude-agent exception below |
-| `sdd-code-review-9r` | subagent | `9router/ag/claude-opus-5-5-high` | Claude-agent exception below |
+| `sdd-architecture-review-9r` | subagent | `9router/ag/claude-opus-5-5-medium` | Claude-agent exception below |
+| `sdd-code-review-9r` | subagent | `9router/ag/claude-opus-5-5-medium` | Claude-agent exception below |
 | `sdd-review-verification-1` | subagent | `opencode-go/glm-5.3-flash` | `opencode-go/deepseek-v4.1-flash`, `opencode-go/minimax-m3.1-flash` |
 | `sdd-review-verification-2` | subagent | `opencode/beam-free` | see the Beam cross-lane rules |
 | `sdd-lightweight` | subagent | `opencode/beam-free` (`steps: 10`) | see the Beam cross-lane rules |
@@ -55,7 +55,7 @@ The Go ladder can incur charges and must be reported as used. Never move from a 
 
 ## Preserved Claude/9Router fallback exception
 
-The five Claude agents keep their existing exception: `9router/ag/claude-opus-5-5-high` or `claude-sonnet-5-5-high` primary, then `9router/ag/gemini-3.8-flash-high`, then native `opencode-go/deepseek-v4.1-flash`. This applies to `sdd-spec-9r`, `sdd-plan-9r`, `sdd-architecture-review-9r`, `sdd-code-review-9r` and `sdd-implement-9r-2`.
+The five Claude agents keep their existing exception: `9router/ag/claude-opus-5-5-medium` or `claude-sonnet-5-5-medium` primary, then `9router/ag/gemini-3.8-flash-high`, then native `opencode-go/deepseek-v4.1-flash`. This applies to `sdd-spec-9r`, `sdd-plan-9r`, `sdd-architecture-review-9r`, `sdd-code-review-9r` and `sdd-implement-9r-2`.
 
 Compatibility checks before switching: Claude is 1,000,000 context / 128,000 output; Gemini and Argon are 1,048,576 / 65,536; Go DeepSeek is 1,000,000 / 384,000. A specification, plan or review produced by a fallback stays provisional under the global policy; a fallback architecture or code review needs an Opus review before it is the final consequential technical verdict.
 

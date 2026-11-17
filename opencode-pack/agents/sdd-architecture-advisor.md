@@ -1,7 +1,7 @@
 ---
 description: Advise on architecture, boundaries and operational risk read-only using Claude Sonnet, without approving or implementing anything.
 mode: subagent
-model: 9router/ag/claude-sonnet-5-5-high
+model: 9router/ag/claude-sonnet-5-5-medium
 permissions:
   - action: "*"
     resource: "*"

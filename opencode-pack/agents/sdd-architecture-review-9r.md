@@ -1,7 +1,7 @@
 ---
 description: Review consequential feature architecture and operational risk using 9Router Opus, as a technical verdict only.
 mode: subagent
-model: 9router/ag/claude-opus-5-5-high
+model: 9router/ag/claude-opus-5-5-medium
 permissions:
   - action: "*"
     resource: "*"

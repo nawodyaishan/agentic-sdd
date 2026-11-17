@@ -1,7 +1,7 @@
 ---
 description: Independently review SDD work and verification evidence using 9Router Opus, read-only.
 mode: subagent
-model: 9router/ag/claude-opus-5-5-high
+model: 9router/ag/claude-opus-5-5-medium
 permissions:
   - action: "*"
     resource: "*"

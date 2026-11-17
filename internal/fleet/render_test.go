@@ -88,7 +88,7 @@ Body.
 const adapterPolicyFixture = `---
 description: Draft one feature document as a read-only draft returned to the parent.
 mode: subagent
-model: 9router/ag/claude-opus-5-5-high
+model: 9router/ag/claude-opus-5-5-medium
 permissions:
   - action: "*"
     resource: "*"
@@ -381,7 +381,7 @@ func TestFleetRender(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
 		}
-		same := mustRender(t, RenderInput{SourceBytes: source, Model: "9router/ag/claude-opus-5-5-high"})
+		same := mustRender(t, RenderInput{SourceBytes: source, Model: "9router/ag/claude-opus-5-5-medium"})
 		if !bytes.Equal(same.Bytes, source) {
 			t.Fatal("re-rendering the real profile changed bytes")
 		}

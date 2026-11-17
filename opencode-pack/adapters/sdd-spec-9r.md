@@ -1,7 +1,7 @@
 ---
 description: Draft one feature specification from canonical sources as the first of three documents for one combined human approval; read-only, non-writing and never an approval authority.
 mode: subagent
-model: 9router/ag/claude-opus-5-5-high
+model: 9router/ag/claude-opus-5-5-medium
 permissions:
   - action: "*"
     resource: "*"

@@ -124,7 +124,7 @@ func TestRoutingDetailCardSectionOrderAndContent(t *testing.T) {
 	for _, want := range []string{
 		"Mode: subagent",
 		"Provider: 9Router",
-		"Primary model: 9router/ag/claude-opus-5-5-high",
+		"Primary model: 9router/ag/claude-opus-5-5-medium",
 		"1. 9router/ag/gemini-3.8-flash-high",
 		"2. opencode-go/deepseek-v4.1-flash",
 		"provisional",

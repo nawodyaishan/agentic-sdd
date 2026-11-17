@@ -96,7 +96,7 @@ var agentRouting = map[string]AgentRouting{
 	"sdd-architecture-advisor": {
 		Mode:     "subagent",
 		Provider: provider9Router,
-		Model:    "9router/ag/claude-sonnet-5-5-high",
+		Model:    "9router/ag/claude-sonnet-5-5-medium",
 		Fallbacks: []string{
 			"9router/ag/gemini-4-argon-high",
 			"opencode-go/deepseek-v4.1-flash#max",
@@ -133,7 +133,7 @@ var agentRouting = map[string]AgentRouting{
 	"sdd-architecture-review-9r": {
 		Mode:     "subagent",
 		Provider: provider9Router,
-		Model:    "9router/ag/claude-opus-5-5-high",
+		Model:    "9router/ag/claude-opus-5-5-medium",
 		Fallbacks: []string{
 			"9router/ag/gemini-3.8-flash-high",
 			"opencode-go/deepseek-v4.1-flash",
@@ -143,7 +143,7 @@ var agentRouting = map[string]AgentRouting{
 	"sdd-code-review-9r": {
 		Mode:     "subagent",
 		Provider: provider9Router,
-		Model:    "9router/ag/claude-opus-5-5-high",
+		Model:    "9router/ag/claude-opus-5-5-medium",
 		Fallbacks: []string{
 			"9router/ag/gemini-3.8-flash-high",
 			"opencode-go/deepseek-v4.1-flash",

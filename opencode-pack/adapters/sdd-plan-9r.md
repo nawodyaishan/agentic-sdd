@@ -1,7 +1,7 @@
 ---
 description: Draft a feature plan and ordered tasks from the governing spec with specialist and tool assignments; read-only, non-writing and never an approval or batch authority.
 mode: subagent
-model: 9router/ag/claude-opus-5-5-high
+model: 9router/ag/claude-opus-5-5-medium
 permissions:
   - action: "*"
     resource: "*"

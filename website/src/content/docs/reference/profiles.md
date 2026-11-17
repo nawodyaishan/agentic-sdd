@@ -16,9 +16,9 @@ Permission columns summarize the ordered `permissions` rules using last-match-wi
 
 | Profile | Mode | Model | Policy | Writes | Shell | Delegation | External search |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `sdd-architecture-advisor` | `subagent` | `9router/ag/claude-sonnet-5-5-high` | base `deny-by-default`, 15 rules | `deny` | `deny` | `deny` | `allow` |
-| `sdd-architecture-review-9r` | `subagent` | `9router/ag/claude-opus-5-5-high` | base `deny-by-default`, 17 rules | `deny` | `scoped` | `deny` | `allow` |
-| `sdd-code-review-9r` | `subagent` | `9router/ag/claude-opus-5-5-high` | base `deny-by-default`, 17 rules | `deny` | `scoped` | `deny` | `allow` |
+| `sdd-architecture-advisor` | `subagent` | `9router/ag/claude-sonnet-5-5-medium` | base `deny-by-default`, 15 rules | `deny` | `deny` | `deny` | `allow` |
+| `sdd-architecture-review-9r` | `subagent` | `9router/ag/claude-opus-5-5-medium` | base `deny-by-default`, 17 rules | `deny` | `scoped` | `deny` | `allow` |
+| `sdd-code-review-9r` | `subagent` | `9router/ag/claude-opus-5-5-medium` | base `deny-by-default`, 17 rules | `deny` | `scoped` | `deny` | `allow` |
 | `sdd-debug-diagnose` | `subagent` | `opencode/deepseek-v4.1-flash-free` | base `deny-by-default`, 14 rules | `deny` | `deny` | `deny` | `deny` |
 | `sdd-docs-worker` | `subagent` | `opencode/deepseek-v4.1-flash-free` | base `deny-by-default`, 14 rules | `allow` | `deny` | `deny` | `deny` |
 | `sdd-lightweight` | `subagent` | `opencode/beam-free` | base `deny-by-default`, 16 rules | `deny` | `deny` | `deny` | `deny` |
@@ -48,8 +48,8 @@ Permission columns summarize the ordered `permissions` rules using last-match-wi
 
 | Profile | Mode | Model | Policy | Writes | Shell | Delegation | External search |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `sdd-plan-9r` | `subagent` | `9router/ag/claude-opus-5-5-high` | base `deny-by-default`, 14 rules | `deny` | `deny` | `deny` | `deny` |
-| `sdd-spec-9r` | `subagent` | `9router/ag/claude-opus-5-5-high` | base `deny-by-default`, 14 rules | `deny` | `deny` | `deny` | `deny` |
+| `sdd-plan-9r` | `subagent` | `9router/ag/claude-opus-5-5-medium` | base `deny-by-default`, 14 rules | `deny` | `deny` | `deny` | `deny` |
+| `sdd-spec-9r` | `subagent` | `9router/ag/claude-opus-5-5-medium` | base `deny-by-default`, 14 rules | `deny` | `deny` | `deny` | `deny` |
 
 ## Derived counts
 
