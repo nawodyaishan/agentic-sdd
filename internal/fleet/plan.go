@@ -20,6 +20,8 @@ import (
 
 var (
 	ErrLockHeld             = errors.New("fleet lock is held by another process")
+	ErrLockUnsafe           = errors.New("fleet lock path is unsafe")
+	ErrLockUnsupported      = errors.New("fleet mutation locking is unsupported on this platform")
 	ErrStalePlan            = errors.New("stale plan")
 	ErrInvalidPlanStructure = errors.New("invalid plan structure")
 )
@@ -353,6 +355,9 @@ type Lock struct {
 // holder in ErrLockHeld. If another live process holds the lock, AcquireLock
 // returns ErrLockHeld without waiting.
 func AcquireLock(backupRoot string) (*Lock, error) {
+	if !fleetLockingSupported {
+		return nil, fmt.Errorf("%w: fleet apply and restore refuse to write on this platform", ErrLockUnsupported)
+	}
 	absRoot, err := filepath.Abs(backupRoot)
 	if err != nil {
 		return nil, err
@@ -365,9 +370,46 @@ func AcquireLock(backupRoot string) (*Lock, error) {
 	}
 	lockPath := filepath.Join(absRoot, LockFileName)
 
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0600)
+	// The path is re-inspected after locking. A replacement between open and
+	// lock means the held inode is no longer the one other writers will open,
+	// so this attempt is discarded and the path is retried once.
+	for attempt := 0; attempt < lockAcquireAttempts; attempt++ {
+		f, err := openHeldLockLeaf(lockPath)
+		if err != nil {
+			return nil, err
+		}
+		if lockLeafHook != nil {
+			lockLeafHook(lockPath)
+		}
+		same, err := lockLeafMatches(f, lockPath)
+		if err != nil {
+			_ = unlockFile(f)
+			_ = f.Close()
+			return nil, err
+		}
+		if same {
+			return recordLockOwner(lockPath, f)
+		}
+		_ = unlockFile(f)
+		_ = f.Close()
+	}
+	return nil, fmt.Errorf("%w: lock path %s changed while acquiring", ErrLockHeld, lockPath)
+}
+
+// lockAcquireAttempts bounds how often AcquireLock re-opens a replaced leaf.
+const lockAcquireAttempts = 2
+
+// lockLeafHook is a test seam: it runs after the leaf is locked and before its
+// identity is compared with the path. It is nil in production.
+var lockLeafHook func(path string)
+
+// openHeldLockLeaf opens the hardened leaf and takes the non-blocking lock. A
+// held lock reports ErrLockHeld with the diagnostic PID read from the opened
+// descriptor, never from a path lookup that could follow a replaced leaf.
+func openHeldLockLeaf(lockPath string) (*os.File, error) {
+	f, err := openLockLeaf(lockPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open lock file: %w", err)
+		return nil, err
 	}
 	ok, err := tryLockFile(f)
 	if err != nil {
@@ -375,11 +417,16 @@ func AcquireLock(backupRoot string) (*Lock, error) {
 		return nil, fmt.Errorf("failed to acquire lock file %s: %w", lockPath, err)
 	}
 	if !ok {
-		pid := recordedLockPID(lockPath)
+		pid := recordedLockPID(f)
 		_ = f.Close()
 		return nil, fmt.Errorf("%w: lock held at %s (PID %d)", ErrLockHeld, lockPath, pid)
 	}
+	return f, nil
+}
 
+// recordLockOwner writes this acquisition's diagnostic record through the
+// locked, validated descriptor only.
+func recordLockOwner(lockPath string, f *os.File) (*Lock, error) {
 	token, err := newLockToken()
 	if err != nil {
 		_ = unlockFile(f)
@@ -419,7 +466,11 @@ func (l *Lock) Release() error {
 		return nil
 	}
 	var firstErr error
-	if data, err := os.ReadFile(l.path); err == nil && string(data) == l.token {
+	// Only the inode this handle locked is ever cleared, and only while the
+	// path still names it and its record is ours. A successor is never touched.
+	if same, err := lockLeafMatches(l.file, l.path); err != nil {
+		firstErr = err
+	} else if same && lockContentIs(l.file, l.token) {
 		if err := l.file.Truncate(0); err != nil {
 			firstErr = err
 		}
@@ -442,16 +493,21 @@ func newLockToken() (string, error) {
 	return hex.EncodeToString(b[:]), nil
 }
 
-// recordedLockPID reads the diagnostic PID from a lock file. Any unreadable or
-// malformed content reports 0; it never decides ownership.
-func recordedLockPID(path string) int {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0
-	}
-	line, _, _ := strings.Cut(string(data), "\n")
+// recordedLockPID reads the diagnostic PID from the opened lock descriptor. Any
+// unreadable or malformed content reports 0; it never decides ownership.
+func recordedLockPID(f *os.File) int {
+	buf := make([]byte, 64)
+	n, _ := f.ReadAt(buf, 0)
+	line, _, _ := strings.Cut(string(buf[:n]), "\n")
 	pid, _ := strconv.Atoi(strings.TrimSpace(line))
 	return pid
+}
+
+// lockContentIs reports whether the descriptor's record is exactly want.
+func lockContentIs(f *os.File, want string) bool {
+	buf := make([]byte, len(want)+1)
+	n, _ := f.ReadAt(buf, 0)
+	return string(buf[:n]) == want
 }
 
 // LoadConfigFile reads a fleet config file, computes its SHA-256 digest, and strictly parses it.
