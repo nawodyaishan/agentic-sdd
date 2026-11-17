@@ -49,14 +49,20 @@ const (
 	LockStateLive  = "live"
 )
 
-// lockStaleAfter is the age after which a lock without recent activity may be
-// reclaimed. It stays a variable so tests can shorten the window instead of
-// waiting the production value; production code never changes it.
+// runGuardDirName is the private directory under the run root that holds one
+// guard file per run identifier. It cannot be a run identifier (ValidateRunID
+// rejects it), so enumeration and clean never mistake it for a run.
+const runGuardDirName = ".locks"
+
+// lockStaleAfter is the heartbeat window. Age no longer reclaims a lock (plan
+// §12.1): a legacy lock is stale only when its holder is provably dead on this
+// host. The window sets the heartbeat cadence and stays a variable so tests can
+// shorten it; production code never changes it.
 var lockStaleAfter = LockStaleAfter
 
-// lockHeartbeatInterval refreshes a held lock several times inside the stale
-// window, so a live holder is never reclaimed by age and a crashed holder is
-// still reclaimed once its beats stop.
+// lockHeartbeatInterval refreshes a held legacy lock several times inside the
+// heartbeat window, so older binaries keep seeing a live owner while this writer
+// runs.
 var lockHeartbeatInterval = lockStaleAfter / 6
 
 var runIDPattern = regexp.MustCompile(`^run-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$`)
@@ -175,7 +181,7 @@ func InitRun(req InitRequest) (RunIdentity, error) {
 			State:           StatePrepared,
 			LastObservation: &baseline,
 		}
-		return WriteCheckpoint(runDir, checkpoint)
+		return writeCheckpointLocked(lock, runDir, checkpoint)
 	}()
 	releaseErr := lock.release()
 	if writeErr != nil {
@@ -265,6 +271,9 @@ func CleanRun(runRoot, runID string, apply bool) (CleanResult, error) {
 	}
 	if _, err := os.Lstat(runDir); !errors.Is(err, fs.ErrNotExist) {
 		return CleanResult{}, fmt.Errorf("run directory still exists after removal")
+	}
+	if err := lock.retireGuard(); err != nil {
+		return CleanResult{}, err
 	}
 	result.Removed = true
 	return result, nil
@@ -710,35 +719,109 @@ type runLock struct {
 	Operation     string    `json:"operation"`
 }
 
-// runLockHandle owns one acquired lock for as long as release is not called.
+// runLockHandle owns one acquired run lock for as long as release is not called.
+// It holds two things: the kernel guard under <runRoot>/.locks (guard, nil on
+// the legacy-only path) and the legacy <runDir>/.lock payload with heartbeat.
 type runLockHandle struct {
 	mu           sync.Mutex
 	path         string
 	token        string
+	runDir       string
+	guard        *os.File
+	guardPath    string
 	released     bool
 	heartbeatErr error
 }
 
-// lockObservation is the inspected lock state.
+// lockObservation is the inspected lock state. info identifies the observed
+// legacy file so a reclaim can be conditioned on it still being the same object.
 type lockObservation struct {
 	exists bool
 	live   bool
 	stale  bool
 	age    time.Duration
 	lock   runLock
+	info   os.FileInfo
 }
 
-// acquireRunLock creates the per-run lock with O_CREATE|O_EXCL. A stale lock is
-// reclaimed only when its PID is dead on this host or it is older than
-// LockStaleAfter; any other existing lock is a conflict.
-func acquireRunLock(runDir, operation string) (*runLockHandle, error) {
+// requireRunDir verifies that the run directory exists as a real directory. A
+// missing run is reported as not found, never created.
+func requireRunDir(runDir string) error {
 	info, err := os.Lstat(runDir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("%w: run is not present at the selected directory", ErrNotFound)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("run directory is unreadable: %w", err)
+		return fmt.Errorf("run directory is unreadable: %w", err)
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-		return nil, fmt.Errorf("%w: run directory is a symlink or not a directory", ErrUnsafePath)
+		return fmt.Errorf("%w: run directory is a symlink or not a directory", ErrUnsafePath)
 	}
+	return nil
+}
+
+// acquireRunGuard takes the kernel guard for one run identifier. The guard
+// directory is created on demand under an existing run root and must itself be
+// a real directory, not a link.
+func acquireRunGuard(runRoot, runID string) (*os.File, error) {
+	rootInfo, err := os.Lstat(runRoot)
+	if err != nil {
+		return nil, fmt.Errorf("run root is unreadable: %w", err)
+	}
+	if rootInfo.Mode()&os.ModeSymlink != 0 || !rootInfo.IsDir() {
+		return nil, fmt.Errorf("%w: run root is a symlink or not a directory", ErrUnsafePath)
+	}
+	dir := filepath.Join(runRoot, runGuardDirName)
+	if err := os.Mkdir(dir, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
+		return nil, fmt.Errorf("create run guard directory: %w", err)
+	}
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return nil, fmt.Errorf("run guard directory is unreadable: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return nil, fmt.Errorf("%w: run guard directory is a symlink or not a directory", ErrUnsafePath)
+	}
+	return lockRunGuard(filepath.Join(dir, runID))
+}
+
+// acquireRunLock takes the per-run writer lock in two steps. First the kernel
+// guard <runRoot>/.locks/<runID> is locked nonblocking. It lives outside the run
+// directory, so clean cannot delete it while a writer holds it. Then, while the
+// guard is held, the legacy <runDir>/.lock is created with heartbeat, so an older
+// binary still sees a live owner. The run is revalidated after the guard is
+// taken, and nothing is trusted from before that point.
+func acquireRunLock(runDir, operation string) (*runLockHandle, error) {
+	if err := requireRunDir(runDir); err != nil {
+		return nil, err
+	}
+	runID := filepath.Base(runDir)
+	if err := ValidateRunID(runID); err != nil {
+		return nil, err
+	}
+	guard, err := acquireRunGuard(filepath.Dir(runDir), runID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireRunDir(runDir); err != nil {
+		_ = guard.Close()
+		return nil, err
+	}
+	handle, err := acquireLegacyRunLock(runDir, operation)
+	if err != nil {
+		_ = guard.Close()
+		return nil, err
+	}
+	handle.guard = guard
+	handle.guardPath = filepath.Join(filepath.Dir(runDir), runGuardDirName, runID)
+	return handle, nil
+}
+
+// acquireLegacyRunLock creates the legacy <runDir>/.lock with O_CREATE|O_EXCL.
+// It runs only while the kernel guard is held. A lock is reclaimed only when it
+// is provably dead on this host, and only if its file identity still matches the
+// inspected object. Any live or unknown owner is a conflict.
+func acquireLegacyRunLock(runDir, operation string) (*runLockHandle, error) {
 	lockPath := filepath.Join(runDir, lockFileName)
 	for attempt := 0; attempt < 2; attempt++ {
 		token, err := randomToken()
@@ -776,7 +859,7 @@ func acquireRunLock(runDir, operation string) (*runLockHandle, error) {
 				os.Remove(lockPath)
 				return nil, fmt.Errorf("sync run directory: %w", err)
 			}
-			return &runLockHandle{path: lockPath, token: token}, nil
+			return &runLockHandle{path: lockPath, token: token, runDir: runDir}, nil
 		}
 		if !errors.Is(err, fs.ErrExist) {
 			return nil, fmt.Errorf("create run lock: %w", err)
@@ -784,6 +867,13 @@ func acquireRunLock(runDir, operation string) (*runLockHandle, error) {
 		observed := inspectLock(runDir)
 		if !observed.stale {
 			return nil, fmt.Errorf("%w: run is locked by another writer", ErrConflict)
+		}
+		// Reclaim only the object that was inspected: a replaced file is a
+		// different owner and is never removed on this observation.
+		current, statErr := os.Lstat(lockPath)
+		if statErr != nil || observed.info == nil || !os.SameFile(observed.info, current) ||
+			observed.info.Size() != current.Size() || !observed.info.ModTime().Equal(current.ModTime()) {
+			return nil, fmt.Errorf("%w: run lock changed during reclaim; retry", ErrConflict)
 		}
 		if err := os.Remove(lockPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return nil, fmt.Errorf("reclaim stale run lock: %w", err)
@@ -803,6 +893,20 @@ func (h *runLockHandle) release() error {
 		return nil
 	}
 	h.released = true
+	// The legacy lock is removed before the guard is closed, so the next writer
+	// that acquires the guard never meets this handle's stale payload.
+	err := h.releaseLegacyLocked()
+	if h.guard != nil {
+		if closeErr := h.guard.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close run guard: %w", closeErr)
+		}
+	}
+	return err
+}
+
+// releaseLegacyLocked removes the legacy lock file if this handle still owns it.
+// Callers hold h.mu.
+func (h *runLockHandle) releaseLegacyLocked() error {
 	data, err := readBoundedRegular(h.path, maxLockBytes)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -821,6 +925,75 @@ func (h *runLockHandle) release() error {
 		return fmt.Errorf("remove run lock: %w", err)
 	}
 	return syncDir(filepath.Dir(h.path))
+}
+
+// retireGuard removes the held guard file once the run directory is gone. Only
+// clean calls it, and only while the guard is held. The path must still name the
+// locked object; a waiter that opened the old object retries on the new one.
+func (h *runLockHandle) retireGuard() error {
+	if h == nil || h.guard == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.released {
+		return fmt.Errorf("%w: run guard is no longer held", ErrConflict)
+	}
+	info, err := h.guard.Stat()
+	if err != nil {
+		return fmt.Errorf("stat run guard: %w", err)
+	}
+	current, err := os.Lstat(h.guardPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil || !os.SameFile(info, current) {
+		return fmt.Errorf("%w: run guard was replaced; it is left in place", ErrConflict)
+	}
+	if err := os.Remove(h.guardPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("remove run guard: %w", err)
+	}
+	return nil
+}
+
+// checkHeld verifies that this handle still owns the run it is passed for: it is
+// not released, its heartbeat has not failed, it was taken for the same run
+// directory, the guard is still the path's object, and the legacy lock still
+// carries this handle's token. A nested write calls it instead of re-locking.
+func (h *runLockHandle) checkHeld(runDir string) error {
+	if h == nil {
+		return fmt.Errorf("%w: run lock is not held", ErrConflict)
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.released {
+		return fmt.Errorf("%w: run lock was released", ErrConflict)
+	}
+	if h.heartbeatErr != nil {
+		return h.heartbeatErr
+	}
+	if filepath.Clean(h.runDir) != filepath.Clean(runDir) {
+		return fmt.Errorf("%w: run lock is held for another run directory", ErrConflict)
+	}
+	if h.guard != nil {
+		info, err := h.guard.Stat()
+		if err != nil {
+			return fmt.Errorf("%w: run guard is unreadable", ErrConflict)
+		}
+		current, err := os.Lstat(h.guardPath)
+		if err != nil || !os.SameFile(info, current) {
+			return fmt.Errorf("%w: run guard was replaced", ErrConflict)
+		}
+	}
+	data, err := readBoundedRegular(h.path, maxLockBytes)
+	if err != nil {
+		return fmt.Errorf("%w: run lock is unreadable", ErrConflict)
+	}
+	var lock runLock
+	if err := json.Unmarshal(data, &lock); err != nil || lock.Token != h.token {
+		return fmt.Errorf("%w: run lock is owned by another writer", ErrConflict)
+	}
+	return nil
 }
 
 // refresh rewrites the held lock's refreshed_at timestamp while preserving its
@@ -908,11 +1081,10 @@ func (h *runLockHandle) heartbeatFailure() error {
 	return h.heartbeatErr
 }
 
-// inspectLock reports whether the run has a live or reclaimable lock. The age
-// is measured from the newest recorded activity, so a heartbeating holder stays
-// live; a malformed lock is judged by its file age. A same-host dead PID is an
-// immediate reclaim signal. PID liveness alone does not veto reclaim: a dead
-// holder's recycled PID would otherwise strand the lock forever.
+// inspectLock reports the legacy lock state without inventing ownership. A lock
+// is stale only when it names a holder on this host whose PID is dead; that is
+// identity, not age, so a paused or slow live holder is never reclaimed. An
+// unreadable or malformed lock, or one from another host, is unknown and blocks.
 func inspectLock(runDir string) lockObservation {
 	lockPath := filepath.Join(runDir, lockFileName)
 	info, err := os.Lstat(lockPath)
@@ -922,7 +1094,7 @@ func inspectLock(runDir string) lockObservation {
 	if err != nil {
 		return lockObservation{exists: true, live: true}
 	}
-	observed := lockObservation{exists: true}
+	observed := lockObservation{exists: true, info: info}
 	now := time.Now().UTC()
 	data, readErr := readBoundedRegular(lockPath, maxLockBytes)
 	if readErr == nil {
@@ -938,18 +1110,17 @@ func inspectLock(runDir string) lockObservation {
 				observed.age = 0
 			}
 			sameHost := lock.Hostname != "" && lock.Hostname == hostName()
-			deadOnHost := sameHost && lock.PID > 0 && !pidAlive(lock.PID)
-			observed.stale = observed.age > lockStaleAfter || deadOnHost
+			observed.stale = sameHost && lock.PID > 0 && !pidAlive(lock.PID)
 			observed.live = !observed.stale
 			return observed
 		}
 	}
+	// Unknown ownership: fail closed. Age is not evidence of death.
 	observed.age = now.Sub(info.ModTime())
 	if observed.age < 0 {
 		observed.age = 0
 	}
-	observed.stale = observed.age > lockStaleAfter
-	observed.live = !observed.stale
+	observed.live = true
 	return observed
 }
 

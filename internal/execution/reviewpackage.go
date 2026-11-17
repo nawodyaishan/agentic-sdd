@@ -1040,7 +1040,7 @@ func BuildReviewPackage(req ReviewPackageRequest) (ReviewManifest, error) {
 		PartialReasons: partialReasons,
 		CreatedAt:      now,
 	})
-	if err := WriteCheckpoint(runDir, checkpoint); err != nil {
+	if err := writeCheckpointLocked(lock, runDir, checkpoint); err != nil {
 		return ReviewManifest{}, fmt.Errorf("update checkpoint: %w", err)
 	}
 

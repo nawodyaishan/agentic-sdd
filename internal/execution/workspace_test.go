@@ -388,20 +388,17 @@ func TestLockStaleReclaim(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Run("aged foreign-host lock", func(t *testing.T) {
+	t.Run("aged foreign-host lock is a conflict (identity rule, no age reclaim)", func(t *testing.T) {
 		started := time.Now().UTC().Add(-31 * time.Minute)
 		payload := fmt.Sprintf(`{"schemaVersion":1,"token":"old","pid":%d,"hostname":"another-host","started_at":%q,"operation":"check"}`,
 			os.Getpid(), started.Format(time.RFC3339Nano))
 		if err := writeFileAtomic(lockPath, []byte(payload), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		lock, err := acquireRunLock(runDir, "test")
-		if err != nil {
-			t.Fatalf("reclaim aged lock: %v", err)
+		if _, err := acquireRunLock(runDir, "test"); !errors.Is(err, ErrConflict) {
+			t.Fatalf("acquire over an aged foreign-host lock error = %v, want ErrConflict", err)
 		}
-		if err := lock.release(); err != nil {
-			t.Fatal(err)
-		}
+		os.Remove(lockPath)
 	})
 	t.Run("live foreign-host lock is a conflict", func(t *testing.T) {
 		payload := fmt.Sprintf(`{"schemaVersion":1,"token":"live","pid":%d,"hostname":"another-host","started_at":%q,"operation":"check"}`,
@@ -478,15 +475,28 @@ func TestLockHeartbeatPreventsAgeReclaim(t *testing.T) {
 	}
 
 	stop()
-	waitForLockState(t, runDir, LockStateStale, 5*time.Second)
+	// A stopped heartbeat alone never makes a live same-host holder reclaimable:
+	// the holder is still alive and still holds the run guard.
+	time.Sleep(3 * lockStaleAfter)
+	if _, err := acquireRunLock(runDir, "competing"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("a paused live holder was reclaimed by age: error = %v", err)
+	}
+	// Simulate the holder crashing: its kernel guard is dropped without a
+	// release, and its process is gone (dead PID on this host).
+	lock.mu.Lock()
+	lock.released = true
+	lock.mu.Unlock()
+	_ = lock.guard.Close()
+	released = true
+	dead := fmt.Sprintf(`{"schemaVersion":1,"token":%q,"pid":2147483647,"hostname":%q,"started_at":%q,"operation":"check"}`,
+		lock.token, hostName(), time.Now().UTC().Format(time.RFC3339Nano))
+	if err := writeFileAtomic(filepath.Join(runDir, lockFileName), []byte(dead), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	reclaimed, err := acquireRunLock(runDir, "competing")
 	if err != nil {
-		t.Fatalf("reclaim after the heartbeat stopped: %v", err)
+		t.Fatalf("reclaim after the holder died: %v", err)
 	}
-	if err := lock.release(); !errors.Is(err, ErrConflict) {
-		t.Fatalf("the old handle release error = %v, want ErrConflict for the reclaimed lock", err)
-	}
-	released = true
 	if err := reclaimed.release(); err != nil {
 		t.Fatalf("release reclaimed lock: %v", err)
 	}
@@ -506,8 +516,8 @@ func TestLockRefreshRecordsHeartbeatTimestamp(t *testing.T) {
 	if err := writeFileAtomic(lockPath, []byte(payload), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if observed := inspectLock(runDir); !observed.stale {
-		t.Fatalf("aged lock without a heartbeat = %+v, want stale", observed)
+	if observed := inspectLock(runDir); observed.stale || !observed.live {
+		t.Fatalf("aged lock with a live same-host holder = %+v, want live (age never reclaims)", observed)
 	}
 	handle := &runLockHandle{path: lockPath, token: "held"}
 	if err := handle.refresh(); err != nil {

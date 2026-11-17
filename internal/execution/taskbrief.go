@@ -339,7 +339,7 @@ func TaskBrief(req TaskBriefRequest) (*Brief, error) {
 	if err := registerTaskBrief(checkpoint, runDir, *brief); err != nil {
 		return nil, err
 	}
-	if err := WriteCheckpoint(runDir, checkpoint); err != nil {
+	if err := writeCheckpointLocked(lock, runDir, checkpoint); err != nil {
 		return nil, err
 	}
 	// Report a lock that could not be released instead of claiming success. The

@@ -205,7 +205,7 @@ func IngestRecord(runDir, taskID string, data []byte) (ClaimRecord, error) {
 	claim.RawPath = rawPath
 	claim.RawDigest = DigestBytes(data)
 	applyClaim(checkpoint, claim)
-	if err := WriteCheckpoint(runDir, checkpoint); err != nil {
+	if err := writeCheckpointLocked(lock, runDir, checkpoint); err != nil {
 		os.Remove(rawPath)
 		return fail(err)
 	}

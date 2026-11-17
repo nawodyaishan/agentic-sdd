@@ -114,6 +114,7 @@ type checkMeta struct {
 
 // checkRun carries one in-flight check within a locked run.
 type checkRun struct {
+	lock       *runLockHandle
 	runDir     string
 	repo       *Repository
 	scope      Scope
@@ -155,6 +156,17 @@ func RunCheck(req CheckRequest) (CheckRecord, error) {
 		return CheckRecord{}, fmt.Errorf("%w: run directory is invalid", ErrUsage)
 	}
 	runDir = filepath.Clean(runDir)
+	// The run guard is taken before the run identity is trusted, so a concurrent
+	// clean or writer cannot change the run between validation and mutation.
+	lock, err := acquireRunLock(runDir, "check")
+	if err != nil {
+		return CheckRecord{}, err
+	}
+	// A long check must not lose the lock by age: keep refreshing the lock
+	// timestamp while this writer is alive.
+	stopHeartbeat := lock.startHeartbeat(lockHeartbeatInterval)
+	defer stopHeartbeat()
+	defer func() { _ = lock.release() }()
 	identity, err := LoadRunIdentity(runDir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -186,15 +198,6 @@ func RunCheck(req CheckRequest) (CheckRecord, error) {
 			return CheckRecord{}, err
 		}
 	}
-	lock, err := acquireRunLock(runDir, "check")
-	if err != nil {
-		return CheckRecord{}, err
-	}
-	// A long check must not lose the lock by age: keep refreshing the lock
-	// timestamp while this writer is alive.
-	stopHeartbeat := lock.startHeartbeat(lockHeartbeatInterval)
-	defer stopHeartbeat()
-	defer func() { _ = lock.release() }()
 
 	checkpoint, err := LoadCheckpoint(runDir)
 	if err != nil {
@@ -219,6 +222,7 @@ func RunCheck(req CheckRequest) (CheckRecord, error) {
 		return CheckRecord{}, err
 	}
 	run := &checkRun{
+		lock:       lock,
 		runDir:     runDir,
 		repo:       repo,
 		scope:      identity.Scope,
@@ -272,7 +276,7 @@ func RunCheck(req CheckRequest) (CheckRecord, error) {
 	}
 	applyCheckStart(checkpoint, run.record)
 	checkpoint.LastObservation = &startObservation
-	if err := WriteCheckpoint(runDir, checkpoint); err != nil {
+	if err := writeCheckpointLocked(lock, runDir, checkpoint); err != nil {
 		return CheckRecord{}, err
 	}
 	record, err := run.execute()
@@ -290,7 +294,9 @@ func RunCheck(req CheckRequest) (CheckRecord, error) {
 }
 
 // execute runs the prepared command and finalizes its evidence. The run lock is
-// already held and the running checkpoint is persisted.
+// already held and the running checkpoint is persisted. Every ending (normal
+// exit, timeout, output limit, interrupt, capture failure) converges on the one
+// owned-group gate in superviseCommand before the leader is reaped.
 func (c *checkRun) execute() (CheckRecord, error) {
 	stdoutFile, stdoutErr := createCheckLog(c.record.StdoutPath)
 	stderrFile, stderrErr := createCheckLog(c.record.StderrPath)
@@ -312,7 +318,7 @@ func (c *checkRun) execute() (CheckRecord, error) {
 	defer cancel()
 	stdout := newCheckStream(stdoutFile, c.maxOutput, cancel)
 	stderr := newCheckStream(stderrFile, c.maxOutput, cancel)
-	cmd := exec.CommandContext(ctx, c.argv[0], c.argv[1:]...)
+	cmd := exec.Command(c.argv[0], c.argv[1:]...)
 	cmd.Dir = c.repo.Root
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -322,10 +328,10 @@ func (c *checkRun) execute() (CheckRecord, error) {
 		return c.complete(CheckNotStarted, "cannot start the command: "+startErr.Error(), false, false, nil, "",
 			stdout.finish(), stderr.finish())
 	}
-	waitErr, stdoutCapture, stderrCapture, interrupted, interruptSignal := c.waitForCommand(cmd, stdout, stderr, cancel)
+	out := c.superviseCommand(cmd, ctx, stdout, stderr)
 
 	timedOut := errors.Is(ctx.Err(), context.DeadlineExceeded)
-	outputLimit := stdoutCapture.Truncated || stderrCapture.Truncated
+	outputLimit := out.stdout.Truncated || out.stderr.Truncated
 	state := cmd.ProcessState
 	var exit *int
 	if state != nil && state.Exited() {
@@ -333,20 +339,27 @@ func (c *checkRun) execute() (CheckRecord, error) {
 		exit = &code
 	}
 	signal := checkProcessSignal(state)
-	cause := ""
+	var parts []string
 	switch {
-	case stdoutCapture.WriteErr != nil:
-		cause = "cannot persist stdout: " + stdoutCapture.WriteErr.Error()
-	case stderrCapture.WriteErr != nil:
-		cause = "cannot persist stderr: " + stderrCapture.WriteErr.Error()
-	case waitErr != nil && !isCheckExitError(waitErr):
-		cause = waitErr.Error()
+	case out.stdout.WriteErr != nil:
+		parts = append(parts, "cannot persist stdout: "+out.stdout.WriteErr.Error())
+	case out.stderr.WriteErr != nil:
+		parts = append(parts, "cannot persist stderr: "+out.stderr.WriteErr.Error())
+	case out.waitErr != nil && !isCheckExitError(out.waitErr):
+		parts = append(parts, out.waitErr.Error())
 	case state == nil:
-		cause = "process exit state is unavailable"
+		parts = append(parts, "process exit state is unavailable")
 	}
+	if out.group.failed() {
+		parts = append(parts, out.group.cause)
+	}
+	if out.interrupted {
+		parts = append(parts, "interrupted by "+out.interruptSignal.String())
+	}
+	cause := strings.Join(parts, "; ")
 	result := CheckPassed
 	switch {
-	case interrupted:
+	case out.interrupted:
 		result = CheckInterrupted
 	case outputLimit:
 		result = CheckOutputLimit
@@ -361,45 +374,7 @@ func (c *checkRun) execute() (CheckRecord, error) {
 	case *exit != 0:
 		result = CheckFailed
 	}
-	if interrupted && cause == "" {
-		cause = "interrupted by " + interruptSignal.String()
-	}
-	return c.complete(result, cause, timedOut, outputLimit, exit, signal, stdoutCapture, stderrCapture)
-}
-
-// waitForCommand waits for the started command. When an interrupt is observed
-// while it runs, the signal is forwarded to the child's process group, the
-// command is given a bounded grace period to exit, and the group is then killed
-// through the context cancellation configured by configureCheckProcess. The
-// boolean reports that the operator interrupt, not the command, ended the check.
-func (c *checkRun) waitForCommand(cmd *exec.Cmd, stdout, stderr *checkStream, cancel context.CancelFunc) (waitErr error, stdoutCapture, stderrCapture checkCapture, interrupted bool, interruptSignal os.Signal) {
-	waitCh := make(chan error, 1)
-	go func() { waitCh <- cmd.Wait() }()
-	if c.interrupts == nil {
-		waitErr = <-waitCh
-		return waitErr, stdout.finish(), stderr.finish(), false, nil
-	}
-	select {
-	case waitErr = <-waitCh:
-	case observed := <-c.interrupts:
-		// The command may have finished at the same moment as the signal.
-		select {
-		case waitErr = <-waitCh:
-		default:
-			interrupted = true
-			interruptSignal = observed
-			interruptCheckProcessGroup(cmd, observed)
-			grace := time.NewTimer(checkInterruptGrace)
-			select {
-			case waitErr = <-waitCh:
-				grace.Stop()
-			case <-grace.C:
-				cancel()
-				waitErr = <-waitCh
-			}
-		}
-	}
-	return waitErr, stdout.finish(), stderr.finish(), interrupted, interruptSignal
+	return c.complete(result, cause, timedOut, outputLimit, exit, signal, out.stdout, out.stderr)
 }
 
 // complete records the observed outcome, reconciles the worktree observation and
@@ -455,7 +430,7 @@ func (c *checkRun) complete(result CheckResult, cause string, timedOut, outputLi
 	if err := writeCheckMeta(c.metaPath, c.meta); err != nil {
 		return c.record, err
 	}
-	if err := WriteCheckpoint(c.runDir, c.checkpoint); err != nil {
+	if err := writeCheckpointLocked(c.lock, c.runDir, c.checkpoint); err != nil {
 		return c.record, err
 	}
 	return c.record, nil

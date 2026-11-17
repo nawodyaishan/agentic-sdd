@@ -267,12 +267,37 @@ func LoadCheckpoint(runDir string) (*Checkpoint, error) {
 	return &checkpoint, nil
 }
 
-// WriteCheckpoint atomically persists the checkpoint. The caller must hold the
-// run lock; run.json must already exist and carry the same run ID.
+// WriteCheckpoint atomically persists the checkpoint. It takes the run lock
+// itself, so it refuses with ErrConflict while another writer holds the run. A
+// caller that already holds the lock must use writeCheckpointLocked instead.
 func WriteCheckpoint(runDir string, checkpoint *Checkpoint) error {
 	if checkpoint == nil {
 		return fmt.Errorf("%w: checkpoint is required", ErrUsage)
 	}
+	lock, err := acquireRunLock(runDir, "checkpoint")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = lock.release() }()
+	return writeCheckpointLocked(lock, runDir, checkpoint)
+}
+
+// writeCheckpointLocked persists the checkpoint under a handle the caller already
+// holds. The handle is checked for this run directory and for current ownership,
+// so a released, replaced or foreign handle cannot write.
+func writeCheckpointLocked(lock *runLockHandle, runDir string, checkpoint *Checkpoint) error {
+	if checkpoint == nil {
+		return fmt.Errorf("%w: checkpoint is required", ErrUsage)
+	}
+	if err := lock.checkHeld(runDir); err != nil {
+		return err
+	}
+	return writeCheckpointRecord(runDir, checkpoint)
+}
+
+// writeCheckpointRecord validates and atomically writes checkpoint.json. Only the
+// locked wrappers above call it.
+func writeCheckpointRecord(runDir string, checkpoint *Checkpoint) error {
 	identity, err := LoadRunIdentity(runDir)
 	if err != nil {
 		return err
