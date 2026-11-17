@@ -422,10 +422,12 @@ exit 99
 '''
 
 FAKE_GH = '''#!/usr/bin/env python3
-"""Serve one scripted read-only API document per path and apply the tested --jq field.
+"""Serve one scripted read-only API document per path and apply the tested --jq selectors.
 
-Only `gh api PATH --jq .a.b` is supported, which is all the resolve step uses. A
-path without a scripted document fails like an unavailable API. No network.
+Only `gh api PATH --jq SELECTOR` is supported, which is all the resolve step
+uses. A selector may be one dotted field or several separated by commas, which
+`gh`'s built-in jq prints one per line. A path without a scripted document
+fails like an unavailable API. No network.
 """
 import json
 import os
@@ -467,16 +469,16 @@ if jq is None:
     sys.stdout.write(json.dumps(document))
     sys.exit(0)
 
-value = document
-for field in jq.lstrip(".").split("."):
-    if not isinstance(value, dict):
-        value = None
-        break
-    value = value.get(field)
-if value is None:
-    sys.stdout.write("null\\n")
-else:
-    sys.stdout.write(str(value) + "\\n")
+values = []
+for selector in jq.split(","):
+    value = document
+    for field in selector.strip().lstrip(".").split("."):
+        if not isinstance(value, dict):
+            value = None
+            break
+        value = value.get(field)
+    values.append("null" if value is None else str(value))
+sys.stdout.write("\\n".join(values) + "\\n")
 sys.exit(0)
 '''
 
@@ -1015,23 +1017,29 @@ API_ROOT = "repos/nawodyaishan/agentic-sdd"
 TAG_OBJECT = "b" * 40
 
 # The triggering publish run's own window, and a release inside it. The window
-# is [run_started_at, updated_at + 120 s]: nothing before `run_started_at` is
-# this run's release, and 120 s of documented slack is allowed after the run's
-# last update.
+# is [run_started_at, updated_at + 120 s]: a release *published* before
+# `run_started_at` is another run's, and 120 s of documented slack is allowed
+# after the run's last update. Only `published_at` is window-checked.
+# `created_at` is, per GitHub's REST docs, the date of the commit used for the
+# release, so it is always older than the publish run that releases it.
 WINDOW_START = "2026-11-17T21:00:00Z"
 WINDOW_UPDATED = "2026-11-17T21:20:00Z"
 WINDOW_SLACK_SECONDS = 120
 WINDOW_LIMIT = "2026-11-17T21:22:00Z"   # exactly updated_at + 120 s
-RELEASE_CREATED = "2026-11-17T21:12:00Z"
+RELEASE_PUBLISHED = "2026-11-17T21:12:00Z"      # inside the window
+RELEASE_COMMIT_DATE = "2026-11-05T08:30:00Z"    # the tagged commit: before the run
 
 
 def release_documents(tag="v0.13.0", commit=REVISION, status="ahead",
                       object_type="commit", object_sha=None,
-                      published_at=RELEASE_CREATED, created_at=RELEASE_CREATED):
+                      published_at=RELEASE_PUBLISHED,
+                      created_at=RELEASE_COMMIT_DATE):
     """The read-only API documents the resolve step reads for one release.
 
-    `published_at`/`created_at` default to a release inside the publish run's
-    window; passing `None` omits the field, which the API answers as null.
+    `published_at` defaults to a moment inside the publish run's window and
+    `created_at` to the older date of the tagged commit, which is the shape
+    GitHub answers with. Passing `None` omits the field, which the API answers
+    as null.
     """
     sha = object_sha if object_sha is not None else commit
     latest = {"tag_name": tag}
@@ -1286,20 +1294,75 @@ class WorkflowRunObserverTests(OfflineStepCase):
     # ------------------------------------------------ release window (F-02)
 
     def test_a_release_inside_the_publish_run_window_is_observed(self):
-        """`releases/latest` is only usable when it is this run's release."""
-        for stamp in (WINDOW_START, RELEASE_CREATED, WINDOW_UPDATED, WINDOW_LIMIT):
+        """`releases/latest` is usable when its publication is this run's."""
+        for stamp in (WINDOW_START, RELEASE_PUBLISHED, WINDOW_UPDATED, WINDOW_LIMIT):
             with self.subTest(stamp=stamp):
-                completed = self.resolve(
-                    release_documents(created_at=stamp, published_at=stamp))
+                completed = self.resolve(release_documents(published_at=stamp))
                 self.assertEqual(completed.returncode, 0,
                                  completed.stderr.decode("utf-8", "replace"))
                 self.assertEqual(self.resolved().get("RESOLVED_TAG"), "v0.13.0")
                 self.assertEqual(self.resolved().get("RESOLVED_REVISION"), REVISION)
 
+    def test_a_release_with_an_old_commit_date_and_in_window_publication_passes(self):
+        """The genuine-release case the previous created_at check refused.
+
+        GitHub reports `created_at` as the date of the commit used for the
+        release, which predates the publish run, so a release created months
+        earlier and published inside this run's window must still be observed.
+        """
+        completed = self.resolve(release_documents(
+            created_at="2026-10-01T04:00:00Z", published_at=RELEASE_PUBLISHED))
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        self.assertEqual(self.resolved(), {"RESOLVED_TAG": "v0.13.0",
+                                           "RESOLVED_REVISION": REVISION})
+
+    def test_the_previous_created_at_window_check_would_refuse_that_fixture(self):
+        """Reproduce the old rule, so the passing fixture above is not vacuous.
+
+        The removed rule required both timestamps inside
+        [run_started_at, updated_at + 120 s]. `created_at` is a commit date, so
+        that rule refused every genuine release of this pipeline.
+        """
+        documents = release_documents()
+        latest = documents[API_ROOT + "/releases/latest"]
+        created_at = latest["created_at"]
+        published_at = latest["published_at"]
+
+        def legacy_window_accepts(created, published):
+            return (WINDOW_START <= published <= WINDOW_LIMIT
+                    and WINDOW_START <= created <= WINDOW_LIMIT)
+
+        self.assertFalse(
+            legacy_window_accepts(created_at, published_at),
+            "the default fixture does not reproduce the case the old rule refused")
+        self.assertLess(created_at, WINDOW_START,
+                        "the fixture's created_at must be an old commit date")
+        script = job_run_text(self.job(), RESOLVE_STEP)
+        self.assertNotIn(
+            "check_release_window created_at", script,
+            "created_at must never be window-compared with the run start")
+        completed = self.resolve(documents)
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        self.assertEqual(self.resolved().get("RESOLVED_REVISION"), REVISION)
+
+    def test_the_tag_and_both_timestamps_come_from_one_api_call(self):
+        """No mixed-release race: one document yields tag, publication and commit date."""
+        script = job_run_text(self.job(), RESOLVE_STEP)
+        self.assertEqual(script.count("/releases/latest"), 1,
+                         "the release must be read with a single API request")
+        completed = self.resolve(release_documents())
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        calls = [call for call in self.api_calls()
+                 if call == API_ROOT + "/releases/latest"]
+        self.assertEqual(len(calls), 1,
+                         "a second releases/latest call could mix two releases")
+
     def test_one_second_past_the_documented_slack_is_refused(self):
         """`updated_at + 120 s` passes; one second later is another run's."""
         completed = self.resolve(release_documents(
-            created_at="2026-11-17T21:22:01Z",
             published_at="2026-11-17T21:22:01Z"))
         self.assertNotEqual(
             completed.returncode, 0,
@@ -1310,32 +1373,22 @@ class WorkflowRunObserverTests(OfflineStepCase):
     def test_a_release_published_before_the_run_started_is_refused(self):
         for stamp in ("2026-11-17T20:59:59Z", "2026-11-16T21:12:00Z"):
             with self.subTest(stamp=stamp):
-                completed = self.resolve(
-                    release_documents(created_at=stamp, published_at=stamp))
+                completed = self.resolve(release_documents(published_at=stamp))
                 self.assertNotEqual(
                     completed.returncode, 0,
-                    "a release that existed before this run started was accepted")
+                    "a release published before this run started was accepted")
                 self.assertEqual(self.resolved(), {})
                 self.assertEqual(
                     set(self.api_calls()), {API_ROOT + "/releases/latest"},
                     "the refusal must happen before the tag is resolved")
 
-    def test_a_release_created_before_the_run_is_refused_even_if_published_during_it(
-            self):
-        """This publisher creates and publishes in one `gh release create`."""
-        completed = self.resolve(release_documents(
-            created_at="2026-11-17T20:00:00Z", published_at=RELEASE_CREATED))
-        self.assertNotEqual(completed.returncode, 0)
-        self.assertEqual(self.resolved(), {})
-
     def test_a_release_after_the_run_window_plus_slack_is_refused(self):
         for stamp in ("2026-11-17T21:22:01Z", "2026-11-18T09:30:00Z"):
             with self.subTest(stamp=stamp):
-                completed = self.resolve(
-                    release_documents(created_at=stamp, published_at=stamp))
+                completed = self.resolve(release_documents(published_at=stamp))
                 self.assertNotEqual(
                     completed.returncode, 0,
-                    "a release after the run's window was accepted")
+                    "a release published after the run's window was accepted")
                 self.assertEqual(self.resolved(), {})
 
     def test_a_release_without_usable_timestamps_is_refused(self):

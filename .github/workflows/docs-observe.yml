@@ -32,11 +32,13 @@ name: Docs observe
 # release through the read-only API: the tag must be a strict `vX.Y.Z` name, it
 # must resolve to a full 40-hex commit, and that commit must be an ancestor of
 # the default branch, or the job refuses to record anything. That release must
-# also have been created and published inside the triggering publish run's own
-# window (see the window check in the resolve step), so a stale
-# `releases/latest` answer - a rerun of an older publish, or a publish whose
-# release step was skipped while the run still concluded `success` - is refused
-# instead of being recorded under this run's id.
+# also have been *published* inside the triggering publish run's own window (see
+# the window check in the resolve step), so a stale `releases/latest` answer - a
+# rerun of an older publish, or a publish whose release step was skipped while
+# the run still concluded `success` - is refused instead of being recorded under
+# this run's id. Only the publication time can serve as that binding: the API's
+# `created_at` is the date of the tagged *commit*, which always predates the
+# publish run that released it.
 #
 # What is written, exactly. Two records in the uploaded evidence directory, and
 # nothing else: `binding.json` (`docs-observation-binding/1`: expected and
@@ -106,30 +108,35 @@ jobs:
           # never become a checkout ref. The commit must be a full lowercase
           # SHA, and it must be reachable from the default branch, so a tag on a
           # side branch or an unrelated commit is refused rather than observed.
-          # The tag is the newest release, never this run's own tag (a publish
-          # run carries no tag input), so the release-window check below ties
-          # it back to this publish run. The record keeps `source_run_id` next
-          # to the tag so the pair stays readable, and it remains
-          # non-authoritative.
+          # The tag comes from `releases/latest` as the API orders it, never
+          # from this run (a publish run carries no tag input), so the
+          # publication window check below is what ties it back to this publish
+          # run. The record keeps `source_run_id` next to the tag so the pair
+          # stays readable, and it remains non-authoritative.
           if [[ ! "${DEFAULT_BRANCH:-}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || [[ "$DEFAULT_BRANCH" == *..* ]]; then
             echo "::error::default branch name is missing or unsafe; refusing to observe"
             exit 1
           fi
 
           # ------------------------------------------------------------------
-          # Which release may this run observe? `releases/latest` answers with the
-          # newest release by publication time, so without this check a rerun of
-          # an older publish run - or a publish whose release step was skipped
-          # while the run still concluded `success` - would record the previous
-          # release under this run's id. Only a release created and published
-          # inside the triggering run's own window is accepted. The window starts
-          # at `run_started_at` with no allowance (a release that already existed
-          # when the run began is another run's), and ends at the run's
-          # `updated_at` plus a documented 120 s slack for the release call
-          # landing just after the run's final update. Both timestamps must be
-          # present: this repository's publisher creates and publishes in one
-          # `gh release create`, so a missing `published_at` or a `created_at`
-          # older than the run is not a publication of this run and is refused.
+          # Which release may this run observe? `releases/latest` answers with
+          # one non-draft, non-prerelease release, and GitHub orders that answer
+          # by `created_at` - the date of the *commit* the release points at,
+          # not when the release was drafted or published. That commit predates
+          # the publish run by construction, so `created_at` can never show that
+          # a release belongs to this run; only its publication time can. The
+          # window check below is therefore what binds the release to this run:
+          # without it, a rerun of an older publish run - or a publish whose
+          # release step was skipped while the run still concluded `success` -
+          # would record the previous release under this run's id. Only a
+          # release published inside the triggering run's own window is
+          # accepted. The window starts at `run_started_at` with no allowance (a
+          # release published before the run began is another run's), and ends
+          # at the run's `updated_at` plus a documented 120 s slack for the
+          # release call landing just after the run's final update. The
+          # publication time must be present; `created_at` must also be present
+          # and a UTC timestamp, but it is never compared with the window start,
+          # because a genuine release always has a commit date before it.
           # ------------------------------------------------------------------
           ISO_UTC='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
           RELEASE_WINDOW_SLACK_SECONDS=120
@@ -162,9 +169,9 @@ jobs:
             echo $(( days * 86400 + h * 3600 + mi * 60 + s ))
           }
 
-          # Refuse, with the value named, when a release timestamp falls outside
-          # the triggering run's window. `exit` here ends the step, so no record
-          # is written by any later step.
+          # Refuse, with the value named, when the release's publication time
+          # falls outside the triggering run's window. `exit` here ends the
+          # step, so no record is written by any later step.
           check_release_window() {
             local field="$1" stamp="$2" seconds
             seconds="$(epoch_seconds "$stamp")"
@@ -178,10 +185,23 @@ jobs:
             fi
           }
 
-          tag="$(gh api "repos/${GH_REPO}/releases/latest" --jq '.tag_name')" || {
+          # One read-only call, one answer: the tag and both timestamps come
+          # from the same `releases/latest` document, so a release that lands
+          # between two calls can never contribute its tag to one and its
+          # timestamps to another. `gh`'s built-in jq prints each selector on
+          # its own line, which is read as exactly three fields.
+          release_fields_text="$(gh api "repos/${GH_REPO}/releases/latest" --jq '.tag_name, .published_at, .created_at')" || {
             echo "::error::cannot read the latest release; refusing to observe"
             exit 1
           }
+          mapfile -t release_fields <<< "$release_fields_text"
+          if (( ${#release_fields[@]} != 3 )); then
+            echo "::error::the latest release did not answer with one tag and two timestamps; refusing to observe"
+            exit 1
+          fi
+          tag="${release_fields[0]}"
+          release_published_at="${release_fields[1]}"
+          release_created_at="${release_fields[2]}"
           # Character set first, so a multi-line or decorated value cannot pass
           # the anchored pattern below one line at a time.
           case "$tag" in
@@ -195,18 +215,11 @@ jobs:
             exit 1
           fi
 
-          # The release must be this publish run's publication, not merely the
-          # newest one. Both timestamps are read through the same read-only API;
-          # a null, absent or non-UTC answer refuses, and so does any value
-          # outside the window established above.
-          release_published_at="$(gh api "repos/${GH_REPO}/releases/latest" --jq '.published_at')" || {
-            echo "::error::cannot read when the latest release was published; refusing to observe"
-            exit 1
-          }
-          release_created_at="$(gh api "repos/${GH_REPO}/releases/latest" --jq '.created_at')" || {
-            echo "::error::cannot read when the latest release was created; refusing to observe"
-            exit 1
-          }
+          # Both timestamps are read from that same answer; a null, absent or
+          # non-UTC value refuses. Only `published_at` is then window-checked:
+          # `created_at` is the tagged commit's date, which is older than the
+          # run for every genuine release, so requiring it to fall inside the
+          # window would refuse every release this route exists to observe.
           for stamp in "$release_published_at" "$release_created_at"; do
             if ! printf '%s' "$stamp" | grep -Eq "$ISO_UTC"; then
               echo "::error::the latest release has no usable published_at/created_at timestamp; refusing to observe"
@@ -216,7 +229,6 @@ jobs:
           run_started="$(epoch_seconds "$RUN_STARTED_AT")"
           window_end=$(( $(epoch_seconds "$RUN_UPDATED_AT") + RELEASE_WINDOW_SLACK_SECONDS ))
           check_release_window published_at "$release_published_at"
-          check_release_window created_at "$release_created_at"
 
           # A lightweight tag points straight at a commit; an annotated tag
           # points at a tag object that must be dereferenced once. Anything else
