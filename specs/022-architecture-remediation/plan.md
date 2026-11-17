@@ -585,3 +585,61 @@ is not a repository record and is not approval. Working copy:
     - Lock order (amends §12.1): the fleet legacy `.fleet.lock` is taken first, then the agent-target guard. Only fleet takes the legacy lock, so no cycle exists today.
     - Journal order (amends §4.3): the live pointer is written before the provenance sidecar, so a failed live write after an `applied` sidecar cannot go unreconciled.
     - Not yet ruled on: fail-closed reading of every sidecar under the backup root, and the absence of a conflict-resolution command. Both stay open.
+
+## 13. Amendment r4: open-item resolutions (2026-11-17)
+
+Owner accepted the recommendations in the read-only options report (see
+[spec §9](spec.md#9-approval), amendment r4). This section records the design for
+each; it creates no batch authorization. Items are named R1–R7.
+
+### 13.1 R1 — G-008-01 stays open (D-01)
+No change to 008 records beyond a dated pointer to this plan. Closure path, in order:
+(1) owner designates an exact clean SHA after R2 passes; (2) a fresh base-owned gate
+run against a later, identified candidate with no `trusted == candidate` shortcut;
+(3) a recorded Opus verdict. A push to `main` is never evidence of closure.
+Preparing the Opus review request is allowed; sending it needs authorization.
+
+### 13.2 R2 — trusted base and container lane (O-01)
+Step 1: re-run the container suite on current HEAD with the pinned base `1b50933`
+and the reviewed overlay, and record all six test results with the HEAD SHA. Use
+`/dev/shm` for temp and Go caches. Docker is local; it writes no real home.
+Step 2 (separate authorization, only after six of six pass): owner picks a clean
+reviewed base SHA, advances the base and drops the overlay. A failing run is
+reported, not weakened: no skip, filter or tolerance.
+
+### 13.3 R3 — consent provenance (D-02)
+For 014, 018, 019 and the 016 release quote: the owning record gets either the
+owner-supplied quote with its date, or the line "consent not recoverable
+(recorded 2026-11-17)". Never reconstructed from runs or tags. A template is
+drafted for the owner; missing items stay missing.
+
+### 13.4 R4 — 014 closeout table (D-07)
+A read-only per-AC and per-finding table with evidence pointers and explicit
+`not_run`/`blocked` entries, built from the B5 disposition report and the
+current code. The owner then accepts, accepts with exceptions, or records a blocker.
+No automatic acceptance and no Fleet-live gate change by the table itself.
+
+### 13.5 R5 — T13 conflict command deferred
+Do not add a conflict resolver. A fleet transaction left conflicted must make the
+CLI refuse with a stable message naming the manual recovery steps (inspect the
+journal and sidecar, restore from the backup, re-plan). Current code already
+refuses conflicted plans (`ErrPlanConflict`, `internal/fleet/apply.go`); the work
+is the conflicted-transaction message and its test. A future resolver needs its own
+spec and race tests (AC-03, AC-12). Fail-closed sidecar reads stay as decided.
+
+### 13.6 R6 — B8 routing and reviewer policy (O-02, O-03)
+O-02: routing policy lives in `opencode-pack/routing.md`; profile frontmatter
+implements it, tests and docs project it. The owner adopts or discards the pending
+pack overlay first; no restore of HEAD over it, no host-derived pins.
+O-03: tool-capable reviewers are labelled ordinary and advisory; strict independent
+inspection rules stay in the portable reference; no installed strict runtime or 006
+certification claim. C-09 stays unblocked.
+
+### 13.7 R7 — nested TUI vendor drift
+Add a `task tui-vendor-check` (read-only): re-vendor into a temporary directory
+using the same offline settings as the existing TUI lane, diff against
+`experiments/tui/vendor`, and run `go mod verify`. Add a stamp file recording the
+source SHA of `internal/skillsync` and `internal/fleet` at vendor time; the check
+fails early when those trees changed since. Wire it into the trusted-CI TUI lane
+only after review. `replace` to the root module already exists in `go.mod`, so the
+vendored copy is the offline mechanism, not a replacement for it.

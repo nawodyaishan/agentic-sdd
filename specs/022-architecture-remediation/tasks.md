@@ -459,3 +459,35 @@ dependencies and stop points. Parallelism does not weaken priority or authority.
 - **In progress / not started:** B7 T16, B8, B10, B11 (documentation/reference generation remains; 2026-11-17 doc pass updated records, handovers and non-generated website prose only), B12, and B13 are not started.
 - **Open decisions / blockers:** T08 container lane is not accepted as qualifying evidence; help/probe conflict requires owner choice (probe checks the experimental gate, reject the flags, or keep strict and block); D-01, D-02, D-07 and real trusted-base adoption (O-01) remain open; `RELEASE_TOOLS_SHA` must be set by the owner on the `release` environment before any release publish can succeed.
 - **Next permitted action:** review B1, B4 container overlay/TUI fixes, B6 T12, and B7 T14; resolve the help/probe conflict and container overlay decision; finish and review B6 T13, then re-vendor the nested TUI dependencies before launching remaining authorized batches. No commit, push, tag, release, real-home apply or next batch without explicit authorization.
+
+## 8. Amendment r4 work items
+
+Parents: [spec §9 amendment r4](spec.md#9-approval), [plan §13](plan.md#13-amendment-r4-open-item-resolutions-2026-11-17).
+All items are **not started and not authorized**. Each needs an explicit owner go.
+No task checked here is acceptance. Drafting items (R3, R4, R5 text) change docs
+or tests only; R2 step 1 runs Docker; R7 edits `Taskfile.yml`.
+
+| ID | Item | Owner decision needed | Verification | State |
+|---|---|---|---|---|
+| **A1** | R2 step 1: container suite re-run on HEAD, result recorded | go to run Docker | six of six tests with HEAD SHA, or the failures verbatim | **done 2026-11-17, awaiting human review:** 6 of 6 passed in 545 s at HEAD `a76d39b` plus an 11-path uncommitted working tree (`SDD_TRUSTED_CI_CONTAINERS=1`, log `/dev/shm/a1-container.log`). Not a clean-commit run: re-run after commit before citing it as qualifying evidence. |
+| **A2** | R2 step 2: advance trusted base, drop overlay | base SHA and live-adoption go (after A1 passes) | fresh gate run on later candidate | blocked on A1 |
+| **A3** | R1: Opus review request draft; later SHA designation | designation SHA | 008 AC-21 three conditions | blocked on A2 |
+| **A4** | R3: consent-provenance template and per-record notes | quotes or "not recoverable" | records contain only owner-supplied text | not started |
+| **A5** | R4: 014 per-AC/finding closeout table | accept / accept with exceptions / blocker | each row has an evidence pointer or `not_run` | **draft written, awaiting owner decision:** [a5-closeout-014-draft.md](a5-closeout-014-draft.md). Nothing accepted. |
+| **A6** | R5: conflicted fleet transaction refusal message and stable test | none | `go test -race ./internal/fleet ./cmd/agentic-sdd`; vet | **done 2026-11-17, awaiting human review:** `ConflictRecoveryHint` in `internal/fleet/apply.go`; apply and restore tests pin it. `go test -race ./internal/fleet`, `go test -count=1 ./internal/fleet ./cmd/agentic-sdd` (985) and vet pass. |
+| **A7** | R6: B8 routing/reviewer edits | adopt or discard pending pack overlay | AC-14/15/22 static checks | blocked on overlay decision |
+| **A8** | R7: `task tui-vendor-check` and source-SHA stamp | none beyond the go | drift detected on a deliberate skillsync edit; clean tree passes | **done 2026-11-17, awaiting human review:** `tests/tui-vendor-check.sh`, `experiments/tui/vendor.stamp`, `task tui-vendor-check`. Verified: missing stamp, stale vendor and a deliberate edit all fail; a clean re-vendor passes. Nested TUI package (689 tests) passes on the re-vendored copy. Not yet wired into trusted CI (needs review first). |
+
+Order: A4, A5, A6, A8 are independent and may run together after a go. A1 precedes
+A2 and A3. A7 can follow the overlay decision. T16, B10–B13 are unchanged and still
+need their own authorization. After any `skillsync`/`fleet` change, re-vendor and
+re-run A8's check before the nested TUI gate.
+
+**Notes from the first A-batch (2026-11-17):** (1) the vendored copy includes the
+root-package non-Go files (for example `Taskfile.yml`, `README.md`), so the drift
+check also fails after an edit to those; re-vendor and `--stamp` afterwards. If that
+proves too noisy, narrowing the diff is a design change for the owner. (2)
+`go mod verify` cannot check the path-replaced root module, so the check resolves
+dependencies from `vendor/` instead. (3) A4, A2, A3 and A7 remain unstarted: they
+wait for the owner's quotes, A1's clean-commit re-run plus a base SHA, and the pack
+overlay decision.

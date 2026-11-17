@@ -564,6 +564,34 @@ They do not block delivery of this draft, but the dependent plan must not guess.
   O-01 real adoption, help/probe conflict, container overlay decision and
   `RELEASE_TOOLS_SHA` remain open). Feature-level approval status above is unchanged.
 
+- **Amendment r4 (2026-11-17, owner):** the owner reviewed the Sonnet read-only
+  options report on the open items and said "i accept ur recommendations". Recorded
+  as accepted for exactly these items (details and work in [plan §13](plan.md#13-amendment-r4-open-item-resolutions-2026-11-17)
+  and [tasks §8](tasks.md#8-amendment-r4-work-items)):
+  - **D-01/O-04 (G-008-01):** stays **open** (option B). No amendment narrows the
+    008 acceptance claim (option C not selected). Designation follows the trusted-base
+    step below; closure still needs the three 008 conditions. Not closed by `main` pushes.
+  - **Trusted base (O-01):** re-run the container lane on current HEAD and record the
+    result (option A); advancing the base (option B) is a later, separately authorized
+    step after all six tests pass.
+  - **D-02:** consent quotes are supplied by the owner where they exist; otherwise
+    "consent not recoverable" is recorded with a dated note. No reconstruction from
+    workflow runs or tags.
+  - **D-07:** prepare a per-AC and per-finding 014 closeout table; the owner then
+    accepts, accepts with exceptions, or records a blocker. Fleet-live gate stays
+    closed until then.
+  - **T13 conflict command:** **deferred**. The CLI refuses with a documented message
+    and stable test; no `fleet resolve` write path. A read-only report is optional,
+    not authorized.
+  - **O-02:** `opencode-pack/routing.md` owns policy; pending pack edits are adopted
+    or discarded by the owner before B8 routing edits. **O-03:** tool-capable
+    reviewers are ordinary and advisory; no runtime-certification claim.
+  - **Nested TUI vendoring:** add a drift check (re-vendor to a temp directory and diff)
+    plus a source-SHA stamp for early failure.
+  - **Still not authorized:** commit, push, tag, release, real-home apply, trusted-base
+    adoption, a Docker run, or any batch start. Each needs its own explicit go.
+    The owner's acceptance records the decision, not completion of any item.
+
 ## 10. Sources and fact-check boundaries
 
 - [Architecture review](../../docs/agentic-sdd-architecture-review-2026-11-16.md):
