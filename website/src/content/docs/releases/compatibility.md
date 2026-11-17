@@ -15,8 +15,11 @@ release is an exact published tag with its generated artifacts. Behavior
 documented from source applies to the checkout it was read from; behavior tied
 to an artifact applies only to the tag that produced it.
 
-- Tag `v0.11.0` exists and its tag and cask metadata are verified.
-- Archive contents, runtime identity, and a live macOS install from that tag
+- Tag `v0.11.0` exists and its tag and cask metadata were verified on 2026-11-14.
+- The tap's cask declared `0.13.0` at the 2026-11-17 check recorded in
+  `specs/021-execution-cli-verification/tasks.md`. That is a declaration, not an
+  archive or install check; re-check the tap and the releases page before relying on it.
+- Archive contents, runtime identity, and a live macOS install from any tag
   are not verified. Do not describe them as tested.
 - The documentation website was observed reachable on 2026-11-16, including the
   homepage and the `getting-started/first-five-minutes` deep page under
@@ -40,7 +43,7 @@ the definition; the table is a summary of it.
 
 | Platform | Source checkout | Published artifact | Status |
 |---|---|---|---|
-| macOS (Apple silicon and Intel) | Builds from source | Homebrew cask with a paired four-name archive (universal binaries) | Tag and cask metadata verified for `v0.11.0`; live install not verified |
+| macOS (Apple silicon and Intel) | Builds from source | Homebrew cask with a paired four-name archive (universal binaries) | Tag and cask metadata verified for `v0.11.0` (2026-11-14); tap declaration `0.13.0` recorded (2026-11-17); live install not verified for any tag |
 | Linux | Builds from source; the main entry point is the TUI built from source | No prebuilt package | Source-only |
 | Windows | None | None | Unsupported and unknown |
 

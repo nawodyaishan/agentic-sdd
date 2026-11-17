@@ -66,6 +66,7 @@ Enforce these consent and delegation limits (`opencode-pack/skills/agentic-sdd-o
 
 - **Explicit authorization:** Writers (`D2`), side-effecting tests, paid or cross-lane model switches, external web queries (`exa_*`, `webfetch`, `websearch`), image disclosure, and independent verification reviews require explicit authorization in the governing approval or user request.
 - **No nested delegation:** Every shipped subagent profile denies `subagent` in its OpenCode v2 `permissions:` rules (`internal/skillsync/opencode_pack_test.go`).
+- **Advisory reviewers, not independent review:** The shipped review profiles are ordinary advisory reviewers. They may inspect repository evidence with read-only tools and ordinary `execute`, so their output is advice, never an independent review verdict. A strict independent review needs a fresh inspection-only context with verified permissions and an explicit model binding; no shipped profile provides it, so the route is `blocked` until one exists. A scoped correction re-review is part of the current effort budget; a new independent review, a different reviewer model or a different provider needs its own explicit authorization.
 - **No unmeasured savings claims:** Smaller briefs and bounded read-only children are mechanisms to limit redundant calls, not proof of measured token or cost savings (`opencode-pack/skills/agentic-sdd-orchestrate/references/context-and-cost.md`).
 
 ## Issue bounded delegation briefs
@@ -140,4 +141,8 @@ When a run is finished with, `asdx-core run clean --run <run-id> --yes` deletes 
 - [Agent profile catalog](../reference/profiles.md) — source-derived profile, preset, adapter, and permission reference
 - [Fleet reference](../reference/fleet.md) — schema-v1 `fleet.json` overrides, plans, and offline `fleet doctor` labels
 - [CLI reference](../reference/cli.md) — exact flags and exit codes for `preview`, `apply`, `restore`, `fleet`, `run`, and `task`
-- Related sitemap guides (integration-pending cross-links): `introduction/concepts`, `how-to/fleet`, `how-to/execution`, `how-to/updates-and-recovery`, `reference/tui`
+- [Core concepts](../introduction/concepts.md) — skills, profiles, features, direct fixes, batches and consent
+- [Fleet how-to](./fleet.md) — choosing, planning and applying explicit `fleet.json` overrides
+- [Execution how-to](./execution.md) — private run scratch, checks and review packages
+- [Updates and recovery](./updates-and-recovery.md) — restore paths for skills, fleet and MCP
+- [TUI reference](../reference/tui.md) — the Fleet Manager and MCP screens, and their preview-first limits

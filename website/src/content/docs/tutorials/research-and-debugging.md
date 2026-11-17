@@ -22,15 +22,15 @@ Before launching any search or subagent, classify the effort level using `skills
 | `R0` | Fact is already settled in accepted repo files | Timeout logic is in local code only; no external question |
 | `R1` | One named API, version, error, or standard blocks a decision | **Applies here:** confirm `requestTimeoutMs` in pinned `cfgkit` `4.2` |
 | `R2` | Multiple viable options or contested architectural tradeoffs | Comparing two replacement libraries (`spec.md` or `plan.md`) |
-| `R3` | Broad explicitly authorized research with stated scope and budget | Separate deep evaluation with explicit human consent |
+| `R3` | Broad explicitly authorized research that still names the affected SDD decision, with stated scope and budget | Separate deep evaluation with explicit human consent |
 
-Effort labels are decision heuristics, not new workflow phases or tool permissions. Stop as soon as the decision-relevant threshold is met.
+Effort labels are decision heuristics, not new workflow phases or tool permissions. Stop as soon as the decision-relevant threshold is met. An explicit request for broad research is not enough by itself: it must name the SDD decision it affects. A broad request without one is a separately authorized method, with its own effects and privacy limits, and it is not this skill.
 
 ## Step 1: Check local evidence first and build a bounded brief
 
 `skills-files/agentic-sdd-research-spec/SKILL.md` requires a **local-first capability order**: inspect local source and dependency pins before querying external tools.
 
-1. Read the project dependency manifest and call site locally (or via CodeGraph `explore` if `.codegraph/` is indexed and current) to confirm the pinned version is `4.2` and see the exact option name passed in code.
+1. Read the project dependency manifest and call site locally (or via CodeGraph `explore` if `.codegraph/` is indexed and current) to confirm the pinned version is `4.2` and see the exact option name passed in code. Creating or syncing a CodeGraph index writes into the checkout, so a read-only review does not bootstrap one; without write authority, fall back to targeted reads.
 2. Frame a **bounded brief** containing only what is needed to answer the question:
    - **Question / decision:** Confirm whether `cfgkit` `4.2` supports `requestTimeoutMs` or uses another option name/unit, to decide the direct fix.
    - **Project/version constraints:** `cfgkit` `4.2` on Linux; do not substitute `3.x` docs.

@@ -38,6 +38,7 @@ different pieces of evidence.
 | MCP configuration transactions | implemented | digest-bound plan/apply, entry-level backup and restore, `{env:NAME}` placeholders (`internal/skillsync/mcp*.go`); wave state in `specs/015-fleet-manager-tui/tasks.md` | authentication, connectivity or that a server works |
 | Execution `run` / `task` / `review` | implemented, human review pending | private run scratch, brief integrity, check evidence and review packages (`internal/execution/`, [Execution run reference](../reference/execution.md)); state in `specs/016-agent-execution-context-evidence-recovery/tasks.md` | sandboxing, reviewer isolation, approval or tamper-proof storage |
 | Release v0.11.0 metadata | verified, 2026-11-14 | public release, tag and cask metadata checked unauthenticated; see `specs/020-documentation-ecosystem/evidence.md` | archive member contents, executable protocol identity and a live macOS install |
+| Newer release declaration (v0.13.0) | recorded, 2026-11-17 | the tap's `Casks/agentic-sdd.rb` declared `0.13.0` at the tap check recorded in `specs/021-execution-cli-verification/tasks.md` (2026-11-17); the GitHub releases page lists the current tags | a fresh observation in this documentation pass, archive contents, and a live macOS install; re-check the tap and releases before relying on it |
 | Documentation site | implemented, homepage observed 2026-11-16 | pages exist in the repository; the homepage and the `getting-started/first-five-minutes` deep page responded at the `/agentic-sdd/` base on 2026-11-16 (`specs/020-documentation-ecosystem/spec.md` §10) | a full deployment, asset, search, or accessibility audit; `has_pages: false` and a 404 response observed on 2026-11-14 remain historical evidence |
 
 Counts are the counts in this checkout. Package tests assert the packaged sets, not a
@@ -100,6 +101,14 @@ as certification. In particular:
   regeneration tool exists, so none is published here.
 - **Two-file interruption needs reconciliation.** A recovered execution run can require
   an explicit, human-authorized reconciliation step; it is never repaired automatically.
+- **Interrupted fleet transaction has no resolver.** When an interrupted fleet
+  transaction's target bytes match neither its completed nor its prior state, fleet
+  refuses the next mutation and prints manual steps. No CLI or TUI command resolves it
+  automatically. See [Updates and recovery](../how-to/updates-and-recovery.md#recover-an-interrupted-fleet-transaction).
+- **MCP apply failure can lose rollback detail.** The typed `internal/appops` result does
+  not yet carry the engine's rollback facts on every apply failure, so the TUI may show
+  `failed` where a rollback ran. This is a known open gap, not a fixed behaviour; use the
+  backup and the operation log as the evidence. See [MCP reference](../reference/mcp.md#outcome-wording).
 
 ## Keeping this page honest
 

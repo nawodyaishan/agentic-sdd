@@ -39,7 +39,7 @@ Run `task help` (or `task`) to list root tasks (`Taskfile.yml`). Experimental an
 The repository uses two separate Go modules rather than a Go workspace (`GOWORK=off` is enforced in check runners):
 
 - **Root module (`go.mod`, `module agentic-sdd`, `go 1.23`)** builds `asdx-core` (`cmd/agentic-sdd`) and `sdd-check` (`cmd/sdd-check`), and embeds `skills-files/` via `skillsfiles.go` (`//go:embed all:skills-files`) so built binaries work without a repository checkout.
-- **Nested TUI module (`experiments/tui/go.mod`, `module agentic-sdd/experiments/tui`, `go 1.26`)** depends on the root module through `replace agentic-sdd => ../..` and builds the `asdx` companion (`experiments/tui/cmd/tui-companion`).
+- **Nested TUI module (`experiments/tui/go.mod`, `module agentic-sdd/experiments/tui`, `go 1.26`)** depends on the root module through `replace agentic-sdd => ../..` and builds the `asdx` companion (`experiments/tui/cmd/tui-companion`). Its dependencies are vendored under `experiments/tui/vendor` so the module builds offline. After a change to `internal/skillsync` or `internal/fleet`, re-vendor with `(cd experiments/tui && go mod vendor)` and refresh the stamp with `sh tests/tui-vendor-check.sh --stamp`; `task tui-vendor-check` (also run by the pre-commit hook) fails when the copy has drifted.
 
 Key directories and owning files (`AGENTS.md`, `CONTRIBUTING.md`):
 

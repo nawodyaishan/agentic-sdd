@@ -98,7 +98,8 @@ A plan that was previewed and then invalidated fails closed. A stale plan exits 
 | `configuration changed` | `1` | The source at the plan's `configPath` has a different digest | Re-plan from the current source |
 | `canonical source changed` | `1` | A canonical pack source file changed | Re-plan against the current pack |
 | `target file "…" changed since the plan was generated` | `1` | A rendered profile was edited or replaced on disk | Inspect it, then re-plan; adoption stays an explicit CLI decision |
-| `fleet lock is held by another process` | `1` | Another fleet write holds `…/.agentic-sdd/backups/.fleet.lock` | Wait for it to finish, then re-run |
+| `fleet lock is held by another process` | `1` | Another fleet write holds `…/.agentic-sdd/backups/.fleet.lock`, or the per-home agent guard under `<home>/.agentic-sdd/locks/` | Wait for it to finish, then re-run |
+| `interrupted fleet transaction needs review before the next mutation` | `1` | An interrupted transaction's target bytes match neither its completed nor its prior state; nothing was overwritten | Follow the manual steps in [Updates and recovery](./updates-and-recovery.md#recover-an-interrupted-fleet-transaction); there is no automatic resolver |
 
 ## 6. Recover installed profiles with restore
 

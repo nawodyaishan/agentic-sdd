@@ -101,7 +101,7 @@ When a bug involves an unfamiliar language feature or test pattern, you can invo
 **Asserted workflow behavior (`skills-files/agentic-sdd-teach/SKILL.md`):**
 
 - `agentic-sdd-teach` declares `disable-model-invocation: true`, so it runs only when you explicitly request it.
-- Its lightweight default provides a short explanation and one example or practice question without creating lesson files, opening browsers, or advancing any workflow state.
+- Its lightweight default provides a short explanation and one example or practice question without creating lesson files, opening browsers, or advancing any workflow state. It reads the router's lightweight branch reference (`skills-files/agentic-sdd-router/references/lightweight-authority.md`) and loads the full shared policy only if the request turns into feature drafting, implementation, review or another workflow-state change.
 
 - **Prerequisites:** An active client session with `agentic-sdd-teach` installed (**optional and unverified here**).
 - **Effects:** Response-only explanation; no workspace files, specs, or commits are written.

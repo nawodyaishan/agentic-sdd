@@ -82,9 +82,9 @@ Exit codes (`cmd/agentic-sdd/fleet.go`, `cmd/agentic-sdd/fleet_plan.go`, `cmd/ag
 | `fleet restore` | `--backup ID` (required), `--home PATH` | Flag form only; restores managed agents from backup ID. | `cmd/agentic-sdd/fleet.go` |
 | `fleet doctor` | `--opencode-bin PATH`, `--config PATH` | Offline model-route diagnostic; exits `0` when report is produced even if routes are unavailable (`2` on invalid config). | `cmd/agentic-sdd/fleet_doctor.go` |
 
-## `mcp` family (including incomplete top-level help note)
+## MCP command family
 
-> **Known top-level help discrepancy (`cmd/agentic-sdd/main.go` vs `cmd/agentic-sdd/mcp.go`, `cmd/agentic-sdd/mcp_write.go`):** Top-level `asdx-core --help` summarizes `mcp` as read-only (`status|doctor|preview`) and omits `apply` and `restore`. Actual `mcp help` and Go dispatch implement `status`, `doctor`, `preview`, `apply`, and entry-level `restore list|preview|apply`.
+> **Help status (resolved 2026-11-17, Feature 022 B9):** Top-level `asdx-core --help` lists `mcp apply` and `mcp restore list|preview|apply`, matching `mcp help` and the Go dispatch (`cmd/agentic-sdd/main.go`, `cmd/agentic-sdd/mcp.go`, `cmd/agentic-sdd/mcp_write.go`). One gap is deliberate and recorded: `asdx-core help <unknown>` still prints the older topic subset in its usage line.
 
 Exit codes (`cmd/agentic-sdd/mcp.go`, `cmd/agentic-sdd/mcp_write.go`): `0` success / produced report / real no-op, `1` stale plan / conflict / unsupported runtime / rollback / engine or I/O error, `2` usage / flag / validation / unsafe target / unknown subcommand / deferred `--network` or `--connect`.
 
@@ -127,15 +127,15 @@ Execution flag defaults (`internal/execution/types.go`): `run check --timeout 15
 
 | ID | Argv | Exit | Flags observed in help | Primary source |
 |---|---|---|---|---|
-| `top` | `asdx-core --help` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/main.go` |
-| `help-preview` | `asdx-core help preview` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
-| `help-apply` | `asdx-core help apply` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
-| `help-backups` | `asdx-core help backups` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
-| `help-restore` | `asdx-core help restore` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
-| `help-logs` | `asdx-core help logs` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
-| `help-guide` | `asdx-core help guide` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
-| `help-version` | `asdx-core help version` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
-| `help-tui` | `asdx-core help tui` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `top` | `asdx-core --help` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/main.go` |
+| `help-preview` | `asdx-core help preview` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-apply` | `asdx-core help apply` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-backups` | `asdx-core help backups` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-restore` | `asdx-core help restore` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-logs` | `asdx-core help logs` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-guide` | `asdx-core help guide` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-version` | `asdx-core help version` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-tui` | `asdx-core help tui` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
 | `tui` | `asdx-core tui --help` | `0` | `--fleet-config`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--with-opencode`, `-h` | `cmd/agentic-sdd/tui.go` |
 | `orchestrate` | `asdx-core help orchestrate` | `0` | `--home`, `--opencode-free-first`, `--repo`, `--with-opencode` | `cmd/agentic-sdd/main.go` |
 | `fleet` | `asdx-core fleet --help` | `0` | `--adopt`, `--backup`, `--config`, `--home`, `--opencode-bin`, `--output`, `--plan`, `--repo` | `cmd/agentic-sdd/fleet.go` |
@@ -150,17 +150,17 @@ Execution flag defaults (`internal/execution/types.go`): `run check --timeout 15
 | `mcp-preview` | `asdx-core mcp preview --help` | `0` | `--auth`, `--config`, `--home`, `--json`, `--servers` | `cmd/agentic-sdd/mcp.go` |
 | `mcp-apply` | `asdx-core mcp apply --help` | `0` | `--auth`, `--config`, `--expect-config`, `--home`, `--json`, `--opencode-bin`, `--servers` | `cmd/agentic-sdd/mcp_write.go` |
 | `mcp-restore` | `asdx-core mcp restore help` | `0` | `--config`, `--expect-config`, `--home`, `--json` | `cmd/agentic-sdd/mcp_write.go` |
-| `help-run` | `asdx-core help run` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-run` | `asdx-core help run` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
 | `run` | `asdx-core run help` | `0` | `--batch`, `--direct`, `--feature`, `--format`, `--label`, `--max-output-bytes`, `--repo`, `--result`, `--run`, `--run-root`, `--task`, `--timeout`, `--yes` | `cmd/agentic-sdd/run.go` |
-| `help-task` | `asdx-core help task` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-task` | `asdx-core help task` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
 | `task` | `asdx-core task help` | `0` | `--force`, `--format`, `--repo`, `--run`, `--run-root`, `--task` | `cmd/agentic-sdd/task.go` |
-| `help-review` | `asdx-core help review` | `0` | `--apply`, `--help`, `--home`, `--repo`, `--version`, `-h` | `cmd/agentic-sdd/helptext.go` |
+| `help-review` | `asdx-core help review` | `0` | `--apply`, `--help`, `--home`, `--opencode-free-first`, `--repo`, `--version`, `--with-opencode`, `-h` | `cmd/agentic-sdd/helptext.go` |
 | `review` | `asdx-core review help` | `0` | `--base`, `--format`, `--head`, `--max-file-bytes`, `--max-total-bytes`, `--repo`, `--run`, `--run-root` | `cmd/agentic-sdd/review.go` |
 
 ## Top-level help excerpt (`asdx-core --help`)
 
 ```text
-Usage: asdx-core [preview|apply] [--repo PATH] [--home PATH]
+Usage: asdx-core [preview|apply] [--with-opencode [--opencode-free-first]] [--repo PATH] [--home PATH]
        asdx-core tui [--repo PATH] [--home PATH]
        asdx-core version
        asdx-core backups [--repo PATH] [--home PATH]
@@ -170,10 +170,12 @@ Usage: asdx-core [preview|apply] [--repo PATH] [--home PATH]
        asdx-core guide [--repo PATH] [--home PATH]
        asdx-core fleet status|plan|apply|restore|doctor [--config PATH] [--home PATH]
        asdx-core mcp status|doctor|preview [--config PATH] [--home PATH] [--json]
+       asdx-core mcp apply --expect-config SHA256 [--servers NAME,...] [--home PATH] [--json]
+       asdx-core mcp restore list|preview|apply [ID] [--expect-config SHA256] [--home PATH] [--json]
        asdx-core run init|status|check|record|clean [--run ID] [--repo PATH]
        asdx-core task brief --run ID --task T01 [--repo PATH]
        asdx-core review package --run ID --base COMMIT [--repo PATH]
-       asdx-core help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]
+       asdx-core help [preview|apply|backups|logs|restore|guide|version|tui|orchestrate|fleet|mcp|run|task|review]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -185,7 +187,9 @@ Commands:
   guide          Interactive step-by-step wizard for terminal users.
   tui            Open the terminal UI in a real terminal (packaged asdx companion).
   fleet          Manage agent fleet profiles and model overrides.
-  mcp            Inspect the default MCP tools read-only (status, doctor, preview).
+  mcp            Inspect or configure the three default MCP tools: status, doctor,
+                 preview, apply and restore. Only apply/restore write, and only
+                 when --expect-config matches the reviewed digest.
   run            Create or inspect a private execution run.
   task           Extract one authorized task brief into a run.
   review         Package real Git changes for a bounded review.
@@ -206,11 +210,14 @@ With no ID and no --apply/apply, restoring prompts for confirmation before
 writing anything. Without a terminal, an ID is required.
 
 Flags:
-  --repo PATH  Repository containing skills-files (default: skills embedded in this binary).
-  --home PATH  User home for skill destinations (default: your home).
-  --apply      Legacy form of the apply command; cannot be combined with a command.
-  --version    Legacy form of the version command.
-  -h, --help  Show this help.
+  --repo PATH            Repository containing skills-files (default: skills embedded in this binary).
+  --home PATH            User home for skill destinations (default: your home).
+  --with-opencode        Install the opt-in OpenCode orchestration skill and agent profiles.
+  --opencode-free-first  Preset OpenCode writer and test profiles to free models first
+                         (requires --with-opencode).
+  --apply                Legacy form of the apply command; cannot be combined with a command.
+  --version              Legacy form of the version command.
+  -h, --help             Show this help.
 ```
 
 ## MCP family help excerpt (`asdx-core mcp help`)

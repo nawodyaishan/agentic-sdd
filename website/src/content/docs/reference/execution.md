@@ -28,7 +28,8 @@ The default root is `<repo>/.agentic-sdd/runs`; `--run-root` selects another pri
 | --- | --- |
 | Run identity | `run.json` |
 | Checkpoint | `checkpoint.json` |
-| Writer lock | `.lock` |
+| Writer lock (kernel guard, under the run root) | `.locks/<run-id>` |
+| Writer lock (legacy heartbeat) | `.lock` |
 | Task brief | `briefs/<task>.md` |
 | Check directory | `checks/<check-id>/` |
 | Check metadata | `meta.json`, `argv.json`, `stdout.log`, `stderr.log` |
@@ -59,7 +60,7 @@ Precedence, severity and reconciliation belong to `run status`; a reported state
 | Per-stream stdout/stderr | 67108864 bytes (64 MiB) |
 | Review package per file | 2097152 bytes (2 MiB) |
 | Review package total | 33554432 bytes (32 MiB) |
-| Stale writer lock age | 1800 seconds (30 minutes) |
+| Legacy lock heartbeat window | 1800 seconds (30 minutes); age alone never reclaims a lock |
 
 ## CLI
 

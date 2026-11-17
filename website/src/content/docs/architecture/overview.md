@@ -47,8 +47,9 @@ The terminal UI reads state through the same engine instead of its own scanner: 
 
 There is more than one writer, and the boundaries are narrow:
 
-- `installChangesWithHook` in `internal/skillsync/sync.go` is the shared backup/stage/rename/rollback engine for core skills, the optional skill and agent profiles. `skillsync.ApplyAgentFiles` routes fleet profile writes through it.
-- `internal/skillsync/mcp_transaction.go` owns the separate MCP configuration transaction: its own lock, snapshot, intent record and ownership manifest, targeting `~/.config/opencode` and `~/.agentic-sdd/mcp`.
+- `installChangesWithHook` in `internal/skillsync/sync.go` is the shared backup/stage/rename/rollback engine for core skills, the optional skill and agent profiles. `skillsync.ApplyAgentFilesGuarded` routes fleet profile writes through it, under the agent-target guard fleet holds.
+- Every mutating path takes a per-home target guard under `<home>/.agentic-sdd/locks/` (agent-target and MCP-target domains). A held guard refuses the second writer; platforms without the locking fail closed.
+- `internal/skillsync/mcp_transaction.go` owns the separate MCP configuration transaction: its own guard, legacy lock file, snapshot, intent record and ownership manifest, targeting `~/.config/opencode` and `~/.agentic-sdd/mcp`.
 - `internal/execution` writes only private run artifacts under a run root. Its package comment in `internal/execution/types.go` says it never approves work, calls a model or acts as a sandbox.
 - The TUI never writes a destination directly. `tui.OpsHost.BeginWrite` claims one write slot and runs `appops` seams; `TestOpsHostRefusesSecondConcurrentWriteWithoutQueueing` in `experiments/tui/ops_host_test.go` proves a second write is refused rather than queued.
 - Plan-only paths stay read-only: `skillsync.SyncWithOptionsResult(..., apply=false, ...)` is the preview variant used by `appops.PreviewInstall`.

@@ -42,7 +42,7 @@ When a task genuinely needs delegation beyond `D0` direct work, choose one profi
 
 - **Bounded read-only discovery (`D1`):** `sdd-lightweight` (`steps: 10`, `edit` and `shell` denied) or `sdd-debug-diagnose` (root-cause diagnosis, `edit` and `shell` denied).
 - **Authorized bounded writer (`D2`):** `sdd-docs-worker` (documentation edits only; `shell` denied), `sdd-openai-implement` (optional OpenAI writer; requires explicit spend/provider access), or one of the four `--opencode-free-first` templates (`sdd-implement-1`, `sdd-implement-2`, `sdd-test-implement-1`, `sdd-test-implement-2`).
-- **Advisor, review, or research (`D3`):** `sdd-architecture-advisor`, `sdd-architecture-review-9r`, `sdd-code-review-9r`, `sdd-research-librarian`, `sdd-openai-architect`, or `sdd-visual-inspector`.
+- **Advisor, review, or research (`D3`):** `sdd-architecture-advisor`, `sdd-architecture-review-9r`, `sdd-code-review-9r`, `sdd-research-librarian`, `sdd-openai-architect`, or `sdd-visual-inspector`. The review and advisor profiles are advisory: their output is advice and never the strict independent review method (see [the orchestration how-to](../how-to/orchestration.md)).
 
 Inspect the inert brief fixture at `website/tests/examples/orchestration/bounded-brief.md`:
 
@@ -194,4 +194,6 @@ These fixtures are deliberately small. [`nawodyaishan/agentic-sdd-fleet`](https:
 - Review full profile permissions and model-pin rules in [the agent profile catalog](../reference/profiles.md).
 - Review full `fleet.json`, lock, and `fleet-manifest.json` rules in [the fleet reference](../reference/fleet.md).
 - Review manual fallback and interrupted-write recovery in [the orchestration how-to](../how-to/orchestration.md).
-- Related sitemap guides (integration-pending cross-links): `tutorials/first-feature`, `how-to/fleet`, `how-to/updates-and-recovery`
+- [First feature tutorial](./first-feature.md) — the combined-approval loop that delegation sits inside
+- [Fleet how-to](../how-to/fleet.md) — the full explicit `fleet.json` workflow
+- [Updates and recovery](../how-to/updates-and-recovery.md) — restore paths for every store

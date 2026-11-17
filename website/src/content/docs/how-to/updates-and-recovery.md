@@ -71,7 +71,7 @@ Other Agentic-SDD subsystems keep **separate** backup and state stores; do not m
    asdx-core restore BACKUP_ID
    ```
 
-   For Format 2 and Format 3 backups, restore both puts back items recorded as `replaced` and **removes** items recorded as `installed` fresh by that apply (`internal/skillsync/restore.go`). Older `[legacy]` (Format 1) backups restore saved items best-effort and leave newly installed items in place. Restore refuses backups created for a different `--home` path and verifies SHA-256 digests before writing.
+   For Format 2 and Format 3 backups, restore both puts back items recorded as `replaced` and **removes** items recorded as `installed` fresh by that apply (`internal/skillsync/restore.go`). Older `[legacy]` (Format 1) backups restore saved items best-effort and leave newly installed items in place. Restore refuses backups created for a different `--home` path and verifies SHA-256 digests before writing. Backups written before the current tree digest keep their original digest semantics and still validate; a backup whose `digest_version` this build does not support is refused, not restored on a guess. Manifests are read as bounded regular files, so a FIFO, symlink or device in place of one is refused before it is read.
 
 3. **Apply the restore:**
 
@@ -82,6 +82,16 @@ Other Agentic-SDD subsystems keep **separate** backup and state stores; do not m
    (`asdx-core restore BACKUP_ID --apply` is equivalent.) Before modifying any destination, `restore apply` saves a **new** backup recording `operation: "restore"` and `restored_from: BACKUP_ID`, and writes a log under `<home>/.agentic-sdd/logs/`, so a restore can itself be undone.
 
 In an interactive terminal, `asdx-core restore --apply` with no `BACKUP_ID` lists backups, lets you pick by number, previews the plan, and then prompts `[y/N]` (default **No**); plain `restore` stops after the preview. In `asdx`, open **Install & Manage** (`2`) → **Backups** (or press `r` on Home) for the same preview-first flow.
+
+## Recover an interrupted fleet transaction
+
+Fleet records each apply in a transaction with a state of `applying`, `applied` or `failed`. Before the next mutation, fleet reconciles any interrupted transaction under its locks: a transaction that committed is finalized, and one that did not commit is marked failed. A transaction whose target bytes match **neither** its completed nor its prior state is refused, and nothing is overwritten. The refusal reads `interrupted fleet transaction needs review before the next mutation` and names the manual steps:
+
+1. Inspect the transaction's `manifest.json` under the backup directory and the current target files.
+2. Put each target back to the backed-up bytes or the desired bytes yourself, or restore from that backup.
+3. Run the plan again.
+
+There is no automatic resolver for this state, in the CLI or the TUI. Keep the backup directory until the targets are back in a known state.
 
 ## Uninstall Agentic-SDD
 
@@ -109,7 +119,7 @@ Follow these selective steps instead:
 
 Rolling back the binaries does **not** revert already-installed skill files; run `asdx-core preview` / `asdx-core apply` or `asdx-core restore` afterwards if you also want to revert skills.
 
-- **From source:** Check out the previous Git tag or commit (for example `git checkout v0.11.0`) and rebuild the matched pair (`task -t Taskfile.experimental.yml tui:pair`) or CLI (`go build -trimpath -o bin/asdx-core ./cmd/agentic-sdd`). Always rebuild `asdx` and `asdx-core` together so their build-identity handshake matches.
+- **From source:** Check out the previous Git tag or commit (for example `git checkout <previous-tag>`, with the tag taken from the [releases page](https://github.com/nawodyaishan/agentic-sdd/releases)) and rebuild the matched pair (`task -t Taskfile.experimental.yml tui:pair`) or CLI (`go build -trimpath -o bin/asdx-core ./cmd/agentic-sdd`). Always rebuild `asdx` and `asdx-core` together so their build-identity handshake matches.
 - **From a GitHub Release archive (macOS):** Download the desired release archive and `checksums.txt` from the [GitHub Releases](https://github.com/nawodyaishan/agentic-sdd/releases) page, verify the archive SHA-256 against `checksums.txt` before extracting, and place all four binaries (`asdx`, `asdx-core`, `agentic-sdd`, `agentic-sdd-tui`) together as regular files in the same directory. On macOS, check Gatekeeper quarantine attributes if launching an unnotarized downloaded archive outside Homebrew.
 
 ## Next steps

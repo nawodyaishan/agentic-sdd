@@ -4,10 +4,8 @@ description: Style, impact review, ownership, and contribution paths for docs, s
 ---
 
 This page is for contributors changing public documentation, skills, or profiles.
-Setup, build, and toolchain guidance lives in `contributing/development`;
-test selection and result categories live in `contributing/testing`.
-Those companion pages are owned by a sibling lane; their IDs are stable and
-their content lands at integration.
+Setup, build, and toolchain guidance lives in [Development setup](./development.md);
+test selection and result categories live in [Testing and verification](./testing.md).
 
 ## Docs style
 
@@ -113,10 +111,22 @@ python3 -B -m unittest discover -s tests/harness -p test_core_workflow.py
 ```
 
 These guard instruction wording, scenario coverage, and onboarding links; they
-do not call a model or prove model behavior. Docs-wide link, parity, example,
-and build validation runs at integration; keep its inputs (links, markers,
-frontmatter, generated freshness) clean rather than invoking proposed local
-commands that this batch does not provide.
+do not call a model or prove model behavior.
+
+Docs validation runs from the repository root with Node.js `24.22.3`
+(`website/package.json`):
+
+```sh
+npm --prefix website run docs:check                 # links, fragments, metadata, freshness
+ASDX_CORE_BINARY=/abs/path/asdx-core npm --prefix website run docs:reference:check
+npm --prefix website test
+```
+
+`docs:reference:check` needs a binary built from the revision you are checking; the
+build recipe is in `website/scripts/reference/README.md`. Do not refresh a freshness
+fingerprint to make `docs:check` pass. A page whose source changed needs its content
+reviewed first, and the reviewed page then gets a fresh fingerprint. A check that cannot
+run because the toolchain or binary is missing is `not_run`, never a pass.
 
 ## ADR, issue, and release contributions
 
@@ -139,18 +149,21 @@ commands that this batch does not provide.
   platform, wrapper, and state facts. Point release-related pull requests at
   those pages instead of restating version facts elsewhere.
 
-## Reserved: migration follow-ups (batch B4 owns)
+## Migration stubs and anchors
 
-This section is intentionally left for the migration batch to append
-anchor-redirect ownership, old-guide heading mappings, and compatibility-stub
-conventions. Do not add that content here.
+The old guides in `docs/` that moved to these pages are kept as migration stubs. Each
+keeps its old heading anchors, names its canonical page, and makes no normative claim.
+Add a redirect or heading mapping there, not as a duplicate procedure here.
 
-## Reserved: publication follow-ups (batch B5 owns)
+## Publication and observation
 
-This section is intentionally left for the publication batch to append
-contributor-facing CI, preview, and rollout notes once the safe publication
-workflow is reviewed and authorized. Do not add that content here.
+The docs workflow (`.github/workflows/docs.yml`) has two entrypoints: its own triggers
+(validation, the protected deploy and rollback jobs, and a scheduled check) and a
+read-only `workflow_call` route for post-publish observation. The observation records
+`authoritative: false` and `blocking_release: false`, and a failed or delayed observation
+is recorded as such. No publishing workflow calls the observation route yet, so wiring it
+into the release publisher is a separate change that needs its own owner authorization.
 
 ## Docs deployment preflight
 
-Owner-only preflight before enabling docs deployment: confirm the Pages source/branch, the Actions workflow wiring, the environment protection rules, and artifact/log retention. The deploy job stays inert until `DOCS_PAGES_DEPLOY_ENABLED=true`; rollback runs only as a protected manual dispatch. Any unavailable GitHub setting stays `unknown` — never assumed — and blocks activation until the owner confirms it.
+Owner-only preflight before enabling docs deployment: confirm the Pages source/branch, the Actions workflow wiring, the environment protection rules, and artifact/log retention. The deploy job stays inert until the `DOCS_PAGES_DEPLOY_ENABLED` repository variable is `true`; rollback stays inert until `DOCS_PAGES_ROLLBACK_ENABLED` is set and runs only as a protected manual dispatch. Any unavailable GitHub setting stays `unknown` — never assumed — and blocks activation until the owner confirms it.

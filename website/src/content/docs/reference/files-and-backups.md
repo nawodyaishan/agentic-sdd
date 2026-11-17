@@ -22,6 +22,8 @@ Agentic-SDD keeps four separate state stores with distinct roots, lock files, an
 
 Backup IDs and manifest files from one store cannot be inspected, applied, or restored by another store's commands.
 
+Concurrent writers to one home are serialized by per-home target mutation guards in `<home>/.agentic-sdd/locks/`. Skill installs and restores that apply, agent-profile writes, fleet writes and MCP writes each hold their domain guard while they write; the guards are kernel-held, so an old lock file never expires by age. A held guard refuses the second writer. On platforms without this locking the guarded writes fail closed rather than proceed unlocked.
+
 ### Embedded versus explicit `--repo` backup roots
 
 Skill install and restore choose their backup root from how skill sources are loaded:
@@ -95,12 +97,13 @@ Backup IDs use the UTC layout `20060102T150405.000000000Z`. Each backup director
 | Record part | Fields |
 | --- | --- |
 | Tool metadata | `version`, `commit`, `date`, `go_version` |
-| Per-entry | `kind`, `client`, `skill`, `path`, `action`, `backup`, `sha256` |
+| Per-entry | `kind`, `client`, `skill`, `path`, `action`, `backup`, `sha256`, `digest_version` |
 | Entry actions | `replaced`, `installed` |
 
 ## Digests and restore
 
 - Tree digest: relative paths, entry kinds (file or directory) and file contents in stable lexical order
+- Skill-tree entries record digest_version 2 (K2 framing: domain header, then per entry a kind byte, a length-prefixed relative path and, for files, a length-prefixed content; the root is excluded and an empty directory is part of the digest). Entries without digest_version keep the legacy tree digest, and an unsupported digest_version is refused
 - File digest: raw bytes of one regular file; special files are refused
 - A restored backup must match the current home identity and its saved content is validated before use
 - Format 1 is legacy: `format < 2` keeps the older reader path without per-entry records

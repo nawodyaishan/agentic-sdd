@@ -28,14 +28,14 @@
       "sources": [
         {
           "path": "website/src/content/docs/index.md",
-          "sha256": "2b3b274283a05140e17c7f0f79426a5c89eb7941418e7bbc5d1f46c78560f430"
+          "sha256": "268ec9dd72ba94804d1cfa6f9461bdea0e31087ed7e16d6e1a5f6f6834b2cf8d"
         },
         {
           "path": "website/src/maintainer.mjs",
           "sha256": "465a7bb00705ebadeff875d9ccf1b62eecc6dbc706c94dc25a6f774d93cb0ecd"
         }
       ],
-      "reviewDigest": "27a27785f188fe4471f5676036819e76d5f13256aeebf81a0c6cff445b646117",
+      "reviewDigest": "45231721f4a86aac7b3993c54bb71242b2eda67b4c758f6d3bda31f3df0c755d",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -83,14 +83,14 @@
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "website/src/content/docs/introduction/clients.md",
-          "sha256": "61c8e6d36fc3fbb3788856b7024a45e9b06b5deaedb1265ae284951435dc8209"
+          "sha256": "9bb00aa677447ea14b5eeb8882a7cd74165acbd71957c9dd38c98e1aeb7ec84f"
         }
       ],
-      "reviewDigest": "055fb3facdb157426bc5165e70f36d14ea111fc9fa857c5c04e96f3eff79af81",
+      "reviewDigest": "e1f4689e4d027f34601ac79c21ad0b5df26af3ab0764c7bf15c8cf7ed7ea1d0e",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -106,14 +106,14 @@
       "sources": [
         {
           "path": "internal/appops/routing.go",
-          "sha256": "bd003e6b1e7471129e520bc2edbd54d20e5fd69c19f4415840be0dc8bc6a7050"
+          "sha256": "d94f3d6cf630a0c8963acb119b2a1e935daed91743a62179e51ea3ff9b940758"
         },
         {
           "path": "website/src/content/docs/introduction/related-approaches.md",
           "sha256": "5a384b0d7154c00a3b22ea0d534852630b40fe05bcb5a49a6aee01f1c4752343"
         }
       ],
-      "reviewDigest": "d0c939aa5361031341b212d72df0f51e2bda4f4287240831cb8dea45d989bfa9",
+      "reviewDigest": "ae340e532f96975bc7322fbc7502066a3868972b0cb8c069e817f59e3dbd7343",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -130,11 +130,11 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "experiments/tui/cmd/tui-companion/main.go",
@@ -145,7 +145,7 @@
           "sha256": "620c118fe2c3e72283687f9098598f8519188f97c0e4f64428f4f04f86e765ff"
         }
       ],
-      "reviewDigest": "b2ffc7da5ab009d4c93fbc711741f24298b07dc7d3c29c5c8dbb5a96af599aa6",
+      "reviewDigest": "2675933628509d27497820125658e2419b2ac0a24729cc4a48661bd75dd81025",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -161,7 +161,7 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "experiments/tui/go.mod",
@@ -177,10 +177,10 @@
         },
         {
           "path": "website/src/content/docs/getting-started/installation.md",
-          "sha256": "db11fbc8811aa90d1e320f2a80982b5962074502ce1c76e39e0fa7c548172aff"
+          "sha256": "7d2168f8d11a79f20028055c9ecb0f7ce7df5f0deb3a64c1f0f38ccdb3d6d0ba"
         }
       ],
-      "reviewDigest": "5c0babe4723c2f92a173369ae07b19e3282a3d3c48601c35bb5064c030c469e6",
+      "reviewDigest": "66d9e3e01cace18f8722e8161f602d665580f1753702eb1c64319391d003700f",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -195,10 +195,10 @@
       "sources": [
         {
           "path": "website/src/content/docs/getting-started/first-five-minutes.md",
-          "sha256": "7cc0003638e56be046c56e31189669f68874d8e46eac1e6eaef3689b6af6b73e"
+          "sha256": "68a03b4806c4669b7ccde647e6af591b7ca8613f85e60c6f338b32f577c757b4"
         }
       ],
-      "reviewDigest": "6f9baed999f6be06934ac56e9bb03f65fa1fde42ae9b151923a8c96787479eb6",
+      "reviewDigest": "e981183c73074869630f5c6a34c9b2e42d2850b8f7cd77456155e3e10bcabdc9",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -222,11 +222,11 @@
         },
         {
           "path": "skills-files/agentic-sdd-router/references/workflow-policy.md",
-          "sha256": "e59642f934099bc79d1fcac1e9a57b615f4398e614cfa4b30ff2020f61794566"
+          "sha256": "c7597c740ef04d687fe8d29d09417ed7c489edd89cd7b19b9ab93cb67c7d94b5"
         },
         {
           "path": "skills-files/agentic-sdd-teach/SKILL.md",
-          "sha256": "f97cf3525f890110a64609dfd9268f49079f7e7f0e3c78a481151fbfc1d9a610"
+          "sha256": "25e9309cbdde4a79b76220a9bb3f3e267654ac75389d4b41cfb8adb3f9b2a67d"
         },
         {
           "path": "skills-files/agentic-sdd-verification-review/SKILL.md",
@@ -234,10 +234,10 @@
         },
         {
           "path": "website/src/content/docs/tutorials/direct-fix.md",
-          "sha256": "feccea742f44058d2d993dbe27539954039e028914244aea3ccadc4bfbcf4b82"
+          "sha256": "087f6516ba915fcc8bc583bfa4eb98851b41c3c49b5afb5e27e707db68d107f0"
         }
       ],
-      "reviewDigest": "a7c0ed5327ed0fe6ef2c789b7a7522626f3efc019b5fbee3546ece2af3b41929",
+      "reviewDigest": "1d5bbb34b9c58fce20af7363ad934fd188aefc066e060d3767cb392de2a193e7",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -288,7 +288,7 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "internal/fleet/doctor.go",
@@ -316,11 +316,11 @@
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
+          "sha256": "9a982d74f5fbb12bbcd34ae782c9447dfa13d34dae445ec49710fa238ed1db87"
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/dispatch-contract.md",
@@ -328,14 +328,14 @@
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/failure-and-reconciliation.md",
-          "sha256": "473e884345c3bc3bde81cf43c67d2b09054051ad403d23eca3fc85382f6e36d2"
+          "sha256": "07322a801aa48bfb344990cb1e437ff6b59b20fe599e2ec424c7122868d2b8db"
         },
         {
           "path": "website/src/content/docs/tutorials/specialists.md",
-          "sha256": "fe1935f3a51a7ed3d3c5bba4bd6c19ebac363160aef46d552bba123933c2b167"
+          "sha256": "8f0790940ee0138d3f6aa61abb493530e04f7a1968dbb58b785365c4ab53490d"
         }
       ],
-      "reviewDigest": "441ed0dfdd4a2659e86da1568147f986d00740f0d4dc87b69c33d62d97fcff8c",
+      "reviewDigest": "98f9afaaea3dcf781bcc41e2df64dc5a7d9a98abccfdb474311bbb01f1d5506e",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -360,7 +360,7 @@
         },
         {
           "path": "skills-files/agentic-sdd-research-spec/SKILL.md",
-          "sha256": "bd215ae35f2668fc82cbdc2cda343f4ab6efe1e280500ca6f0c8b6ea69624cb2"
+          "sha256": "8d5e569ce1f45f402722ea076702a6ce45eeddacb98c4a8ef5beec1292c4b2f8"
         },
         {
           "path": "skills-files/agentic-sdd-research-spec/references/search-mcp-workflow.md",
@@ -372,7 +372,7 @@
         },
         {
           "path": "skills-files/agentic-sdd-router/references/workflow-policy.md",
-          "sha256": "e59642f934099bc79d1fcac1e9a57b615f4398e614cfa4b30ff2020f61794566"
+          "sha256": "c7597c740ef04d687fe8d29d09417ed7c489edd89cd7b19b9ab93cb67c7d94b5"
         },
         {
           "path": "skills-files/agentic-sdd-verification-review/SKILL.md",
@@ -388,10 +388,10 @@
         },
         {
           "path": "website/src/content/docs/tutorials/research-and-debugging.md",
-          "sha256": "b8750edbd67ba1d80c4c66f819be37a7f1cc9cef610e228a74a374eaff01061c"
+          "sha256": "4f9f37edbde303c6b9fa0e9e9321ee37458f8768f912bf31b5bcd0bc1b26ee80"
         }
       ],
-      "reviewDigest": "5c23a6348b6493a3e8b27b56c272838266e767cd488a00c2315fa0f6e86724ef",
+      "reviewDigest": "c418f1866dceb938626dc8351896cfd9a37f2731aaa37ff6624b0072886d7442",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -407,14 +407,14 @@
       "sources": [
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "website/src/content/docs/how-to/skills.md",
           "sha256": "8b16bbf25f9e0bcabc09daa22e755aedc40f40993961d4d876473ad4c8615fc5"
         }
       ],
-      "reviewDigest": "bbe9664e0eeee0104de333feb465ae59e2e3cf63bffc26ed168d81c3482045b2",
+      "reviewDigest": "b943c9564720c13bab94ba5e21cf200c3c34b82cf460943d67eeaa1bdb7ab4a7",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -433,18 +433,18 @@
         },
         {
           "path": "internal/skillsync/restore.go",
-          "sha256": "8183c0f505797ccc245f44bcd319f49731d8bd02c41fa733c6d768f687b7e93c"
+          "sha256": "02d7e28fcd1a3f1dd14ca677d440bbdd64f41e755af266d565d9360c1ec02a62"
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "website/src/content/docs/how-to/updates-and-recovery.md",
-          "sha256": "4796923aae1c52d816f476c27c930c2c5bd18c8ae5f6c592b0f82061e226a5cb"
+          "sha256": "3e7734f39785b96d4037c70a9c419a842f628a43fa60e470a08d6aa674841096"
         }
       ],
-      "reviewDigest": "a64b5989ecbb76885e94a16749efd0ec83e129e26158a216f3eb501f560264c0",
+      "reviewDigest": "96bc1bd038b4d2ee0630c82023fc82d134e13e0c07903f6fd618a6bef545dd36",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -463,11 +463,11 @@
         },
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "internal/buildinfo/buildinfo.go",
@@ -483,19 +483,19 @@
         },
         {
           "path": "internal/skillsync/opencode_pack_test.go",
-          "sha256": "5cc747f83301b6289864d6fe59d351aaf124f7106d029ef21f7505e9d1dafa16"
+          "sha256": "221530ab8b507fe04d5c40f60dba53cf265a9287020fe66a5a1654f196a1698d"
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "opencode-pack/README.md",
-          "sha256": "d69b2771fcecad3eab9252f64f7c64b2fda1da44a055a3b5ed42efbffc44d181"
+          "sha256": "818555a696a6f8572d25fc6966810de284178280ba6a189bd9ed68eeb2375445"
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
+          "sha256": "9a982d74f5fbb12bbcd34ae782c9447dfa13d34dae445ec49710fa238ed1db87"
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/SKILL.md",
@@ -511,18 +511,18 @@
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/failure-and-reconciliation.md",
-          "sha256": "473e884345c3bc3bde81cf43c67d2b09054051ad403d23eca3fc85382f6e36d2"
+          "sha256": "07322a801aa48bfb344990cb1e437ff6b59b20fe599e2ec424c7122868d2b8db"
         },
         {
           "path": "skills-files/agentic-sdd-router/references/workflow-policy.md",
-          "sha256": "e59642f934099bc79d1fcac1e9a57b615f4398e614cfa4b30ff2020f61794566"
+          "sha256": "c7597c740ef04d687fe8d29d09417ed7c489edd89cd7b19b9ab93cb67c7d94b5"
         },
         {
           "path": "website/src/content/docs/how-to/orchestration.md",
-          "sha256": "e997d0a6d372261ca2fd6b9911ceacb9e93acd206bbf280c3b40ca228015fe62"
+          "sha256": "2d9bd904a3e05af04337bec8dfb5bfc26372d40a41dc67501896bd800ed37c5a"
         }
       ],
-      "reviewDigest": "b1956602db45fb65d61a823587dccdcc05526f0a727ccb57b818589feec25be6",
+      "reviewDigest": "35766f25716d734ea79a1519cdb452061cf3317a3b3582b9c607239aeac1da37",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -545,11 +545,11 @@
         },
         {
           "path": "experiments/tui/fleet_write.go",
-          "sha256": "ef4892adee9b5c87373993e239e3d67cab1ba3122e8646b09641cda6f5628579"
+          "sha256": "999b1c92d78e597daf2fe30dc74173da93159dbbb2fdafd16d9131dea34912b8"
         },
         {
           "path": "internal/fleet/apply.go",
-          "sha256": "c94e9fa10740b82366f9f4bb66ecaefe824180b930421954529fa893d3d109f2"
+          "sha256": "5d8fd4c7b91f6655c7536cc57d1776790766d4cbc5cf971ae6c953f84b61d3b8"
         },
         {
           "path": "internal/fleet/doctor.go",
@@ -561,7 +561,7 @@
         },
         {
           "path": "internal/fleet/manifest.go",
-          "sha256": "5dc94b3b31cc8b47934b1f9570aaf71d737de19610e01a63e20c99dab4051371"
+          "sha256": "a888775340e861eddb96abac995ad8fbdc62cad0b317b0f70d6088c803b01084"
         },
         {
           "path": "internal/fleet/parse.go",
@@ -569,7 +569,7 @@
         },
         {
           "path": "internal/fleet/plan.go",
-          "sha256": "87d017159d6275a21f32eb77c0915f862418a330c0cd049f52007feb076a325c"
+          "sha256": "ff7b24593b6723434ccbfe084d983f9e8f2458356e2924efb63101293144b1b7"
         },
         {
           "path": "internal/fleet/render.go",
@@ -577,22 +577,22 @@
         },
         {
           "path": "internal/fleet/restore.go",
-          "sha256": "aeb7be6a9dfcdac9f75ad415bbc4bfe47f6c64fc8a73d379cc328819f76260ee"
+          "sha256": "b104960dd9fd01129add588df098a4f5c9abbfb74775ab1595266105d0f07d2d"
         },
         {
           "path": "internal/fleet/status.go",
-          "sha256": "2c06619d10928932064d553889be3890e0fe1fe4d5edab0de3deb6c1a3b2bec0"
+          "sha256": "0e04df575282b3fee6654896a24c68852e9fd537a512dae66e8f6cdda725c54b"
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "website/src/content/docs/how-to/fleet.md",
-          "sha256": "04f8d84c979080b79b0c7c06fe6269976d74ec8badb387096b17ffc052ec7782"
+          "sha256": "e26a50f733f7eb9440d15bee26dec73088f3d2a6dd56f7355bf55744ba3f955c"
         }
       ],
-      "reviewDigest": "d0cde8ee978daf7a65e92c57f8fac5e0c732c405a5b0f2088491cabaa52c6a9b",
+      "reviewDigest": "0c74857f8e5758a3e009496dc988b65be90074573238e36aafca66047fb547a1",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -639,10 +639,10 @@
         },
         {
           "path": "website/src/content/docs/how-to/execution.md",
-          "sha256": "da3aaafc2d5f14578577ff61171945209cc5c7e1a6bafd6a70f75fe32930cc1e"
+          "sha256": "7ec01c9fd602e792ead3ab00fdbedcba2303a201e21bb8a121bae14c5e15bf77"
         }
       ],
-      "reviewDigest": "bc8d7f7599ac7e9df5946be0c941a274bac2ac862a8529431e1863db478502ae",
+      "reviewDigest": "44822e49bdd055a97af46b1c8150974effa0ee35d517afe5c8322062458ffcca",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -659,11 +659,11 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "internal/fleet/apply.go",
-          "sha256": "c94e9fa10740b82366f9f4bb66ecaefe824180b930421954529fa893d3d109f2"
+          "sha256": "5d8fd4c7b91f6655c7536cc57d1776790766d4cbc5cf971ae6c953f84b61d3b8"
         },
         {
           "path": "internal/fleet/fleet.go",
@@ -683,11 +683,11 @@
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
+          "sha256": "9a982d74f5fbb12bbcd34ae782c9447dfa13d34dae445ec49710fa238ed1db87"
         },
         {
           "path": "skills-files/agentic-sdd-bootstrap/SKILL.md",
@@ -695,14 +695,14 @@
         },
         {
           "path": "skills-files/agentic-sdd-router/references/workflow-policy.md",
-          "sha256": "e59642f934099bc79d1fcac1e9a57b615f4398e614cfa4b30ff2020f61794566"
+          "sha256": "c7597c740ef04d687fe8d29d09417ed7c489edd89cd7b19b9ab93cb67c7d94b5"
         },
         {
           "path": "website/src/content/docs/how-to/customization.md",
           "sha256": "dd20416e70ce34f8cab90b867689c0c0dece4c46a2dfe9a76d7634eb40ca48b3"
         }
       ],
-      "reviewDigest": "aaeee56aeb275ee12d8befbfc786ae20a20fc6b6d939038807bbba9312d47988",
+      "reviewDigest": "300b0c12d5c87cefc58675ed736734236eefc9910383a022d82d4f8d3d99628a",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -722,7 +722,7 @@
         },
         {
           "path": "cmd/agentic-sdd/execution_cli.go",
-          "sha256": "0a6f4bd8b011b7378268c260e0041a8274c81c87ad25d4420d43790da3ad52d9"
+          "sha256": "a58446c379adccc06971927ed7ec5ceb20d404cf996011e0cc6913f0da9b27b2"
         },
         {
           "path": "cmd/agentic-sdd/fleet.go",
@@ -750,15 +750,15 @@
         },
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "cmd/agentic-sdd/mcp.go",
-          "sha256": "f08d36acea20f00f710e1db0adedf597cdbdf776b9132b2ed31bc2e74f52059e"
+          "sha256": "1265a0ce0062bee41cb1752b74e3aa82f281cd95b9e55a8356e3eec973359bd8"
         },
         {
           "path": "cmd/agentic-sdd/mcp_write.go",
-          "sha256": "9c957ffe33e898d76ac2618eff0a49714a7c84921d8e5c655b3d7998e507e6af"
+          "sha256": "0eb6e9d546719fd8a941fc8cbc46535ca4b2ccf17c351c10d41ebffeac7f6a29"
         },
         {
           "path": "cmd/agentic-sdd/opencode_disabled.go",
@@ -782,11 +782,11 @@
         },
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "experiments/tui/cmd/internal/tuirun/run.go",
-          "sha256": "42cbc1f40834e696a9a2867587097b18811a20e8cfc3ce745553c12e6a5e68d5"
+          "sha256": "fecce5c48ceea0155ded87e47c59b1c6c5089e1e73e1fe845d07075b1a1f6705"
         },
         {
           "path": "internal/buildinfo/buildinfo.go",
@@ -802,14 +802,14 @@
         },
         {
           "path": "website/scripts/reference/cli.mjs",
-          "sha256": "99b51fcd91405cee4d7fb2a3f6a797ca32a43c78756dd8377d274138bfba361d"
+          "sha256": "0d3d971adf4d1005cc9991d7e3d97a5698ae82781d57b36616cfd6af7c2fc219"
         },
         {
           "path": "website/src/content/docs/reference/cli.md",
-          "sha256": "7b7c88d70a57be1d6c35a13051d9d174216ecce0779ecaa750839bf3862b4ad6"
+          "sha256": "94453dd580210c3fbd576649ec6add78e4fcfa94598efc765a3b392bba79a86c"
         }
       ],
-      "reviewDigest": "6006d51e0718730c2bcf3c7da0fe418db7d0a09d97bf599af3d5073f56ddd6e5",
+      "reviewDigest": "6273f59f6bd16ad4a7ca51de7f6baf12734b64ff0b7bd454b6dc28cbb3452f3f",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -854,11 +854,11 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "experiments/tui/app.go",
-          "sha256": "2812bd7992cba04c151ad3dbee3ca554bb7077dda61c2f85846151dae1cf5b2b"
+          "sha256": "581d53ae4f8a59ed2f90e85c45e745f3e2b292bade6e13a3f9421107014f9e97"
         },
         {
           "path": "experiments/tui/opener.go",
@@ -874,10 +874,10 @@
         },
         {
           "path": "website/src/content/docs/reference/tui.md",
-          "sha256": "58a6505e448ff69dfb8a63302a2e4dab74440b903c51b75ac282e0a9af96c01a"
+          "sha256": "5b987f5d9cc9d55c6789d356f13cdfefd768bb4b41151e852d485fcb5b867450"
         }
       ],
-      "reviewDigest": "cc79d775f1ec01e5a2b474353ed475f05b3136ca12fd72166098f905b1da4d99",
+      "reviewDigest": "fda225ab7282b2b5866f96e96a4df0abaaea52b380dacfdd706edf8e5a669eeb",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -893,11 +893,11 @@
       "sources": [
         {
           "path": "internal/execution/workspace.go",
-          "sha256": "5b76eff1a04e17449d11086054fddb2c44c7027d2857e4c57164669308546a17"
+          "sha256": "d4d7d7fc11e9e1c005e22ae6a5704ef30340820d5b8b755fa403da0b26d3d96c"
         },
         {
           "path": "internal/fleet/manifest.go",
-          "sha256": "5dc94b3b31cc8b47934b1f9570aaf71d737de19610e01a63e20c99dab4051371"
+          "sha256": "a888775340e861eddb96abac995ad8fbdc62cad0b317b0f70d6088c803b01084"
         },
         {
           "path": "internal/skillsync/clients.go",
@@ -905,15 +905,15 @@
         },
         {
           "path": "internal/skillsync/manifest.go",
-          "sha256": "29ec720444d95477647ccdc4244366998afa34db03b8374b6104b408895fda6f"
+          "sha256": "2366a08901dd4ee03527c9e62f9d80916461b970c0177b7df25ca8da824b0760"
         },
         {
           "path": "internal/skillsync/mcp_transaction.go",
-          "sha256": "45db03e19400af89af5779c0de5efa014ce316a58dc1b75d8dc06060796e9a57"
+          "sha256": "b5c5098d917eb14acd1a528990156a6c735ddf8166e614f7731deea8b5fc2a33"
         },
         {
           "path": "internal/skillsync/restore.go",
-          "sha256": "8183c0f505797ccc245f44bcd319f49731d8bd02c41fa733c6d768f687b7e93c"
+          "sha256": "02d7e28fcd1a3f1dd14ca677d440bbdd64f41e755af266d565d9360c1ec02a62"
         },
         {
           "path": "internal/skillsync/source.go",
@@ -921,7 +921,7 @@
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -929,14 +929,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
+          "sha256": "f1041d8e5f9c8169995797e649ed763e27dd38d729655991697165dbf8ffa808"
         },
         {
           "path": "website/src/content/docs/reference/files-and-backups.md",
-          "sha256": "63db724790d3480c435eb9d8fa45d9f2fcf63ebac4d282e0f10cdb80ac3877c0"
+          "sha256": "1c941ace14b1034bc01f91664996a3bce250f42762a392eeac44b124898ee6b5"
         }
       ],
-      "reviewDigest": "659ebcec849f1902e363f0465b719df400e2ae5eefb0667235f76cc534625284",
+      "reviewDigest": "c819e6d77b474f2b7e4d41359b5092b924096babc0b9309bb2bc64717e8bb2cf",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -998,7 +998,7 @@
         },
         {
           "path": "skills-files/agentic-sdd-handoff/SKILL.md",
-          "sha256": "915ac3dc2cab9a05eff81c935ef2666e214fe830ecabe018fc5f6fd46ed791c6"
+          "sha256": "e052074fa2c9b05122b399c2cd2d27d43331c8c2a7dd412b9179e0f21bc445ea"
         },
         {
           "path": "skills-files/agentic-sdd-implement/SKILL.md",
@@ -1014,7 +1014,7 @@
         },
         {
           "path": "skills-files/agentic-sdd-research-spec/SKILL.md",
-          "sha256": "bd215ae35f2668fc82cbdc2cda343f4ab6efe1e280500ca6f0c8b6ea69624cb2"
+          "sha256": "8d5e569ce1f45f402722ea076702a6ce45eeddacb98c4a8ef5beec1292c4b2f8"
         },
         {
           "path": "skills-files/agentic-sdd-router/SKILL.md",
@@ -1030,7 +1030,7 @@
         },
         {
           "path": "skills-files/agentic-sdd-teach/SKILL.md",
-          "sha256": "f97cf3525f890110a64609dfd9268f49079f7e7f0e3c78a481151fbfc1d9a610"
+          "sha256": "25e9309cbdde4a79b76220a9bb3f3e267654ac75389d4b41cfb8adb3f9b2a67d"
         },
         {
           "path": "skills-files/agentic-sdd-verification-review/SKILL.md",
@@ -1038,7 +1038,7 @@
         },
         {
           "path": "skills-files/agentic-sdd-wait-what/SKILL.md",
-          "sha256": "dfccf86414b601c9a1eafb6684a9b8cb333688b614b56e08a795c8bae65a9445"
+          "sha256": "209e6cc58cfaaa156631ab93a1993c9512dcd48a1069fe0281877459b7c745d7"
         },
         {
           "path": "skills-files/agentic-sdd-writing-for-agents/SKILL.md",
@@ -1054,10 +1054,10 @@
         },
         {
           "path": "website/src/content/docs/reference/skills.md",
-          "sha256": "7fb9f5a9ec7298a0082d773f723ce1e615fdc4c744fc6a41d8fb2b5d9179a3fb"
+          "sha256": "fdd9ffd7006f3638e57aa684531b8e4a5df1dcc36dee1956dec3a8a8769083a3"
         }
       ],
-      "reviewDigest": "839c6c95016eeea4658e58374cc873ee6543e2792f30c9d261f018869ffe9f25",
+      "reviewDigest": "f2dc80f8f8ea5bd6b390d549eaedb4a129b95642ee08108b8b634d2167469ae4",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1102,7 +1102,7 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "internal/fleet/doctor.go",
@@ -1126,35 +1126,35 @@
         },
         {
           "path": "internal/skillsync/opencode_pack_test.go",
-          "sha256": "5cc747f83301b6289864d6fe59d351aaf124f7106d029ef21f7505e9d1dafa16"
+          "sha256": "221530ab8b507fe04d5c40f60dba53cf265a9287020fe66a5a1654f196a1698d"
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "opencode-pack/README.md",
-          "sha256": "d69b2771fcecad3eab9252f64f7c64b2fda1da44a055a3b5ed42efbffc44d181"
+          "sha256": "818555a696a6f8572d25fc6966810de284178280ba6a189bd9ed68eeb2375445"
         },
         {
           "path": "opencode-pack/adapters/sdd-plan-9r.md",
-          "sha256": "878986cf2cbf92e664379c87a78d7357ae6ca3e8488736aad29d6c100434b8b0"
+          "sha256": "9469143e45bd78ada4bf346a48bec0223da0b00b325828d089e8fcab64075490"
         },
         {
           "path": "opencode-pack/adapters/sdd-spec-9r.md",
-          "sha256": "e1298fc6a05da037d28816565ef5426f4a55709b6c210b851708607d34175421"
+          "sha256": "22c9b5beb6c2ff996a9f8df52476209cf6887f8ed265f7942cae8348b97a5c5a"
         },
         {
           "path": "opencode-pack/agents/sdd-architecture-advisor.md",
-          "sha256": "4fee088caf5da4415f4a7e866e1f33b8ec78d18df556c381eb19a61a2ad7b38a"
+          "sha256": "5dda55e8a9f8a5092688c6b0e230908536f4e7841aa9c9fa161c2b0ab4b5881b"
         },
         {
           "path": "opencode-pack/agents/sdd-architecture-review-9r.md",
-          "sha256": "b4b467527e8c3777b7a52859625bb6067e09c6ef93b1afb5d9e832fef06aa612"
+          "sha256": "5b1e18cb0a65efb32e3fb5213cc36921ccbf50290aaaca924f70ac4ab93ee407"
         },
         {
           "path": "opencode-pack/agents/sdd-code-review-9r.md",
-          "sha256": "332453219d006edcb909e5fae22eaae64b9bd34f88c9ec409d57913fd76fea91"
+          "sha256": "7f9821d6c4eeb511dbd2ac6752586c62a98a9eba51c76d2e5702d83d19094f66"
         },
         {
           "path": "opencode-pack/agents/sdd-debug-diagnose.md",
@@ -1166,11 +1166,11 @@
         },
         {
           "path": "opencode-pack/agents/sdd-lightweight.md",
-          "sha256": "dbe984792a0e902d57069c0b526318047903436ec48ab244baf0b54ad6d4d715"
+          "sha256": "721b2a1a97800b50711fa6b764bfc809b496485792b97648986aa25c4d241ed9"
         },
         {
           "path": "opencode-pack/agents/sdd-openai-architect.md",
-          "sha256": "391f789348b57c91ed7360f40f6096c0257f0ab4c850434a4f16437cfe8c4eda"
+          "sha256": "eaa616d9fb46455dffa7b7e2b4f4513e74ba9625aea3cf3d59809d4ce80547d0"
         },
         {
           "path": "opencode-pack/agents/sdd-openai-implement.md",
@@ -1186,11 +1186,11 @@
         },
         {
           "path": "opencode-pack/agents/sdd-review-verification-1.md",
-          "sha256": "03fbc6ddf5a3f052646be85097b3f59793115404cb74052594da49b48edcbe4b"
+          "sha256": "47b23d0932f3cdb7c7716ce7a9baf2a85e3ed7111cdf59761d954259c09526ba"
         },
         {
           "path": "opencode-pack/agents/sdd-review-verification-2.md",
-          "sha256": "392f0c57900613661b72e46a56bb9491f5121950efb72f6ef8787c2396c783c4"
+          "sha256": "f2e0992b2064030f14a4bf7d5329ec79791ac7360ebc3e8f4d68781230f86eef"
         },
         {
           "path": "opencode-pack/agents/sdd-test-design.md",
@@ -1218,11 +1218,11 @@
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
+          "sha256": "9a982d74f5fbb12bbcd34ae782c9447dfa13d34dae445ec49710fa238ed1db87"
         },
         {
           "path": "opencode-pack/skills/agentic-sdd-orchestrate/references/failure-and-reconciliation.md",
-          "sha256": "473e884345c3bc3bde81cf43c67d2b09054051ad403d23eca3fc85382f6e36d2"
+          "sha256": "07322a801aa48bfb344990cb1e437ff6b59b20fe599e2ec424c7122868d2b8db"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -1234,10 +1234,10 @@
         },
         {
           "path": "website/src/content/docs/reference/profiles.md",
-          "sha256": "07d86d0d751fa0e72d30cbcf3beb2b51e787525690a151b07521b4eb1564e5e5"
+          "sha256": "0b80d2bd139e89ce82f85953513cceb4af136d06e2c68fd030cbe6f541d6c541"
         }
       ],
-      "reviewDigest": "4f97db45a842491f10ac99effa98598ab87c557cc418d399275ff387f3521474",
+      "reviewDigest": "9e1fda0aeaf014a04dcbc614f8c0a916eff999e95cb17dbbc111aa5ccb91942d",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1287,7 +1287,7 @@
         },
         {
           "path": "cmd/agentic-sdd/execution_cli.go",
-          "sha256": "0a6f4bd8b011b7378268c260e0041a8274c81c87ad25d4420d43790da3ad52d9"
+          "sha256": "a58446c379adccc06971927ed7ec5ceb20d404cf996011e0cc6913f0da9b27b2"
         },
         {
           "path": "cmd/agentic-sdd/fleet.go",
@@ -1295,11 +1295,11 @@
         },
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "cmd/agentic-sdd/mcp.go",
-          "sha256": "f08d36acea20f00f710e1db0adedf597cdbdf776b9132b2ed31bc2e74f52059e"
+          "sha256": "1265a0ce0062bee41cb1752b74e3aa82f281cd95b9e55a8356e3eec973359bd8"
         },
         {
           "path": "cmd/agentic-sdd/trace.go",
@@ -1307,11 +1307,11 @@
         },
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "experiments/tui/cmd/internal/tuirun/run.go",
-          "sha256": "42cbc1f40834e696a9a2867587097b18811a20e8cfc3ce745553c12e6a5e68d5"
+          "sha256": "fecce5c48ceea0155ded87e47c59b1c6c5089e1e73e1fe845d07075b1a1f6705"
         },
         {
           "path": "experiments/tui/config.go",
@@ -1323,7 +1323,7 @@
         },
         {
           "path": "internal/execution/record.go",
-          "sha256": "f4b9bafaa43ffe0e9819d95f62541cbe37a2a9923174aa02f19eaf384668f0c0"
+          "sha256": "bd79f9a7f021401721db3ece20048b65117bee6eff31396ab4939d4231f3fe12"
         },
         {
           "path": "internal/execution/types.go",
@@ -1331,7 +1331,7 @@
         },
         {
           "path": "internal/execution/workspace.go",
-          "sha256": "5b76eff1a04e17449d11086054fddb2c44c7027d2857e4c57164669308546a17"
+          "sha256": "d4d7d7fc11e9e1c005e22ae6a5704ef30340820d5b8b755fa403da0b26d3d96c"
         },
         {
           "path": "internal/fleet/fleet.go",
@@ -1359,7 +1359,7 @@
         },
         {
           "path": "internal/skillsync/permissions_test.go",
-          "sha256": "eb49444d7f340e53df9c866d2007bc1b1588bb4d8f34b2a46546e48188085cf3"
+          "sha256": "90e34515f8b6cbfe987b5ac20eb30bbcb49afe8271041f9ca2ec6741eca1755b"
         },
         {
           "path": "internal/skillsync/source.go",
@@ -1367,7 +1367,7 @@
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -1375,14 +1375,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
+          "sha256": "f1041d8e5f9c8169995797e649ed763e27dd38d729655991697165dbf8ffa808"
         },
         {
           "path": "website/src/content/docs/reference/configuration.md",
-          "sha256": "177e4260a00fec7b347fdd821ed59bf756678df4c52e83a06cfacfd948f24407"
+          "sha256": "4e7f84c551e543a354832dce6b8390ddde464ad45351d58445716d6199d5a47e"
         }
       ],
-      "reviewDigest": "580117c4942ef659475f9280a6cb5cde4b2f2f5a717d7dc96a90c006d762fdb6",
+      "reviewDigest": "087f9e7ca8ee548db8503750b8aafaff203d47978b8e0c8745c9f205f9bfbaa3",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1428,7 +1428,7 @@
         },
         {
           "path": "experiments/tui/ops_host.go",
-          "sha256": "17a84db59e97a1a5f4b5e8adb6d4ba57af8ed6434cb0f2e69a7ba3dfdebdf29a"
+          "sha256": "3d81084f373f2529abaf9d54c58f3fe37d4b68134f1fce3ed9e46eccc1fb9fb8"
         },
         {
           "path": "internal/appops/fleet.go",
@@ -1440,7 +1440,7 @@
         },
         {
           "path": "internal/fleet/apply.go",
-          "sha256": "c94e9fa10740b82366f9f4bb66ecaefe824180b930421954529fa893d3d109f2"
+          "sha256": "5d8fd4c7b91f6655c7536cc57d1776790766d4cbc5cf971ae6c953f84b61d3b8"
         },
         {
           "path": "internal/fleet/diff.go",
@@ -1456,15 +1456,15 @@
         },
         {
           "path": "internal/fleet/lock_posix.go",
-          "sha256": "a9ea6dfa8dd05c5c3666e254d6528d3558bd87535f58da4efbda371c3680cbbb"
+          "sha256": "1429aa237f934d4153db0d39b9db9196c2bae7cc696cc354a3b1ee08be57db57"
         },
         {
           "path": "internal/fleet/lock_windows.go",
-          "sha256": "7a0b3b9e8b39de8ff66b184fb887f602d4d2c9d3d5182fe88b52c66cd496a754"
+          "sha256": "99fca50deb338969266ec014fecd9b475d3aaa828dd124adf0bf33a74151c649"
         },
         {
           "path": "internal/fleet/manifest.go",
-          "sha256": "5dc94b3b31cc8b47934b1f9570aaf71d737de19610e01a63e20c99dab4051371"
+          "sha256": "a888775340e861eddb96abac995ad8fbdc62cad0b317b0f70d6088c803b01084"
         },
         {
           "path": "internal/fleet/parse.go",
@@ -1472,7 +1472,7 @@
         },
         {
           "path": "internal/fleet/plan.go",
-          "sha256": "87d017159d6275a21f32eb77c0915f862418a330c0cd049f52007feb076a325c"
+          "sha256": "ff7b24593b6723434ccbfe084d983f9e8f2458356e2924efb63101293144b1b7"
         },
         {
           "path": "internal/fleet/render.go",
@@ -1484,7 +1484,7 @@
         },
         {
           "path": "internal/fleet/restore.go",
-          "sha256": "aeb7be6a9dfcdac9f75ad415bbc4bfe47f6c64fc8a73d379cc328819f76260ee"
+          "sha256": "b104960dd9fd01129add588df098a4f5c9abbfb74775ab1595266105d0f07d2d"
         },
         {
           "path": "internal/fleet/restore_preview.go",
@@ -1492,7 +1492,7 @@
         },
         {
           "path": "internal/fleet/status.go",
-          "sha256": "2c06619d10928932064d553889be3890e0fe1fe4d5edab0de3deb6c1a3b2bec0"
+          "sha256": "0e04df575282b3fee6654896a24c68852e9fd537a512dae66e8f6cdda725c54b"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -1500,14 +1500,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
+          "sha256": "f1041d8e5f9c8169995797e649ed763e27dd38d729655991697165dbf8ffa808"
         },
         {
           "path": "website/src/content/docs/reference/fleet.md",
-          "sha256": "cf4acb21bf7987fcd60c447fa99adce54d24d34e60ba54e1958ebb12a6f2e366"
+          "sha256": "3961ba68d33e9ebe82830edf80d4b1ffa53c8527e39bee25382ec2fbb7decf2f"
         }
       ],
-      "reviewDigest": "ce061dd108c30224f07b7ee4b07d93eeb5eed8f6f6103cecefd566f62e45abe2",
+      "reviewDigest": "d1bc2f10288be039444eec1f85742545547bc2b2836106a57e4392fac43e76c3",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1540,11 +1540,11 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/mcp.go",
-          "sha256": "f08d36acea20f00f710e1db0adedf597cdbdf776b9132b2ed31bc2e74f52059e"
+          "sha256": "1265a0ce0062bee41cb1752b74e3aa82f281cd95b9e55a8356e3eec973359bd8"
         },
         {
           "path": "cmd/agentic-sdd/mcp_write.go",
-          "sha256": "9c957ffe33e898d76ac2618eff0a49714a7c84921d8e5c655b3d7998e507e6af"
+          "sha256": "0eb6e9d546719fd8a941fc8cbc46535ca4b2ccf17c351c10d41ebffeac7f6a29"
         },
         {
           "path": "internal/appops/mcp.go",
@@ -1564,7 +1564,7 @@
         },
         {
           "path": "internal/skillsync/mcp_transaction.go",
-          "sha256": "45db03e19400af89af5779c0de5efa014ce316a58dc1b75d8dc06060796e9a57"
+          "sha256": "b5c5098d917eb14acd1a528990156a6c735ddf8166e614f7731deea8b5fc2a33"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -1572,14 +1572,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
+          "sha256": "f1041d8e5f9c8169995797e649ed763e27dd38d729655991697165dbf8ffa808"
         },
         {
           "path": "website/src/content/docs/reference/mcp.md",
-          "sha256": "f9d8914ef9f81dd2af20a34ea5a4c5a82da5ec2795932b75fabd34d0bd1a77d0"
+          "sha256": "c496b9f550da8255d9e16bfafac4fc8a5b3c082562f09ba84917f2d478e83245"
         }
       ],
-      "reviewDigest": "72b42e9ba9e8df53d49eaaf4ceae91e5c00704812656bb947bf9eaa37e8640ea",
+      "reviewDigest": "914aaa4b2a37a5f10e9bf63a9ab8d7d95c81951374bcfb902888bfbc387b19cd",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1609,7 +1609,7 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/execution_cli.go",
-          "sha256": "0a6f4bd8b011b7378268c260e0041a8274c81c87ad25d4420d43790da3ad52d9"
+          "sha256": "a58446c379adccc06971927ed7ec5ceb20d404cf996011e0cc6913f0da9b27b2"
         },
         {
           "path": "cmd/agentic-sdd/review.go",
@@ -1621,23 +1621,23 @@
         },
         {
           "path": "internal/execution/checkpoint.go",
-          "sha256": "75fa9442668bfa53c5529c87c045993b58f3bd997279c6a05dcfd9131a0845fd"
+          "sha256": "ee8eca78ff43eae08a99aa9f7ea2bb9d8474f73e39c05347785149d3c05a0bd3"
         },
         {
           "path": "internal/execution/checks.go",
-          "sha256": "4cee5187be55fa3a0e17cc6fc8e7b43644052354f126c300dd912e71ca9e54cd"
+          "sha256": "de1a566fcecddc6d383b4ac384de00b479601bc3f6d7caf117c769283d5f74e0"
         },
         {
           "path": "internal/execution/record.go",
-          "sha256": "f4b9bafaa43ffe0e9819d95f62541cbe37a2a9923174aa02f19eaf384668f0c0"
+          "sha256": "bd79f9a7f021401721db3ece20048b65117bee6eff31396ab4939d4231f3fe12"
         },
         {
           "path": "internal/execution/reviewpackage.go",
-          "sha256": "eea5dc4e0f76174a6769c8b25e3fbed531a2bbfb067f8e10ffc472c4c10d06fc"
+          "sha256": "2c4aadf1e33441d3a461778cc511c9da284a9c69eada0bc3529fa2b951de3572"
         },
         {
           "path": "internal/execution/taskbrief.go",
-          "sha256": "dbb5dc1d933932adbd0a2ed4cbbedd05f251dc289f95f46630b3f94089bf9a5a"
+          "sha256": "0026bf1837fdf50364fb07aebd9901fdb5723cd4ebd3347458bd6489de3105ff"
         },
         {
           "path": "internal/execution/types.go",
@@ -1645,7 +1645,7 @@
         },
         {
           "path": "internal/execution/workspace.go",
-          "sha256": "5b76eff1a04e17449d11086054fddb2c44c7027d2857e4c57164669308546a17"
+          "sha256": "d4d7d7fc11e9e1c005e22ae6a5704ef30340820d5b8b755fa403da0b26d3d96c"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -1653,14 +1653,14 @@
         },
         {
           "path": "website/scripts/reference/configuration.mjs",
-          "sha256": "80c84e499f83ddbd591539adc58cc628c8c7e258855f630ca0f4acede279d200"
+          "sha256": "f1041d8e5f9c8169995797e649ed763e27dd38d729655991697165dbf8ffa808"
         },
         {
           "path": "website/src/content/docs/reference/execution.md",
-          "sha256": "dfc9d7eba873343de0bca8424129b662635f270addbda96d827267ebba40053a"
+          "sha256": "e4bbca866addd364f9efd6b1e5907a7c1c968fd8fba5a1e8255399801e72ffed"
         }
       ],
-      "reviewDigest": "97080632b5f805fffc85052a6cd1d5ca00c016689b252672e6d2889dacdee24e",
+      "reviewDigest": "1cd58f3031151497bd29e6fd920344d20a70a1b4cea3c0eb621763782174e72b",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1697,7 +1697,7 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "experiments/tui/catalog.go",
@@ -1721,7 +1721,7 @@
         },
         {
           "path": "internal/execution/checkpoint.go",
-          "sha256": "75fa9442668bfa53c5529c87c045993b58f3bd997279c6a05dcfd9131a0845fd"
+          "sha256": "ee8eca78ff43eae08a99aa9f7ea2bb9d8474f73e39c05347785149d3c05a0bd3"
         },
         {
           "path": "internal/execution/checkpoint_test.go",
@@ -1733,7 +1733,7 @@
         },
         {
           "path": "internal/skillsync/mcp_transaction.go",
-          "sha256": "45db03e19400af89af5779c0de5efa014ce316a58dc1b75d8dc06060796e9a57"
+          "sha256": "b5c5098d917eb14acd1a528990156a6c735ddf8166e614f7731deea8b5fc2a33"
         },
         {
           "path": "internal/skillsync/source.go",
@@ -1741,14 +1741,14 @@
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "website/src/content/docs/architecture/overview.md",
-          "sha256": "c91020248acbf3115d9204747a93be239e3df86baa7549c59f0e0f366ee7b4d9"
+          "sha256": "6f27adf3f02fed80424e70455f7b86f0ae90d0bdd9e9bc09b43b3c4909b332ad"
         }
       ],
-      "reviewDigest": "ecfc647ed2470317cf799d2a4bb1336a7dce4f21ef98bf4b36c94d436df3aa7a",
+      "reviewDigest": "19e49ce5c440cec562f41d4cd168a48efef5d2345f2cb4e0567321957c1bd7f3",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1768,7 +1768,7 @@
         },
         {
           "path": "cmd/agentic-sdd/execution_cli.go",
-          "sha256": "0a6f4bd8b011b7378268c260e0041a8274c81c87ad25d4420d43790da3ad52d9"
+          "sha256": "a58446c379adccc06971927ed7ec5ceb20d404cf996011e0cc6913f0da9b27b2"
         },
         {
           "path": "cmd/agentic-sdd/guide.go",
@@ -1780,15 +1780,15 @@
         },
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "cmd/agentic-sdd/mcp.go",
-          "sha256": "f08d36acea20f00f710e1db0adedf597cdbdf776b9132b2ed31bc2e74f52059e"
+          "sha256": "1265a0ce0062bee41cb1752b74e3aa82f281cd95b9e55a8356e3eec973359bd8"
         },
         {
           "path": "cmd/agentic-sdd/mcp_write.go",
-          "sha256": "9c957ffe33e898d76ac2618eff0a49714a7c84921d8e5c655b3d7998e507e6af"
+          "sha256": "0eb6e9d546719fd8a941fc8cbc46535ca4b2ccf17c351c10d41ebffeac7f6a29"
         },
         {
           "path": "cmd/agentic-sdd/run.go",
@@ -1796,19 +1796,19 @@
         },
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "cmd/agentic-sdd/tui_test.go",
-          "sha256": "7eefa0617e34cb3b2d1d113efa02de1df7e5af4caee3da3b821ff5e603612ff7"
+          "sha256": "31c3e94f28b536f6cd2e68a6f0c59bde5bba6678cf36c3da7b37ba99877fd224"
         },
         {
           "path": "experiments/tui/app_screens.go",
-          "sha256": "c99dfa12e235d3f2c34fda1898eb68f089eef8c291bb6849c0794e3926cc2add"
+          "sha256": "d16c262c460640b9591b93c79783ec517c427f08d699dd4f6d639374d61445c8"
         },
         {
           "path": "experiments/tui/cmd/internal/tuirun/run.go",
-          "sha256": "42cbc1f40834e696a9a2867587097b18811a20e8cfc3ce745553c12e6a5e68d5"
+          "sha256": "fecce5c48ceea0155ded87e47c59b1c6c5089e1e73e1fe845d07075b1a1f6705"
         },
         {
           "path": "experiments/tui/cmd/tui-companion/main.go",
@@ -1816,7 +1816,7 @@
         },
         {
           "path": "experiments/tui/ops_host.go",
-          "sha256": "17a84db59e97a1a5f4b5e8adb6d4ba57af8ed6434cb0f2e69a7ba3dfdebdf29a"
+          "sha256": "3d81084f373f2529abaf9d54c58f3fe37d4b68134f1fce3ed9e46eccc1fb9fb8"
         },
         {
           "path": "internal/appops/requests.go",
@@ -1824,10 +1824,10 @@
         },
         {
           "path": "website/src/content/docs/architecture/interfaces.md",
-          "sha256": "baa3583025ba28e88ec1f21f025e7b9539fc2672bc1f4b72d1a8b1327a13cb51"
+          "sha256": "2f2483e121a71e1d1071b485fb03c663fa46e66a85005bfd1ab833f0adc1bbd2"
         }
       ],
-      "reviewDigest": "ae86ef0eb0ed026e3a5f9f9fbc6749e7d1c55c2dbbefb807443066ce66f58959",
+      "reviewDigest": "b6f6a40a7519d646dbb59333ab40c241ccd9659d32da0366721c8eee2b461a90",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1852,30 +1852,30 @@
         },
         {
           "path": "internal/appops/routing.go",
-          "sha256": "bd003e6b1e7471129e520bc2edbd54d20e5fd69c19f4415840be0dc8bc6a7050"
+          "sha256": "d94f3d6cf630a0c8963acb119b2a1e935daed91743a62179e51ea3ff9b940758"
         },
         {
           "path": "internal/skillsync/mcp_transaction.go",
-          "sha256": "45db03e19400af89af5779c0de5efa014ce316a58dc1b75d8dc06060796e9a57"
+          "sha256": "b5c5098d917eb14acd1a528990156a6c735ddf8166e614f7731deea8b5fc2a33"
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "opencode-pack/README.md",
-          "sha256": "d69b2771fcecad3eab9252f64f7c64b2fda1da44a055a3b5ed42efbffc44d181"
+          "sha256": "818555a696a6f8572d25fc6966810de284178280ba6a189bd9ed68eeb2375445"
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
+          "sha256": "9a982d74f5fbb12bbcd34ae782c9447dfa13d34dae445ec49710fa238ed1db87"
         },
         {
           "path": "website/src/content/docs/architecture/workflows.md",
-          "sha256": "c877b78b06a177ea340743d817ccb5ef7e9804cf17cce72f483202adc3212173"
+          "sha256": "6c8db3f1e88446571fe032f51f6c450997ab0697af45bb8402fbc3d817183f87"
         }
       ],
-      "reviewDigest": "7e5340982a5ea3cf4f9f61ccd000588744df3f0ecd1c2e2c8b8a5c9912c61650",
+      "reviewDigest": "dbafb8462ae3483571cca79b7ea94170d2a8193a710be9878dfd00b9d602d283",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1891,14 +1891,14 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/execution_cli.go",
-          "sha256": "0a6f4bd8b011b7378268c260e0041a8274c81c87ad25d4420d43790da3ad52d9"
+          "sha256": "a58446c379adccc06971927ed7ec5ceb20d404cf996011e0cc6913f0da9b27b2"
         },
         {
           "path": "website/src/content/docs/architecture/evidence.md",
-          "sha256": "b204c3956ef2417854c53018eacb5539d2eafbf7d7f700f409daa504882d46d3"
+          "sha256": "2033d1624915393dd3d347519ca5a92e968e900cf984fd798de711ad0ce9588f"
         }
       ],
-      "reviewDigest": "e1b99e362f7c6189d76ab8c6ee086e0139e5aba2e40d66704604fcfc860d93bc",
+      "reviewDigest": "ce080b4fe230c1b9940ee29dfe6c050fc96b706e01361c69e32a76286c7b434b",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1939,11 +1939,11 @@
       "sources": [
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "cmd/agentic-sdd/mcp.go",
-          "sha256": "f08d36acea20f00f710e1db0adedf597cdbdf776b9132b2ed31bc2e74f52059e"
+          "sha256": "1265a0ce0062bee41cb1752b74e3aa82f281cd95b9e55a8356e3eec973359bd8"
         },
         {
           "path": "cmd/agentic-sdd/opencode.go",
@@ -1955,11 +1955,11 @@
         },
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "internal/appops/routing.go",
-          "sha256": "bd003e6b1e7471129e520bc2edbd54d20e5fd69c19f4415840be0dc8bc6a7050"
+          "sha256": "d94f3d6cf630a0c8963acb119b2a1e935daed91743a62179e51ea3ff9b940758"
         },
         {
           "path": "internal/skillsync/package_test.go",
@@ -1967,14 +1967,14 @@
         },
         {
           "path": "opencode-pack/routing.md",
-          "sha256": "e4db3b564620a2d17d162d9eae8ffaa502e8235dff0afd5b2ea29f21065c9698"
+          "sha256": "9a982d74f5fbb12bbcd34ae782c9447dfa13d34dae445ec49710fa238ed1db87"
         },
         {
           "path": "website/src/content/docs/operations/known-limitations.md",
-          "sha256": "43a027b805105fd5546cbb4062d5ffc26a6f59267c4aa5e91dc21b5b1ce619ab"
+          "sha256": "7e36c470783bc39df4592cd5bf5122f9bad8389af0ba4a254a09ff12b3828631"
         }
       ],
-      "reviewDigest": "45be66df849ac2c757e499ad5581a88ace8cdb6683844d2c172e01ff3eab9050",
+      "reviewDigest": "0211cd84e0d12e06e4e8b4b6f26c2a6db0cd298731b66c8d6c9163898f3bc59c",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -2008,7 +2008,7 @@
         },
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "cmd/agentic-sdd/trace.go",
@@ -2016,11 +2016,11 @@
         },
         {
           "path": "cmd/agentic-sdd/tui.go",
-          "sha256": "39bc97a85b4c1b4c284194224d4ff512809f6499419278c71eeff8fd921f2f31"
+          "sha256": "48cdfde43aea135e7bd50d747a594572d625dcd6f34dccbeeecd6bba0bfa926b"
         },
         {
           "path": "experiments/tui/app_screens.go",
-          "sha256": "c99dfa12e235d3f2c34fda1898eb68f089eef8c291bb6849c0794e3926cc2add"
+          "sha256": "d16c262c460640b9591b93c79783ec517c427f08d699dd4f6d639374d61445c8"
         },
         {
           "path": "experiments/tui/opener.go",
@@ -2040,7 +2040,7 @@
         },
         {
           "path": "internal/execution/checks.go",
-          "sha256": "4cee5187be55fa3a0e17cc6fc8e7b43644052354f126c300dd912e71ca9e54cd"
+          "sha256": "de1a566fcecddc6d383b4ac384de00b479601bc3f6d7caf117c769283d5f74e0"
         },
         {
           "path": "internal/execution/repository.go",
@@ -2048,11 +2048,11 @@
         },
         {
           "path": "internal/execution/reviewpackage.go",
-          "sha256": "eea5dc4e0f76174a6769c8b25e3fbed531a2bbfb067f8e10ffc472c4c10d06fc"
+          "sha256": "2c4aadf1e33441d3a461778cc511c9da284a9c69eada0bc3529fa2b951de3572"
         },
         {
           "path": "internal/fleet/plan.go",
-          "sha256": "87d017159d6275a21f32eb77c0915f862418a330c0cd049f52007feb076a325c"
+          "sha256": "ff7b24593b6723434ccbfe084d983f9e8f2458356e2924efb63101293144b1b7"
         },
         {
           "path": "internal/skillsync/files.go",
@@ -2060,7 +2060,7 @@
         },
         {
           "path": "internal/skillsync/manifest.go",
-          "sha256": "29ec720444d95477647ccdc4244366998afa34db03b8374b6104b408895fda6f"
+          "sha256": "2366a08901dd4ee03527c9e62f9d80916461b970c0177b7df25ca8da824b0760"
         },
         {
           "path": "internal/skillsync/mcp_config.go",
@@ -2068,26 +2068,26 @@
         },
         {
           "path": "internal/skillsync/permissions_test.go",
-          "sha256": "eb49444d7f340e53df9c866d2007bc1b1588bb4d8f34b2a46546e48188085cf3"
+          "sha256": "90e34515f8b6cbfe987b5ac20eb30bbcb49afe8271041f9ca2ec6741eca1755b"
         },
         {
           "path": "internal/skillsync/restore.go",
-          "sha256": "8183c0f505797ccc245f44bcd319f49731d8bd02c41fa733c6d768f687b7e93c"
+          "sha256": "02d7e28fcd1a3f1dd14ca677d440bbdd64f41e755af266d565d9360c1ec02a62"
         },
         {
           "path": "internal/skillsync/sync.go",
-          "sha256": "f34775e52613f5313db8287efcc83b0430f5c0480d9224e3ddb8ecbf018cdb79"
+          "sha256": "0b0075224619ab09f6c94514c3f9b009c9c3465d2411c3dde9a50f8d5b334335"
         },
         {
           "path": "opencode-pack/README.md",
-          "sha256": "d69b2771fcecad3eab9252f64f7c64b2fda1da44a055a3b5ed42efbffc44d181"
+          "sha256": "818555a696a6f8572d25fc6966810de284178280ba6a189bd9ed68eeb2375445"
         },
         {
           "path": "website/src/content/docs/security/trust.md",
-          "sha256": "fae44fa615e2eebf3b576b7581e155a4216ba9a7d65be1759d20a74da140aafd"
+          "sha256": "b98f9152d594b935daa45c757734b8235c8b37586a9d3d6bfe36da11b6df9217"
         }
       ],
-      "reviewDigest": "6469355775befa17558ddc142a5f95d4aca0556b9eb0631d913c4777bdfab2e7",
+      "reviewDigest": "dd18e3b85641deb204a18920e18cca047ed21ec93b90e4a578ffbb32b32edc33",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -2106,11 +2106,11 @@
         },
         {
           "path": "Taskfile.yml",
-          "sha256": "10cebbacd6ef623876ea2cae61616580d03cec8dfbb16fce2b6caab140180b1d"
+          "sha256": "55f4acff3025ef4ab34254e7c3c3ec39485db3f734a48c1d0725eafaaa4022b5"
         },
         {
           "path": "cmd/agentic-sdd/documentation_reference_test.go",
-          "sha256": "a8e5a0fe931c5ea2c6d0c9834f833af809bb18abfb2b7ea75714cb970112f743"
+          "sha256": "a4b367e9c30d219fe4a1c667f3054ce004c14ef5d50a9f1e4f89a8ca383bed7a"
         },
         {
           "path": "experiments/tui/go.mod",
@@ -2138,10 +2138,10 @@
         },
         {
           "path": "website/src/content/docs/contributing/development.md",
-          "sha256": "feb3e24b4fc876c7cc101f091fddc7ee7bf57754ff149715160a97c4e4667c20"
+          "sha256": "5e1212596f1bc46297bfd5d91c2f4c38d01fdde486fa05e3c75ae0cb3bf440d2"
         }
       ],
-      "reviewDigest": "ba7297147dc708d30561a88d27e3641d3687c27e02351488e3c6e69e54a7c2b1",
+      "reviewDigest": "16d624ee8d9edb0c497375c6820b269421f8837c849a30dacd50c5e7fca4c9e7",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -2160,7 +2160,7 @@
         },
         {
           "path": "Taskfile.yml",
-          "sha256": "10cebbacd6ef623876ea2cae61616580d03cec8dfbb16fce2b6caab140180b1d"
+          "sha256": "55f4acff3025ef4ab34254e7c3c3ec39485db3f734a48c1d0725eafaaa4022b5"
         },
         {
           "path": "experiments/tui/go.mod",
@@ -2184,10 +2184,10 @@
         },
         {
           "path": "website/src/content/docs/contributing/testing.md",
-          "sha256": "16ee3f6de1a5121d586b3bcd6ab3ea4e22415077258cb10055e88009632ab635"
+          "sha256": "672ab3cef7d76f7c5276ba08a425f4b8b5ea941f5123dcbe73bf9264b6f7a639"
         }
       ],
-      "reviewDigest": "21a4647c3e837976dcbde331c4778f052f5084524c6ece985836c7203994b6ca",
+      "reviewDigest": "f41859a2164e536c38a5de943e87acaf8b0816e07a5110721efc09d63e56b6a5",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -2206,7 +2206,7 @@
         },
         {
           "path": "cmd/agentic-sdd/main.go",
-          "sha256": "83d3a05e6d960832368f4d1b56c171dd92f5784ca2235c8e2f7c9fe2660f22f5"
+          "sha256": "d8655e8fa36cdcd7dfae79d4e91c9f89312d7c15f6bd5432372ded0e2832846a"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -2214,10 +2214,10 @@
         },
         {
           "path": "website/src/content/docs/contributing/docs-and-changes.md",
-          "sha256": "112bbab3ad4b9b12776463e1cc6376d78a16708a6e290741a5433be20fcc783e"
+          "sha256": "163e39edc60026b2b3d45933da45278786051864814c73046477bf947a2091e6"
         }
       ],
-      "reviewDigest": "ad514ce45f9f2ef1c098a04bbeccff4a3e84bb28cb3d4765857a77402087cf28",
+      "reviewDigest": "f3a63c88bfeb8c014eaef4380dc65e617028a6357f7a39976d438539305ada5d",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -2234,10 +2234,10 @@
       "sources": [
         {
           "path": "website/src/content/docs/releases/compatibility.md",
-          "sha256": "03db1853d105706557fa074c9e127e3ab5ea4188bf1eb3892bb53828a4737fdc"
+          "sha256": "f01b3ab54b6ee0c0582dc7137452f8180a8b691b20ae614c31020bfbbebe36b2"
         }
       ],
-      "reviewDigest": "c1e36dad4fdd72ad4ba8f167ca9cf8454695d3187aabc1c07321e51f57ae7201",
+      "reviewDigest": "7b3b2e75467351cd15bb356dd17b810cedf4ee21a7dc430783aed548bc4e0270",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },

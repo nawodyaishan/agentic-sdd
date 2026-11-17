@@ -7,7 +7,7 @@ Agentic-SDD is an open-source toolkit of **18 portable core engineering skills**
 
 Created and maintained by [Nawodya Ishan](https://github.com/nawodyaishan) · [Contributing](contributing/development.md).
 
-> **Status note:** This documentation covers the current repository checkout (`unreleased`). Public metadata for release `v0.11.0` (tag and Homebrew cask formula/archive digest) is observed, while archive binary execution and live macOS installation are not verified. The documentation website homepage and the `getting-started/first-five-minutes` deep page responded on 2026-11-16; that dated observation is not a full deployment, asset, search, or accessibility audit.
+> **Status note:** This documentation covers the current repository checkout (`unreleased`). Public metadata for release `v0.11.0` (tag and Homebrew cask formula/archive digest) was observed on 2026-11-14, and the tap declared `0.13.0` at the 2026-11-17 check. Archive binary execution and live macOS installation are not verified for any tag. The [compatibility page](releases/compatibility.md) owns the exact release facts. The documentation website homepage and the `getting-started/first-five-minutes` deep page responded on 2026-11-16; that dated observation is not a full deployment, asset, search, or accessibility audit.
 
 ## Who Agentic-SDD is for
 

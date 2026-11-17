@@ -32,6 +32,12 @@ again. When `--repo` is omitted, assets come from the binary's embedded tree; an
 explicit checkout reads `skills-files/` and keeps backups under the checkout's own
 `backups/` directory.
 
+Concurrent writers to one home are serialized by kernel-held guards under
+`<home>/.agentic-sdd/locks/`. A held guard refuses the second writer, and a platform
+without this locking refuses guarded writes rather than running unlocked. Locks are
+mutual exclusion for the installer, not protection against a same-user process that
+edits files directly.
+
 Path integrity is enforced before any write:
 
 - special files and symlinks inside a managed tree are refused
@@ -149,7 +155,9 @@ These are the places where local state can outlive the reason it was written.
   instructions or locally customised skills. Restore validates the backup's home
   identity and content before use, and its digests detect corruption; they are not
   signatures and do not prove who wrote the tree (`internal/skillsync/manifest.go`,
-  `internal/skillsync/restore.go`).
+  `internal/skillsync/restore.go`). Newer skill-tree entries carry a versioned,
+  length-framed digest; older entries keep their original semantics, and a version
+  this build does not support is refused. Manifests are read as bounded regular files.
 - **Argument vectors are process-visible.** Flags are ordinary process arguments, so
   another process running as the same user can read them while a command runs. Do not
   pass secrets as command-line flags. The documented trace records flag *names* only,

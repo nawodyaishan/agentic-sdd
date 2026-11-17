@@ -978,6 +978,12 @@ function verifyExecution(sources) {
     workspaceFile,
     'execution.lockName',
   );
+  const guardDirName = expectEqual(
+    stringConst(workspace, workspaceFile, 'execution.guardDirName', 'runGuardDirName'),
+    '.locks',
+    workspaceFile,
+    'execution.guardDirName',
+  );
   const ignoreName = expectEqual(
     stringConst(workspace, workspaceFile, 'execution.ignoreName', 'ignoreFileName'),
     '.gitignore',
@@ -1089,6 +1095,7 @@ function verifyExecution(sources) {
       identity: runIdentityName,
       checkpoint: checkpointName,
       lock: lockName,
+      guard: `${guardDirName}/<run-id>`,
       briefs: 'briefs/<task>.md',
       checks: 'checks/<check-id>/',
       records: `records/<${recordPrefix}-id>.json`,
@@ -1218,7 +1225,7 @@ function verifyFilesAndBackups(sources, { fleet, mcp }) {
   );
   const entryFields = expectEqual(
     structJSONFields(manifest, manifestFile, 'skillsync.entryFields', 'entry'),
-    ['kind', 'client', 'skill', 'path', 'action', 'backup', 'sha256'],
+    ['kind', 'client', 'skill', 'path', 'action', 'backup', 'sha256', 'digest_version'],
     manifestFile,
     'skillsync.entryFields',
   );
@@ -1784,7 +1791,8 @@ ${table(
     [
       ['Run identity', code(facts.artifacts.identity)],
       ['Checkpoint', code(facts.artifacts.checkpoint)],
-      ['Writer lock', code(facts.artifacts.lock)],
+      ['Writer lock (kernel guard, under the run root)', code(facts.artifacts.guard)],
+      ['Writer lock (legacy heartbeat)', code(facts.artifacts.lock)],
       ['Task brief', code(facts.artifacts.briefs)],
       ['Check directory', code(facts.artifacts.checks)],
       ['Check metadata', facts.artifacts.checkFiles.map(code).join(', ')],
@@ -1820,7 +1828,7 @@ ${table(
       ['Per-stream stdout/stderr', bytes(facts.limits.outputBytes)],
       ['Review package per file', bytes(facts.limits.reviewFileBytes)],
       ['Review package total', bytes(facts.limits.reviewTotalBytes)],
-      ['Stale writer lock age', duration(facts.limits.lockStaleSeconds)],
+      ['Legacy lock heartbeat window', `${duration(facts.limits.lockStaleSeconds)}; age alone never reclaims a lock`],
     ],
   )}
 
@@ -1893,6 +1901,7 @@ ${table(
 
 ${bullet([
     `Tree digest: ${facts.digests.tree}`,
+    'Skill-tree entries record digest_version 2 (K2 framing: domain header, then per entry a kind byte, a length-prefixed relative path and, for files, a length-prefixed content; the root is excluded and an empty directory is part of the digest). Entries without digest_version keep the legacy tree digest, and an unsupported digest_version is refused',
     `File digest: ${facts.digests.file}`,
     'A restored backup must match the current home identity and its saved content is validated before use',
     `Format 1 is legacy: ${code('format < 2')} keeps the older reader path without per-entry records`,

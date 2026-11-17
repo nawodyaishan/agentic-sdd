@@ -23,7 +23,7 @@ Use these skills to route a request, establish repository SDD pointers, resolve 
 | `agentic-sdd-grilling` | Clarifies a consequential behavior, scope, or risk decision that blocks authorized work (or challenges a plan on request). | [`skills-files/agentic-sdd-grilling/SKILL.md`](../../../../../skills-files/agentic-sdd-grilling/SKILL.md) |
 | `agentic-sdd-grill-me` | Explicitly invoked stress test that challenges a plan or decision with focused questions. | [`skills-files/agentic-sdd-grill-me/SKILL.md`](../../../../../skills-files/agentic-sdd-grill-me/SKILL.md) |
 | `agentic-sdd-questionnaire` | Prepares recipient-specific discovery questions when someone else holds required knowledge, or reconciles returned answers. | [`skills-files/agentic-sdd-questionnaire/SKILL.md`](../../../../../skills-files/agentic-sdd-questionnaire/SKILL.md) |
-| `agentic-sdd-research-spec` | Resolves one named, consequential fact from primary sources when it blocks an SDD stage, then returns to that stage. | [`skills-files/agentic-sdd-research-spec/SKILL.md`](../../../../../skills-files/agentic-sdd-research-spec/SKILL.md) |
+| `agentic-sdd-research-spec` | Resolves one named, consequential fact from primary sources when it blocks an SDD stage, then returns to that stage. An explicit broad research request must still name the affected SDD decision. | [`skills-files/agentic-sdd-research-spec/SKILL.md`](../../../../../skills-files/agentic-sdd-research-spec/SKILL.md) |
 
 ### Implementation and debugging
 
@@ -46,7 +46,7 @@ Use these skills to review completed work or consequential feature architecture 
 
 ### Learning, handoff, and authoring
 
-Use these skills for plain-language explanations, session transfers, or maintaining agent-consumed instructions:
+Use these skills for plain-language explanations, session transfers, or maintaining agent-consumed instructions. The explanation and handoff skills (`agentic-sdd-teach`, `agentic-sdd-wait-what`, `agentic-sdd-handoff`) read the router's lightweight branch reference, `references/lightweight-authority.md`, first; they load the full shared workflow policy only when the request becomes workflow-state work.
 
 | Skill | What it is for | Normative source |
 |---|---|---|
@@ -84,7 +84,7 @@ The optional `agentic-sdd-orchestrate` skill is installed only with `--with-open
 | `agentic-sdd-implement` | yes | Implement one approved batch, or one direct fix, with assigned specialist guidance loaded in the main agent and focused verification. |
 | `agentic-sdd-plan` | yes | Draft a feature plan from the draft spec with specialist and tool assignments, then continue to tasks for one combined approval. |
 | `agentic-sdd-questionnaire` | yes | Prepare a recipient-specific discovery questionnaire when another person holds needed knowledge, or reconcile returned answers with source requirements. |
-| `agentic-sdd-research-spec` | yes | Resolve a named, consequential fact blocking an SDD stage (spec, plan, tasks, review, debugging or direct fix) and return to that stage. Not for generic research, topic reports, background delegation or mandatory research files. |
+| `agentic-sdd-research-spec` | yes | Resolve a named, consequential fact blocking an SDD stage (spec, plan, tasks, review, debugging or direct fix) and return to that stage; an explicit broad request must still name the affected SDD decision. Not for generic research, topic reports, background delegation or mandatory research files. |
 | `agentic-sdd-router` | yes | Route SDD intake and feature work through combined spec/plan/tasks approval, batched implementation and direct fixes. |
 | `agentic-sdd-spec` | yes | Draft a feature spec from the relevant SRS and roadmap sections as the first of three documents for one combined approval. |
 | `agentic-sdd-tasks` | yes | Draft ordered feature tasks and explicit execution batches, then present spec, plan and tasks for one combined approval. |

@@ -33,6 +33,8 @@ All steps are in `installChangesWithHook` (`internal/skillsync/sync.go`) unless 
 | 6 | Each stage is renamed over its destination; an existing destination is first renamed to an undo path | `rollback` restores completed renames and the current undo |
 | 7 | Undo entries are removed and the transcript reports the backup path | — |
 
+Apply holds the per-home agent-target guard from before the backup until the manifest is written and the renames finish (`AcquireTargetMutation`, `internal/skillsync/sync.go`). Preview takes no guard and writes nothing. A second writer on the same home is refused rather than queued.
+
 Two consequences matter for recovery:
 
 - A backup ID exists only for a complete, restorable backup. `writeOutcome.backupID` is assigned immediately after the manifest is written and before any destination changes, so a later failure still tells you what to restore.
@@ -95,12 +97,12 @@ They look similar — both write configuration for an optional OpenCode workflow
 | Input | Explicit personal `fleet.json` (`LoadConfigFile`, schema 1, 1 MiB cap) | Existing OpenCode config `~/.config/opencode/opencode.json` or `.jsonc` |
 | Target | `~/.config/opencode/agents` (`TargetRootForHome`) | Managed entries in that one config file |
 | Plan identity | Canonical JSON plus `ComputePlanID`; `ApplyPlan` rechecks plan ID, renderer version, target root and config digest | Digest-bound plan and apply token; `mcp_transaction.go` rechecks the target digest |
-| Lock | `${backupRoot}/.fleet.lock`, kernel `flock` (dead process releases it) | `.agentic-sdd/mcp/.lock`, 30-second stale window |
+| Lock | `${backupRoot}/.fleet.lock`, kernel `flock`, then the per-home agent-target guard under `<home>/.agentic-sdd/locks/` (kernel-held; a dead process releases it) | The per-home MCP target guard under `<home>/.agentic-sdd/locks/`; a stale legacy `.agentic-sdd/mcp/.lock` older than 30 seconds is cleared once |
 | Backup | Shared skillsync backup plus `fleet-manifest.json` (format 4) | Private managed-entry snapshot, never unrelated servers or credentials |
 | Recovery record | Fleet sidecar + live pointer `<home>/.agentic-sdd/fleet/current.json` | `intent.json` states `prepared`, `renamed`, `manifest-written`, `complete`, `rolled-back`, `needs-recovery` |
 | Never writes | `AGENTS.md`; symlinks; unknown `disabled:` fields | Unmanaged servers; project-local scope; beyond the global config directory |
 
-The fleet engine reaches the shared writer through `skillsync.ApplyAgentFiles`; MCP has its own transaction code in `internal/skillsync/mcp_transaction.go`. Neither reads the other's manifest, which is why a fleet restore cannot silently revert MCP servers and an MCP restore cannot touch agent profiles.
+The fleet engine reaches the shared writer through `skillsync.ApplyAgentFilesGuarded`, which runs under the agent-target guard that fleet acquires first; MCP has its own transaction code in `internal/skillsync/mcp_transaction.go`. Neither reads the other's manifest, which is why a fleet restore cannot silently revert MCP servers and an MCP restore cannot touch agent profiles.
 
 ## When a workflow stops
 
@@ -112,6 +114,7 @@ The fleet engine reaches the shared writer through `skillsync.ApplyAgentFiles`; 
 | Failure after a complete backup | Error plus `BackupID`; `Rollback` reports what was attempted |
 | Restore of a backup from another home or mismatched targets | Refused by `loadBackup` |
 | Fleet plan revalidation failure | `ErrStalePlan` or `ErrPlanConflict`, no write |
+| Interrupted fleet transaction whose target bytes match neither state | `ErrPendingReconciliation` with manual recovery steps; nothing overwritten, no resolver |
 | MCP target digest mismatch | Refusal with no write |
 
 Related: [`architecture/evidence`](evidence.md) for the run-side workflow, and [`reference/fleet`](../reference/fleet.md), [`reference/mcp`](../reference/mcp.md) for the command-level detail.

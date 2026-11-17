@@ -143,7 +143,7 @@ Saved plans are written `0600` in a `0700` directory and read back with a 4 MiB 
 
 ## Drift and ownership records
 
-Ownership lives in a format-4 sidecar, `fleet-manifest.json`, inside each backup directory, plus a live pointer at `<home>/.agentic-sdd/fleet/current.json` that names the current fleet state. If the pointer is missing, fleet rebuilds the recorded state by replaying fleet transactions instead of treating every managed file as unmanaged (`internal/fleet/manifest.go` `RebuildLiveManifest`).
+Ownership lives in a format-4 sidecar, `fleet-manifest.json`, inside each backup directory, plus a live pointer at `<home>/.agentic-sdd/fleet/current.json` that names the current fleet state. If the pointer is missing, fleet rebuilds the recorded state by replaying fleet transactions instead of treating every managed file as unmanaged (`internal/fleet/manifest.go` `RebuildLiveManifest`). The replay never includes an in-flight or failed transaction, and every sidecar under the backup root is read fail-closed: a malformed or unreadable sidecar stops the rebuild rather than being skipped.
 
 Per-file provenance is a six-value vocabulary, and each value changes what a later plan is allowed to assume:
 
@@ -177,7 +177,7 @@ The CLI maps several of these to the historical `installed (…)` wording, inclu
 
 ## Locks
 
-Fleet serializes writes with an operating-system lock on `<backupRoot>/.fleet.lock`, where `<backupRoot>` is `<home>/.agentic-sdd/backups` because fleet resolves the store through `skillsync.BackupRootFor("", home)`. The lock is exclusive and non-blocking: a second writer gets `fleet lock is held by another process` instead of waiting. The recorded PID and timestamp are diagnostics for that message; liveness is decided by the kernel, and `LockStaleTimeout` (30 seconds) never reclaims a lock on age alone. The file is kept after release because the stable inode is what makes the lock atomic (`internal/fleet/plan.go` `AcquireLock`, `internal/fleet/lock_posix.go`, `internal/fleet/lock_windows.go`).
+Fleet serializes writes in two steps. It first takes an operating-system lock on `<backupRoot>/.fleet.lock`, where `<backupRoot>` is `<home>/.agentic-sdd/backups` because fleet resolves the store through `skillsync.BackupRootFor("", home)`. It then takes the per-home agent-target guard under `<home>/.agentic-sdd/locks/` before it reconciles pending transactions or writes any agent file. The lock order is fixed (legacy file first, then the agent guard). Both are exclusive and non-blocking: a second writer gets `fleet lock is held by another process` instead of waiting. The recorded PID and timestamp are diagnostics for that message; liveness is decided by the kernel, and `LockStaleTimeout` (30 seconds) never reclaims a lock on age alone. The file is kept after release because the stable inode is what makes the lock atomic (`internal/fleet/plan.go` `AcquireLock`, `internal/fleet/apply.go` `acquireAgentGuard`, `internal/fleet/lock_posix.go`, `internal/fleet/lock_windows.go`).
 
 The process-local single write slot in the TUI (`OpsHost`, `experiments/tui/ops_host.go`) is a separate mechanism: it stops one TUI session from dispatching two operations at once and does not replace the cross-process lock.
 

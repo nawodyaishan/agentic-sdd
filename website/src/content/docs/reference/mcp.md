@@ -129,8 +129,9 @@ is not trusted. Before any write it requires:
 2. the plan has no conflicts and no managed entry contains a literal credential;
 3. the target is an existing regular `.json` file in the global scope;
 4. `--expect-config` equals the current base digest;
-5. the shared engine lock is acquired. A lock older than 30 seconds is treated
-   as abandoned and reclaimed once;
+5. the MCP target mutation guard for this home is acquired (kernel-held, under
+   `<home>/.agentic-sdd/locks/`; a live holder refuses rather than waiting), and
+   a stale legacy `.agentic-sdd/mcp/.lock` older than 30 seconds is cleared once;
 6. under the lock the file is re-read, the digest must still match, and a
    bounded local `opencode --version` probe reports major version 2 or later
    (5-second timeout, no shell, no network).
@@ -141,6 +142,20 @@ replaces the target atomically and records the ownership manifest. Rollback
 restores only the recorded managed entries; an incomplete rollback is reported
 as `INCOMPLETE` and must not be read as success. A no-op apply creates no backup
 and does not run the runtime probe.
+
+### Outcome wording
+
+The TUI headline for an MCP apply or restore result is one of `completed`,
+`no changes`, `rolled back`, `incomplete`, `failed` or `needs a fresh preview`
+(`experiments/tui/ops_host.go`). `completed` means the planned managed entries
+were written; it is not an authentication, connectivity or server-start claim.
+`needs a fresh preview` means the inputs changed after confirmation, nothing was
+written, and the plan must be previewed again.
+
+Known open gap: on some apply failures the `internal/appops` result does not yet
+carry the engine's rollback facts. Such a failure can read as `failed` even
+when a rollback ran, so the backup under `<home>/.agentic-sdd/mcp/backups/` and
+the operation log remain the evidence to check before retrying.
 
 ## Restore preconditions
 

@@ -69,6 +69,8 @@ Every failure exits `1` through `failTUILaunch`, which never substitutes preview
 - `WritePolicyText` is one constant shown before confirmation; `TestAppBusyFooterReplacesQuitHintAndPolicyIsShownBeforeExecution` asserts the policy is shown and the busy footer carries `WRITE-IN-PROGRESS`.
 - `experiments/tui/ops_host.go` production seams default to `appops.ApplyInstall`, `appops.ApplyRestore`, `appops.ApplyFleet`, `appops.ApplyFleetRestore`, `appops.MCPApply` and `appops.MCPRestore`; tests inject fakes.
 
+Startup and read seams follow the same rule. The first inventory read is queued from `Update` as a generation-bound command when `AppOptions.DeferredInventory` is set, so the first frame renders before it completes, and a result from an older generation is ignored. The MCP status, diagnostics and plan readers are injected through `AppScreenOptions` (`MCPReader`, `MCPPlanner`), which is how the composed tests block a reader on a channel and observe the first frame.
+
 The launch gates are part of the interface too. `tuirun.Run` (`experiments/tui/cmd/internal/tuirun/run.go`) rejects a non-terminal stdin/stdout and an `AGENTIC_SDD_FORCE_INTERACTIVE=1` scripted run before a program is created. The CLI repeats the gate in `runTUICommand` using `RealStdinTTY`/`RealStdoutTTY`, which ignore the force flag (`cmd/agentic-sdd/env.go`).
 
 ## Pairing, legacy names and forwarding

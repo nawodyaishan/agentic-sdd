@@ -23,7 +23,7 @@ Installing the binaries does **not** install any skills or modify your coding cl
 
 | Platform | Distribution status | Qualification |
 |---|---|---|
-| **macOS (`darwin`)** | Homebrew cask (`nawodyaishan/tap/agentic-sdd`) and source build | Public `v0.11.0` tag, release metadata (`agentic-sdd_0.11.0_darwin_all.tar.gz`, SHA-256 verified in metadata), and tap cask declaration are verified. Archive contents, binary execution, and live Homebrew install/upgrade on macOS have **not** been independently verified in this documentation baseline. |
+| **macOS (`darwin`)** | Homebrew cask (`nawodyaishan/tap/agentic-sdd`) and source build | Public `v0.11.0` tag, release metadata (`agentic-sdd_0.11.0_darwin_all.tar.gz`, SHA-256 verified in metadata; observed 2026-11-14), and the tap cask declaration (`0.13.0`, recorded 2026-11-17) were checked. Archive contents, binary execution, and live Homebrew install/upgrade on macOS have **not** been independently verified for any tag in this documentation baseline. See [compatibility](../releases/compatibility.md). |
 | **Linux** | Source build only | No prebuilt Linux binary, `.deb`, `.rpm`, or Homebrew Linux bottle is published (`.goreleaser.yml` targets `darwin` only). Build from source using the steps below. |
 | **Windows** | Unsupported / unknown | Release builds exclude Windows; filesystem permissions, symlink checks, and terminal behavior are not tested or supported. |
 
