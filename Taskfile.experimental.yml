@@ -270,85 +270,20 @@ tasks:
         echo "Experimental TUI: running in a disposable home ($demo_home)..."
         AGENTIC_SDD_TUI=1 GOCACHE="$1" GOTOOLCHAIN=local GOWORK=off go run ./cmd/tui-spike --home "$demo_home"
         ' sh {{.GOCACHE | shellQuote}}
+  # Consolidated snapshot policy: delegates to the canonical `release` task in
+  # Taskfile.yml so both entrypoints enforce identical prerequisites, dirty-tree
+  # refusal, external output/cache placement, offline limits and non-publishing.
   release:snapshot:
-    desc: Build the local nonpublishing GoReleaser snapshot and inspect the paired archives (never tags, pushes or publishes)
+    desc: Build the local nonpublishing GoReleaser snapshot into an external output directory (never tags, pushes or publishes)
     dir: '{{.ROOT_DIR}}'
     silent: true
     cmds:
       - |
         sh -c '
         set -eu
-        blocked() { printf "release:snapshot: BLOCKED - %s This is not a pass.\n" "$*" >&2; exit 2; }
-
-        # Fail closed and report every missing prerequisite. Missing packaging
-        # tools block package/Mach-O/cask proof; they are never a pass.
-        missing=""
-        command -v git >/dev/null 2>&1 || missing="$missing git"
-        command -v goreleaser >/dev/null 2>&1 || missing="$missing goreleaser"
-        command -v go >/dev/null 2>&1 || missing="$missing go"
-        if [ -n "$missing" ]; then
-          blocked "missing prerequisites:$missing. GoReleaser creates macOS universal binaries internally; no external lipo is required. The local snapshot did not run; no archive, Mach-O slice or cask evidence exists."
-        fi
-        found_goreleaser=$(goreleaser --version 2>/dev/null | sed -n "s/^GitVersion:[[:space:]]*//p" | head -n 1) || found_goreleaser=""
-        if [ "$found_goreleaser" != "$3" ]; then
-          blocked "reviewed GoReleaser version is $3; found ${found_goreleaser:-unknown}. Update SDD_RELEASE_GORELEASER_VERSION deliberately after review."
-        fi
-        goreleaser check >/dev/null || blocked "goreleaser check rejected the current .goreleaser.yml."
-
-        if command -v sha256sum >/dev/null 2>&1; then
-          hasher="sha256sum"
-        elif command -v shasum >/dev/null 2>&1; then
-          hasher="shasum -a 256"
-        else
-          blocked "missing prerequisites: sha256sum or shasum. The local snapshot did not run."
-        fi
-
-        # Explicit reviewed toolchain: local only, never downloaded.
-        version=$(GOTOOLCHAIN=local go env GOVERSION) || blocked "GOTOOLCHAIN=local go env GOVERSION failed; an explicit reviewed toolchain is required."
-        if [ "$version" != "$2" ]; then
-          blocked "reviewed release-build Go patch is $2; found ${version:-unknown}. Update SDD_RELEASE_GO_PATCH deliberately after review; do not download a toolchain."
-        fi
-        # The snapshot must stay offline, so the nested module dependencies have
-        # to be present in the local module cache already.
-        if ! (cd experiments/tui && GOTOOLCHAIN=local GOPROXY=off GOWORK=off GOFLAGS= go list -deps ./cmd/tui-companion >/dev/null 2>&1); then
-          blocked "the nested companion dependencies are not available offline. Populate the module cache (for example by running the opt-in tui:test task) before retrying; this task never downloads."
-        fi
-
-        # Identity for a local pair: revision plus a source-content digest that
-        # includes unstaged changes and untracked files, so a dirty tree cannot
-        # masquerade as the tagged source.
-        revision=$(git describe --tags --exact-match 2>/dev/null || printf "dev+%s" "$(git rev-parse --short=12 HEAD)")
-        if [ -n "$(git status --porcelain)" ]; then
-          revision="$revision-dirty"
-        fi
-        digest=$(
-          {
-            git ls-files -s
-            git diff --binary HEAD
-            git ls-files --others --exclude-standard | while IFS= read -r file; do
-              [ -n "$file" ] || continue
-              printf "%s\n" "$file"
-              cat -- "$file" 2>/dev/null || true
-            done
-          } | $hasher | cut -d " " -f 1
-        ) || blocked "could not compute the source-content digest."
-        if [ -z "$digest" ]; then
-          blocked "the source-content digest is empty."
-        fi
-
-        # A local snapshot must never read release credentials, tag, push or
-        # publish. Unset them rather than checking whether they exist.
-        unset HOMEBREW_TAP_TOKEN GITHUB_TOKEN GH_TOKEN GITLAB_TOKEN GITEA_TOKEN
-        umask 077
-        GOCACHE="$1" \
-        GOVERSION="$version" \
-        GOTOOLCHAIN=local \
-        GOPROXY=off \
-        GOSUMDB=off \
-        GOENV=off \
-        GOWORK=off \
-        GOFLAGS= \
-        SDD_SOURCE_DIGEST="local-sha256:$digest" \
-        goreleaser release --snapshot --clean
-        echo "release:snapshot: local nonpublishing snapshot complete for $revision; inspect dist/ for the single paired archive containing asdx, asdx-core, agentic-sdd and agentic-sdd-tui, its checksums and the generated cask."
-        ' sh {{.GOCACHE | shellQuote}} {{.SDD_RELEASE_GO_PATCH | shellQuote}} {{.SDD_RELEASE_GORELEASER_VERSION | shellQuote}}
+        exec task -d "$1" -t "$1/Taskfile.yml" release \
+          "GOCACHE=$2" \
+          "SDD_OUTPUT=$3" \
+          "SDD_RELEASE_GO_PATCH=$4" \
+          "SDD_RELEASE_GORELEASER_VERSION=$5"
+        ' sh {{.ROOT_DIR | shellQuote}} {{.GOCACHE | shellQuote}} {{.SDD_OUTPUT | default "" | shellQuote}} {{.SDD_RELEASE_GO_PATCH | shellQuote}} {{.SDD_RELEASE_GORELEASER_VERSION | shellQuote}}

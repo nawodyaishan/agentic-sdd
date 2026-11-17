@@ -36,7 +36,7 @@ builds:
         -s -w
         -X agentic-sdd/internal/version.Version={{ .Version }}
         -X agentic-sdd/internal/version.Commit={{ .ShortCommit }}
-        -X agentic-sdd/internal/version.Date={{ .Date }}
+        -X agentic-sdd/internal/version.Date={{ .CommitDate }}
         -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
         -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
         -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
@@ -61,7 +61,7 @@ builds:
         -s -w
         -X agentic-sdd/internal/version.Version={{ .Version }}
         -X agentic-sdd/internal/version.Commit={{ .ShortCommit }}
-        -X agentic-sdd/internal/version.Date={{ .Date }}
+        -X agentic-sdd/internal/version.Date={{ .CommitDate }}
         -X agentic-sdd/internal/version.GoVersion={{ .Env.GOVERSION }}
         -X agentic-sdd/internal/buildinfo.Revision={{ .Version }}
         -X agentic-sdd/internal/buildinfo.Commit={{ .FullCommit }}
