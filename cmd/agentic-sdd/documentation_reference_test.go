@@ -303,7 +303,7 @@ func extractCLISourceFactsFromAST(fset *token.FileSet, files []*ast.File, consts
 		}
 
 		switch fn.Name.Name {
-		case "runEnv":
+		case "runEnvWith":
 			cmds, err := extractSwitchCases(fset, fn, "args[0]", consts)
 			if err != nil {
 				return nil, err
@@ -796,7 +796,7 @@ func extractRunEnvHelpEarlyTopics(fset *token.FileSet, fn *ast.FuncDecl, consts 
 				if exprText(be.X) == "args[1]" {
 					topic, err := evalStringExpr(be.Y, consts, nil)
 					if err != nil {
-						inspectErr = fmt.Errorf("%s: non-constant help topic comparison in runEnv: %w", fset.Position(be.Pos()), err)
+						inspectErr = fmt.Errorf("%s: non-constant help topic comparison in runEnvWith: %w", fset.Position(be.Pos()), err)
 						return false
 					}
 					topics = append(topics, topic)
@@ -944,7 +944,7 @@ func TestDocumentationDispatchInventoryParity(t *testing.T) {
 		"tui",
 		"version",
 	}
-	assertStringSetEqual(t, "runEnv top-level commands", facts.TopLevelCommands, wantTopLevel)
+	assertStringSetEqual(t, "runEnvWith top-level commands", facts.TopLevelCommands, wantTopLevel)
 
 	wantHelpTopics := []string{
 		"apply",
@@ -966,19 +966,19 @@ func TestDocumentationDispatchInventoryParity(t *testing.T) {
 	}
 	assertStringSetEqual(t, "isHelpTopic topics", facts.HelpTopics, wantHelpTopics)
 
-	// Every valid help topic must be owned by either topicHelp or runEnv early-return branches (disjoint union).
+	// Every valid help topic must be owned by either topicHelp or runEnvWith early-return branches (disjoint union).
 	seenTopic := make(map[string]bool, len(facts.TopicHelpKeys))
 	for _, k := range facts.TopicHelpKeys {
 		seenTopic[k] = true
 	}
 	for _, k := range facts.HelpEarlyTopics {
 		if seenTopic[k] {
-			t.Fatalf("help topic %q is duplicated across topicHelp and runEnv early branches", k)
+			t.Fatalf("help topic %q is duplicated across topicHelp and runEnvWith early branches", k)
 		}
 	}
 	combinedTopics := append([]string{}, facts.TopicHelpKeys...)
 	combinedTopics = append(combinedTopics, facts.HelpEarlyTopics...)
-	assertStringSetEqual(t, "topicHelp + runEnv early topics", combinedTopics, wantHelpTopics)
+	assertStringSetEqual(t, "topicHelp + runEnvWith early topics", combinedTopics, wantHelpTopics)
 
 	wantFamilies := map[string][]string{
 		"runRestore":     {"apply", "list", "preview"},
@@ -1058,11 +1058,14 @@ func TestDocumentationHelpTextParityAndKnownExceptions(t *testing.T) {
 		t.Fatalf("missing printUsage text")
 	}
 
-	// Supported top-level commands must be documented in printUsage; experimental commands must not be.
+	// Supported top-level commands must be documented in printUsage; experimental
+	// commands must not be advertised as a command anywhere in the help text.
+	// Check the command form rather than the bare word: the supported
+	// --with-opencode / --opencode-free-first flags legitimately contain it.
 	for _, cmd := range facts.TopLevelCommands {
 		switch cmd {
 		case "opencode", "opencode-harness":
-			if strings.Contains(strings.ToLower(globalUsage), cmd) {
+			if strings.Contains(globalUsage, "asdx-core "+cmd) {
 				t.Fatalf("printUsage unexpectedly advertises experimental command %q", cmd)
 			}
 		default:
@@ -1098,7 +1101,9 @@ func TestDocumentationHelpTextParityAndKnownExceptions(t *testing.T) {
 		}
 	}
 
-	// Curated FlagSet -> owning usage function parity.
+	// Curated FlagSet -> owning usage function parity. Every registered flag is
+	// documented by its owner; there are no remaining exceptions because the
+	// global help now discloses the opt-in pack flags it registers.
 	flagSetUsageOwner := map[string]string{
 		"asdx-core":                     "printUsage",
 		"asdx-core backups":             "printUsage",
@@ -1127,15 +1132,6 @@ func TestDocumentationHelpTextParityAndKnownExceptions(t *testing.T) {
 		"asdx-core review package":      "printReviewUsage",
 	}
 
-	// Curated known source/help exceptions: flags registered on a FlagSet whose
-	// documentation lives elsewhere (or is an intentional/known omission).
-	curatedOmittedFlags := map[string]map[string]string{
-		"asdx-core": {
-			"with-opencode":       "documented in printOrchestrateUsage, omitted from global printUsage",
-			"opencode-free-first": "documented in printOrchestrateUsage, omitted from global printUsage",
-		},
-	}
-
 	for fsName, flags := range facts.FlagSets {
 		owner, ok := flagSetUsageOwner[fsName]
 		if !ok {
@@ -1146,19 +1142,14 @@ func TestDocumentationHelpTextParityAndKnownExceptions(t *testing.T) {
 			t.Fatalf("usage function %q not extracted", owner)
 		}
 		for _, fl := range flags {
-			if _, excepted := curatedOmittedFlags[fsName][fl]; excepted {
-				if strings.Contains(usageText, "--"+fl) {
-					t.Fatalf("curated exception stale: %s now mentions --%s in %s", fsName, fl, owner)
-				}
-				continue
-			}
 			if !strings.Contains(usageText, "--"+fl) {
 				t.Fatalf("usage function %s for %s does not document flag --%s", owner, fsName, fl)
 			}
 		}
 	}
 
-	// Verify printOrchestrateUsage documents the excepted top-level orchestrate flags.
+	// The orchestrate topic help keeps documenting both opt-in pack flags even
+	// though the global help now discloses them too.
 	orchUsage := facts.UsageTexts["printOrchestrateUsage"]
 	for _, fl := range []string{"with-opencode", "opencode-free-first"} {
 		if !strings.Contains(orchUsage, "--"+fl) {
@@ -1166,10 +1157,15 @@ func TestDocumentationHelpTextParityAndKnownExceptions(t *testing.T) {
 		}
 	}
 
-	// Verify documented Spec 020 source/help inconsistencies honestly rather than masking them:
-	// 1. P-01: global printUsage describes mcp as read-only and omits mcp apply/restore.
-	if strings.Contains(globalUsage, "asdx-core mcp apply") || strings.Contains(globalUsage, "asdx-core mcp restore") {
-		t.Fatalf("global printUsage unexpectedly documents mcp apply/restore (P-01 may have been resolved)")
+	// Verify documented Spec 020 source/help inconsistencies are now corrected
+	// rather than masked:
+	// 1. P-01: the root help now discloses the real MCP write surface and no
+	// longer calls the command read-only over three subcommands.
+	if !strings.Contains(globalUsage, "asdx-core mcp apply") || !strings.Contains(globalUsage, "asdx-core mcp restore") {
+		t.Fatalf("global printUsage still omits the mcp write surface (P-01 regressed)")
+	}
+	if strings.Contains(globalUsage, "read-only (status, doctor, preview)") {
+		t.Fatalf("global printUsage still describes mcp as read-only over three commands")
 	}
 	mcpUsage := facts.UsageTexts["printMCPUsage"]
 	for _, sub := range []string{"status", "doctor", "preview", "apply", "restore", "help"} {
@@ -1178,14 +1174,15 @@ func TestDocumentationHelpTextParityAndKnownExceptions(t *testing.T) {
 		}
 	}
 
-	// 2. printUsage help topic synopsis omits guide, version, orchestrate even though isHelpTopic accepts them.
-	for _, omittedTopic := range []string{"guide", "version", "orchestrate"} {
-		if !containsString(facts.HelpTopics, omittedTopic) {
-			t.Fatalf("isHelpTopic unexpectedly lost %q", omittedTopic)
+	// 2. The root help topic synopsis now lists every accepted topic, including
+	// guide, version and orchestrate.
+	for _, listedTopic := range []string{"guide", "version", "orchestrate"} {
+		if !containsString(facts.HelpTopics, listedTopic) {
+			t.Fatalf("isHelpTopic unexpectedly lost %q", listedTopic)
 		}
 	}
-	if strings.Contains(globalUsage, "asdx-core help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]") != true {
-		t.Fatalf("printUsage help synopsis line changed unexpectedly:\n%s", globalUsage)
+	if !strings.Contains(globalUsage, "asdx-core help [preview|apply|backups|logs|restore|guide|version|tui|orchestrate|fleet|mcp|run|task|review]") {
+		t.Fatalf("printUsage help synopsis does not list every accepted topic:\n%s", globalUsage)
 	}
 
 	// 3. mcp restore list registers --config via newMCPWriteFlagSet, but printMCPRestoreUsage synopsis omits [--config PATH] on the list line.
@@ -1270,7 +1267,7 @@ func runNonLiteral(name string) {
 		{
 			name: "non-literal switch case in dispatch",
 			src: `package main
-func runEnv(args []string) int {
+func runEnvWith(args []string) int {
 	dyn := "x"
 	switch args[0] {
 	case dyn:

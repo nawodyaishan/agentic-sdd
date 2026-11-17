@@ -26,7 +26,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 
@@ -34,23 +33,10 @@ import (
 	"agentic-sdd/internal/skillsync"
 )
 
-// The write seams mirror the MCP-A seams: production always calls
-// internal/appops, and tests replace them to assert how the CLI maps a flag, a
-// plan, a result and a failure onto output and exit codes. Their signatures use
-// only local and skillsync types, so the CLI contract stays testable without a
-// real OpenCode home, a compiled skill tree or a process start.
-var (
-	mcpPlanPreview    = mcpPlanPreviewViaEngine
-	mcpApplyPlan      = mcpApplyViaEngine
-	mcpRestoreList    = mcpRestoreListViaEngine
-	mcpRestorePreview = mcpRestorePreviewViaEngine
-	mcpRestoreApply   = mcpRestoreViaEngine
-
-	// mcpPromptIn feeds the default-No restore confirmation. runMCP receives no
-	// stdin handle, so this seam keeps the prompt testable while production
-	// reads the real terminal, exactly like the existing skills restore path.
-	mcpPromptIn io.Reader = os.Stdin
-)
+// The write services live in mcpEngine (mcp.go); this file only adapts the
+// parser and rendering to them. Their signatures use only local and skillsync
+// types, so the CLI contract stays testable without a real OpenCode home, a
+// compiled skill tree or a process start.
 
 // mcpBackupSummary is the CLI view of one managed MCP backup. It is local so
 // tests can describe a backup list without constructing appops values.
@@ -293,7 +279,7 @@ func mcpWriteFailureNote(stderr io.Writer, err error) {
 
 // --- apply ----------------------------------------------------------------
 
-func runMCPApply(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCPApply(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	var flags mcpWriteFlags
 	fs := newMCPWriteFlagSet("apply", &flags.mcpFlags)
 	fs.StringVar(&flags.servers, "servers", "", "servers to configure")
@@ -323,7 +309,7 @@ func runMCPApply(args []string, stdout, stderr io.Writer, env *Env) int {
 	// Apply always rebuilds the plan from the current files instead of trusting
 	// a token from an earlier process: the digest check below is what ties the
 	// reviewed preview to this write.
-	plan, token, err := mcpPlanPreview(home, flags.config, selected, flags.auth.Map())
+	plan, token, err := engine.planPreview(home, flags.config, selected, flags.auth.Map())
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		mcpWriteFailureNote(stderr, err)
@@ -337,7 +323,7 @@ func runMCPApply(args []string, stdout, stderr io.Writer, env *Env) int {
 		return code
 	}
 
-	result, err := mcpApplyPlan(home, flags.config, plan, token, flags.expectConfig, flags.opencodeBin)
+	result, err := engine.applyPlan(home, flags.config, plan, token, flags.expectConfig, flags.opencodeBin)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		mcpWriteFailureNote(stderr, err)
@@ -389,7 +375,7 @@ func refuseUnapplicablePlan(stderr io.Writer, plan skillsync.MCPPlan, expect str
 
 // --- restore --------------------------------------------------------------
 
-func runMCPRestore(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCPRestore(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, "error: mcp restore requires a subcommand")
 		fmt.Fprintln(stderr, "note: use list, preview or apply")
@@ -403,11 +389,11 @@ func runMCPRestore(args []string, stdout, stderr io.Writer, env *Env) int {
 		printMCPRestoreUsage(stdout)
 		return 0
 	case "list":
-		return runMCPRestoreList(subArgs, stdout, stderr, env)
+		return runMCPRestoreList(engine, subArgs, stdout, stderr, env)
 	case "preview":
-		return runMCPRestorePreviewCommand(subArgs, stdout, stderr, env)
+		return runMCPRestorePreviewCommand(engine, subArgs, stdout, stderr, env)
 	case "apply":
-		return runMCPRestoreApply(subArgs, stdout, stderr, env)
+		return runMCPRestoreApply(engine, subArgs, stdout, stderr, env)
 	}
 	fmt.Fprintf(stderr, "error: unknown mcp restore command %q\n", sub)
 	fmt.Fprintln(stderr, "note: use list, preview or apply")
@@ -415,7 +401,7 @@ func runMCPRestore(args []string, stdout, stderr io.Writer, env *Env) int {
 	return 2
 }
 
-func runMCPRestoreList(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCPRestoreList(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	var flags mcpWriteFlags
 	fs := newMCPWriteFlagSet("restore list", &flags.mcpFlags)
 
@@ -429,7 +415,7 @@ func runMCPRestoreList(args []string, stdout, stderr io.Writer, env *Env) int {
 		return code
 	}
 
-	backups, err := mcpRestoreList(home)
+	backups, err := engine.restoreList(home)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		mcpWriteFailureNote(stderr, err)
@@ -443,7 +429,7 @@ func runMCPRestoreList(args []string, stdout, stderr io.Writer, env *Env) int {
 	return 0
 }
 
-func runMCPRestorePreviewCommand(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCPRestorePreviewCommand(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	var flags mcpWriteFlags
 	fs := newMCPWriteFlagSet("restore preview", &flags.mcpFlags)
 
@@ -462,7 +448,7 @@ func runMCPRestorePreviewCommand(args []string, stdout, stderr io.Writer, env *E
 		return code
 	}
 
-	preview, token, err := mcpRestorePreview(home, flags.config, id)
+	preview, token, err := engine.restorePreview(home, flags.config, id)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		mcpWriteFailureNote(stderr, err)
@@ -488,7 +474,7 @@ func runMCPRestorePreviewCommand(args []string, stdout, stderr io.Writer, env *E
 	return 0
 }
 
-func runMCPRestoreApply(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCPRestoreApply(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	var flags mcpWriteFlags
 	fs := newMCPWriteFlagSet("restore apply", &flags.mcpFlags)
 	fs.StringVar(&flags.expectConfig, "expect-config", "", "base configuration digest the reviewed restore preview printed")
@@ -513,7 +499,7 @@ func runMCPRestoreApply(args []string, stdout, stderr io.Writer, env *Env) int {
 		return code
 	}
 
-	preview, token, err := mcpRestorePreview(home, flags.config, id)
+	preview, token, err := engine.restorePreview(home, flags.config, id)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		mcpWriteFailureNote(stderr, err)
@@ -535,12 +521,12 @@ func runMCPRestoreApply(args []string, stdout, stderr io.Writer, env *Env) int {
 		// Keep a real interactive prompt out of the JSON document.
 		promptOut = stderr
 	}
-	proceed, code := confirmMCPRestore(promptOut, env, *preview)
+	proceed, code := confirmMCPRestore(engine.promptIn, promptOut, env, *preview)
 	if !proceed {
 		return code
 	}
 
-	result, err := mcpRestoreApply(home, flags.config, id, token, flags.expectConfig)
+	result, err := engine.restoreApply(home, flags.config, id, token, flags.expectConfig)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		mcpWriteFailureNote(stderr, err)
@@ -594,12 +580,12 @@ func refuseUnapplicableRestore(stderr io.Writer, preview skillsync.MCPRestorePre
 // An interactive run must answer y or yes before anything is written: proceed
 // is false for every other answer, including end of input, so a declined or
 // exhausted confirmation never reaches the writer.
-func confirmMCPRestore(stdout io.Writer, env *Env, preview skillsync.MCPRestorePreview) (proceed bool, code int) {
+func confirmMCPRestore(promptIn io.Reader, stdout io.Writer, env *Env, preview skillsync.MCPRestorePreview) (proceed bool, code int) {
 	if env == nil || !env.Interactive {
 		return true, 0
 	}
 	fmt.Fprintf(stdout, "Restore managed MCP entries from %s into %s? [y/N]: ", mcpText(preview.BackupID), mcpText(preview.TargetPath))
-	line, ok := readLine(bufio.NewReader(mcpPromptIn))
+	line, ok := readLine(bufio.NewReader(promptIn))
 	answer := strings.TrimSpace(line)
 	if !ok {
 		fmt.Fprintln(stdout, "Cancelled. Nothing was written.")

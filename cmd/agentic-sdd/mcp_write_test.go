@@ -9,19 +9,22 @@ package main
 // restore confirmation, stable JSON keys, script behavior without a terminal
 // and the absence of any credential or whole-config dump in the output.
 //
-// Every local engine seam (mcpPlanPreview, mcpApplyPlan, mcpRestoreList,
-// mcpRestorePreview, mcpRestoreApply) and the confirmation reader
-// (mcpPromptIn) is replaced, so no test reads or writes a real OpenCode
+// Every write service on the invocation's mcpEngine (planPreview, applyPlan,
+// restoreList, restorePreview, restoreApply) and the confirmation reader
+// (promptIn) is replaced per test, so no test reads or writes a real OpenCode
 // configuration, starts a process, contacts a remote endpoint or needs a
-// compiled skill tree. The engine behavior behind internal/appops and
-// internal/skillsync is covered by their own package tests.
+// compiled skill tree. Nothing is installed as a package global.
+// The engine behavior behind internal/appops and internal/skillsync is covered
+// by their own package tests.
 //
-// The MCP-A tests in mcp_test.go stay untouched.
+// The MCP-A tests in mcp_test.go keep their read-only coverage; both files now
+// build their own engine per test.
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -74,20 +77,18 @@ type mcpWriteStub struct {
 	restorePreviewErr error
 	restoreResult     *skillsync.MCPApplyResult
 	restoreApplyErr   error
+
+	// promptIn overrides the confirmation reader for this invocation. When it
+	// is nil the invocation's own stdin is used.
+	promptIn io.Reader
 }
 
-func (s *mcpWriteStub) install(t *testing.T) {
-	t.Helper()
-	prevPlan, prevApply := mcpPlanPreview, mcpApplyPlan
-	prevList, prevRestorePreview, prevRestoreApply := mcpRestoreList, mcpRestorePreview, mcpRestoreApply
-	prevPrompt := mcpPromptIn
-	t.Cleanup(func() {
-		mcpPlanPreview, mcpApplyPlan = prevPlan, prevApply
-		mcpRestoreList, mcpRestorePreview, mcpRestoreApply = prevList, prevRestorePreview, prevRestoreApply
-		mcpPromptIn = prevPrompt
-	})
-
-	mcpPlanPreview = func(home, config string, selected []string, auth map[string]string) (*skillsync.MCPPlan, string, error) {
+// engine builds the dependencies of one invocation from this stub. It starts
+// from the production engine so the read-only seams stay real, and it installs
+// no package state: a second stub in the same test is a second engine.
+func (s *mcpWriteStub) engine() mcpEngine {
+	engine := productionMCPEngine(s.promptIn)
+	engine.planPreview = func(home, config string, selected []string, auth map[string]string) (*skillsync.MCPPlan, string, error) {
 		call := mcpWriteCall{home: home, config: config, servers: append([]string(nil), selected...)}
 		if auth != nil {
 			call.auth = make(map[string]string, len(auth))
@@ -98,7 +99,7 @@ func (s *mcpWriteStub) install(t *testing.T) {
 		s.planCalls = append(s.planCalls, call)
 		return s.plan, s.planToken, s.planErr
 	}
-	mcpApplyPlan = func(home, config string, plan *skillsync.MCPPlan, token, expectDigest, openCodeBin string) (*skillsync.MCPApplyResult, error) {
+	engine.applyPlan = func(home, config string, plan *skillsync.MCPPlan, token, expectDigest, openCodeBin string) (*skillsync.MCPApplyResult, error) {
 		s.applyCalls = append(s.applyCalls, mcpWriteCall{
 			home:        home,
 			config:      config,
@@ -109,15 +110,15 @@ func (s *mcpWriteStub) install(t *testing.T) {
 		})
 		return s.applyResult, s.applyErr
 	}
-	mcpRestoreList = func(home string) ([]mcpBackupSummary, error) {
+	engine.restoreList = func(home string) ([]mcpBackupSummary, error) {
 		s.listCalls = append(s.listCalls, mcpWriteCall{home: home})
 		return s.restoreList, s.restoreListErr
 	}
-	mcpRestorePreview = func(home, configPath, backupID string) (*skillsync.MCPRestorePreview, string, error) {
+	engine.restorePreview = func(home, configPath, backupID string) (*skillsync.MCPRestorePreview, string, error) {
 		s.restorePreviewCalls = append(s.restorePreviewCalls, mcpWriteCall{home: home, config: configPath, backupID: backupID})
 		return s.restorePreview, s.restoreToken, s.restorePreviewErr
 	}
-	mcpRestoreApply = func(home, configPath, backupID, token, expectDigest string) (*skillsync.MCPApplyResult, error) {
+	engine.restoreApply = func(home, configPath, backupID, token, expectDigest string) (*skillsync.MCPApplyResult, error) {
 		s.restoreApplyCalls = append(s.restoreApplyCalls, mcpWriteCall{
 			home:     home,
 			config:   configPath,
@@ -127,11 +128,12 @@ func (s *mcpWriteStub) install(t *testing.T) {
 		})
 		return s.restoreResult, s.restoreApplyErr
 	}
+	return engine
 }
 
 func installMCPWriteStub(t *testing.T) *mcpWriteStub {
 	t.Helper()
-	stub := &mcpWriteStub{
+	return &mcpWriteStub{
 		plan:           mcpWritePlanFixture(),
 		planToken:      mcpWritePlanToken,
 		applyResult:    mcpWriteApplyResultFixture(),
@@ -140,8 +142,6 @@ func installMCPWriteStub(t *testing.T) *mcpWriteStub {
 		restoreToken:   mcpWriteToken,
 		restoreResult:  mcpWriteRestoreResultFixture(),
 	}
-	stub.install(t)
-	return stub
 }
 
 func mcpWritePlanFixture() *skillsync.MCPPlan {
@@ -228,12 +228,14 @@ func mcpWriteRestorePreviewFixture() *skillsync.MCPRestorePreview {
 	}
 }
 
-// runMCPWrite runs the real CLI entry point with a scripted, non-terminal
-// stdin. home is always passed explicitly by the caller so no test can reach
-// the real user home.
-func runMCPWrite(args []string, stdin string, interactive bool) (code int, stdout, stderr string) {
+// run executes the real CLI entry point with this stub's engine and a scripted,
+// non-terminal stdin. home is always passed explicitly by the caller so no test
+// can reach the real user home.
+func (s *mcpWriteStub) run(args []string, stdin string, interactive bool) (code int, stdout, stderr string) {
 	var out, errOut bytes.Buffer
-	code = run(args, &out, &errOut, strings.NewReader(stdin), interactive)
+	inv := productionInvocation(strings.NewReader(stdin))
+	inv.mcp = s.engine()
+	code = runEnvWith(args, &out, &errOut, strings.NewReader(stdin), &Env{Interactive: interactive, Width: 80}, inv)
 	return code, out.String(), errOut.String()
 }
 
@@ -243,7 +245,7 @@ func TestMCPWritePreviewPlanText(t *testing.T) {
 	stub := installMCPWriteStub(t)
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "preview", "--home", home,
 		"--servers", "codegraph,context7", "--auth", "context7=oauth",
 	}, "", false)
@@ -298,10 +300,10 @@ func TestMCPWritePreviewPlanText(t *testing.T) {
 }
 
 func TestMCPWritePreviewPlanJSON(t *testing.T) {
-	installMCPWriteStub(t)
+	stub := installMCPWriteStub(t)
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{"mcp", "preview", "--home", home, "--json"}, "", false)
+	code, stdout, stderr := stub.run([]string{"mcp", "preview", "--home", home, "--json"}, "", false)
 	if code != 0 {
 		t.Fatalf("exit %d, want 0; stderr %q", code, stderr)
 	}
@@ -362,7 +364,7 @@ func TestMCPWritePreviewConflictExitsOne(t *testing.T) {
 	stub.plan.Conflicts = []string{"unmanaged server named context7 differs from the managed entry"}
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{"mcp", "preview", "--home", home}, "", false)
+	code, stdout, stderr := stub.run([]string{"mcp", "preview", "--home", home}, "", false)
 	if code != 1 {
 		t.Fatalf("exit %d, want 1; stdout %q; stderr %q", code, stdout, stderr)
 	}
@@ -383,7 +385,7 @@ func TestMCPWritePreviewConflictExitsOne(t *testing.T) {
 		t.Fatalf("a conflicted preview wrote: %v", stub.applyCalls)
 	}
 
-	code, stdout, stderr = runMCPWrite([]string{"mcp", "preview", "--home", home, "--json"}, "", false)
+	code, stdout, stderr = stub.run([]string{"mcp", "preview", "--home", home, "--json"}, "", false)
 	if code != 1 {
 		t.Fatalf("JSON exit %d, want 1; stderr %q", code, stderr)
 	}
@@ -452,7 +454,7 @@ func TestMCPWritePreviewAuthChoices(t *testing.T) {
 			stub := installMCPWriteStub(t)
 			home := t.TempDir()
 			args := append([]string{"mcp", "preview", "--home", home}, tc.args...)
-			code, stdout, stderr := runMCPWrite(args, "", false)
+			code, stdout, stderr := stub.run(args, "", false)
 			if code != tc.code {
 				t.Fatalf("exit %d, want %d; stdout %q; stderr %q", code, tc.code, stdout, stderr)
 			}
@@ -488,7 +490,7 @@ func TestMCPWritePreviewUnknownServerUsage(t *testing.T) {
 	stub.planErr = fmt.Errorf("%w: unknown server %q", skillsync.ErrMCPUsage, "bogus")
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{"mcp", "preview", "--home", home, "--servers", "bogus"}, "", false)
+	code, stdout, stderr := stub.run([]string{"mcp", "preview", "--home", home, "--servers", "bogus"}, "", false)
 	if code != 2 {
 		t.Fatalf("exit %d, want 2; stdout %q; stderr %q", code, stdout, stderr)
 	}
@@ -515,7 +517,7 @@ func TestMCPWriteApplyRequiresExpectConfig(t *testing.T) {
 	} {
 		stub := installMCPWriteStub(t)
 		home := t.TempDir()
-		code, stdout, stderr := runMCPWrite(append(args, "--home", home), "", false)
+		code, stdout, stderr := stub.run(append(args, "--home", home), "", false)
 		if code != 2 {
 			t.Fatalf("%v: exit %d, want 2; stdout %q; stderr %q", args, code, stdout, stderr)
 		}
@@ -541,7 +543,7 @@ func TestMCPWriteApplyStaleDigestRefused(t *testing.T) {
 	stub := installMCPWriteStub(t)
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "apply", "--home", home, "--expect-config", "sha256:stale0000",
 	}, "", false)
 	if code != 1 {
@@ -569,7 +571,7 @@ func TestMCPWriteApplyConflictRefused(t *testing.T) {
 	stub.plan.Conflicts = []string{"unmanaged server named exa differs from the managed entry"}
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "apply", "--home", home, "--expect-config", mcpWriteBaseDigest,
 	}, "", false)
 	if code != 1 {
@@ -601,7 +603,7 @@ func TestMCPWriteApplyMissingTargetRefused(t *testing.T) {
 
 	// There is nothing to write and v1 never creates a configuration: the run
 	// refuses instead of inventing a target.
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "apply", "--home", home, "--expect-config", mcpWriteBaseDigest,
 	}, "", false)
 	if code != 1 {
@@ -627,7 +629,7 @@ func TestMCPWriteApplyWritesOnce(t *testing.T) {
 	stub := installMCPWriteStub(t)
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "apply", "--home", home,
 		"--config", mcpWriteConfigPath,
 		"--expect-config", mcpWriteBaseDigest,
@@ -696,7 +698,7 @@ func TestMCPWriteApplyNoOp(t *testing.T) {
 	stub.applyResult = result
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "apply", "--home", home, "--expect-config", mcpWriteBaseDigest,
 	}, "", false)
 	if code != 0 {
@@ -720,10 +722,10 @@ func TestMCPWriteApplyNoOp(t *testing.T) {
 }
 
 func TestMCPWriteApplyJSON(t *testing.T) {
-	installMCPWriteStub(t)
+	stub := installMCPWriteStub(t)
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "apply", "--home", home, "--expect-config", mcpWriteBaseDigest, "--json",
 	}, "", false)
 	if code != 0 {
@@ -824,7 +826,7 @@ func TestMCPWriteApplyEngineFailures(t *testing.T) {
 			stub.applyErr = tc.applyErr
 			home := t.TempDir()
 
-			code, stdout, stderr := runMCPWrite([]string{
+			code, stdout, stderr := stub.run([]string{
 				"mcp", "apply", "--home", home, "--expect-config", mcpWriteBaseDigest,
 			}, "", false)
 			if code != tc.code {
@@ -855,7 +857,7 @@ func TestMCPWriteApplyPassesTokenAndDigestExactly(t *testing.T) {
 	stub.planToken = "appops-mcp-plan-preview-v1-deadbeef"
 	home := t.TempDir()
 
-	code, _, stderr := runMCPWrite([]string{
+	code, _, stderr := stub.run([]string{
 		"mcp", "apply", "--home", home,
 		"--expect-config", "sha256:BaseCase42",
 		"--opencode-bin", "/usr/local/bin/opencode",
@@ -970,7 +972,7 @@ func TestMCPWriteUsageErrors(t *testing.T) {
 			stub := installMCPWriteStub(t)
 			home := t.TempDir()
 			args := append(append([]string{}, tc.args...), "--home", home)
-			code, stdout, stderr := runMCPWrite(args, "", false)
+			code, stdout, stderr := stub.run(args, "", false)
 			if code != tc.code {
 				t.Fatalf("exit %d, want %d; stdout %q; stderr %q", code, tc.code, stdout, stderr)
 			}
@@ -1001,7 +1003,7 @@ func TestMCPWriteRestoreListEmpty(t *testing.T) {
 	stub.restoreList = nil
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{"mcp", "restore", "list", "--home", home}, "", false)
+	code, stdout, stderr := stub.run([]string{"mcp", "restore", "list", "--home", home}, "", false)
 	if code != 0 {
 		t.Fatalf("an empty list is a report, exit %d; stderr %q", code, stderr)
 	}
@@ -1029,7 +1031,7 @@ func TestMCPWriteRestoreListEmpty(t *testing.T) {
 		t.Fatalf("list calls = %v", stub.listCalls)
 	}
 
-	code, stdout, stderr = runMCPWrite([]string{"mcp", "restore", "list", "--home", home, "--json"}, "", false)
+	code, stdout, stderr = stub.run([]string{"mcp", "restore", "list", "--home", home, "--json"}, "", false)
 	if code != 0 {
 		t.Fatalf("JSON exit %d; stderr %q", code, stderr)
 	}
@@ -1045,10 +1047,10 @@ func TestMCPWriteRestoreListEmpty(t *testing.T) {
 }
 
 func TestMCPWriteRestoreListPopulatedJSON(t *testing.T) {
-	installMCPWriteStub(t)
+	stub := installMCPWriteStub(t)
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{"mcp", "restore", "list", "--home", home}, "", false)
+	code, stdout, stderr := stub.run([]string{"mcp", "restore", "list", "--home", home}, "", false)
 	if code != 0 {
 		t.Fatalf("exit %d; stderr %q", code, stderr)
 	}
@@ -1065,7 +1067,7 @@ func TestMCPWriteRestoreListPopulatedJSON(t *testing.T) {
 		}
 	}
 
-	code, stdout, stderr = runMCPWrite([]string{"mcp", "restore", "list", "--home", home, "--json"}, "", false)
+	code, stdout, stderr = stub.run([]string{"mcp", "restore", "list", "--home", home, "--json"}, "", false)
 	if code != 0 {
 		t.Fatalf("JSON exit %d; stderr %q", code, stderr)
 	}
@@ -1105,7 +1107,7 @@ func TestMCPWriteRestorePreviewTextAndJSON(t *testing.T) {
 	stub := installMCPWriteStub(t)
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "restore", "preview", mcpWriteBackupID, "--home", home,
 	}, "", false)
 	if code != 0 {
@@ -1142,7 +1144,7 @@ func TestMCPWriteRestorePreviewTextAndJSON(t *testing.T) {
 		t.Fatalf("restore preview wrote: %v", stub.restoreApplyCalls)
 	}
 
-	code, stdout, stderr = runMCPWrite([]string{
+	code, stdout, stderr = stub.run([]string{
 		"mcp", "restore", "preview", mcpWriteBackupID, "--home", home, "--json",
 	}, "", false)
 	if code != 0 {
@@ -1176,7 +1178,7 @@ func TestMCPWriteRestorePreviewConflict(t *testing.T) {
 	stub.restorePreview.Conflicts = []string{"codegraph was edited after this backup"}
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "restore", "preview", mcpWriteBackupID, "--home", home,
 	}, "", false)
 	if code != 1 {
@@ -1222,7 +1224,7 @@ func TestMCPWriteRestoreApplyRequiresIDAndDigest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			stub := installMCPWriteStub(t)
 			home := t.TempDir()
-			code, stdout, stderr := runMCPWrite(append(tc.args, "--home", home), "y\n", true)
+			code, stdout, stderr := stub.run(append(tc.args, "--home", home), "y\n", true)
 			if code != 2 {
 				t.Fatalf("exit %d, want 2; stdout %q; stderr %q", code, stdout, stderr)
 			}
@@ -1245,7 +1247,7 @@ func TestMCPWriteRestoreApplyStaleDigest(t *testing.T) {
 	home := t.TempDir()
 
 	// stdin says yes: the digest check must refuse before any prompt or write.
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "restore", "apply", mcpWriteBackupID,
 		"--home", home, "--expect-config", "sha256:stale0000",
 	}, "y\n", true)
@@ -1274,7 +1276,7 @@ func TestMCPWriteRestoreApplyConflict(t *testing.T) {
 	stub.restorePreview.Conflicts = []string{"codegraph was edited after this backup"}
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "restore", "apply", mcpWriteBackupID,
 		"--home", home, "--expect-config", mcpWriteBaseDigest,
 	}, "y\n", true)
@@ -1311,10 +1313,10 @@ func TestMCPWriteRestoreApplyPromptDefaultNo(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			stub := installMCPWriteStub(t)
-			mcpPromptIn = strings.NewReader(tc.stdin)
+			stub.promptIn = strings.NewReader(tc.stdin)
 			home := t.TempDir()
 
-			code, stdout, stderr := runMCPWrite([]string{
+			code, stdout, stderr := stub.run([]string{
 				"mcp", "restore", "apply", mcpWriteBackupID,
 				"--home", home, "--expect-config", mcpWriteBaseDigest,
 			}, "", true)
@@ -1343,10 +1345,10 @@ func TestMCPWriteRestoreApplyPromptDefaultNo(t *testing.T) {
 func TestMCPWriteRestoreApplyPromptYes(t *testing.T) {
 	for _, answer := range []string{"y\n", "Y\n", "yes\n"} {
 		stub := installMCPWriteStub(t)
-		mcpPromptIn = strings.NewReader(answer)
+		stub.promptIn = strings.NewReader(answer)
 		home := t.TempDir()
 
-		code, stdout, stderr := runMCPWrite([]string{
+		code, stdout, stderr := stub.run([]string{
 			"mcp", "restore", "apply", mcpWriteBackupID,
 			"--home", home, "--config", mcpWriteConfigPath,
 			"--expect-config", mcpWriteBaseDigest,
@@ -1382,10 +1384,10 @@ func TestMCPWriteRestoreApplyPromptYes(t *testing.T) {
 func TestMCPWriteRestoreApplyNonInteractive(t *testing.T) {
 	stub := installMCPWriteStub(t)
 	// A "no" answer would cancel: it must never be read in a scripted run.
-	mcpPromptIn = strings.NewReader("n\n")
+	stub.promptIn = strings.NewReader("n\n")
 	home := t.TempDir()
 
-	code, stdout, stderr := runMCPWrite([]string{
+	code, stdout, stderr := stub.run([]string{
 		"mcp", "restore", "apply", mcpWriteBackupID,
 		"--home", home, "--expect-config", mcpWriteBaseDigest,
 	}, "", false)
@@ -1403,8 +1405,8 @@ func TestMCPWriteRestoreApplyNonInteractive(t *testing.T) {
 	}
 
 	stub = installMCPWriteStub(t)
-	mcpPromptIn = strings.NewReader("n\n")
-	code, stdout, stderr = runMCPWrite([]string{
+	stub.promptIn = strings.NewReader("n\n")
+	code, stdout, stderr = stub.run([]string{
 		"mcp", "restore", "apply", mcpWriteBackupID,
 		"--home", home, "--expect-config", mcpWriteBaseDigest, "--json",
 	}, "", false)
@@ -1436,7 +1438,7 @@ func TestMCPWriteNoCredentialsOrFullConfig(t *testing.T) {
 	t.Setenv("CONTEXT7_API_KEY", context7Secret)
 	t.Setenv("EXA_API_KEY", exaSecret)
 	t.Setenv("OPENCODE_API_KEY", openCodeSecret)
-	installMCPWriteStub(t)
+	stub := installMCPWriteStub(t)
 	home := t.TempDir()
 
 	runs := [][]string{
@@ -1452,7 +1454,7 @@ func TestMCPWriteNoCredentialsOrFullConfig(t *testing.T) {
 		{"mcp", "restore", "apply", mcpWriteBackupID, "--home", home, "--expect-config", mcpWriteBaseDigest, "--json"},
 	}
 	for _, args := range runs {
-		code, stdout, stderr := runMCPWrite(args, "", false)
+		code, stdout, stderr := stub.run(args, "", false)
 		if code != 0 {
 			t.Fatalf("%v: exit %d; stderr %q", args, code, stderr)
 		}

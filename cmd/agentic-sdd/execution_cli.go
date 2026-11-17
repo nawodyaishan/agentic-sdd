@@ -114,20 +114,84 @@ func resolveExecutionRunDir(repo *execution.Repository, runRoot, runID string) (
 }
 
 // readExecutionRecord reads a caller-supplied record with the service's size
-// bound. The "FILE" form is explicit; "-" reads stdin for pipelines.
+// bound. The "FILE" form is explicit and must be a regular file: the byte
+// bound is applied to the opened file's own metadata before any allocation
+// proportional to its size, and a symlink, directory, device or FIFO is
+// refused from its type alone so it can never block or be read. "-" keeps the
+// bounded stdin pipeline form.
 func readExecutionRecord(path string, stdin io.Reader) ([]byte, error) {
-	var data []byte
-	var err error
 	if path == "-" {
-		data, err = io.ReadAll(io.LimitReader(stdin, execution.MaxRecordBytes+1))
-	} else {
-		data, err = os.ReadFile(path)
+		data, err := io.ReadAll(io.LimitReader(stdin, execution.MaxRecordBytes+1))
+		if err != nil {
+			return nil, recordReadFailure(err)
+		}
+		return boundedRecordBytes(data)
 	}
+	return readExecutionRecordFile(path)
+}
+
+// readExecutionRecordFile opens one regular record file under the service
+// limit. The path is inspected before opening, and the opened descriptor is
+// compared with the inspected file so a replacement cannot slip a different
+// object past the type and size checks.
+func readExecutionRecordFile(path string) ([]byte, error) {
+	inspected, err := os.Lstat(path)
 	if err != nil {
-		return nil, fmt.Errorf("%w: read record: %v", execution.ErrUsage, err)
+		return nil, recordReadFailure(err)
 	}
+	if inspected.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("%w: read record %s: refusing a symlink; pass the regular file itself or - for stdin", execution.ErrUsage, path)
+	}
+	if !inspected.Mode().IsRegular() {
+		return nil, recordNotRegular(path)
+	}
+	if inspected.Size() > execution.MaxRecordBytes {
+		return nil, recordLimitFailure()
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, recordReadFailure(err)
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil {
+		return nil, recordReadFailure(err)
+	}
+	if !opened.Mode().IsRegular() {
+		return nil, recordNotRegular(path)
+	}
+	if !os.SameFile(inspected, opened) {
+		return nil, fmt.Errorf("%w: read record %s: the file changed while it was opened; retry with a stable regular file", execution.ErrUsage, path)
+	}
+	if opened.Size() > execution.MaxRecordBytes {
+		return nil, recordLimitFailure()
+	}
+	data, err := io.ReadAll(io.LimitReader(file, execution.MaxRecordBytes+1))
+	if err != nil {
+		return nil, recordReadFailure(err)
+	}
+	return boundedRecordBytes(data)
+}
+
+// boundedRecordBytes applies the limit+1 rule to an already bounded read.
+func boundedRecordBytes(data []byte) ([]byte, error) {
 	if len(data) > execution.MaxRecordBytes {
-		return nil, fmt.Errorf("%w: record exceeds %d bytes", execution.ErrUsage, execution.MaxRecordBytes)
+		return nil, recordLimitFailure()
 	}
 	return data, nil
+}
+
+// recordReadFailure keeps the diagnostic content-free: it carries only the
+// operating-system error, which names the path and the failure, never bytes.
+func recordReadFailure(err error) error {
+	return fmt.Errorf("%w: read record: %v", execution.ErrUsage, err)
+}
+
+func recordNotRegular(path string) error {
+	return fmt.Errorf("%w: read record %s: not a regular file; pass a regular file or - for stdin", execution.ErrUsage, path)
+}
+
+func recordLimitFailure() error {
+	return fmt.Errorf("%w: record exceeds %d bytes", execution.ErrUsage, execution.MaxRecordBytes)
 }

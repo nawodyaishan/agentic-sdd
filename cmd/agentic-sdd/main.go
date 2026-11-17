@@ -165,6 +165,25 @@ func printLegacyVersion(out io.Writer, name, target string) {
 	fmt.Fprintf(out, "  go version: %s\n", version.GoVersion)
 }
 
+// invocation carries the per-call dependencies of one CLI run. A value travels
+// down the dispatch, so two invocations (including two concurrently running
+// tests) can use different MCP engines and TUI launchers without a package
+// global deciding which one a command reaches.
+type invocation struct {
+	mcp       mcpEngine
+	launchTUI tuiLauncher
+}
+
+// productionInvocation wires the real dependencies for one invocation. stdin is
+// the invocation's input stream; the MCP confirmation and the launcher both read
+// from it.
+func productionInvocation(stdin io.Reader) invocation {
+	return invocation{
+		mcp:       productionMCPEngine(stdin),
+		launchTUI: launchTUISession,
+	}
+}
+
 // run keeps the original testable seam: it builds a plain, non-terminal Env
 // (only stdin interaction comes from the argument) so every existing test
 // exercises the pre-feature, byte-identical path.
@@ -172,9 +191,23 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader, interactive b
 	return runEnv(args, stdout, stderr, stdin, &Env{Interactive: interactive, Width: 80})
 }
 
-func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) (exitCode int) {
+// runEnv runs one invocation with the production dependencies. Tests that need
+// their own engine or launcher call runEnvWith directly.
+func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) int {
+	return runEnvWith(args, stdout, stderr, stdin, env, productionInvocation(stdin))
+}
+
+func runEnvWith(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env, inv invocation) (exitCode int) {
 	if env == nil {
 		env = &Env{Width: 80}
+	}
+	// A partial test invocation may leave these unset; defaulting here keeps
+	// each call deterministic without reading package state.
+	if inv.launchTUI == nil {
+		inv.launchTUI = launchTUISession
+	}
+	if inv.mcp.promptIn == nil {
+		inv.mcp.promptIn = stdin
 	}
 	commandForTrace := commandName(args)
 	env.Trace.Event("run.start", "command", commandForTrace, "flags", flagNames(args), "version", version.Version)
@@ -241,11 +274,11 @@ func runEnv(args []string, stdout, stderr io.Writer, stdin io.Reader, env *Env) 
 		case "guide":
 			return runGuide(args[1:], stdout, stderr, stdin, env)
 		case "tui":
-			return runTUICommand(args[1:], stdin, stdout, stderr, env)
+			return runTUICommand(inv.launchTUI, args[1:], stdin, stdout, stderr, env)
 		case "fleet":
 			return runFleet(args[1:], stdout, stderr, env)
 		case "mcp":
-			return runMCP(args[1:], stdout, stderr, env)
+			return runMCP(inv.mcp, args[1:], stdout, stderr, env)
 		case "run":
 			return runRun(args[1:], stdout, stderr, stdin, env)
 		case "task":
@@ -693,7 +726,7 @@ func readLine(r *bufio.Reader) (string, bool) {
 }
 
 func printUsage(out io.Writer) {
-	fmt.Fprint(out, `Usage: asdx-core [preview|apply] [--repo PATH] [--home PATH]
+	fmt.Fprint(out, `Usage: asdx-core [preview|apply] [--with-opencode [--opencode-free-first]] [--repo PATH] [--home PATH]
        asdx-core tui [--repo PATH] [--home PATH]
        asdx-core version
        asdx-core backups [--repo PATH] [--home PATH]
@@ -703,10 +736,12 @@ func printUsage(out io.Writer) {
        asdx-core guide [--repo PATH] [--home PATH]
        asdx-core fleet status|plan|apply|restore|doctor [--config PATH] [--home PATH]
        asdx-core mcp status|doctor|preview [--config PATH] [--home PATH] [--json]
+       asdx-core mcp apply --expect-config SHA256 [--servers NAME,...] [--home PATH] [--json]
+       asdx-core mcp restore list|preview|apply [ID] [--expect-config SHA256] [--home PATH] [--json]
        asdx-core run init|status|check|record|clean [--run ID] [--repo PATH]
        asdx-core task brief --run ID --task T01 [--repo PATH]
        asdx-core review package --run ID --base COMMIT [--repo PATH]
-       asdx-core help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]
+       asdx-core help [preview|apply|backups|logs|restore|guide|version|tui|orchestrate|fleet|mcp|run|task|review]
 
 Commands:
   preview        Show planned changes without writing files (default).
@@ -718,7 +753,9 @@ Commands:
   guide          Interactive step-by-step wizard for terminal users.
   tui            Open the terminal UI in a real terminal (packaged asdx companion).
   fleet          Manage agent fleet profiles and model overrides.
-  mcp            Inspect the default MCP tools read-only (status, doctor, preview).
+  mcp            Inspect or configure the three default MCP tools: status, doctor,
+                 preview, apply and restore. Only apply/restore write, and only
+                 when --expect-config matches the reviewed digest.
   run            Create or inspect a private execution run.
   task           Extract one authorized task brief into a run.
   review         Package real Git changes for a bounded review.
@@ -739,11 +776,14 @@ With no ID and no --apply/apply, restoring prompts for confirmation before
 writing anything. Without a terminal, an ID is required.
 
 Flags:
-  --repo PATH  Repository containing skills-files (default: skills embedded in this binary).
-  --home PATH  User home for skill destinations (default: your home).
-  --apply      Legacy form of the apply command; cannot be combined with a command.
-  --version    Legacy form of the version command.
-  -h, --help  Show this help.
+  --repo PATH            Repository containing skills-files (default: skills embedded in this binary).
+  --home PATH            User home for skill destinations (default: your home).
+  --with-opencode        Install the opt-in OpenCode orchestration skill and agent profiles.
+  --opencode-free-first  Preset OpenCode writer and test profiles to free models first
+                         (requires --with-opencode).
+  --apply                Legacy form of the apply command; cannot be combined with a command.
+  --version              Legacy form of the version command.
+  -h, --help             Show this help.
 `)
 }
 

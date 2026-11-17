@@ -44,10 +44,11 @@ const (
 	tuiSignalBuffer = 8
 )
 
-// tuiLaunch is the process boundary used by the dispatcher. Tests replace it to
-// observe the dispatch decision without building, verifying or starting a
-// companion process.
-var tuiLaunch = launchTUISession
+// tuiLauncher is the process boundary of one "asdx-core tui" invocation. The
+// dispatcher receives it in its invocation value; production uses
+// launchTUISession and a test supplies its own, so no package global decides
+// which launcher a call reaches.
+type tuiLauncher func(req tuiRequest, stdin io.Reader, stdout, stderr io.Writer, env *Env) int
 
 // tuiRequest is one fully parsed terminal-UI launch request.
 type tuiRequest struct {
@@ -121,7 +122,7 @@ func launchTUISession(req tuiRequest, stdin io.Reader, stdout, stderr io.Writer,
 // runTUICommand implements "asdx-core tui". It accepts exactly the supported
 // companion options, applies the real-terminal gates and then runs the
 // verified sibling.
-func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env *Env) int {
+func runTUICommand(launch tuiLauncher, args []string, stdin io.Reader, stdout, stderr io.Writer, env *Env) int {
 	fs := flag.NewFlagSet(buildinfo.ProductCLI+" tui", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var home, repo, fleetConfig string
@@ -175,7 +176,7 @@ func runTUICommand(args []string, stdin io.Reader, stdout, stderr io.Writer, env
 		env.Hint(stderr, fmt.Sprintf("run %s preview to use the read-only CLI preview", buildinfo.ProductCLI))
 		return 2
 	}
-	return tuiLaunch(tuiRequest{
+	return launch(tuiRequest{
 		Home:              home,
 		Repo:              repo,
 		WithOpenCode:      withOpenCode,

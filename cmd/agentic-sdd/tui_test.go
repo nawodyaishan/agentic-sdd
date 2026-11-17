@@ -154,13 +154,12 @@ func TestTUIDispatchMatrix(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var call launchCall
-			original := tuiLaunch
-			tuiLaunch = func(req tuiRequest, _ io.Reader, stdout io.Writer, _ io.Writer, _ *Env) int {
+			inv := productionInvocation(strings.NewReader(""))
+			inv.launchTUI = func(req tuiRequest, _ io.Reader, stdout io.Writer, _ io.Writer, _ *Env) int {
 				call.called, call.req = true, req
 				_, _ = io.WriteString(stdout, "tui-launch\n")
 				return 0
 			}
-			t.Cleanup(func() { tuiLaunch = original })
 
 			args := append([]string(nil), tc.args...)
 			if len(args) > 0 {
@@ -179,7 +178,7 @@ func TestTUIDispatchMatrix(t *testing.T) {
 				ForceInteractive: tc.force,
 			}
 			var stdout, stderr bytes.Buffer
-			code := runEnv(args, &stdout, &stderr, strings.NewReader(""), env)
+			code := runEnvWith(args, &stdout, &stderr, strings.NewReader(""), env, inv)
 			if code != tc.wantCode {
 				t.Fatalf("exit %d, want %d; stdout %q; stderr %q", code, tc.wantCode, stdout.String(), stderr.String())
 			}
@@ -251,16 +250,14 @@ func TestTUIExplicitRequestForwarding(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var got tuiRequest
-			original := tuiLaunch
-			tuiLaunch = func(req tuiRequest, _ io.Reader, _ io.Writer, _ io.Writer, _ *Env) int {
+			launch := func(req tuiRequest, _ io.Reader, _ io.Writer, _ io.Writer, _ *Env) int {
 				got = req
 				return 0
 			}
-			t.Cleanup(func() { tuiLaunch = original })
 
 			env := &Env{Width: 80, RealStdinTTY: true, RealStdoutTTY: true}
 			var stdout, stderr bytes.Buffer
-			if code := runTUICommand(tc.args[1:], strings.NewReader(""), &stdout, &stderr, env); code != 0 {
+			if code := runTUICommand(launch, tc.args[1:], strings.NewReader(""), &stdout, &stderr, env); code != 0 {
 				t.Fatalf("exit %d, want 0; stderr %q", code, stderr.String())
 			}
 			if !reflect.DeepEqual(got, tc.want) {
@@ -316,8 +313,12 @@ func TestTUICommandUsageErrors(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			launch := func(tuiRequest, io.Reader, io.Writer, io.Writer, *Env) int {
+				t.Fatal("a usage error reached the launcher")
+				return 1
+			}
 			var stdout, stderr bytes.Buffer
-			if code := runTUICommand(tc.args, strings.NewReader(""), &stdout, &stderr, env); code != tc.code {
+			if code := runTUICommand(launch, tc.args, strings.NewReader(""), &stdout, &stderr, env); code != tc.code {
 				t.Fatalf("exit %d, want %d; stdout %q; stderr %q", code, tc.code, stdout.String(), stderr.String())
 			}
 			if got := stdout.String() + stderr.String(); !strings.Contains(got, tc.want) {
@@ -330,12 +331,11 @@ func TestTUICommandUsageErrors(t *testing.T) {
 // TestTUIWithoutTTYNeverLaunches proves the explicit command fails closed and
 // never runs the historical preview.
 func TestTUIWithoutTTYNeverLaunches(t *testing.T) {
-	original := tuiLaunch
-	tuiLaunch = func(tuiRequest, io.Reader, io.Writer, io.Writer, *Env) int {
-		t.Fatal("tuiLaunch called without a real terminal")
+	inv := productionInvocation(strings.NewReader(""))
+	inv.launchTUI = func(tuiRequest, io.Reader, io.Writer, io.Writer, *Env) int {
+		t.Fatal("the launcher was called without a real terminal")
 		return 1
 	}
-	t.Cleanup(func() { tuiLaunch = original })
 
 	var stdout, stderr bytes.Buffer
 	code := runNonInteractive([]string{"tui"}, &stdout, &stderr)
@@ -955,17 +955,16 @@ func TestLaunchTUITraceRecordsDecision(t *testing.T) {
 func TestRunStartTraceNamesBarePreview(t *testing.T) {
 	_, home := tuiTestFixture(t)
 	t.Setenv("HOME", home)
-	original := tuiLaunch
-	tuiLaunch = func(tuiRequest, io.Reader, io.Writer, io.Writer, *Env) int {
+	inv := productionInvocation(strings.NewReader(""))
+	inv.launchTUI = func(tuiRequest, io.Reader, io.Writer, io.Writer, *Env) int {
 		t.Fatal("bare asdx-core launched the TUI")
 		return 1
 	}
-	t.Cleanup(func() { tuiLaunch = original })
 
 	var trace bytes.Buffer
 	env := &Env{Width: 80, RealStdinTTY: true, RealStdoutTTY: true, Trace: newTracer(&trace, nil, true)}
 	var stdout, stderr bytes.Buffer
-	if code := runEnv(nil, &stdout, &stderr, strings.NewReader(""), env); code != 0 {
+	if code := runEnvWith(nil, &stdout, &stderr, strings.NewReader(""), env, inv); code != 0 {
 		t.Fatalf("exit %d, want 0; stderr %q", code, stderr.String())
 	}
 	first := strings.SplitN(strings.TrimSpace(trace.String()), "\n", 2)[0]

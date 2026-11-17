@@ -6,9 +6,9 @@ package main
 // unauthorized commands, exit codes, deterministic text, stable JSON keys and
 // the absence of any write or terminal dependency. The engine behavior behind
 // internal/appops (configuration detection, state projection, diagnostics) is
-// covered by the T26–T28 tests in their own packages; here the engine seams are
-// replaced so the CLI can be exercised without a real OpenCode home, a network
-// call or a process start.
+// covered by the T26–T28 tests in their own packages; here each test builds its
+// own mcpEngine so the CLI can be exercised without a real OpenCode home, a
+// network call or a process start, and without installing a package global.
 
 import (
 	"bytes"
@@ -35,82 +35,62 @@ type mcpCall struct {
 type mcpStub struct {
 	calls []mcpCall
 
-	statusRes  appops.MCPStatusResult
-	statusErr  error
-	doctorRes  appops.MCPDoctorResult
-	doctorErr  error
-	previewRes appops.MCPPreviewResult
-	previewErr error
-	plan       *skillsync.MCPPlan
-	planToken  string
-	planErr    error
+	statusRes appops.MCPStatusResult
+	statusErr error
+	doctorRes appops.MCPDoctorResult
+	doctorErr error
+	plan      *skillsync.MCPPlan
+	planToken string
+	planErr   error
 
 	// requestErr, when set, makes every request constructor fail, so the CLI's
 	// validation-to-exit-2 mapping is testable without a bad real config.
 	requestErr error
 }
 
-func (s *mcpStub) install(t *testing.T) {
-	t.Helper()
-	prevStatusReq, prevDoctorReq, prevPreviewReq := mcpNewStatusRequest, mcpNewDoctorRequest, mcpNewPreviewRequest
-	prevStatus, prevDoctor, prevPreview := mcpStatusReport, mcpDoctorReport, mcpPreviewReport
-	prevPlanPreview := mcpPlanPreview
-	t.Cleanup(func() {
-		mcpNewStatusRequest, mcpNewDoctorRequest, mcpNewPreviewRequest = prevStatusReq, prevDoctorReq, prevPreviewReq
-		mcpStatusReport, mcpDoctorReport, mcpPreviewReport = prevStatus, prevDoctor, prevPreview
-		mcpPlanPreview = prevPlanPreview
-	})
-
-	mcpNewStatusRequest = func(home, config, project string) (appops.MCPStatusRequest, error) {
+// engine builds the dependencies of one invocation from this stub. It starts
+// from the production engine so only the seams a test exercises are replaced,
+// and it writes no package state.
+func (s *mcpStub) engine() mcpEngine {
+	engine := productionMCPEngine(strings.NewReader(""))
+	engine.newStatusRequest = func(home, config, project string) (appops.MCPStatusRequest, error) {
 		s.calls = append(s.calls, mcpCall{home: home, config: config, project: project})
 		if s.requestErr != nil {
 			return appops.MCPStatusRequest{}, s.requestErr
 		}
 		return appops.MCPStatusRequest{}, nil
 	}
-	mcpNewDoctorRequest = func(home, config, project, opencodeBin, codegraphBin string) (appops.MCPDoctorRequest, error) {
+	engine.newDoctorRequest = func(home, config, project, opencodeBin, codegraphBin string) (appops.MCPDoctorRequest, error) {
 		s.calls = append(s.calls, mcpCall{home: home, config: config, project: project, opencodeBin: opencodeBin, codegraphBin: codegraphBin})
 		if s.requestErr != nil {
 			return appops.MCPDoctorRequest{}, s.requestErr
 		}
 		return appops.MCPDoctorRequest{}, nil
 	}
-	mcpNewPreviewRequest = func(home, config string, servers []string) (appops.MCPPreviewRequest, error) {
-		s.calls = append(s.calls, mcpCall{home: home, config: config, servers: append([]string(nil), servers...)})
-		if s.requestErr != nil {
-			return appops.MCPPreviewRequest{}, s.requestErr
-		}
-		return appops.MCPPreviewRequest{}, nil
-	}
-	mcpStatusReport = func(appops.MCPStatusRequest) (appops.MCPStatusResult, error) {
+	engine.statusReport = func(appops.MCPStatusRequest) (appops.MCPStatusResult, error) {
 		return s.statusRes, s.statusErr
 	}
-	mcpDoctorReport = func(appops.MCPDoctorRequest) (appops.MCPDoctorResult, error) {
+	engine.doctorReport = func(appops.MCPDoctorRequest) (appops.MCPDoctorResult, error) {
 		return s.doctorRes, s.doctorErr
 	}
-	mcpPreviewReport = func(appops.MCPPreviewRequest) (appops.MCPPreviewResult, error) {
-		return s.previewRes, s.previewErr
-	}
-	mcpPlanPreview = func(home, config string, servers []string, auth map[string]string) (*skillsync.MCPPlan, string, error) {
+	engine.planPreview = func(home, config string, servers []string, auth map[string]string) (*skillsync.MCPPlan, string, error) {
 		s.calls = append(s.calls, mcpCall{home: home, config: config, servers: append([]string(nil), servers...)})
 		if s.requestErr != nil {
 			return nil, "", s.requestErr
 		}
 		return s.plan, s.planToken, s.planErr
 	}
+	return engine
 }
 
 func installMCPStub(t *testing.T) *mcpStub {
 	t.Helper()
-	stub := &mcpStub{
-		statusRes:  appops.MCPStatusResult{Status: mcpFixtureStatus()},
-		doctorRes:  appops.MCPDoctorResult{Status: mcpFixtureStatus(), Checks: mcpFixtureChecks(), NotChecked: []string{"remote connectivity", "authentication"}},
-		previewRes: appops.MCPPreviewResult{Preview: mcpFixturePreview()},
-		plan:       mcpFixturePlan(),
-		planToken:  "token-abc123",
+	return &mcpStub{
+		statusRes: appops.MCPStatusResult{Status: mcpFixtureStatus()},
+		doctorRes: appops.MCPDoctorResult{Status: mcpFixtureStatus(), Checks: mcpFixtureChecks(), NotChecked: []string{"remote connectivity", "authentication"}},
+		plan:      mcpFixturePlan(),
+		planToken: "token-abc123",
 	}
-	stub.install(t)
-	return stub
 }
 
 func mcpFixtureStatus() *skillsync.MCPStatus {
@@ -167,31 +147,6 @@ func mcpFixtureChecks() []appops.MCPDoctorCheck {
 	}
 }
 
-func mcpFixturePreview() *skillsync.MCPPreview {
-	return &skillsync.MCPPreview{
-		Home:       "/tmp/home",
-		TargetPath: "/tmp/home/.config/opencode/opencode.json",
-		Format:     "json",
-		BaseDigest: "sha256:abc123",
-		Selected:   []string{"codegraph", "context7", "exa"},
-		Entries: []skillsync.MCPPreviewEntry{
-			{
-				Name:   "codegraph",
-				Op:     "add",
-				Reason: "server is missing from the configuration",
-				Recipe: "{\n  \"type\": \"local\",\n  \"command\": [\"codegraph\", \"serve\", \"--mcp\"]\n}",
-			},
-			{
-				Name:   "context7",
-				Op:     "leave",
-				Reason: "already configured and unchanged",
-			},
-		},
-		Conflicts:  []string{"project config overrides context7"},
-		NotChecked: []string{"remote connectivity", "authentication"},
-	}
-}
-
 func mcpFixturePlan() *skillsync.MCPPlan {
 	return &skillsync.MCPPlan{
 		TargetPath:      "/tmp/home/.config/opencode/opencode.json",
@@ -223,16 +178,19 @@ func mcpFixturePlan() *skillsync.MCPPlan {
 	}
 }
 
-// runMCPCommand dispatches through the full CLI entry point with empty,
-// non-terminal stdin, so dispatch wiring in main.go is covered too.
-func runMCPCommand(args ...string) (code int, stdout, stderr string) {
+// runCommand dispatches through the full CLI entry point with this stub's
+// engine and empty, non-terminal stdin, so dispatch wiring in main.go is
+// covered too without installing a package global.
+func (s *mcpStub) runCommand(args ...string) (code int, stdout, stderr string) {
 	var out, errOut bytes.Buffer
-	code = runNonInteractive(args, &out, &errOut)
+	inv := productionInvocation(strings.NewReader(""))
+	inv.mcp = s.engine()
+	code = runEnvWith(args, &out, &errOut, strings.NewReader(""), &Env{Width: 80}, inv)
 	return code, out.String(), errOut.String()
 }
 
 func TestMCPDispatch(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 
 	tests := []struct {
 		name    string
@@ -371,7 +329,7 @@ func TestMCPDispatch(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			code, stdout, stderr := runMCPCommand(tc.args...)
+			code, stdout, stderr := stub.runCommand(tc.args...)
 			if code != tc.code {
 				t.Fatalf("exit %d, want %d; stdout %q; stderr %q", code, tc.code, stdout, stderr)
 			}
@@ -393,9 +351,9 @@ func TestMCPDispatch(t *testing.T) {
 }
 
 func TestMCPStatusText(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 
-	code, stdout, stderr := runMCPCommand("mcp", "status", "--home", "/tmp/home")
+	code, stdout, stderr := stub.runCommand("mcp", "status", "--home", "/tmp/home")
 	if code != 0 {
 		t.Fatalf("exit %d; stderr %q", code, stderr)
 	}
@@ -436,7 +394,7 @@ func TestMCPStatusNotConfigured(t *testing.T) {
 	}
 	stub.statusRes = appops.MCPStatusResult{Status: notConfigured}
 
-	code, stdout, stderr := runMCPCommand("mcp", "status", "--home", "/tmp/home")
+	code, stdout, stderr := stub.runCommand("mcp", "status", "--home", "/tmp/home")
 	if code != 0 {
 		t.Fatalf("not-configured status must succeed, exit %d; stderr %q", code, stderr)
 	}
@@ -449,9 +407,9 @@ func TestMCPStatusNotConfigured(t *testing.T) {
 }
 
 func TestMCPStatusJSON(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 
-	code, stdout, stderr := runMCPCommand("mcp", "status", "--home", "/tmp/home", "--json")
+	code, stdout, stderr := stub.runCommand("mcp", "status", "--home", "/tmp/home", "--json")
 	if code != 0 {
 		t.Fatalf("exit %d; stderr %q", code, stderr)
 	}
@@ -478,9 +436,9 @@ func TestMCPStatusJSON(t *testing.T) {
 }
 
 func TestMCPDoctorText(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 
-	code, stdout, stderr := runMCPCommand("mcp", "doctor", "--home", "/tmp/home")
+	code, stdout, stderr := stub.runCommand("mcp", "doctor", "--home", "/tmp/home")
 	if code != 0 {
 		t.Fatalf("exit %d; stderr %q", code, stderr)
 	}
@@ -509,9 +467,9 @@ func TestMCPDoctorText(t *testing.T) {
 }
 
 func TestMCPDoctorJSON(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 
-	code, stdout, stderr := runMCPCommand("mcp", "doctor", "--home", "/tmp/home", "--json")
+	code, stdout, stderr := stub.runCommand("mcp", "doctor", "--home", "/tmp/home", "--json")
 	if code != 0 {
 		t.Fatalf("exit %d; stderr %q", code, stderr)
 	}
@@ -534,9 +492,9 @@ func TestMCPDoctorJSON(t *testing.T) {
 }
 
 func TestMCPPreviewText(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 
-	code, stdout, stderr := runMCPCommand("mcp", "preview", "--home", "/tmp/home")
+	code, stdout, stderr := stub.runCommand("mcp", "preview", "--home", "/tmp/home")
 	if code != 0 {
 		t.Fatalf("exit %d; stderr %q", code, stderr)
 	}
@@ -564,9 +522,9 @@ func TestMCPPreviewText(t *testing.T) {
 }
 
 func TestMCPPreviewJSON(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 
-	code, stdout, stderr := runMCPCommand("mcp", "preview", "--home", "/tmp/home", "--json")
+	code, stdout, stderr := stub.runCommand("mcp", "preview", "--home", "/tmp/home", "--json")
 	if code != 0 {
 		t.Fatalf("exit %d; stderr %q", code, stderr)
 	}
@@ -591,7 +549,6 @@ func TestMCPEngineError(t *testing.T) {
 	stub := installMCPStub(t)
 	stub.statusErr = errors.New("engine unavailable")
 	stub.doctorErr = errors.New("engine unavailable")
-	stub.previewErr = errors.New("engine unavailable")
 	stub.planErr = errors.New("engine unavailable")
 
 	for _, args := range [][]string{
@@ -599,7 +556,7 @@ func TestMCPEngineError(t *testing.T) {
 		{"mcp", "doctor"},
 		{"mcp", "preview"},
 	} {
-		code, stdout, stderr := runMCPCommand(append(args, "--home", "/tmp/home")...)
+		code, stdout, stderr := stub.runCommand(append(args, "--home", "/tmp/home")...)
 		if code != 1 {
 			t.Fatalf("%v: exit %d, want 1; stdout %q; stderr %q", args, code, stdout, stderr)
 		}
@@ -616,7 +573,7 @@ func TestMCPMissingReportIsAnError(t *testing.T) {
 	stub := installMCPStub(t)
 	stub.statusRes = appops.MCPStatusResult{}
 
-	code, stdout, stderr := runMCPCommand("mcp", "status", "--home", "/tmp/home")
+	code, stdout, stderr := stub.runCommand("mcp", "status", "--home", "/tmp/home")
 	if code != 1 {
 		t.Fatalf("exit %d, want 1; stdout %q; stderr %q", code, stdout, stderr)
 	}
@@ -629,7 +586,7 @@ func TestMCPRequestValidationError(t *testing.T) {
 	stub := installMCPStub(t)
 	stub.requestErr = skillsync.ErrMCPUsage
 
-	code, stdout, stderr := runMCPCommand("mcp", "preview", "--servers", "bogus", "--home", "/tmp/home")
+	code, stdout, stderr := stub.runCommand("mcp", "preview", "--servers", "bogus", "--home", "/tmp/home")
 	if code != 2 {
 		t.Fatalf("exit %d, want 2; stdout %q; stderr %q", code, stdout, stderr)
 	}
@@ -645,7 +602,7 @@ func TestMCPRequestArguments(t *testing.T) {
 	stub := installMCPStub(t)
 	home := t.TempDir()
 
-	code, _, stderr := runMCPCommand("mcp", "preview", "--home", home, "--config", "/tmp/opencode.json", "--servers", "codegraph, exa")
+	code, _, stderr := stub.runCommand("mcp", "preview", "--home", home, "--config", "/tmp/opencode.json", "--servers", "codegraph, exa")
 	if code != 0 {
 		t.Fatalf("preview exit %d; stderr %q", code, stderr)
 	}
@@ -660,7 +617,7 @@ func TestMCPRequestArguments(t *testing.T) {
 		t.Fatalf("preview servers = %v, want [codegraph exa]", preview.servers)
 	}
 
-	code, _, stderr = runMCPCommand("mcp", "doctor", "--home", home, "--project", "/tmp/project", "--opencode-bin", "/bin/opencode", "--codegraph-bin", "/bin/codegraph")
+	code, _, stderr = stub.runCommand("mcp", "doctor", "--home", home, "--project", "/tmp/project", "--opencode-bin", "/bin/opencode", "--codegraph-bin", "/bin/codegraph")
 	if code != 0 {
 		t.Fatalf("doctor exit %d; stderr %q", code, stderr)
 	}
@@ -669,7 +626,7 @@ func TestMCPRequestArguments(t *testing.T) {
 		t.Fatalf("doctor request = %+v", doctor)
 	}
 
-	code, _, stderr = runMCPCommand("mcp", "status", "--home", home, "--project", "/tmp/project")
+	code, _, stderr = stub.runCommand("mcp", "status", "--home", home, "--project", "/tmp/project")
 	if code != 0 {
 		t.Fatalf("status exit %d; stderr %q", code, stderr)
 	}
@@ -680,7 +637,7 @@ func TestMCPRequestArguments(t *testing.T) {
 }
 
 func TestMCPNoTTYOutputIsDeterministic(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 	home := t.TempDir()
 
 	for _, args := range [][]string{
@@ -689,8 +646,8 @@ func TestMCPNoTTYOutputIsDeterministic(t *testing.T) {
 		{"mcp", "doctor", "--home", home},
 		{"mcp", "preview", "--home", home},
 	} {
-		first, outOne, errOne := runMCPCommand(args...)
-		second, outTwo, errTwo := runMCPCommand(args...)
+		first, outOne, errOne := stub.runCommand(args...)
+		second, outTwo, errTwo := stub.runCommand(args...)
 		if first != second || outOne != outTwo || errOne != errTwo {
 			t.Fatalf("%v is not deterministic:\n%q/%q/%q\n%q/%q/%q", args, first, outOne, errOne, second, outTwo, errTwo)
 		}
@@ -701,7 +658,7 @@ func TestMCPNoTTYOutputIsDeterministic(t *testing.T) {
 }
 
 func TestMCPWritesNothing(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 	home := t.TempDir()
 	config := filepath.Join(home, ".config", "opencode", "opencode.json")
 	if err := os.MkdirAll(filepath.Dir(config), 0755); err != nil {
@@ -720,7 +677,7 @@ func TestMCPWritesNothing(t *testing.T) {
 		{"mcp", "preview", "--home", home},
 		{"mcp", "preview", "--home", home, "--json"},
 	} {
-		code, _, stderr := runMCPCommand(args...)
+		code, _, stderr := stub.runCommand(args...)
 		if code != 0 {
 			t.Fatalf("%v: exit %d; stderr %q", args, code, stderr)
 		}
@@ -768,7 +725,7 @@ func snapshotMCPTree(t *testing.T, root string) map[string]string {
 // TestMCPHelpAndExistingCommands pins that `help mcp` and the additive usage
 // line exist without disturbing the commands that were already there.
 func TestMCPHelpAndExistingCommands(t *testing.T) {
-	installMCPStub(t)
+	stub := installMCPStub(t)
 	home := t.TempDir()
 
 	tests := []struct {
@@ -788,7 +745,7 @@ func TestMCPHelpAndExistingCommands(t *testing.T) {
 			name:    "help lists mcp and fleet",
 			args:    []string{"help"},
 			code:    0,
-			wantOut: []string{"asdx-core mcp status|doctor|preview", "asdx-core fleet status|plan|apply|restore|doctor", "asdx-core help [preview|apply|backups|logs|restore|tui|fleet|mcp|run|task|review]"},
+			wantOut: []string{"asdx-core mcp status|doctor|preview", "asdx-core mcp apply --expect-config SHA256", "asdx-core fleet status|plan|apply|restore|doctor", "asdx-core help [preview|apply|backups|logs|restore|guide|version|tui|orchestrate|fleet|mcp|run|task|review]"},
 		},
 		{
 			name:    "help fleet unchanged",
@@ -824,7 +781,7 @@ func TestMCPHelpAndExistingCommands(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			code, stdout, stderr := runMCPCommand(tc.args...)
+			code, stdout, stderr := stub.runCommand(tc.args...)
 			if code != tc.code {
 				t.Fatalf("exit %d, want %d; stdout %q; stderr %q", code, tc.code, stdout, stderr)
 			}

@@ -70,7 +70,9 @@ func TestDefaultHelpAdvertisesOnlySupportedCommands(t *testing.T) {
 		if !strings.Contains(got, "usage: asdx-core") {
 			t.Fatalf("%q: no usage text in %q", args, got)
 		}
-		if strings.Contains(got, "opencode") {
+		// The supported --with-opencode / --opencode-free-first flags name the
+		// pack; only the experimental bare command may not be advertised.
+		if strings.Contains(got, "asdx-core opencode") {
 			t.Fatalf("%q: default help advertises the experimental helper:\n%s", args, got)
 		}
 		for _, want := range []string{"preview", "apply", "version", "backups", "logs", "restore"} {
@@ -80,7 +82,7 @@ func TestDefaultHelpAdvertisesOnlySupportedCommands(t *testing.T) {
 		}
 	}
 	var stdout, stderr bytes.Buffer
-	if code := runNonInteractive([]string{"help", "bogus"}, &stdout, &stderr); code != 2 || strings.Contains(strings.ToLower(stderr.String()), "opencode") {
+	if code := runNonInteractive([]string{"help", "bogus"}, &stdout, &stderr); code != 2 || strings.Contains(strings.ToLower(stderr.String()), "asdx-core opencode") {
 		t.Fatalf("help usage error: code %d, stderr %q", code, stderr.String())
 	}
 }

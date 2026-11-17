@@ -34,19 +34,43 @@ import (
 	"agentic-sdd/internal/skillsync"
 )
 
-// The engine seams keep the CLI contract (dispatch, flags, exit codes, text and
-// JSON shapes) testable without a real OpenCode home, a network call or a
-// process start. Production always calls internal/appops; tests replace these
-// to assert how the CLI maps a request, a report and an engine failure onto
-// output and exit codes.
-var (
-	mcpNewStatusRequest  = appops.NewMCPStatusRequest
-	mcpNewDoctorRequest  = appops.NewMCPDoctorRequest
-	mcpNewPreviewRequest = appops.NewMCPPreviewRequest
-	mcpStatusReport      = appops.MCPStatus
-	mcpDoctorReport      = appops.MCPDoctor
-	mcpPreviewReport     = appops.MCPPreview
-)
+// mcpEngine carries the MCP services of one CLI invocation. It keeps the CLI
+// contract (dispatch, flags, exit codes, text and JSON shapes) testable without
+// a real OpenCode home, a network call or a process start, and it is a value
+// instead of package state: two invocations hold two engines and cannot observe
+// each other's stubs. Production always calls internal/appops; a test
+// constructs its own engine to assert how the CLI maps a request, a report and
+// an engine failure onto output and exit codes.
+type mcpEngine struct {
+	newStatusRequest func(home, configPath, projectPath string) (appops.MCPStatusRequest, error)
+	newDoctorRequest func(home, configPath, projectPath, openCodeBin, codeGraphBin string) (appops.MCPDoctorRequest, error)
+	statusReport     func(appops.MCPStatusRequest) (appops.MCPStatusResult, error)
+	doctorReport     func(appops.MCPDoctorRequest) (appops.MCPDoctorResult, error)
+	planPreview      func(home, configPath string, selected []string, auth map[string]string) (*skillsync.MCPPlan, string, error)
+	applyPlan        func(home, configPath string, plan *skillsync.MCPPlan, token, expectDigest, openCodeBin string) (*skillsync.MCPApplyResult, error)
+	restoreList      func(home string) ([]mcpBackupSummary, error)
+	restorePreview   func(home, configPath, backupID string) (*skillsync.MCPRestorePreview, string, error)
+	restoreApply     func(home, configPath, backupID, token, expectDigest string) (*skillsync.MCPApplyResult, error)
+	// promptIn feeds the default-No restore confirmation. runEnvWith fills it
+	// from the invocation's stdin when a caller leaves it unset.
+	promptIn io.Reader
+}
+
+// productionMCPEngine wires the real engine for one invocation.
+func productionMCPEngine(stdin io.Reader) mcpEngine {
+	return mcpEngine{
+		newStatusRequest: appops.NewMCPStatusRequest,
+		newDoctorRequest: appops.NewMCPDoctorRequest,
+		statusReport:     appops.MCPStatus,
+		doctorReport:     appops.MCPDoctor,
+		planPreview:      mcpPlanPreviewViaEngine,
+		applyPlan:        mcpApplyViaEngine,
+		restoreList:      mcpRestoreListViaEngine,
+		restorePreview:   mcpRestorePreviewViaEngine,
+		restoreApply:     mcpRestoreViaEngine,
+		promptIn:         stdin,
+	}
+}
 
 func printMCPUsage(out io.Writer) {
 	fmt.Fprint(out, `Usage: asdx-core mcp [status] [--home PATH] [--config PATH] [--project PATH] [--json]
@@ -156,9 +180,9 @@ Flags:
 `)
 }
 
-func runMCP(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCP(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	if len(args) == 0 {
-		return runMCPStatus(nil, stdout, stderr, env)
+		return runMCPStatus(engine, nil, stdout, stderr, env)
 	}
 
 	sub, subArgs := args[0], args[1:]
@@ -167,20 +191,20 @@ func runMCP(args []string, stdout, stderr io.Writer, env *Env) int {
 		printMCPUsage(stdout)
 		return 0
 	case "status":
-		return runMCPStatus(subArgs, stdout, stderr, env)
+		return runMCPStatus(engine, subArgs, stdout, stderr, env)
 	case "doctor":
-		return runMCPDoctor(subArgs, stdout, stderr, env)
+		return runMCPDoctor(engine, subArgs, stdout, stderr, env)
 	case "preview":
-		return runMCPPreview(subArgs, stdout, stderr, env)
+		return runMCPPreview(engine, subArgs, stdout, stderr, env)
 	case "apply":
-		return runMCPApply(subArgs, stdout, stderr, env)
+		return runMCPApply(engine, subArgs, stdout, stderr, env)
 	case "restore":
-		return runMCPRestore(subArgs, stdout, stderr, env)
+		return runMCPRestore(engine, subArgs, stdout, stderr, env)
 	}
 	if strings.HasPrefix(sub, "-") {
 		// "mcp --home PATH" is still the status command, so a flag in the
 		// subcommand position is never an unknown command.
-		return runMCPStatus(args, stdout, stderr, env)
+		return runMCPStatus(engine, args, stdout, stderr, env)
 	}
 	fmt.Fprintf(stderr, "error: unknown mcp command %q\n", sub)
 	fmt.Fprintln(stderr, "note: this build implements status, doctor, preview, apply, restore and help")
@@ -250,7 +274,7 @@ func mcpErrorCode(err error) int {
 	return 1
 }
 
-func runMCPStatus(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCPStatus(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	var flags mcpFlags
 	fs := newMCPFlagSet("status", &flags)
 	ok, code := parseMCPFlags(fs, args, printMCPStatusUsage, stdout, stderr)
@@ -263,12 +287,12 @@ func runMCPStatus(args []string, stdout, stderr io.Writer, env *Env) int {
 		return code
 	}
 
-	req, err := mcpNewStatusRequest(home, flags.config, flags.project)
+	req, err := engine.newStatusRequest(home, flags.config, flags.project)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
 	}
-	res, err := mcpStatusReport(req)
+	res, err := engine.statusReport(req)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		return mcpErrorCode(err)
@@ -285,7 +309,7 @@ func runMCPStatus(args []string, stdout, stderr io.Writer, env *Env) int {
 	return 0
 }
 
-func runMCPDoctor(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCPDoctor(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	var flags mcpFlags
 	var opencodeBin, codegraphBin string
 	var network, connect bool
@@ -322,12 +346,12 @@ func runMCPDoctor(args []string, stdout, stderr io.Writer, env *Env) int {
 		return code
 	}
 
-	req, err := mcpNewDoctorRequest(home, flags.config, flags.project, opencodeBin, codegraphBin)
+	req, err := engine.newDoctorRequest(home, flags.config, flags.project, opencodeBin, codegraphBin)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
 	}
-	res, err := mcpDoctorReport(req)
+	res, err := engine.doctorReport(req)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		return mcpErrorCode(err)
@@ -344,7 +368,7 @@ func runMCPDoctor(args []string, stdout, stderr io.Writer, env *Env) int {
 	return 0
 }
 
-func runMCPPreview(args []string, stdout, stderr io.Writer, env *Env) int {
+func runMCPPreview(engine mcpEngine, args []string, stdout, stderr io.Writer, env *Env) int {
 	var flags mcpWriteFlags
 	fs := newMCPWriteFlagSet("preview", &flags.mcpFlags)
 	fs.StringVar(&flags.servers, "servers", "", "servers to configure")
@@ -364,7 +388,7 @@ func runMCPPreview(args []string, stdout, stderr io.Writer, env *Env) int {
 		return code
 	}
 
-	plan, token, err := mcpPlanPreview(home, flags.config, selected, flags.auth.Map())
+	plan, token, err := engine.planPreview(home, flags.config, selected, flags.auth.Map())
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		mcpWriteFailureNote(stderr, err)
