@@ -28,7 +28,9 @@ const (
 	DefaultMaxFileBytes = 2 << 20
 	// DefaultMaxTotalBytes is the default total review-package cap.
 	DefaultMaxTotalBytes = 32 << 20
-	// LockStaleAfter is the age after which an unowned lock may be reclaimed.
+	// LockStaleAfter is the heartbeat window for legacy run locks. Age alone does
+	// not reclaim a lock (plan §12.1): it is reclaimed only when its holder is
+	// provably dead on this host.
 	LockStaleAfter = 30 * time.Minute
 )
 

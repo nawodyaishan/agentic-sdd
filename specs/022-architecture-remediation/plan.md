@@ -285,7 +285,7 @@ cache/output. Do not dump inherited environment or secrets into evidence.
 |---|---|---|
 | Existing core | `task test`, `task vet`, `go mod verify`, `git diff --check` | Existing eleven supported root packages; no native/online claim |
 | Affected core race | `go test -race ./internal/skillsync ./internal/fleet ./internal/execution ./internal/harnessevidence ./cmd/agentic-sdd` | Scoped in-process race checks plus explicit subprocess exclusion tests |
-| Nested TUI | In `experiments/tui`: `go test -count=1 -timeout=15m ./...`, `go vet ./...`, `go mod verify`; race separately with a measured job budget | Nested module only; no excluded root packages |
+| Nested TUI | In `experiments/tui`: `go test -count=1 -timeout=15m ./...`, `go vet ./...`, and the offline `go list -mod=vendor ./...` plus `tests/tui-vendor-check.sh` (owner decision 2026-11-17 replaced `go mod verify`, which cannot check the path-replaced root module; `harness/qualification.json` is authoritative); race separately with a measured job budget | Nested module only; no excluded root packages |
 | Portable content | `python3 -B -m unittest discover -s tests/harness -p test_core_workflow.py`; same for `test_research_workflow.py` | The explicitly permitted static suites |
 | Proposed gate regressions | Individually select `test_supported_core_go.py`, `test_appops_core_selection.py`, `test_trusted_ci.py`, `test_trusted_ci_container.py` after B0 source audit | Fixed selection, launch/staging/anti-weakening; a missing Docker prerequisite blocks actual container evidence |
 | Docs policy | `test_docs_ci.py` individually and website's applicable source/reference/built/export suites | Docs-lane evidence only, not a new root broad discovery |
