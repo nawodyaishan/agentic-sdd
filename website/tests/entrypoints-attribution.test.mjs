@@ -1,9 +1,10 @@
-// B7/T16 website attribution contract.
+// Website attribution contract.
 //
-// Frozen C7 seam: one shared `website/src/maintainer.mjs` identity owner, a
-// homepage Markdown byline near the introduction, and one footer credit that
-// composes the pinned Starlight default Footer instead of replacing its
-// utilities. This file checks the authored source and configuration statically.
+// Owner decision (2026-11-17): the personal credit appears exactly once, on the
+// homepage near the introduction. Deep pages carry no site-wide footer branding,
+// so the Starlight default Footer is used unchanged and no Footer override is
+// registered. This file checks the authored source and configuration
+// statically.
 //
 // It never imports Astro/Starlight, never builds the site and never marks a
 // visual or browser check as performed. Rendered 320/1280-width, zoom,
@@ -67,107 +68,29 @@ function analyzeMaintainer(maintainer) {
 	return findings;
 }
 
-function analyzeFooterSource(source) {
+// The credit must not be reintroduced site-wide. No custom Footer component and
+// no `components.Footer` registration means every deep page falls back to the
+// stock Starlight footer.
+function analyzeFooterOverride({ footerSource, configSource }) {
 	const findings = [];
-	if (source === null) return ['missing-footer-component'];
-	const compact = source.replace(/\s+/g, ' ');
+	if (footerSource !== null) findings.push('site-wide-credit-still-present');
+	if (configSource === null) return [...findings, 'missing-astro-config'];
 
-	const defaultImport =
-		/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]@astrojs\/starlight\/components\/Footer\.astro['"]/.exec(source);
-	if (defaultImport === null) findings.push('missing-default-footer-import');
-	else {
-		const componentName = defaultImport[1];
-		const renders = [...source.matchAll(new RegExp(`<${componentName}\\b`, 'g'))];
-		if (renders.length === 0) findings.push('default-footer-not-rendered');
-		if (renders.length > 1) findings.push('default-footer-rendered-multiple-times');
+	if (/\bFooter\s*:\s*['"][^'"]*Footer\.astro['"]/.test(configSource)) {
+		findings.push('footer-override-registered');
 	}
 
-	// The default Footer already owns the footer landmark and utilities. A raw
-	// <footer> here would replace or nest that landmark instead of composing it.
-	if (/<footer\b/i.test(source)) findings.push('nested-footer-element');
-
-	const maintainerImport =
-		/import\s+\{[^}]*\bmaintainer\b[^}]*\}\s+from\s+['"](?:\.\.?\/)+maintainer\.mjs['"]/.test(source);
-	if (!maintainerImport) findings.push('missing-maintainer-import');
-
-	if (!/Created and maintained by/i.test(compact)) findings.push('credit-wording-missing');
-
-	const anchors = [...source.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map((match) => ({
-		attrs: match[1],
-		body: match[2],
-	}));
-	if (
-		!anchors.some(
-			(anchor) => /\bhref=\{maintainer\.github\}/.test(anchor.attrs) && /\{maintainer\.name\}/.test(anchor.body),
-		)
-	) {
-		findings.push('credit-name-not-linked');
-	}
-	if (
-		!anchors.some(
-			(anchor) =>
-				/\bhref=\{maintainer\.website\}/.test(anchor.attrs) && /personal website/i.test(anchor.body),
-		)
-	) {
-		findings.push('personal-website-link-missing');
-	}
-
-	if (
-		!/<(?:section|aside)\b/i.test(source) &&
-		!/<(?:section|aside|div)\b[^>]*(?:aria-label|aria-labelledby|role)\s*=/i.test(source)
-	) {
-		findings.push('credit-region-not-semantic');
-	}
-
-	if (/<script\b|<img\b|<iframe\b/i.test(source)) findings.push('remote-or-script-asset-added');
-	if (/\bsrc\s*=\s*['"]https?:/i.test(source)) findings.push('remote-or-script-asset-added');
-	if (
-		/fonts\.googleapis|fonts\.gstatic|@import\s+url\(\s*['"]?https?:|url\(\s*['"]?https?:/i.test(source)
-	) {
-		findings.push('remote-or-script-asset-added');
-	}
-	if (/(?:google-analytics|googletagmanager|plausible\.io|matomo|segment\.io|posthog)/i.test(source)) {
-		findings.push('tracking-added');
-	}
-
-	return findings;
-}
-
-function analyzeConfigSource(source) {
-	const findings = [];
-	if (source === null) return ['missing-astro-config'];
-
-	const components = /components\s*:\s*\{([\s\S]*?)\}/.exec(source);
-	if (components === null) findings.push('missing-components-registration');
-	else {
-		const block = components[1];
-		const footer = /Footer\s*:\s*['"]([^'"]+)['"]/.exec(block);
-		if (footer === null) findings.push('missing-footer-registration');
-		else {
-			const registered = footer[1].replace(/^\.\//, '');
-			if (registered !== 'src/components/Footer.astro') findings.push('footer-registration-wrong-path');
-		}
-		const otherKeys = [...block.matchAll(/([A-Za-z][A-Za-z0-9]*)\s*:/g)]
-			.map((match) => match[1])
-			.filter((key) => key !== 'Footer');
-		if (otherKeys.length > 0) findings.push(`unexpected-component-override:${otherKeys.join(',')}`);
-	}
-
-	// Framework utilities stay enabled; the override adds credit instead of
-	// replacing edit links, social navigation or search.
-	if (!/editLink\s*:/.test(source)) findings.push('edit-link-removed');
-	if (!/social\s*:\s*\[/.test(source)) findings.push('social-links-removed');
-	if (!/pagefind\s*:\s*true/.test(source)) findings.push('search-removed');
+	// Framework utilities stay enabled; with no override, edit links, social
+	// navigation and search render from Starlight's defaults.
+	if (!/editLink\s*:/.test(configSource)) findings.push('edit-link-removed');
+	if (!/social\s*:\s*\[/.test(configSource)) findings.push('social-links-removed');
+	if (!/pagefind\s*:\s*true/.test(configSource)) findings.push('search-removed');
 
 	return findings;
 }
 
 function analyzeAttribution({ maintainer, footerSource, configSource }) {
-	return [
-		...analyzeMaintainer(maintainer),
-		...analyzeFooterSource(footerSource),
-		...analyzeConfigSource(configSource),
-	];
+	return [...analyzeMaintainer(maintainer), ...analyzeFooterOverride({ footerSource, configSource })];
 }
 
 function homepageParts() {
@@ -187,13 +110,12 @@ function analyzeHomepage({ text, structure }, maintainer) {
 	);
 	if (nameLink === undefined) findings.push('homepage-byline-missing');
 
-	const websiteLink = introLinks.find(
-		(link) => /^personal website$/i.test(link.text.trim()) && link.href === maintainer.website,
-	);
-	if (websiteLink === undefined) findings.push('homepage-personal-website-missing');
-
 	const contributorLink = introLinks.find((link) => /(?:^|\/)contribut/i.test(link.href));
 	if (contributorLink === undefined) findings.push('homepage-contributor-link-missing');
+
+	if (introLinks.some((link) => link.href === maintainer.website)) {
+		findings.push('homepage-personal-website-link');
+	}
 
 	const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
 	const introText = lines.slice(0, Math.min(lines.length, endLine - 1)).join(' ');
@@ -212,20 +134,16 @@ const VALID_MAINTAINER = Object.freeze({
 	website: 'https://nawodyaishan.github.io/',
 });
 
-const VALID_FOOTER = [
+const VALID_HOMEPAGE = [
 	'---',
-	"import DefaultFooter from '@astrojs/starlight/components/Footer.astro';",
-	"import { maintainer } from '../maintainer.mjs';",
+	'title: Agentic-SDD',
 	'---',
 	'',
-	'<div class="maintainer-credit" role="note">',
-	'  <p>',
-	'    Created and maintained by',
-	'    <a href={maintainer.github}>{maintainer.name}</a>.',
-	'    <a href={maintainer.website}>Personal website</a>',
-	'  </p>',
-	'</div>',
-	'<DefaultFooter />',
+	'Intro paragraph.',
+	'',
+	'Created and maintained by [Nawodya Ishan](https://github.com/nawodyaishan) · [Contributing](contributing/development.md).',
+	'',
+	'## Who Agentic-SDD is for',
 	'',
 ].join('\n');
 
@@ -236,9 +154,6 @@ const VALID_CONFIG = [
 	'  integrations: [',
 	'    starlight({',
 	'      pagefind: true,',
-	'      components: {',
-	"        Footer: './src/components/Footer.astro',",
-	'      },',
 	"      editLink: { baseUrl: 'https://github.com/example/repo/edit/main/website/' },",
 	"      social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/example/repo' }],",
 	'    }),',
@@ -252,7 +167,7 @@ test('shared maintainer identity module exists and exports the frozen identity',
 	assert.equal(
 		loaded.exists,
 		true,
-		`missing ${MAINTAINER_RELATIVE_PATH}; T15 must add the single shared maintainer identity owner`,
+		`missing ${MAINTAINER_RELATIVE_PATH}; the homepage byline must keep one shared identity owner`,
 	);
 	assert.equal(
 		loaded.error,
@@ -265,7 +180,7 @@ test('shared maintainer identity module exists and exports the frozen identity',
 	assert.deepEqual(Object.keys(loaded.module.maintainer).sort(), ['github', 'name', 'website']);
 });
 
-test('homepage shows an ordinary Markdown byline near the introduction with the shared identity values', async () => {
+test('homepage shows the only visible credit as an ordinary Markdown byline near the introduction', async () => {
 	const loaded = await loadMaintainer();
 	assert.equal(loaded.exists, true, `missing ${MAINTAINER_RELATIVE_PATH}; the homepage byline cannot be parity-checked`);
 	assert.equal(
@@ -278,29 +193,19 @@ test('homepage shows an ordinary Markdown byline near the introduction with the 
 	assert.deepEqual(
 		findings,
 		[],
-		`homepage must show a visible Markdown byline before the first H2 with the linked name, Personal website and contributor route; got ${findings.join(', ')}`,
+		`homepage must show one visible Markdown byline before the first H2 with the linked name and contributor route; got ${findings.join(', ')}`,
 	);
 });
 
-test('new Footer composes the pinned Starlight default footer and renders one visible shared credit', () => {
-	const footer = readOptional(footerPath);
-	assert.ok(footer !== null, `missing ${FOOTER_RELATIVE_PATH}; T15 must compose the default Starlight Footer`);
-	const findings = analyzeFooterSource(footer);
+test('no site-wide footer credit is rendered on deep pages', () => {
+	const findings = analyzeFooterOverride({
+		footerSource: readOptional(footerPath),
+		configSource: readOptional(configPath),
+	});
 	assert.deepEqual(
 		findings,
 		[],
-		`Footer.astro must preserve the default Footer utilities and add one semantic shared credit; got ${findings.join(', ')}`,
-	);
-});
-
-test('astro.config registers components.Footer without replacing other Starlight utilities', () => {
-	const config = readOptional(configPath);
-	assert.ok(config !== null, 'missing website/astro.config.mjs');
-	const findings = analyzeConfigSource(config);
-	assert.deepEqual(
-		findings,
-		[],
-		`astro config must register only the Footer component override and keep edit/search/social utilities; got ${findings.join(', ')}`,
+		`${FOOTER_RELATIVE_PATH} must stay absent and astro.config must not register a Footer override; got ${findings.join(', ')}`,
 	);
 });
 
@@ -312,37 +217,85 @@ test('attribution adds no new runtime package, tracking, avatar or remote asset 
 		'website dependencies must stay at the pinned build set; attribution adds no runtime package',
 	);
 
-	const footer = readOptional(footerPath);
-	assert.ok(footer !== null, `missing ${FOOTER_RELATIVE_PATH}; cannot check attribution assets`);
-	assert.doesNotMatch(footer, /<script\b|<img\b|<iframe\b|google-analytics|googletagmanager|plausible\.io|matomo/i);
-
 	const homepage = readFileSync(homepagePath, 'utf8');
 	assert.doesNotMatch(homepage, /<script\b|!\[[^\]]*\]\([^)]*\)|<img\b/i);
 });
 
 test('attribution mutation fixture satisfies the static contract', () => {
-	const findings = analyzeAttribution({
-		maintainer: VALID_MAINTAINER,
-		footerSource: VALID_FOOTER,
-		configSource: VALID_CONFIG,
-	});
+	const findings = [
+		...analyzeAttribution({
+			maintainer: VALID_MAINTAINER,
+			footerSource: null,
+			configSource: VALID_CONFIG,
+		}),
+		...analyzeHomepage(
+			{
+				text: VALID_HOMEPAGE,
+				structure: {
+					headings: [{ level: 2, line: 9 }],
+					links: [
+						{ text: 'Nawodya Ishan', href: VALID_MAINTAINER.github, line: 7 },
+						{ text: 'Contributing', href: 'contributing/development.md', line: 7 },
+					],
+				},
+			},
+			VALID_MAINTAINER,
+		),
+	];
 	assert.deepEqual(findings, [], `valid attribution fixture must pass; got ${findings.join(', ')}`);
 });
 
-test('mutation: a footer without visible credit fails', () => {
-	const footer = VALID_FOOTER.replace(/<div class="maintainer-credit"[\s\S]*?<\/div>/, '');
-	const findings = analyzeAttribution({
-		maintainer: VALID_MAINTAINER,
-		footerSource: footer,
-		configSource: VALID_CONFIG,
+test('mutation: a reintroduced footer credit fails', () => {
+	const findings = analyzeFooterOverride({
+		footerSource: '<section>Created and maintained by someone</section>',
+		configSource: VALID_CONFIG.replace(
+			'pagefind: true,',
+			"pagefind: true,\n      components: { Footer: './src/components/Footer.astro' },",
+		),
 	});
-	assert.ok(findings.includes('credit-wording-missing'), `expected missing credit failure; got ${findings.join(', ')}`);
+	assert.ok(
+		findings.includes('site-wide-credit-still-present') && findings.includes('footer-override-registered'),
+		`expected site-wide credit failure; got ${findings.join(', ')}`,
+	);
+});
+
+test('mutation: a homepage without the byline fails', () => {
+	const homepage = VALID_HOMEPAGE.replace(/^Created and maintained by.*$/m, '');
+	const findings = analyzeHomepage(
+		{
+			text: homepage,
+			structure: { headings: [{ level: 2, line: 7 }], links: [] },
+		},
+		VALID_MAINTAINER,
+	);
+	assert.ok(findings.includes('homepage-byline-missing'), `expected missing byline failure; got ${findings.join(', ')}`);
+});
+
+test('mutation: a personal website link in the byline fails', () => {
+	const findings = analyzeHomepage(
+		{
+			text: VALID_HOMEPAGE,
+			structure: {
+				headings: [{ level: 2, line: 9 }],
+				links: [
+					{ text: 'Nawodya Ishan', href: VALID_MAINTAINER.github, line: 7 },
+					{ text: 'Personal website', href: VALID_MAINTAINER.website, line: 7 },
+					{ text: 'Contributing', href: 'contributing/development.md', line: 7 },
+				],
+			},
+		},
+		VALID_MAINTAINER,
+	);
+	assert.ok(
+		findings.includes('homepage-personal-website-link'),
+		`expected personal-website rejection; got ${findings.join(', ')}`,
+	);
 });
 
 test('mutation: a wrong maintainer identity fails', () => {
 	const findings = analyzeAttribution({
 		maintainer: { ...VALID_MAINTAINER, name: 'Someone Else' },
-		footerSource: VALID_FOOTER,
+		footerSource: null,
 		configSource: VALID_CONFIG,
 	});
 	assert.ok(
@@ -354,7 +307,7 @@ test('mutation: a wrong maintainer identity fails', () => {
 test('mutation: a wrong profile URL fails', () => {
 	const findings = analyzeAttribution({
 		maintainer: { ...VALID_MAINTAINER, github: 'https://github.com/example' },
-		footerSource: VALID_FOOTER,
+		footerSource: null,
 		configSource: VALID_CONFIG,
 	});
 	assert.ok(
@@ -363,18 +316,10 @@ test('mutation: a wrong profile URL fails', () => {
 	);
 });
 
-test('mutation: replacing the default footer utilities fails', () => {
-	const footer = VALID_FOOTER.replace(/import DefaultFooter[^\n]*\n/, '').replace(
-		'<DefaultFooter />',
-		'<footer>default utilities removed</footer>',
-	);
-	const findings = analyzeAttribution({
-		maintainer: VALID_MAINTAINER,
-		footerSource: footer,
-		configSource: VALID_CONFIG,
+test('mutation: removing the default footer utilities fails', () => {
+	const findings = analyzeFooterOverride({
+		footerSource: null,
+		configSource: VALID_CONFIG.replace(/editLink\s*:.*\n/, ''),
 	});
-	assert.ok(
-		findings.includes('missing-default-footer-import') && findings.includes('nested-footer-element'),
-		`expected missing-default-utilities failure; got ${findings.join(', ')}`,
-	);
+	assert.ok(findings.includes('edit-link-removed'), `expected missing-utilities failure; got ${findings.join(', ')}`);
 });

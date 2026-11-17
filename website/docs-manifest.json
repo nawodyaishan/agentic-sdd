@@ -28,14 +28,14 @@
       "sources": [
         {
           "path": "website/src/content/docs/index.md",
-          "sha256": "6328ed431cf637d31cb8fe57eb6c45cf0cc13407704a7aa2359d64523d9801d4"
+          "sha256": "2b3b274283a05140e17c7f0f79426a5c89eb7941418e7bbc5d1f46c78560f430"
         },
         {
           "path": "website/src/maintainer.mjs",
-          "sha256": "6c88e8b16748512aeb9ead9cbdb352e9663d4b65dd608d70c930cf838d341d7d"
+          "sha256": "465a7bb00705ebadeff875d9ccf1b62eecc6dbc706c94dc25a6f774d93cb0ecd"
         }
       ],
-      "reviewDigest": "8f8a47c317cb33138c5766b3cd70d11727295113c13d2b8660a2479ecabae3ce",
+      "reviewDigest": "27a27785f188fe4471f5676036819e76d5f13256aeebf81a0c6cff445b646117",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
