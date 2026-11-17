@@ -527,6 +527,11 @@ var ErrMetadataIncomplete = errors.New("files committed, metadata incomplete")
 // overwrite newer bytes; a human must review the target first.
 var ErrPendingReconciliation = errors.New("interrupted fleet transaction needs review before the next mutation")
 
+// ConflictRecoveryHint names the manual recovery steps for a conflicted
+// transaction. There is deliberately no automatic resolver (022 plan §13.5):
+// resolve by hand, then re-plan. Tests pin this text.
+const ConflictRecoveryHint = "No automatic resolver exists. Inspect the transaction's manifest.json under the backup directory and the current target files, put each target back to the backed-up or the desired bytes yourself (or restore from that backup), then run the plan again."
+
 // b6Seams are test-only injection points, nil in production. They observe the
 // lock acquisition order, race a destination between revalidation and the
 // guarded engine, and fail one metadata write after files are committed.
@@ -728,7 +733,7 @@ func reconcilePending(backupRoot, home, targetRoot string, out io.Writer) error 
 			}
 			fmt.Fprintf(out, "Reconciled interrupted transaction %s: files were never committed; marked failed.\n", p.id)
 		default:
-			return fmt.Errorf("%w: backup %s; target bytes match neither its completed nor its prior state (nothing was overwritten)", ErrPendingReconciliation, p.id)
+			return fmt.Errorf("%w: backup %s; target bytes match neither its completed nor its prior state (nothing was overwritten). %s", ErrPendingReconciliation, p.id, ConflictRecoveryHint)
 		}
 	}
 	return nil

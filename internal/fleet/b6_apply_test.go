@@ -372,9 +372,13 @@ func TestB6NewerBytesBlockReconciliationWithoutOverwrite(t *testing.T) {
 
 	if _, err := ApplyPlan(stale, home, io.Discard); !errors.Is(err, ErrPendingReconciliation) {
 		t.Fatalf("ApplyPlan error = %v, want ErrPendingReconciliation", err)
+	} else if !strings.Contains(err.Error(), ConflictRecoveryHint) {
+		t.Fatalf("ApplyPlan error lacks the recovery hint: %v", err)
 	}
 	if _, err := RestoreBackup(home, filepath.Base(result.BackupPath), io.Discard); !errors.Is(err, ErrPendingReconciliation) {
 		t.Fatalf("RestoreBackup error = %v, want ErrPendingReconciliation", err)
+	} else if !strings.Contains(err.Error(), ConflictRecoveryHint) {
+		t.Fatalf("RestoreBackup error lacks the recovery hint: %v", err)
 	}
 	if got := readString(t, target); got != string(newer) {
 		t.Fatalf("newer bytes were overwritten: %q", got)
