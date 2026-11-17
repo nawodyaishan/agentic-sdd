@@ -80,6 +80,9 @@ tasks:
   mod-verify:
     desc: Verify Go module dependencies
     cmds: ['GOCACHE={{.GOCACHE | shellQuote}} go mod verify']
+  tui-vendor-check:
+    desc: Fail when experiments/tui/vendor drifts from internal/skillsync and internal/fleet (read-only, offline)
+    cmds: [sh tests/tui-vendor-check.sh]
   tidy-check:
     desc: Check module tidiness with external evidence
     cmds:
