@@ -1014,13 +1014,33 @@ class DeploymentObservationTests(OfflineStepCase):
 API_ROOT = "repos/nawodyaishan/agentic-sdd"
 TAG_OBJECT = "b" * 40
 
+# The triggering publish run's own window, and a release inside it. The window
+# is [run_started_at, updated_at + 120 s]: nothing before `run_started_at` is
+# this run's release, and 120 s of documented slack is allowed after the run's
+# last update.
+WINDOW_START = "2026-11-17T21:00:00Z"
+WINDOW_UPDATED = "2026-11-17T21:20:00Z"
+WINDOW_SLACK_SECONDS = 120
+WINDOW_LIMIT = "2026-11-17T21:22:00Z"   # exactly updated_at + 120 s
+RELEASE_CREATED = "2026-11-17T21:12:00Z"
+
 
 def release_documents(tag="v0.13.0", commit=REVISION, status="ahead",
-                      object_type="commit", object_sha=None):
-    """The read-only API documents the resolve step reads for one release."""
+                      object_type="commit", object_sha=None,
+                      published_at=RELEASE_CREATED, created_at=RELEASE_CREATED):
+    """The read-only API documents the resolve step reads for one release.
+
+    `published_at`/`created_at` default to a release inside the publish run's
+    window; passing `None` omits the field, which the API answers as null.
+    """
     sha = object_sha if object_sha is not None else commit
+    latest = {"tag_name": tag}
+    if published_at is not None:
+        latest["published_at"] = published_at
+    if created_at is not None:
+        latest["created_at"] = created_at
     documents = {
-        API_ROOT + "/releases/latest": {"tag_name": tag},
+        API_ROOT + "/releases/latest": latest,
         API_ROOT + "/git/ref/tags/" + tag: {
             "object": {"type": object_type, "sha": sha}},
         API_ROOT + "/compare/%s...main" % commit: {"status": status},
@@ -1056,6 +1076,8 @@ class WorkflowRunObserverTests(OfflineStepCase):
             "GH_REPO": "nawodyaishan/agentic-sdd",
             "DEFAULT_BRANCH": branch,
             "GITHUB_ENV": str(self.github_env),
+            "RUN_STARTED_AT": WINDOW_START,
+            "RUN_UPDATED_AT": WINDOW_UPDATED,
         }
         env.update(overrides)
         return self.run_step(job_run_text(self.job(), RESOLVE_STEP), env)
@@ -1095,6 +1117,22 @@ class WorkflowRunObserverTests(OfflineStepCase):
         self.assertEqual(condition,
                          "github.event.workflow_run.conclusion=='success'",
                          "a failed or cancelled publish must not be observed")
+
+    def test_the_header_names_exactly_what_this_route_writes(self):
+        """F-04: no `identity.json`, and no claim of a shared evidence shape."""
+        prose = comment_prose(observe_text())
+        self.assertIn("binding.json", prose)
+        self.assertIn("observation.json", prose)
+        self.assertIn("identity.json", prose)
+        self.assertIn("adopts no image", prose)
+        self.assertNotIn("same route evidence", prose)
+
+    def test_the_header_states_the_workflow_run_chaining_limit(self):
+        """F-05: this file is the third level; a fourth is not delivered."""
+        prose = comment_prose(observe_text())
+        self.assertIn("at most three levels", prose)
+        self.assertIn("third level", prose)
+        self.assertIn("fourth level", prose)
 
     def test_workflow_and_job_hold_read_scope_only(self):
         text = observe_text()
@@ -1245,6 +1283,99 @@ class WorkflowRunObserverTests(OfflineStepCase):
                 self.assertEqual(self.api_calls(), [],
                                  "no API call may follow an unsafe branch name")
 
+    # ------------------------------------------------ release window (F-02)
+
+    def test_a_release_inside_the_publish_run_window_is_observed(self):
+        """`releases/latest` is only usable when it is this run's release."""
+        for stamp in (WINDOW_START, RELEASE_CREATED, WINDOW_UPDATED, WINDOW_LIMIT):
+            with self.subTest(stamp=stamp):
+                completed = self.resolve(
+                    release_documents(created_at=stamp, published_at=stamp))
+                self.assertEqual(completed.returncode, 0,
+                                 completed.stderr.decode("utf-8", "replace"))
+                self.assertEqual(self.resolved().get("RESOLVED_TAG"), "v0.13.0")
+                self.assertEqual(self.resolved().get("RESOLVED_REVISION"), REVISION)
+
+    def test_one_second_past_the_documented_slack_is_refused(self):
+        """`updated_at + 120 s` passes; one second later is another run's."""
+        completed = self.resolve(release_documents(
+            created_at="2026-11-17T21:22:01Z",
+            published_at="2026-11-17T21:22:01Z"))
+        self.assertNotEqual(
+            completed.returncode, 0,
+            "a release %d s after the run update must be refused" % (
+                WINDOW_SLACK_SECONDS + 1))
+        self.assertEqual(self.resolved(), {})
+
+    def test_a_release_published_before_the_run_started_is_refused(self):
+        for stamp in ("2026-11-17T20:59:59Z", "2026-11-16T21:12:00Z"):
+            with self.subTest(stamp=stamp):
+                completed = self.resolve(
+                    release_documents(created_at=stamp, published_at=stamp))
+                self.assertNotEqual(
+                    completed.returncode, 0,
+                    "a release that existed before this run started was accepted")
+                self.assertEqual(self.resolved(), {})
+                self.assertEqual(
+                    set(self.api_calls()), {API_ROOT + "/releases/latest"},
+                    "the refusal must happen before the tag is resolved")
+
+    def test_a_release_created_before_the_run_is_refused_even_if_published_during_it(
+            self):
+        """This publisher creates and publishes in one `gh release create`."""
+        completed = self.resolve(release_documents(
+            created_at="2026-11-17T20:00:00Z", published_at=RELEASE_CREATED))
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(self.resolved(), {})
+
+    def test_a_release_after_the_run_window_plus_slack_is_refused(self):
+        for stamp in ("2026-11-17T21:22:01Z", "2026-11-18T09:30:00Z"):
+            with self.subTest(stamp=stamp):
+                completed = self.resolve(
+                    release_documents(created_at=stamp, published_at=stamp))
+                self.assertNotEqual(
+                    completed.returncode, 0,
+                    "a release after the run's window was accepted")
+                self.assertEqual(self.resolved(), {})
+
+    def test_a_release_without_usable_timestamps_is_refused(self):
+        fixtures = (
+            {"published_at": None},
+            {"created_at": None},
+            {"published_at": "null"},
+            {"created_at": ""},
+            {"published_at": "2026-11-17 21:12:00"},
+            {"published_at": "2026-11-17T21:12:00"},
+            {"created_at": "2026-11-17T21:12:00+00:00"},
+        )
+        for fixture in fixtures:
+            with self.subTest(fixture=fixture):
+                completed = self.resolve(release_documents(**fixture))
+                self.assertNotEqual(
+                    completed.returncode, 0,
+                    "a release without a usable timestamp was accepted")
+                self.assertEqual(self.resolved(), {})
+
+    def test_a_missing_or_non_iso_run_window_refuses_before_any_api_call(self):
+        for overrides in ({"RUN_STARTED_AT": ""},
+                          {"RUN_UPDATED_AT": ""},
+                          {"RUN_STARTED_AT": "2026-11-17 21:00:00"},
+                          {"RUN_UPDATED_AT": "null"},
+                          {"RUN_STARTED_AT": "2026-11-17T21:00:00+00:00"}):
+            with self.subTest(overrides=overrides):
+                completed = self.resolve(release_documents(), **overrides)
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertEqual(self.resolved(), {})
+                self.assertEqual(self.api_calls(), [],
+                                 "no API call may follow an unusable run window")
+
+    def test_the_run_window_is_passed_through_env_and_not_interpolated(self):
+        env = step_env(step_block(self.job(), RESOLVE_STEP))
+        self.assertEqual(env.get("RUN_STARTED_AT"),
+                         "${{ github.event.workflow_run.run_started_at }}")
+        self.assertEqual(env.get("RUN_UPDATED_AT"),
+                         "${{ github.event.workflow_run.updated_at }}")
+
     # ------------------------------------------------------------- evidence
 
     def binding_env(self, git_head, git_rc="0"):
@@ -1287,6 +1418,7 @@ class WorkflowRunObserverTests(OfflineStepCase):
             "REVISION": REVISION,
             "PUBLISHED_TAG": "v0.13.0",
             "SOURCE_RUN_ID": SOURCE_RUN,
+            "TAG_SOURCE": "latest-release",
         }
         env.update(overrides)
         return env
@@ -1310,6 +1442,18 @@ class WorkflowRunObserverTests(OfflineStepCase):
         self.assertIs(record["blocking_release"], False)
         self.assertEqual(record["artifact_identity"], "not-inspected")
         self.assertEqual(record["source_binding"], "binding.json")
+        self.assertEqual(record["tag_source"], "latest-release")
+
+    def test_route_record_declares_that_the_tag_came_from_the_latest_release(self):
+        env = step_env(step_block(self.job(), ROUTE_STEP))
+        self.assertEqual(env.get("TAG_SOURCE"), "latest-release",
+                         "the record's tag source must be declared by the step")
+        completed = self.run_step(job_run_text(self.job(), ROUTE_STEP),
+                                  self.route_env())
+        self.assertEqual(completed.returncode, 0,
+                         completed.stderr.decode("utf-8", "replace"))
+        self.assertEqual(self.record("observation.json")["tag_source"],
+                         "latest-release")
 
     def test_route_record_refuses_a_mismatched_or_non_strict_identifier(self):
         fixtures = (
@@ -1324,6 +1468,9 @@ class WorkflowRunObserverTests(OfflineStepCase):
             {"PUBLISHED_TAG": ""},
             {"PUBLISHED_TAG": "v0.13.0\nv0.14.0"},
             {"OBSERVATION_RUN_ID": "x1"},
+            {"TAG_SOURCE": ""},
+            {"TAG_SOURCE": "run-tag"},
+            {"TAG_SOURCE": "latest release"},
         )
         for fixture in fixtures:
             with self.subTest(fixture=fixture):

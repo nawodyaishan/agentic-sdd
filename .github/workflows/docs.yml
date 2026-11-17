@@ -126,12 +126,14 @@ name: Docs
 # publication created outside this repository's token. The in-repo route is the
 # separate `.github/workflows/docs-observe.yml` workflow: a `workflow_run` event
 # for a completed `Release publish` run selects it, its file comes from the
-# default branch, it holds `contents: read` only, and it records the same route
-# evidence as the job below after resolving the released tag to a full commit
-# on the default branch. It is separate because the protected `deploy` job here
-# requests `pages: write` and `id-token: write`: calling this file from a
-# `contents: read` publisher would fail at workflow startup, and the publisher
-# is deliberately not widened. The reusable entrypoint `post-publish-observation`
+# default branch, it holds `contents: read` only, and after resolving the
+# released tag to a full commit on the default branch it writes `binding.json`
+# and `observation.json` in the same schemas as the job below - without
+# `identity.json`, because it adopts no runtime image. It is separate because
+# the protected `deploy` job here requests `pages: write` and `id-token: write`:
+# calling this file from a `contents: read` publisher would fail at workflow
+# startup, and the publisher is deliberately not widened. The reusable
+# entrypoint `post-publish-observation`
 # (`workflow_call`) remains for other callers that can grant the permissions
 # this file's jobs need; it requires the published revision as a full SHA and
 # refuses to record an observation of a different source. The observation jobs

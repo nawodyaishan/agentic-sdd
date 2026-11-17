@@ -31,19 +31,37 @@ name: Docs observe
 # revision. The published revision is instead derived from the latest GitHub
 # release through the read-only API: the tag must be a strict `vX.Y.Z` name, it
 # must resolve to a full 40-hex commit, and that commit must be an ancestor of
-# the default branch, or the job refuses to record anything. The job then checks
-# out that commit and records the same route evidence shape as `docs.yml`'s
-# `post-publish-observation` job (`docs-observation-route/1` plus
-# `docs-observation-binding/1`), with `authoritative:false`,
-# `blocking_release:false` and `artifact_identity:not-inspected`: this observes
-# a release identity, never a build artifact. Site publication, the retained
-# artifact and the deployed-site observation stay with `docs.yml`'s
+# the default branch, or the job refuses to record anything. That release must
+# also have been created and published inside the triggering publish run's own
+# window (see the window check in the resolve step), so a stale
+# `releases/latest` answer - a rerun of an older publish, or a publish whose
+# release step was skipped while the run still concluded `success` - is refused
+# instead of being recorded under this run's id.
+#
+# What is written, exactly. Two records in the uploaded evidence directory, and
+# nothing else: `binding.json` (`docs-observation-binding/1`: expected and
+# observed revision of the checked-out commit) and `observation.json`
+# (`docs-observation-route/1`, carrying `tag`, `tag_source:"latest-release"`,
+# `source_run_id`, `observation_run_id`, `authoritative:false`,
+# `blocking_release:false` and `artifact_identity:"not-inspected"`). There is no
+# `identity.json`, unlike `docs.yml`'s `post-publish-observation` job:
+# `docs-ci.py --action identity` records an adopted digest-pinned runtime image,
+# and this route adopts no image, pulls nothing and runs no container. This
+# observes a release identity, never a build artifact. Site publication, the
+# retained artifact and the deployed-site observation stay with `docs.yml`'s
 # `main-build`, `rollback` and `smoke` jobs.
 #
-# Not verified live: no run of this workflow has executed. Workflow-run chaining
-# (tag push -> "Release build" -> "Release publish" -> this file) and the exact
-# API answers for the release/compare calls are `not_run` until an authorized
-# live run; an absent artifact is never read as success or failure.
+# Chaining limit. GitHub delivers at most three levels of `workflow_run`
+# chaining. This file is already the third level: a tag push starts "Release
+# build", which triggers "Release publish", which triggers this workflow. A
+# `workflow_run` trigger added on top of this file would be a fourth level and
+# is not delivered, so a further observation must be recorded here (or reached
+# another way) rather than chained past this point.
+#
+# Not verified live: no run of this workflow has executed. The delivery of the
+# chain above and the exact API answers for the release and compare calls are
+# `not_run` until an authorized live run; an absent artifact is never read as
+# success or failure.
 
 on:
   # A completed publish run. The workflow file is taken from the default branch,
@@ -75,6 +93,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # The triggering publish run's own window, passed as values so nothing
+          # from the event payload is ever interpolated into this script.
+          RUN_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
+          RUN_UPDATED_AT: ${{ github.event.workflow_run.updated_at }}
         run: |
           set -euo pipefail
           # The latest release is the publication record this route observes.
@@ -84,13 +106,77 @@ jobs:
           # never become a checkout ref. The commit must be a full lowercase
           # SHA, and it must be reachable from the default branch, so a tag on a
           # side branch or an unrelated commit is refused rather than observed.
-          # A rerun of an older publish therefore observes the latest release,
-          # not that run's tag: the record keeps `source_run_id` next to the tag
-          # so the pair stays readable, and it remains non-authoritative.
+          # The tag is the newest release, never this run's own tag (a publish
+          # run carries no tag input), so the release-window check below ties
+          # it back to this publish run. The record keeps `source_run_id` next
+          # to the tag so the pair stays readable, and it remains
+          # non-authoritative.
           if [[ ! "${DEFAULT_BRANCH:-}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || [[ "$DEFAULT_BRANCH" == *..* ]]; then
             echo "::error::default branch name is missing or unsafe; refusing to observe"
             exit 1
           fi
+
+          # ------------------------------------------------------------------
+          # Which release may this run observe? `releases/latest` answers with the
+          # newest release by publication time, so without this check a rerun of
+          # an older publish run - or a publish whose release step was skipped
+          # while the run still concluded `success` - would record the previous
+          # release under this run's id. Only a release created and published
+          # inside the triggering run's own window is accepted. The window starts
+          # at `run_started_at` with no allowance (a release that already existed
+          # when the run began is another run's), and ends at the run's
+          # `updated_at` plus a documented 120 s slack for the release call
+          # landing just after the run's final update. Both timestamps must be
+          # present: this repository's publisher creates and publishes in one
+          # `gh release create`, so a missing `published_at` or a `created_at`
+          # older than the run is not a publication of this run and is refused.
+          # ------------------------------------------------------------------
+          ISO_UTC='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+          RELEASE_WINDOW_SLACK_SECONDS=120
+          for name in RUN_STARTED_AT RUN_UPDATED_AT; do
+            value="${!name:-}"
+            if ! printf '%s' "$value" | grep -Eq "$ISO_UTC"; then
+              echo "::error::${name} is missing or is not an ISO-8601 UTC timestamp; refusing to observe"
+              exit 1
+            fi
+          done
+
+          # Seconds since the epoch for one validated `YYYY-MM-DDTHH:MM:SSZ`
+          # value, computed in the shell so the comparison does not depend on a
+          # GNU-only `date -d`. Days-from-civil: the year is shifted to start in
+          # March, which puts the leap day at the end of the shifted year and
+          # makes the day-of-year formula uniform. `10#` keeps a leading zero
+          # from being read as octal.
+          epoch_seconds() {
+            local stamp="$1" y mo d h mi s yy era yoe mp doy doe days
+            y=$((10#${stamp:0:4})); mo=$((10#${stamp:5:2})); d=$((10#${stamp:8:2}))
+            h=$((10#${stamp:11:2})); mi=$((10#${stamp:14:2})); s=$((10#${stamp:17:2}))
+            yy=$y
+            if (( mo <= 2 )); then yy=$((yy - 1)); fi
+            era=$(( (yy >= 0 ? yy : yy - 399) / 400 ))
+            yoe=$(( yy - era * 400 ))
+            mp=$(( mo > 2 ? mo - 3 : mo + 9 ))
+            doy=$(( (153 * mp + 2) / 5 + d - 1 ))
+            doe=$(( yoe * 365 + yoe / 4 - yoe / 100 + doy ))
+            days=$(( era * 146097 + doe - 719468 ))
+            echo $(( days * 86400 + h * 3600 + mi * 60 + s ))
+          }
+
+          # Refuse, with the value named, when a release timestamp falls outside
+          # the triggering run's window. `exit` here ends the step, so no record
+          # is written by any later step.
+          check_release_window() {
+            local field="$1" stamp="$2" seconds
+            seconds="$(epoch_seconds "$stamp")"
+            if (( seconds < run_started )); then
+              echo "::error::the latest release's ${field} (${stamp}) is before this publish run's start (${RUN_STARTED_AT}); refusing to observe another run's release"
+              exit 1
+            fi
+            if (( seconds > window_end )); then
+              echo "::error::the latest release's ${field} (${stamp}) is after this publish run's last update (${RUN_UPDATED_AT}) plus ${RELEASE_WINDOW_SLACK_SECONDS}s; refusing to observe another run's release"
+              exit 1
+            fi
+          }
 
           tag="$(gh api "repos/${GH_REPO}/releases/latest" --jq '.tag_name')" || {
             echo "::error::cannot read the latest release; refusing to observe"
@@ -108,6 +194,29 @@ jobs:
             echo "::error::the latest release tag is not a strict vX.Y.Z tag; refusing to observe"
             exit 1
           fi
+
+          # The release must be this publish run's publication, not merely the
+          # newest one. Both timestamps are read through the same read-only API;
+          # a null, absent or non-UTC answer refuses, and so does any value
+          # outside the window established above.
+          release_published_at="$(gh api "repos/${GH_REPO}/releases/latest" --jq '.published_at')" || {
+            echo "::error::cannot read when the latest release was published; refusing to observe"
+            exit 1
+          }
+          release_created_at="$(gh api "repos/${GH_REPO}/releases/latest" --jq '.created_at')" || {
+            echo "::error::cannot read when the latest release was created; refusing to observe"
+            exit 1
+          }
+          for stamp in "$release_published_at" "$release_created_at"; do
+            if ! printf '%s' "$stamp" | grep -Eq "$ISO_UTC"; then
+              echo "::error::the latest release has no usable published_at/created_at timestamp; refusing to observe"
+              exit 1
+            fi
+          done
+          run_started="$(epoch_seconds "$RUN_STARTED_AT")"
+          window_end=$(( $(epoch_seconds "$RUN_UPDATED_AT") + RELEASE_WINDOW_SLACK_SECONDS ))
+          check_release_window published_at "$release_published_at"
+          check_release_window created_at "$release_created_at"
 
           # A lightweight tag points straight at a commit; an annotated tag
           # points at a tag object that must be dereferenced once. Anything else
@@ -205,16 +314,20 @@ jobs:
           REVISION: ${{ env.RESOLVED_REVISION }}
           PUBLISHED_TAG: ${{ env.RESOLVED_TAG }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          # Where the tag came from: this route can only read `releases/latest`,
+          # never a tag supplied by the triggering run, so the record says so
+          # next to the tag it carries.
+          TAG_SOURCE: latest-release
         run: |
           set -euo pipefail
           # Same record schema, field set and refusal rules as `docs.yml`'s
-          # `post-publish-observation` job. The values are revalidated here
-          # because this step is the one that writes them.
+          # `post-publish-observation` job, plus `tag_source`. The values are
+          # revalidated here because this step is the one that writes them.
           install -d -m 0700 "$OUT_DIR"
           # Every value below is interpolated into one single-line JSON record,
           # so a character outside the documented sets is refused before it can
           # break the record or smuggle a second line into it.
-          case "$REVISION$OBSERVATION_RUN_ID$SOURCE_RUN_ID${PUBLISHED_TAG:-}" in
+          case "$REVISION$OBSERVATION_RUN_ID$SOURCE_RUN_ID${PUBLISHED_TAG:-}${TAG_SOURCE:-}" in
             *[!A-Za-z0-9._+-]*)
               echo "::error::an observation identifier contains a character this record will not store"
               exit 1
@@ -237,13 +350,19 @@ jobs:
             echo "::error::the released tag is not a strict vX.Y.Z tag this record will store"
             exit 1
           fi
+          # The only tag derivation this route performs is the newest release,
+          # so any other value here is a change that must be made deliberately.
+          if ! printf '%s' "${TAG_SOURCE:-}" | grep -Eq '^latest-release$'; then
+            echo "::error::refusing to record a tag whose source this route does not declare as latest-release"
+            exit 1
+          fi
           # `route: workflow-run` is the event that survives here: a completed
           # publish run is observed by a default-branch workflow file. Nothing
           # was built, downloaded or deployed, so `artifact_identity` says
           # plainly that no build artifact was inspected.
-          printf '{"schema":"docs-observation-route/1","route":"%s","delivery":"%s","event":"workflow_run","revision":"%s","tag":"%s","source_run_id":"%s","observation_run_id":"%s","result":"observed","authoritative":false,"blocking_release":false,"artifact_identity":"not-inspected","source_binding":"binding.json"}\n' \
+          printf '{"schema":"docs-observation-route/1","route":"%s","delivery":"%s","event":"workflow_run","revision":"%s","tag":"%s","tag_source":"%s","source_run_id":"%s","observation_run_id":"%s","result":"observed","authoritative":false,"blocking_release":false,"artifact_identity":"not-inspected","source_binding":"binding.json"}\n' \
             "$OBSERVATION_ROUTE" "$OBSERVATION_DELIVERY" "$REVISION" "$tag" \
-            "$SOURCE_RUN_ID" "$OBSERVATION_RUN_ID" > "$OUT_DIR/observation.json"
+            "$TAG_SOURCE" "$SOURCE_RUN_ID" "$OBSERVATION_RUN_ID" > "$OUT_DIR/observation.json"
 
       - name: Upload post-publish observation evidence
         if: always()
