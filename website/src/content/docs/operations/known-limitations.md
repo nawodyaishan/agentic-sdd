@@ -105,10 +105,11 @@ as certification. In particular:
   transaction's target bytes match neither its completed nor its prior state, fleet
   refuses the next mutation and prints manual steps. No CLI or TUI command resolves it
   automatically. See [Updates and recovery](../how-to/updates-and-recovery.md#recover-an-interrupted-fleet-transaction).
-- **MCP apply failure can lose rollback detail.** The typed `internal/appops` result does
-  not yet carry the engine's rollback facts on every apply failure, so the TUI may show
-  `failed` where a rollback ran. This is a known open gap, not a fixed behaviour; use the
-  backup and the operation log as the evidence. See [MCP reference](../reference/mcp.md#outcome-wording).
+- **A failed CLI MCP apply prints only the error.** The typed `internal/appops` result now
+  carries the engine's rollback, backup and log facts together with an apply or restore
+  error, and the TUI shows them (`rolled back` or `incomplete`). The CLI still prints only
+  the error on failure, so after a failed CLI apply use the backup and the operation log as
+  the evidence. See [MCP reference](../reference/mcp.md#outcome-wording).
 
 ## Keeping this page honest
 

@@ -794,7 +794,7 @@
         },
         {
           "path": "internal/execution/types.go",
-          "sha256": "0b95239c37bb362b932112d137680cafae46284cf72595bf57a46c6c8d3960ff"
+          "sha256": "f7d1ad964fb1290da4ceb63a896eb93864910fa270672c1507dc41154077c86d"
         },
         {
           "path": "website/scripts/reference.mjs",
@@ -809,7 +809,7 @@
           "sha256": "94453dd580210c3fbd576649ec6add78e4fcfa94598efc765a3b392bba79a86c"
         }
       ],
-      "reviewDigest": "6273f59f6bd16ad4a7ca51de7f6baf12734b64ff0b7bd454b6dc28cbb3452f3f",
+      "reviewDigest": "56dffee3f803b6791987dfc32a1da435da612ac5b122e5a606a6f1a3551c1478",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -874,10 +874,10 @@
         },
         {
           "path": "website/src/content/docs/reference/tui.md",
-          "sha256": "5b987f5d9cc9d55c6789d356f13cdfefd768bb4b41151e852d485fcb5b867450"
+          "sha256": "4c6400052dbb38501a9eb68698155a798e6e717553f9dfdecce142ea911f330a"
         }
       ],
-      "reviewDigest": "fda225ab7282b2b5866f96e96a4df0abaaea52b380dacfdd706edf8e5a669eeb",
+      "reviewDigest": "4f1cff2b39f34d23a3af5ddd31af44783f382c2215bbedae4041a13ddfb65d72",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1327,7 +1327,7 @@
         },
         {
           "path": "internal/execution/types.go",
-          "sha256": "0b95239c37bb362b932112d137680cafae46284cf72595bf57a46c6c8d3960ff"
+          "sha256": "f7d1ad964fb1290da4ceb63a896eb93864910fa270672c1507dc41154077c86d"
         },
         {
           "path": "internal/execution/workspace.go",
@@ -1382,7 +1382,7 @@
           "sha256": "4e7f84c551e543a354832dce6b8390ddde464ad45351d58445716d6199d5a47e"
         }
       ],
-      "reviewDigest": "087f9e7ca8ee548db8503750b8aafaff203d47978b8e0c8745c9f205f9bfbaa3",
+      "reviewDigest": "c4435d12b96037c0ed0a8702685601c585a5acbc53912b9dc49aeae1eb4ae756",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1552,7 +1552,7 @@
         },
         {
           "path": "internal/appops/mcp_write.go",
-          "sha256": "10883af387d9c8b645d5531fde6c75d742a135b6d70511f966d695526866195e"
+          "sha256": "d306342820f475bae64634444809b1603a82a4417ffa0f1f02d8b649739b8c50"
         },
         {
           "path": "internal/skillsync/mcp.go",
@@ -1576,10 +1576,10 @@
         },
         {
           "path": "website/src/content/docs/reference/mcp.md",
-          "sha256": "c496b9f550da8255d9e16bfafac4fc8a5b3c082562f09ba84917f2d478e83245"
+          "sha256": "4a77f88c060e6fc6c139e673668c57f3f02343b1b701b32708d91cb9fab3db09"
         }
       ],
-      "reviewDigest": "914aaa4b2a37a5f10e9bf63a9ab8d7d95c81951374bcfb902888bfbc387b19cd",
+      "reviewDigest": "1f222e60a513c652b1e66012561ff6d01836d85dbce9e989687e40253e47dca3",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1641,7 +1641,7 @@
         },
         {
           "path": "internal/execution/types.go",
-          "sha256": "0b95239c37bb362b932112d137680cafae46284cf72595bf57a46c6c8d3960ff"
+          "sha256": "f7d1ad964fb1290da4ceb63a896eb93864910fa270672c1507dc41154077c86d"
         },
         {
           "path": "internal/execution/workspace.go",
@@ -1660,7 +1660,7 @@
           "sha256": "e4bbca866addd364f9efd6b1e5907a7c1c968fd8fba5a1e8255399801e72ffed"
         }
       ],
-      "reviewDigest": "1cd58f3031151497bd29e6fd920344d20a70a1b4cea3c0eb621763782174e72b",
+      "reviewDigest": "6bea5eb2e051b5a7ca709987984d4bf4462385c749c76763cb776dd4eed10d39",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed",
       "generatedSections": [
@@ -1729,7 +1729,7 @@
         },
         {
           "path": "internal/execution/types.go",
-          "sha256": "0b95239c37bb362b932112d137680cafae46284cf72595bf57a46c6c8d3960ff"
+          "sha256": "f7d1ad964fb1290da4ceb63a896eb93864910fa270672c1507dc41154077c86d"
         },
         {
           "path": "internal/skillsync/mcp_transaction.go",
@@ -1748,7 +1748,7 @@
           "sha256": "6f27adf3f02fed80424e70455f7b86f0ae90d0bdd9e9bc09b43b3c4909b332ad"
         }
       ],
-      "reviewDigest": "19e49ce5c440cec562f41d4cd168a48efef5d2345f2cb4e0567321957c1bd7f3",
+      "reviewDigest": "d026683d03056cbffab1bd9d0f8a886c513a92fb5f4503e4118797c04d5b0c81",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },
@@ -1971,10 +1971,10 @@
         },
         {
           "path": "website/src/content/docs/operations/known-limitations.md",
-          "sha256": "7e36c470783bc39df4592cd5bf5122f9bad8389af0ba4a254a09ff12b3828631"
+          "sha256": "b7385f6575c01abe609b131d6b05de03a111875cc621547cd89fc00bb192bf13"
         }
       ],
-      "reviewDigest": "0211cd84e0d12e06e4e8b4b6f26c2a6db0cd298731b66c8d6c9163898f3bc59c",
+      "reviewDigest": "ce59caf16800cf56782959cc93df52b100ef4b4bfb4d859eb4c897179f335fbb",
       "appliesTo": "unreleased",
       "reviewStatus": "unreviewed"
     },

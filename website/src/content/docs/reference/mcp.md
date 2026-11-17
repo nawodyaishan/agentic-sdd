@@ -152,10 +152,12 @@ were written; it is not an authentication, connectivity or server-start claim.
 `needs a fresh preview` means the inputs changed after confirmation, nothing was
 written, and the plan must be previewed again.
 
-Known open gap: on some apply failures the `internal/appops` result does not yet
-carry the engine's rollback facts. Such a failure can read as `failed` even
-when a rollback ran, so the backup under `<home>/.agentic-sdd/mcp/backups/` and
-the operation log remain the evidence to check before retrying.
+On a failed apply or restore the `internal/appops` result now carries the engine's
+rollback, backup and log facts with the error, and the TUI shows `rolled back` or
+`incomplete` from them. The CLI still prints only the error, so after a failed CLI
+apply the backup under `<home>/.agentic-sdd/mcp/backups/` and the operation log
+remain the evidence to check before retrying. A request refused before any
+transaction starts carries no engine facts and writes nothing.
 
 ## Restore preconditions
 
