@@ -71,3 +71,23 @@ Tests live in `internal/fleet/*_test.go` unless stated.
 
 AC-28, AC-29, AC-17 runtime half, FR-14, AC-24 as an executed walkthrough, L1–L3 and
 L5–L8 as individual items, and any 014 closeout handover.
+
+## Evidence update (2026-11-17, argon evidence pass)
+
+Source: `/dev/shm/022-A5/evidence-014.md` (outside the repo, read-only run; the parent
+did not re-run these). Still nothing accepted.
+
+| ID | Was | Now | Evidence |
+|---|---|---|---|
+| AC-07 | observed | observed | `go mod verify` passed; 0 `require` |
+| AC-17 runtime, FR-14 | blocked | blocked | local `opencode` is v2.3.0, not the spec's v2.2.5/v2.2.6; no model run permitted |
+| AC-24 | not_run | observed (partial) | preview walkthrough on a `/dev/shm` home plus `TestFleetApplyCLI` (`cmd/agentic-sdd/fleet_apply_test.go`); apply/restore not run on a throwaway home |
+| AC-27 | not_run | observed | `task test-core`, `task vet-core` and fleet/cmd tests pass |
+| AC-28 | not_run | observed (partial) | pack embedded via `opencode_pack.go`; `TestFleetResolveRealPack`; no packaged-archive inspection |
+| AC-29 | blocked | blocked | handover `2026-11-11_014b.md` exists only in `d5eaa7a` (removed in `4c2b9bd`); no standalone AC-01-29 report at HEAD |
+| L1-L3, L5-L8 | not_run | observed | mapped to the seven hardening items in 014 plan/tasks, each with unit tests |
+| 014 Opus verdict | owner-pending | owner-pending | absent in repo and history |
+
+Remaining owner decisions: AC-17 runtime/FR-14 (accept as blocked exception or supply a
+pinned binary), AC-29 (promote the recovered handover or write a report), Opus verdict
+or waiver, FR-15 deferral, L9.
