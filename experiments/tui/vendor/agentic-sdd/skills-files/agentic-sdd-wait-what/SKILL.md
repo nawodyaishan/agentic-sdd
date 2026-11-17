@@ -6,8 +6,7 @@ disable-model-invocation: true
 
 # Agentic SDD Wait What
 
-Read the [shared policy](../agentic-sdd-router/references/workflow-policy.md) once
-per unchanged context. This invocation is **explanation only**; change no files,
+Read the [lightweight branch authority](../agentic-sdd-router/references/lightweight-authority.md) once per unchanged context; it bounds this invocation's effects. Read the full [shared policy](../agentic-sdd-router/references/workflow-policy.md) only if the request becomes feature drafting, implementation, review or another workflow-state change. This invocation is **explanation only**; change no files,
 verdicts, approvals, task state or batch selection, and run no tests or live actions.
 
 Re-pitch briefly:

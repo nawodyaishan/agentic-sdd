@@ -79,7 +79,7 @@ Record what remains unverified rather than upgrading it to verified.
 
 ## One completion review
 
-When the batch is done, run a **single** completion review through `agentic-sdd-implement`'s completion step, or `agentic-sdd-verification-review` when an independent review was explicitly requested. Do not chain reviewer after reviewer, and do not use a review failure as a reason to silently start another implementation pass. A second review is a new, explicitly authorized decision.
+When the batch is done, run a **single** completion review through `agentic-sdd-implement`'s completion step, or `agentic-sdd-verification-review` when an independent review was explicitly requested. Do not chain reviewer after reviewer, and do not use a review failure as a reason to silently start another implementation pass. A correction can justify a scoped re-review of the changed work within the current effort budget; that is not a new authorization. A new independent or different-model review is a separate, explicitly authorized decision.
 
 ## Reporting a failure
 

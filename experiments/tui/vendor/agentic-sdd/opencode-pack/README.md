@@ -71,14 +71,14 @@ The CLI does not edit `~/.config/opencode/AGENTS.md`. When `--opencode-free-firs
 
 ## Routing and models
 
-See [routing.md](routing.md) for the pinned specialist models, the Free-first ladder, the preserved Claude/9Router fallback exception, the two Beam cross-lane rules, and the MCP access rules. Model identity, provider availability, quota and pricing are configuration facts, not guarantees: the parent must report the model that actually ran.
+See [routing.md](routing.md), the upstream owner of the pinned specialist models, provider lanes, the Free-first ladder, the preserved Claude/9Router fallback exception, the two Beam cross-lane rules, reviewer authority and the MCP access rules. Profile frontmatter implements that policy, and the CLI/TUI routing projection is read-only display metadata derived from it. Model identity, provider availability, quota and pricing are configuration facts, not guarantees: the parent must report the model that actually ran. The shipped reviewer profiles are ordinary advisory reviewers; the strict independent review method stays in the portable reference and is not installed as a profile.
 
 ## Safety notes
 
 - This pack changes instructions and permissions, not the operating-system sandbox. A prompt constraint is not filesystem isolation, and permission rules do not prevent symlink or path escapes on their own.
 - `preview` is the default; only `apply` writes. Running `apply` against a real user home is a live operation with its own authorization requirement, separate from approving or developing this pack.
-- Subagents are read-only by default here. Only `sdd-docs-worker` and the Free-first writer/test presets allow `edit`, and none of them may delegate further.
-- A technical review verdict never replaces human approval.
+- Subagents are read-only by default here. The only `--with-opencode` writers are `sdd-docs-worker` and the optional `sdd-openai-implement`; `--opencode-free-first` adds `sdd-implement-1`, `sdd-implement-2`, `sdd-test-implement-1` and `sdd-test-implement-2`. No installed profile may delegate further.
+- The shipped reviewer profiles are ordinary advisory reviewers. A review from one of them is not the strict independent review method, and no technical verdict replaces human approval or authorizes publication.
 
 ## Verification
 

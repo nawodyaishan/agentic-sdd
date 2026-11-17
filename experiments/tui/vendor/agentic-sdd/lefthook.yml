@@ -12,5 +12,8 @@ pre-commit:
       run: task test
     - name: go-vet
       run: task vet
+    - name: tui-vendor-check
+      glob: "{*.go,experiments/tui/**,skills-files/**,opencode-pack/**}"
+      run: task tui-vendor-check
     - name: whitespace
       run: git diff --cached --check

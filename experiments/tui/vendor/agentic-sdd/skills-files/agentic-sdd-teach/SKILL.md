@@ -6,8 +6,7 @@ disable-model-invocation: true
 
 # Agentic SDD Teach
 
-Read the [shared policy](../agentic-sdd-router/references/workflow-policy.md) once
-per unchanged context. Teaching is a separate requested activity, not feature
+Read the [lightweight branch authority](../agentic-sdd-router/references/lightweight-authority.md) once per unchanged context; it bounds this invocation's effects. Read the full [shared policy](../agentic-sdd-router/references/workflow-policy.md) only if the request becomes feature drafting, implementation, review or another workflow-state change. Teaching is a separate requested activity, not feature
 approval, batch execution or permission to create learning files.
 
 ## Lightweight default
