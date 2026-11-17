@@ -283,7 +283,7 @@ func activityReviewApp(t *testing.T) App {
 		return "content:" + path, nil
 	}
 	app.activity.logDir = "/fake/logs"
-	app.activity.reloadLogs()
+	applyActivityRead(t, &app.activity, app.activity.StartLogRead(app.activity.selectedLog))
 	return app
 }
 

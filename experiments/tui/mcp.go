@@ -40,21 +40,69 @@ func (v MCPView) String() string {
 	}
 }
 
-// mcpWriteOutcome is the display-only result of one MCP write operation.
+// mcpWriteOutcome is the display-only projection of one MCP write result. It is
+// built by exactly one function (mcpOutcomeFromResult) from the same structured
+// result the root shell summarizes, so the child screen and the root notice
+// cannot disagree. A failure keeps the partial, rollback, backup and log facts
+// the engine reported; nothing is invented for a no-op write.
 type mcpWriteOutcome struct {
-	Headline     string
-	Detail       string
-	BackupID     string
-	LogPath      string
-	Rollback     string
-	NeedsPreview bool
+	Headline         string
+	Detail           string
+	BackupID         string
+	BackupPath       string
+	LogPath          string
+	Rollback         string // "none", "complete" or "incomplete"
+	LogFailed        bool
+	NeedsPreview     bool
+	PartiallyApplied []string
 }
 
 func (o mcpWriteOutcome) Empty() bool { return o.Headline == "" }
 
-// MCPStatusMsg delivers one asynchronous MCP status projection.
+// Styled reports whether the projection describes a state that needs the
+// attention styling: a stale preview, a failed write or an incomplete rollback.
+func (o mcpWriteOutcome) Styled() bool {
+	switch o.Headline {
+	case "needs a fresh preview", "failed", "incomplete":
+		return true
+	default:
+		return false
+	}
+}
+
+// mcpOutcomeFromResult builds the single MCP projection of one write result.
+// SummarizeWriteResult stays the only classifier of headline, detail, rollback
+// state and log failure; this projection adds the structured facts an MCP
+// configuration write records, and it never reports a backup the engine did not
+// return (a no-op write records none).
+func mcpOutcomeFromResult(msg WriteResultMsg) mcpWriteOutcome {
+	summary := SummarizeWriteResult(msg)
+	out := mcpWriteOutcome{
+		Headline:     summary.Headline,
+		Detail:       summary.Detail,
+		BackupID:     summary.BackupID,
+		BackupPath:   msg.Result.BackupPath,
+		LogPath:      summary.LogPath,
+		Rollback:     summary.Rollback,
+		LogFailed:    summary.LogFailed,
+		NeedsPreview: summary.NeedsPreview,
+	}
+	if msg.Err != nil {
+		for _, change := range msg.Result.Applied {
+			out.PartiallyApplied = append(out.PartiallyApplied, change.ID)
+		}
+	}
+	return out
+}
+
+// MCPStatusMsg delivers one asynchronous MCP status projection. Home and
+// ConfigPath are the read scope captured by the command: they bind the result
+// to the live model, so a result read for a previous home or target cannot be
+// applied to the screen the user is looking at.
 type MCPStatusMsg struct {
 	Generation uint64
+	Home       string
+	ConfigPath string
 	Status     MCPStatusView
 	Err        error
 }
@@ -98,6 +146,10 @@ type MCPModel struct {
 	width      int
 	height     int
 	configPath string
+	// readContext is this instance's parent context for bounded read commands.
+	// It is never a package global: two independently constructed models can be
+	// cancelled separately. A nil value reads with context.Background().
+	readContext context.Context
 
 	// Navigation & state
 	view       MCPView
@@ -208,6 +260,24 @@ func (m *MCPModel) SetTheme(theme Theme) {
 	m.theme = theme
 }
 
+// SetReadContext installs this instance's parent context for bounded read
+// commands. Cancelling it makes a command that has not started its read return
+// the cancellation instead of running; a command already inside the engine is
+// bounded by its own timeout and its result is discarded with its generation.
+// It is an instance seam: no package-global context or registry is involved.
+func (m *MCPModel) SetReadContext(ctx context.Context) {
+	m.readContext = ctx
+}
+
+// readParent returns the instance read parent, or a background context when the
+// session supplied none.
+func (m MCPModel) readParent() context.Context {
+	if m.readContext != nil {
+		return m.readContext
+	}
+	return context.Background()
+}
+
 // SetSize updates the viewport geometry. Resizing cannot confirm:
 // it resets confirmation selections and enforces the tiny-geometry guard.
 func (m *MCPModel) SetSize(width, height int) {
@@ -312,17 +382,21 @@ func (m MCPModel) EnsureLoaded() (MCPModel, tea.Cmd) {
 		return m, nil
 	}
 	m.loading = true
+	m.loadErr = ""
 	m.generation++
 	gen := m.generation
 	reader := m.reader
 	home := m.cfg.Home
 	configPath := m.configPath
+	parent := m.readParent()
 	return m, func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 		defer cancel()
 		st, err := reader.Status(ctx, home, configPath, "")
 		return MCPStatusMsg{
 			Generation: gen,
+			Home:       home,
+			ConfigPath: configPath,
 			Status:     st,
 			Err:        err,
 		}
@@ -351,7 +425,11 @@ func (m MCPModel) Lines(width int) []string {
 func (m MCPModel) Update(msg tea.Msg) (MCPModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case MCPStatusMsg:
-		if msg.Generation != m.generation {
+		// The generation binds the result to the request, and the home/target
+		// scope binds it to the configuration the screen is showing. A result
+		// for an old generation or a different home is discarded without
+		// clearing the live loading state, the live error or the live status.
+		if msg.Generation != m.generation || msg.Home != m.cfg.Home || msg.ConfigPath != m.configPath {
 			return m, nil
 		}
 		m.loading = false
@@ -429,23 +507,21 @@ func (m MCPModel) Update(msg tea.Msg) (MCPModel, tea.Cmd) {
 	case WriteResultMsg:
 		if msg.Kind == WriteMCPApply || msg.Kind == WriteMCPRestore {
 			m.writePending = false
-			if msg.Err != nil {
-				m.outcome = mcpWriteOutcome{
-					Headline: "write failed",
-					Detail:   msg.Err.Error(),
-					LogPath:  msg.LogPath,
-				}
-			} else {
-				verb := "applied"
-				if msg.Kind == WriteMCPRestore {
-					verb = "restored"
-				}
-				m.outcome = mcpWriteOutcome{
-					Headline: fmt.Sprintf("MCP %s successfully", verb),
-					Detail:   fmt.Sprintf("Backup %s recorded", msg.Result.BackupID),
-					BackupID: msg.Result.BackupID,
-					LogPath:  msg.LogPath,
-				}
+			// One projection, built from the same structured result the root
+			// shell summarizes: partial, rollback, backup and log facts are
+			// kept on an error, and a no-op never reports a backup.
+			m.outcome = mcpOutcomeFromResult(msg)
+			if msg.Kind == WriteMCPRestore {
+				// The preview described a state the write has now consumed. Return
+				// to the backup list, where the accepted outcome is rendered,
+				// instead of leaving the user on a stale comparison.
+				m.inRestorePreview = false
+				m.restorePreview = MCPRestorePreviewView{}
+				m.confirmRestore = false
+				m.restoreLoading = false
+				m.restoreErr = ""
+			}
+			if msg.Err == nil {
 				// Reload status after write
 				m.hasLoaded = false
 				return m.EnsureLoaded()
@@ -841,9 +917,10 @@ func (m MCPModel) requestPlanPreview() (MCPModel, tea.Cmd) {
 	for k, v := range m.authChoices {
 		auth[k] = v
 	}
+	parent := m.readParent()
 
 	return m, func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 		defer cancel()
 		preview, err := planner.PreviewPlan(ctx, home, configPath, selected, auth)
 		return MCPPlanPreviewMsg{
@@ -862,8 +939,9 @@ func (m MCPModel) requestDoctor() (MCPModel, tea.Cmd) {
 	reader := m.reader
 	home := m.cfg.Home
 	configPath := m.configPath
+	parent := m.readParent()
 	return m, func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 		defer cancel()
 		doc, err := reader.Doctor(ctx, home, configPath, "", "", "")
 		return MCPDoctorMsg{
@@ -881,8 +959,9 @@ func (m MCPModel) requestBackupList() (MCPModel, tea.Cmd) {
 	gen := m.recoveryGen
 	planner := m.planner
 	home := m.cfg.Home
+	parent := m.readParent()
 	return m, func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 		defer cancel()
 		backups, err := planner.ListBackups(ctx, home)
 		return MCPBackupListMsg{
@@ -900,8 +979,9 @@ func (m MCPModel) requestRestorePreview(backupID string) (MCPModel, tea.Cmd) {
 	gen := m.restoreGen
 	planner := m.planner
 	home := m.cfg.Home
+	parent := m.readParent()
 	return m, func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 		defer cancel()
 		preview, err := planner.PreviewRestore(ctx, home, backupID)
 		return MCPRestorePreviewMsg{

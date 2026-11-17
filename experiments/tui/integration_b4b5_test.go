@@ -816,7 +816,10 @@ func TestActivityRendersModelAndKeepsHelp(t *testing.T) {
 	home := t.TempDir()
 	app := integratedApp(t, tui.TUIConfig{Home: home, Width: 100, Height: 30}, nil, tui.AppScreenOptions{})
 
-	app, _ = pressApp(t, app, runes("4"))
+	app, cmd := pressApp(t, app, runes("4"))
+	// Entering Activity queues the generation-bound log read; run it so the
+	// rendered empty state is the result of a real (empty) read.
+	app = drainApp(t, app, cmd)
 	view := app.View().Content
 	for _, want := range []string{"Activity & Help", "Version & Build", "No install or restore logs found", "https://github.com/nawodyaishan/agentic-sdd#readme"} {
 		if !strings.Contains(view, want) {

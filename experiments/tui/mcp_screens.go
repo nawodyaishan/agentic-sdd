@@ -15,6 +15,20 @@ func mcpOverviewLines(m MCPModel, width int) []string {
 	b.WriteString(m.theme.Subtitle.Render("Inspect, configure, and restore CodeGraph, Context7, and Exa MCP tools"))
 	b.WriteString("\n\n")
 
+	// Read state. The initial status read runs as a generation-bound command, so
+	// the first frame renders this loading line instead of blocking, and a read
+	// error stays visible until a later read succeeds.
+	switch {
+	case m.loading && !m.hasLoaded:
+		b.WriteString(m.theme.Hint.Render("Reading the MCP configuration status (read-only)..."))
+		b.WriteString("\n\n")
+	case m.loadErr != "":
+		b.WriteString(m.theme.Bad.Render("Status error: " + m.loadErr))
+		b.WriteString("\n")
+		b.WriteString(m.theme.Hint.Render("Esc to the hub, then reopen MCP Tools to retry the read-only status."))
+		b.WriteString("\n\n")
+	}
+
 	// Target configuration status
 	target := m.status.ConfigPath
 	if target == "" {
@@ -38,23 +52,12 @@ func mcpOverviewLines(m MCPModel, width int) []string {
 	b.WriteString(strings.Join(Section(m.theme.Section.Render("Configuration target"), metaLines, width), "\n"))
 	b.WriteString("\n\n")
 
-	// Last write outcome if any
-	if !m.outcome.Empty() {
-		outStyle := m.theme.OK
-		if strings.Contains(strings.ToLower(m.outcome.Headline), "fail") || strings.Contains(strings.ToLower(m.outcome.Headline), "refused") {
-			outStyle = m.theme.Bad
-		}
-		b.WriteString(outStyle.Render("Last operation: " + m.outcome.Headline))
-		b.WriteString("\n")
-		if m.outcome.Detail != "" {
-			for _, line := range wrapPath("  "+m.outcome.Detail, width) {
-				b.WriteString(m.theme.Hint.Render(line) + "\n")
-			}
-		}
-		if m.outcome.BackupID != "" {
-			b.WriteString(m.theme.Accent.Render("  Backup ID: "+m.outcome.BackupID) + "\n")
-		}
-		b.WriteString("\n")
+	// Last write outcome, projected once from the structured result the root
+	// shell also summarizes. Backup, rollback, partial and log facts appear only
+	// when the engine reported them.
+	if outcomeLines := mcpOutcomeLines(m, width); len(outcomeLines) > 0 {
+		b.WriteString(strings.Join(outcomeLines, "\n"))
+		b.WriteString("\n\n")
 	}
 
 	// Exactly three default servers
@@ -99,12 +102,65 @@ func mcpOverviewLines(m MCPModel, width int) []string {
 		serverRows = append(serverRows, rowHeader, details, m.theme.Hint.Render(action))
 	}
 
-	b.WriteString(strings.Join(Section(m.theme.Section.Render("Supported MCP tools (3 defaults)"), serverRows, width), "\n"))
+	sectionTitle := "Supported MCP tools (3 defaults)"
+	if !m.hasLoaded {
+		// The rows below are the canonical defaults, not a read result. Say so
+		// rather than presenting "not configured" as observed state.
+		sectionTitle += " · state not read yet"
+	}
+	b.WriteString(strings.Join(Section(m.theme.Section.Render(sectionTitle), serverRows, width), "\n"))
 	b.WriteString("\n\n")
 
 	b.WriteString(m.theme.Hint.Render("controls: s select servers · v preview · d diagnostics · e recovery · Esc hub · ? help"))
 
 	return strings.Split(b.String(), "\n")
+}
+
+// mcpOutcomeLines renders the last MCP write projection. It is the child half of
+// the single projection built by mcpOutcomeFromResult, so every fact here is one
+// the structured result carried: no backup is shown for a no-op, and a failure
+// keeps its rollback state, reported partial entries and operation log.
+func mcpOutcomeLines(m MCPModel, width int) []string {
+	out := m.outcome
+	if out.Empty() {
+		return nil
+	}
+
+	headlineStyle := m.theme.OK
+	if out.Styled() {
+		headlineStyle = m.theme.Bad
+	}
+
+	lines := []string{headlineStyle.Render("Last operation: " + out.Headline)}
+	if out.Detail != "" {
+		for _, line := range wrapPath("  "+out.Detail, width) {
+			lines = append(lines, m.theme.Hint.Render(line))
+		}
+	}
+	if len(out.PartiallyApplied) > 0 {
+		lines = append(lines, m.theme.Bad.Render(fmt.Sprintf(
+			"  Reported written before the failure: %s", strings.Join(out.PartiallyApplied, ", "))))
+	}
+	if out.BackupID != "" {
+		lines = append(lines, m.theme.Accent.Render("  Backup ID: "+out.BackupID))
+	}
+	if out.BackupPath != "" {
+		for _, line := range wrapPath("  Backup path: "+out.BackupPath, width) {
+			lines = append(lines, m.theme.Accent.Render(line))
+		}
+	}
+	switch out.Rollback {
+	case "complete":
+		lines = append(lines, m.theme.OK.Render("  Rollback: complete — every committed change was undone."))
+	case "incomplete":
+		lines = append(lines, m.theme.Bad.Render("  Rollback: INCOMPLETE — destinations may be partially changed; use the recorded backup and log."))
+	}
+	if out.LogPath != "" {
+		for _, line := range wrapPath("  Operation log: "+out.LogPath, width) {
+			lines = append(lines, m.theme.Hint.Render(line))
+		}
+	}
+	return lines
 }
 
 // mcpSelectLines renders the server selection and auth choice view.
@@ -388,6 +444,13 @@ func mcpDiagnosticsLines(m MCPModel, width int) []string {
 		return strings.Split(b.String(), "\n")
 	}
 
+	if m.doctorErr != "" {
+		b.WriteString(m.theme.Bad.Render("Diagnostics error: " + m.doctorErr))
+		b.WriteString("\n")
+		b.WriteString(m.theme.Hint.Render("Press r to retry the offline diagnostic read. Nothing was executed and no connection was tested."))
+		b.WriteString("\n\n")
+	}
+
 	// 10 Contextual diagnostic checks
 	checks := []struct {
 		name   string
@@ -447,6 +510,13 @@ func mcpDiagnosticsLines(m MCPModel, width int) []string {
 	}
 
 	// Override checks with live doctor results if available
+	if len(m.doctor.Checks) == 0 {
+		// The static rows below are the product's reference description, not a
+		// result of this session's read. Label the provenance so a "pass" row is
+		// not mistaken for an observation.
+		b.WriteString(m.theme.Hint.Render("Offline reference description (no live read yet; press r to run the local diagnostics)."))
+		b.WriteString("\n\n")
+	}
 	if len(m.doctor.Checks) > 0 {
 		// Use dynamic checks if doctor returned
 		checks = make([]struct {
@@ -554,11 +624,40 @@ func mcpRecoveryLines(m MCPModel, width int) []string {
 		return strings.Split(b.String(), "\n")
 	}
 
-	// Backup list
+	// Backup list. The list read and the restore preview are separate
+	// generation-bound commands, so each in-flight read and its error are
+	// reported here instead of being replaced by an empty or stale list.
 	if m.recoveryLoading {
 		b.WriteString(m.theme.Hint.Render("Loading managed backups..."))
 		b.WriteString("\n")
 		return strings.Split(b.String(), "\n")
+	}
+
+	if m.recoveryErr != "" {
+		b.WriteString(m.theme.Bad.Render("Backup list error: " + m.recoveryErr))
+		b.WriteString("\n\n")
+		b.WriteString(m.theme.Hint.Render("controls: r retry the read-only backup list · Esc back to overview"))
+		return strings.Split(b.String(), "\n")
+	}
+
+	if m.restoreLoading {
+		b.WriteString(m.theme.Hint.Render("Loading the managed backup preview (read-only)..."))
+		b.WriteString("\n")
+		return strings.Split(b.String(), "\n")
+	}
+
+	if m.restoreErr != "" {
+		b.WriteString(m.theme.Bad.Render("Restore preview error: " + m.restoreErr))
+		b.WriteString("\n\n")
+		b.WriteString(m.theme.Hint.Render("controls: v/Enter retry the preview · Esc back to overview"))
+		return strings.Split(b.String(), "\n")
+	}
+
+	// A completed restore is reported on the screen that dispatched it, using
+	// the same projection as the overview and the root notice.
+	if outcomeLines := mcpOutcomeLines(m, width); len(outcomeLines) > 0 {
+		b.WriteString(strings.Join(outcomeLines, "\n"))
+		b.WriteString("\n\n")
 	}
 
 	if len(m.backups) == 0 {

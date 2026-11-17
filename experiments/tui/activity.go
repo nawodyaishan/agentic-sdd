@@ -259,6 +259,14 @@ type ActivityModel struct {
 	// late result can never overwrite a newer selection, log directory or
 	// refresh. StartLogRead increments it; ApplyLogRead accepts only a match.
 	readGeneration uint64
+	// loading reports that a generation-bound read is in flight. Only an
+	// accepted result clears it, so a stale result cannot end the live read's
+	// loading state.
+	loading bool
+	// loaded reports that at least one read was applied to this session. Before
+	// it is true the screen says the logs have not been read, instead of
+	// claiming none were found.
+	loaded bool
 
 	// motion and ascii mirror the root session's presentation settings so the
 	// Preferences section reports the actual state instead of a hardcoded
@@ -268,11 +276,12 @@ type ActivityModel struct {
 	ascii  bool
 }
 
-// NewActivityModel constructs an ActivityModel and performs one initial bounded
-// log scan. That construction-time scan is the only synchronous I/O in the
-// model; interactive refreshes go through StartLogRead and ApplyLogRead.
-// Tests can inject custom LogReader and ContentReader functions to avoid
-// touching real files.
+// NewActivityModel constructs an ActivityModel. It performs no I/O: the log
+// directory is read only by the generation-bound StartLogRead command, so a
+// deliberately stalled or very large log source cannot delay the first frame.
+// The screen renders a truthful loading state until the first result arrives and
+// its explicit empty state afterwards. Tests can inject custom LogReader and
+// ContentReader functions to avoid touching real files.
 func NewActivityModel(cfg ActivityConfig) ActivityModel {
 	m := ActivityModel{
 		theme:         cfg.Theme,
@@ -298,27 +307,7 @@ func NewActivityModel(cfg ActivityConfig) ActivityModel {
 		m.updateManager = NewUpdateCheckManager()
 	}
 
-	m.reloadLogs()
 	return m
-}
-
-// reloadLogs performs one synchronous bounded scan and content read. It is used
-// by construction (and by same-package tests); App.Update never calls it, so a
-// key press or message handling cannot block on the filesystem.
-func (m *ActivityModel) reloadLogs() {
-	if m.logReader == nil {
-		return
-	}
-	logs, err := m.scanLogs()
-	content := ""
-	selected := m.selectedLog
-	if len(logs) > 0 {
-		if selected >= len(logs) || selected < 0 {
-			selected = 0
-		}
-		content = m.readLogContent(logs[selected])
-	}
-	m.applyLogRead(logs, err, selected, content)
 }
 
 // scanLogs performs one bounded log-directory read without mutating the model.
@@ -349,6 +338,7 @@ func (m ActivityModel) readLogContent(log LogSummary) string {
 func (m *ActivityModel) applyLogRead(logs []LogSummary, err error, selected int, content string) {
 	m.logs = logs
 	m.logErr = err
+	m.loaded = true
 	if len(logs) == 0 {
 		m.selectedLog = 0
 		m.cachedContent = ""
@@ -367,6 +357,7 @@ func (m *ActivityModel) applyLogRead(logs []LogSummary, err error, selected int,
 // selection, directory or refresh. Update itself never touches the filesystem.
 func (m *ActivityModel) StartLogRead(selected int) tea.Cmd {
 	m.readGeneration++
+	m.loading = true
 	generation := m.readGeneration
 	model := *m
 	logDir := model.logDir
@@ -396,6 +387,7 @@ func (m *ActivityModel) ApplyLogRead(msg ActivityLogReadMsg) bool {
 	if msg.Generation != m.readGeneration || msg.LogDir != m.logDir {
 		return false
 	}
+	m.loading = false
 	m.applyLogRead(msg.Logs, msg.Err, msg.Selected, msg.Content)
 	return true
 }
@@ -636,15 +628,27 @@ func (m ActivityModel) Lines(width int) []string {
 	// Recent Activity & Logs
 	if m.activeSection == HelpSectionAll || m.activeSection == HelpSectionActivity {
 		var logBody []string
-		if m.logErr != nil {
+		switch {
+		case m.loading && len(m.logs) == 0 && m.logErr == nil:
+			// The first read is still running. Say so instead of reporting "none
+			// found" before the directory has been read.
+			logBody = append(logBody, m.theme.Hint.Render("Reading local operation logs..."))
+		case m.logErr != nil:
 			logBody = append(logBody, m.theme.Bad.Render(m.dataText(fmt.Sprintf("Error reading logs: %v", m.logErr))))
-		} else if len(m.logs) == 0 {
+		case !m.loaded:
+			// Before the first accepted read the directory is unknown, so no
+			// absence may be claimed.
+			logBody = append(logBody,
+				m.theme.Hint.Render("Operation logs have not been read in this session yet."),
+				"Press r to read the local log directory.",
+			)
+		case len(m.logs) == 0:
 			logBody = append(logBody,
 				m.theme.Hint.Render("No install or restore logs found yet."),
 				"Logs are created automatically when you run apply or restore.",
 				"Run asdx-core preview first to inspect what apply would do.",
 			)
-		} else {
+		default:
 			glyphs := GlyphSet(!m.theme.Color)
 			logBody = append(logBody, fmt.Sprintf("Recent operation logs (%d found):", len(m.logs)))
 			for i, log := range m.logs {

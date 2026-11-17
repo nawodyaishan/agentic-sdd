@@ -957,16 +957,19 @@ func TestFleetHelpLastSection(t *testing.T) {
 	}
 }
 
-// TestMCPWriteOutcomeHandling asserts Outcome() and Reload() state transitions.
+// TestMCPWriteOutcomeHandling asserts the MCP projection of one write result:
+// it is the same classifier the root notice uses, it keeps the structured
+// backup/log facts it was given, and a failure keeps its detail.
 func TestMCPWriteOutcomeHandling(t *testing.T) {
 	cfg := TUIConfig{Width: 100, Height: 30, Home: t.TempDir()}
 	m := NewMCPModelWithSeams(cfg, &fakeMCPReader{}, &fakeMCPPlanner{})
 
-	// Success outcome
+	// Applied outcome
 	resMsg := WriteResultMsg{
 		Kind: WriteMCPApply,
 		Result: appops.ApplyResult{
 			BackupID: "bak-123",
+			Outcome:  skillsync.OutcomeApplied,
 		},
 		LogPath: "/logs/test.log",
 	}
@@ -974,8 +977,8 @@ func TestMCPWriteOutcomeHandling(t *testing.T) {
 	if m.writePending {
 		t.Fatal("after WriteResultMsg, writePending = true, want false")
 	}
-	if m.outcome.Headline != "MCP applied successfully" {
-		t.Fatalf("outcome = %+v, want success headline", m.outcome)
+	if want := SummarizeWriteResult(resMsg).Headline; m.outcome.Headline != want {
+		t.Fatalf("outcome headline = %q, want the shared summary %q", m.outcome.Headline, want)
 	}
 	if m.outcome.BackupID != "bak-123" {
 		t.Fatalf("backupID = %q, want 'bak-123'", m.outcome.BackupID)
@@ -991,14 +994,17 @@ func TestMCPWriteOutcomeHandling(t *testing.T) {
 		t.Fatalf("outcome = %+v, want 'write refused'", m.outcome)
 	}
 
-	// Failed outcome
+	// Failed outcome keeps the error detail instead of replacing it.
 	failMsg := WriteResultMsg{
 		Kind: WriteMCPApply,
 		Err:  errors.New("injected apply error"),
 	}
 	m, _ = m.Update(failMsg)
-	if m.outcome.Headline != "write failed" {
-		t.Fatalf("outcome = %+v, want 'write failed'", m.outcome)
+	if m.outcome.Headline != SummarizeWriteResult(failMsg).Headline {
+		t.Fatalf("outcome = %+v, want the shared failed headline", m.outcome)
+	}
+	if !strings.Contains(m.outcome.Detail, "injected apply error") {
+		t.Fatalf("failed outcome dropped the engine error: %+v", m.outcome)
 	}
 }
 

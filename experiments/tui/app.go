@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -79,6 +80,11 @@ type App struct {
 	// copy (Update returns values) sees the same single write slot.
 	ops         *OpsHost
 	cancelReads func()
+	// readCtx is this session's cooperative read context. It is created per App
+	// instance (never a package global) and cancelled once when an idle shutdown
+	// begins; screens that accept a context are bound to it.
+	readCtx     context.Context
+	cancelRead  context.CancelFunc
 	write       *writeState
 	lastWrite   WriteResultMsg
 	hasResult   bool
@@ -112,9 +118,11 @@ type App struct {
 	// Activity & Help plus the once-per-session update check state machine.
 	// The model's read generation binds one bounded log read to the live
 	// model, so a completion cannot replace newer section, selection or scroll
-	// state.
-	activity  ActivityModel
-	updateMgr *UpdateCheckManager
+	// state. activityReadStarted records that the initial generation-bound read
+	// has been queued; no log directory is read at construction.
+	activity            ActivityModel
+	activityReadStarted bool
+	updateMgr           *UpdateCheckManager
 
 	// Guide is the presentation-only fifth destination; guideReturn tracks
 	// whether a child screen or onboarding tour was opened from Guide so
@@ -134,9 +142,18 @@ type App struct {
 	inventoryScope      catalogScope
 	inventoryErr        string
 	inventoryPending    bool
-	catalogLoader       func(TUIConfig) (Catalog, error)
-	activeRequest       WriteRequest
-	hasActiveRequest    bool
+	// inventoryLoaded reports that at least one inventory read was applied to
+	// this session, so the loading note never claims a previous successful read
+	// that did not happen.
+	inventoryLoaded bool
+	// deferInventory records that the session's first inventory read must be
+	// started by Update rather than by the constructor; inventoryQueued keeps it
+	// to exactly one initial read.
+	deferInventory   bool
+	inventoryQueued  bool
+	catalogLoader    func(TUIConfig) (Catalog, error)
+	activeRequest    WriteRequest
+	hasActiveRequest bool
 }
 
 // writeState mirrors the accepted write for rendering. The host remains the
@@ -183,6 +200,10 @@ type AppScreenOptions struct {
 	FleetPlanner FleetPlanner
 	// FleetDoctor replaces the opt-in local diagnostics seam.
 	FleetDoctor FleetDoctor
+	// MCPReader replaces the MCP Tools status and diagnostics reader.
+	MCPReader MCPReader
+	// MCPPlanner replaces the read-only MCP plan/backup/restore preview seam.
+	MCPPlanner MCPPlanner
 }
 
 // NewAppWithScreens constructs the root shell with both the host seams and the
@@ -231,7 +252,8 @@ func NewAppWithScreens(cfg TUIConfig, catalog Catalog, opts AppOptions, screens 
 	if screens.FleetDoctor != nil {
 		app.fleet.SetDoctor(screens.FleetDoctor)
 	}
-	app.mcp = NewMCPModel(app.cfg, nil)
+	app.mcp = NewMCPModelWithSeams(app.cfg, screens.MCPReader, screens.MCPPlanner)
+	app.mcp.SetReadContext(app.readCtx)
 	app.mcp.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.mcp.SetTheme(app.theme)
 	return app
@@ -310,6 +332,12 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 		fleetPlanner = AppOpsFleetPlanner{Home: cfg.Home, Repo: cfg.Repo}
 	}
 
+	// One cooperative read context per session. It is instance state, never a
+	// package global: cancelling it on idle shutdown stops new read commands from
+	// starting, while a bounded read already inside a seam is discarded with its
+	// generation when its result arrives.
+	readCtx, cancelRead := context.WithCancel(context.Background())
+
 	app := App{
 		cfg:          cfg,
 		theme:        theme,
@@ -331,6 +359,8 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 		fleetEditor:  fleetEditor,
 		fleetPlanner: fleetPlanner,
 		fleet:        NewFleetModelWithSeams(cfg, fleetReader, fleetEditor, fleetPlanner),
+		readCtx:      readCtx,
+		cancelRead:   cancelRead,
 		activity: NewActivityModel(ActivityConfig{
 			Theme:         theme,
 			Width:         cfg.Width,
@@ -359,6 +389,7 @@ func newApp(cfg TUIConfig, catalog Catalog) App {
 	app.restore.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.fleet.SetSize(app.childContentWidth(), app.childBodyHeight())
 	app.mcp = NewMCPModel(cfg, nil)
+	app.mcp.SetReadContext(app.readCtx)
 	app.mcp.SetSize(app.childContentWidth(), app.childBodyHeight())
 	// The diagnostics adapter inspects only a path the user types; it needs no
 	// home and performs no read until the panel runs an explicit request.
@@ -525,11 +556,40 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case appStartMsg:
+		var cmds []tea.Cmd
+		if a.deferInventory && !a.inventoryQueued {
+			// The session's only initial inventory reader. It is queued here, not
+			// in the constructor, so the first frame renders first and any screen
+			// seam is already installed; the generation and scope are recorded on
+			// the model this Update returns.
+			a.inventoryQueued = true
+			if cmd := a.startInitialInventoryRead(); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+		if !a.activityReadStarted {
+			// The first Activity log read is a generation-bound command started
+			// here, never a constructor read, so the first frame renders before
+			// the log directory is touched. The generation and log directory are
+			// recorded on the model Update returns, so the result is accepted
+			// only by this request.
+			a.activityReadStarted = true
+			if cmd := a.startActivityRead(a.activity.selectedLog); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
 		if a.activeRoute == RouteHome && a.motion && !a.brandState.Done() && !a.helpOpen && a.height >= 14 && !a.brandTickPending {
 			a.brandTickPending = true
-			return a, tickBrand()
+			cmds = append(cmds, tickBrand())
 		}
-		return a, nil
+		switch len(cmds) {
+		case 0:
+			return a, nil
+		case 1:
+			return a, cmds[0]
+		default:
+			return a, tea.Batch(cmds...)
+		}
 
 	case BrandTickMsg:
 		a.brandTickPending = false
@@ -1347,6 +1407,10 @@ func (a *App) beginQuit() tea.Cmd {
 	if a.cancelReads != nil {
 		a.cancelReads()
 		a.cancelReads = nil
+	}
+	if a.cancelRead != nil {
+		a.cancelRead()
+		a.cancelRead = nil
 	}
 	return tea.Quit
 }

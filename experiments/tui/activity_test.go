@@ -16,7 +16,7 @@ import (
 )
 
 func TestActivity_ImmediateLocalRender(t *testing.T) {
-	model := NewActivityModel(ActivityConfig{
+	model := newLoadedActivityModel(t, ActivityConfig{
 		Theme: NewTheme(false),
 		Width: 80,
 		Metadata: AboutMetadata{
@@ -77,7 +77,7 @@ func TestActivity_EmptyState(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			model := NewActivityModel(ActivityConfig{
+			model := newLoadedActivityModel(t, ActivityConfig{
 				Theme:     NewTheme(false),
 				Width:     80,
 				LogReader: tc.logReader,
@@ -140,7 +140,7 @@ func TestActivity_BoundedLogLoading(t *testing.T) {
 		return strings.Join(lines, "\n") + "\n... [truncated: log exceeds display limit]", nil
 	}
 
-	model := NewActivityModel(ActivityConfig{
+	model := newLoadedActivityModel(t, ActivityConfig{
 		Theme: NewTheme(false),
 		Width: 80,
 		LogReader: func(dir string) ([]LogSummary, error) {
@@ -181,7 +181,7 @@ func TestActivity_SelectedLogNavigation(t *testing.T) {
 		"/logs/log-3.log": "Log 3 content: setup preview",
 	}
 
-	model := NewActivityModel(ActivityConfig{
+	model := newLoadedActivityModel(t, ActivityConfig{
 		Theme: NewTheme(false),
 		Width: 80,
 		LogReader: func(dir string) ([]LogSummary, error) {
@@ -418,7 +418,7 @@ func TestActivity_PlainModeAndBoundsSafety(t *testing.T) {
 }
 
 func TestActivity_BubbleTeaLifecycle(t *testing.T) {
-	model := NewActivityModel(ActivityConfig{
+	model := newLoadedActivityModel(t, ActivityConfig{
 		Theme: NewTheme(false),
 		Width: 80,
 		LogReader: func(string) ([]LogSummary, error) {
@@ -492,6 +492,17 @@ func applyActivityRead(t *testing.T, model *ActivityModel, cmd tea.Cmd) {
 	}
 }
 
+// newLoadedActivityModel builds the model with no construction-time I/O and then
+// applies one generation-bound read. Tests that assert the loaded projection use
+// this, so they exercise the same command path the interactive app uses instead
+// of a constructor side effect.
+func newLoadedActivityModel(t *testing.T, cfg ActivityConfig) ActivityModel {
+	t.Helper()
+	model := NewActivityModel(cfg)
+	applyActivityRead(t, &model, model.StartLogRead(model.selectedLog))
+	return model
+}
+
 // TestActivityASCIIDataEscapingIsReversible covers the Activity/Diagnostics
 // finding: dynamic log paths, log names, raw log lines and the diagnostics log
 // directory are escaped before decorative 7-bit mapping, so an em dash is not
@@ -511,7 +522,7 @@ func TestActivityASCIIDataEscapingIsReversible(t *testing.T) {
 		return rawLine, nil
 	}
 	app.activity.logDir = logDir
-	app.activity.reloadLogs()
+	applyActivityRead(t, &app.activity, app.activity.StartLogRead(app.activity.selectedLog))
 
 	// ASCII is enabled at runtime so the render seam, not a constructor flag,
 	// decides the symbol set.
@@ -601,7 +612,8 @@ func TestActivityAppReadsOnlyThroughCommands(t *testing.T) {
 }
 
 // TestActivityModelUpdateSchedulesReads proves the standalone tea.Model path
-// obeys the same rule as App: Update schedules a command and performs no I/O.
+// obeys the same rule as App: construction performs no I/O at all, and Update
+// schedules a command instead of reading.
 func TestActivityModelUpdateSchedulesReads(t *testing.T) {
 	reads := 0
 	model := NewActivityModel(ActivityConfig{
@@ -613,22 +625,28 @@ func TestActivityModelUpdateSchedulesReads(t *testing.T) {
 		},
 		ContentReader: func(string, int64, int) (string, error) { return "content", nil },
 	})
-	if reads != 1 {
-		t.Fatalf("construction scanned %d times, want 1", reads)
+	if reads != 0 {
+		t.Fatalf("construction scanned %d times, want 0 (the first read is a command)", reads)
+	}
+	if model.loaded || model.loading {
+		t.Fatalf("construction state = loaded:%v loading:%v, want an unread model", model.loaded, model.loading)
+	}
+	if lines := strings.Join(model.Lines(100), "\n"); !strings.Contains(lines, "have not been read") {
+		t.Fatalf("unread model did not report its unread state:\n%s", lines)
 	}
 	model.updateManager.Disable()
 
 	updated, cmd := model.Update(tea.KeyPressMsg{Code: 'r'})
 	model = updated.(ActivityModel)
-	if reads != 1 {
+	if reads != 0 {
 		t.Fatal("Update performed a synchronous log scan")
 	}
 	if cmd == nil {
 		t.Fatal("Update scheduled no read command")
 	}
 	applyActivityRead(t, &model, cmd)
-	if reads != 2 {
-		t.Fatalf("the scheduled read ran %d times, want 2", reads)
+	if reads != 1 {
+		t.Fatalf("the scheduled read ran %d times, want 1", reads)
 	}
 	if model.LogContent() != "content" {
 		t.Fatalf("applied read content = %q", model.LogContent())

@@ -133,15 +133,14 @@ func Run(launch Launch) int {
 		FleetLive:         launch.FleetLive,
 	}.Normalize()
 
-	catalog, err := tui.LoadCatalog(cfg)
-	if err != nil {
-		fmt.Fprintf(launch.Stderr, "%s: %v\n", launch.Program, err)
-		return 1
-	}
-
-	app := tui.NewApp(cfg, catalog)
+	// The inventory is read by a generation-bound command after the first frame,
+	// not before the program starts. A stalled or very large home therefore
+	// cannot delay the first screen, and a read error is reported as the Home
+	// setup state instead of aborting the launch. The launcher still resolves the
+	// home and repository, so the deferred read is bound to this session.
+	app := tui.NewAppWithOptions(cfg, tui.Catalog{}, tui.AppOptions{DeferredInventory: true})
 	if holdWrite > 0 {
-		app, err = newLifecycleTestApp(cfg, catalog, holdWrite)
+		app, err = newLifecycleTestApp(cfg, holdWrite)
 		if err != nil {
 			fmt.Fprintf(launch.Stderr, "%s: lifecycle test write: %v\n", launch.Program, err)
 			return 1
@@ -192,8 +191,9 @@ func testHoldWrite(getenv func(string) string) (time.Duration, error) {
 // newLifecycleTestApp builds a synthetic write that holds the single write
 // slot without touching a home, destination or real log file. This is the
 // deterministic in-flight state the PTY signal cases need; the production path
-// never calls it.
-func newLifecycleTestApp(cfg tui.TUIConfig, catalog tui.Catalog, hold time.Duration) (tui.App, error) {
+// never calls it. The inventory read stays deferred, exactly as on the
+// production path, so the harness observes the same first-frame behavior.
+func newLifecycleTestApp(cfg tui.TUIConfig, hold time.Duration) (tui.App, error) {
 	request, err := appops.NewInstallRequest("", cfg.Home, true, skillsync.Options{})
 	if err != nil {
 		return tui.App{}, err
@@ -210,8 +210,9 @@ func newLifecycleTestApp(cfg tui.TUIConfig, catalog tui.Catalog, hold time.Durat
 			}, nil
 		},
 	})
-	return tui.NewAppWithOptions(cfg, catalog, tui.AppOptions{
-		Ops: host,
+	return tui.NewAppWithOptions(cfg, tui.Catalog{}, tui.AppOptions{
+		Ops:               host,
+		DeferredInventory: true,
 		InitialWrite: &tui.WriteRequest{
 			Kind:    tui.WriteInstall,
 			Install: request,

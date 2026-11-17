@@ -691,7 +691,9 @@ func appOpsFleetRestore(req FleetWriteRequest, token string, out io.Writer) (app
 
 // appOpsMCPApply is the production MCP apply seam. It rebuilds the shared
 // immutable request from the confirmed plan and resolved home, then lets
-// appops revalidate the token and digest before writing.
+// appops revalidate the token and digest before writing. The structured engine
+// result is projected before the error is returned, so a failure keeps the
+// backup identity, rollback state and any reported partial change.
 func appOpsMCPApply(req MCPWriteRequest, token string, out io.Writer) (appops.ApplyResult, error) {
 	request, err := appops.NewMCPApplyRequest(
 		req.Home, req.ConfigPath, req.Plan, token, req.ExpectDigest, req.OpenCodeBin,
@@ -700,25 +702,7 @@ func appOpsMCPApply(req MCPWriteRequest, token string, out io.Writer) (appops.Ap
 		return appops.ApplyResult{Operation: skillsync.OperationApply, Outcome: skillsync.OutcomeFailed}, err
 	}
 	res, err := appops.MCPApply(request)
-	base := appops.ApplyResult{Operation: skillsync.OperationApply, Outcome: skillsync.OutcomeFailed}
-	if err != nil {
-		return base, err
-	}
-	if res.Result == nil {
-		return base, fmt.Errorf("mcp apply returned no result")
-	}
-	base.Outcome = skillsync.OutcomeApplied
-	if res.Result.NoOp {
-		base.Outcome = skillsync.OutcomeNoChange
-	}
-	base.BackupID = res.Result.BackupID
-	base.BackupPath = res.Result.BackupPath
-	base.SourceDigest = res.Result.InstalledDigest
-	base.Rollback = res.Result.Rollback
-	for _, name := range res.Result.Applied {
-		base.Applied = append(base.Applied, skillsync.ResultChange{ID: name, Kind: "mcp", Action: skillsync.ChangeReplace})
-	}
-	return base, nil
+	return projectMCPApplyResult(skillsync.OperationApply, "mcp apply", res.Result, err)
 }
 
 // appOpsMCPRestore is the production managed-backup restore seam.
@@ -730,23 +714,36 @@ func appOpsMCPRestore(req MCPWriteRequest, token string, out io.Writer) (appops.
 		return appops.ApplyResult{Operation: skillsync.OperationRestore, Outcome: skillsync.OutcomeFailed}, err
 	}
 	res, err := appops.MCPRestore(request)
-	base := appops.ApplyResult{Operation: skillsync.OperationRestore, Outcome: skillsync.OutcomeFailed}
+	return projectMCPApplyResult(skillsync.OperationRestore, "mcp restore", res.Result, err)
+}
+
+// projectMCPApplyResult is the one MCP engine-to-host projection. It reports the
+// facts the engine returned even when the call failed: the failed outcome is a
+// statement about the write, not a reason to drop the recorded backup, the
+// rollback state or the entries already written. A nil result with no error is
+// still an error, because a write that reports nothing cannot be called
+// successful.
+func projectMCPApplyResult(op skillsync.OperationKind, label string, result *skillsync.MCPApplyResult, err error) (appops.ApplyResult, error) {
+	base := appops.ApplyResult{Operation: op, Outcome: skillsync.OutcomeFailed}
+	if result == nil {
+		if err != nil {
+			return base, err
+		}
+		return base, fmt.Errorf("%s returned no result", label)
+	}
+	base.BackupID = result.BackupID
+	base.BackupPath = result.BackupPath
+	base.SourceDigest = result.InstalledDigest
+	base.Rollback = result.Rollback
+	for _, name := range result.Applied {
+		base.Applied = append(base.Applied, skillsync.ResultChange{ID: name, Kind: "mcp", Action: skillsync.ChangeReplace})
+	}
 	if err != nil {
 		return base, err
 	}
-	if res.Result == nil {
-		return base, fmt.Errorf("mcp restore returned no result")
-	}
 	base.Outcome = skillsync.OutcomeApplied
-	if res.Result.NoOp {
+	if result.NoOp {
 		base.Outcome = skillsync.OutcomeNoChange
-	}
-	base.BackupID = res.Result.BackupID
-	base.BackupPath = res.Result.BackupPath
-	base.SourceDigest = res.Result.InstalledDigest
-	base.Rollback = res.Result.Rollback
-	for _, name := range res.Result.Applied {
-		base.Applied = append(base.Applied, skillsync.ResultChange{ID: name, Kind: "mcp", Action: skillsync.ChangeReplace})
 	}
 	return base, nil
 }
@@ -1155,6 +1152,13 @@ type AppOptions struct {
 	// and PTY lifecycle harnesses use it; a normal interactive app leaves it
 	// nil.
 	InitialWrite *WriteRequest
+	// DeferredInventory defers the session's first read-only inventory read to a
+	// generation-bound command started by the first Update message. The first
+	// frame then renders the loading/empty projection instead of waiting for a
+	// catalog, and a read error is reported in the Home setup state rather than
+	// aborting the launch. The command is queued from Update, so a caller's
+	// screen seams are already installed when the read is built.
+	DeferredInventory bool
 }
 
 // NewAppWithOptions constructs the root shell with injected host seams. A nil
@@ -1167,6 +1171,9 @@ func NewAppWithOptions(cfg TUIConfig, catalog Catalog, opts AppOptions) App {
 		app.ops = NewOpsHost(OpsHostOptions{})
 	}
 	app.cancelReads = opts.CancelReads
+	// The deferred inventory read is queued by the first Update message, after
+	// any screen seams are installed, so it uses the session's own loader.
+	app.deferInventory = opts.DeferredInventory
 	if opts.InitialWrite != nil {
 		started, cmd, err := app.ops.BeginWrite(*opts.InitialWrite)
 		if err != nil {
@@ -1241,6 +1248,12 @@ func SummarizeWriteResult(msg WriteResultMsg) WriteSummary {
 	default:
 		summary.Headline = "finished"
 		summary.Detail = "The engine returned without a write outcome."
+	}
+	if msg.Err != nil {
+		// The engine's own text is evidence, not presentation: it names the
+		// phase, backup and cause. Keeping it in the one summary is what lets the
+		// root notice and every child screen report the same failure.
+		summary.Detail += " Engine: " + msg.Err.Error()
 	}
 	if summary.LogFailed {
 		summary.Detail += " The operation log could not be flushed: " + msg.LogErr.Error()

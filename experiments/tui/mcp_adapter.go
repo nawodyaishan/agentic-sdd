@@ -12,6 +12,11 @@ import (
 // MCPReader is the read-only projection seam for MCP status and diagnostics.
 // Implementations must perform only read operations; no file mutation, CLI
 // subprocess, or network calls are permitted.
+//
+// Every method takes the caller's bounded context and must return its error
+// before starting a read once that context is cancelled. The seam is instance
+// state: a model owns its readers, so two independently configured screens
+// never share a reader, a context or a draft.
 type MCPReader interface {
 	Status(ctx context.Context, home, configPath, projectPath string) (MCPStatusView, error)
 	Doctor(ctx context.Context, home, configPath, projectPath, openCodeBin, codeGraphBin string) (MCPDoctorView, error)
@@ -134,6 +139,11 @@ type DefaultMCPReader struct{}
 
 // Status builds the read-only MCP status projection.
 func (DefaultMCPReader) Status(ctx context.Context, home, configPath, projectPath string) (MCPStatusView, error) {
+	// A cancelled session must not start a new read; the projection is returned
+	// with the cancellation so the caller keeps its truthful not-read state.
+	if err := ctx.Err(); err != nil {
+		return MCPStatusView{Available: false, Servers: defaultServerViews()}, err
+	}
 	if home == "" {
 		return MCPStatusView{
 			Available: false,
@@ -160,6 +170,9 @@ func (DefaultMCPReader) Status(ctx context.Context, home, configPath, projectPat
 
 // Doctor builds the read-only offline doctor projection.
 func (DefaultMCPReader) Doctor(ctx context.Context, home, configPath, projectPath, openCodeBin, codeGraphBin string) (MCPDoctorView, error) {
+	if err := ctx.Err(); err != nil {
+		return MCPDoctorView{Available: false}, err
+	}
 	if home == "" {
 		return MCPDoctorView{Available: false}, nil
 	}
@@ -191,6 +204,9 @@ type DefaultMCPPlanner struct{}
 
 // PreviewPlan provides the production, read-only configuration plan preview.
 func (DefaultMCPPlanner) PreviewPlan(ctx context.Context, home, configPath string, selected []string, auth map[string]string) (MCPPlanPreviewView, error) {
+	if err := ctx.Err(); err != nil {
+		return MCPPlanPreviewView{}, err
+	}
 	req, err := appops.NewMCPPlanRequest(home, configPath, selected, auth)
 	if err != nil {
 		return MCPPlanPreviewView{}, err
@@ -204,6 +220,9 @@ func (DefaultMCPPlanner) PreviewPlan(ctx context.Context, home, configPath strin
 
 // ListBackups lists managed MCP backups from the private MCP backup root.
 func (DefaultMCPPlanner) ListBackups(ctx context.Context, home string) ([]MCPBackupView, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	req, err := appops.NewMCPRestoreListRequest(home)
 	if err != nil {
 		return nil, err
@@ -226,6 +245,9 @@ func (DefaultMCPPlanner) ListBackups(ctx context.Context, home string) ([]MCPBac
 
 // PreviewRestore previews restoring one managed MCP backup.
 func (DefaultMCPPlanner) PreviewRestore(ctx context.Context, home, backupID string) (MCPRestorePreviewView, error) {
+	if err := ctx.Err(); err != nil {
+		return MCPRestorePreviewView{}, err
+	}
 	req, err := appops.NewMCPRestorePreviewRequest(home, "", backupID)
 	if err != nil {
 		return MCPRestorePreviewView{}, err

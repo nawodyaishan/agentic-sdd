@@ -189,6 +189,27 @@ func (a *App) startInventoryRead(scope catalogScope) tea.Cmd {
 	}
 }
 
+// startInitialInventoryRead queues the session's first generation-bound
+// inventory read. Its scope is the configuration the launcher resolved, not a
+// catalog snapshot it never read, so the deferred read is bound to the same home
+// and options the session will use. A session without a home queues nothing and
+// keeps the truthful unknown state.
+func (a *App) startInitialInventoryRead() tea.Cmd {
+	scope := catalogScope{
+		Home:              a.cfg.Home,
+		Repo:              a.cfg.Repo,
+		WithOpenCode:      a.cfg.WithOpenCode,
+		OpenCodeFreeFirst: a.cfg.OpenCodeFreeFirst,
+	}
+	if scope.Home == "" {
+		scope.Home = a.catalog.Home
+	}
+	if scope.Repo == "" {
+		scope.Repo = a.catalog.Repo
+	}
+	return a.startInventoryRead(scope)
+}
+
 // startNoOpPreviewRefresh queues the same read-only inventory read after a
 // successful zero-change install preview. A no-op never reaches the write host,
 // so it has no WriteResultMsg to refresh from; the inventory it inspected is
@@ -265,6 +286,7 @@ func (a *App) handleCatalogRefresh(msg CatalogRefreshMsg) tea.Cmd {
 		return nil
 	}
 	a.inventoryErr = ""
+	a.inventoryLoaded = true
 	a.catalog = msg.catalog
 	return a.catalogModel.ReplaceCatalog(msg.catalog)
 }
@@ -385,7 +407,13 @@ func (a App) homeLines(width int) []string {
 	b.WriteString(strings.Join(HomeSetupLines(state, home, width), "\n"))
 	b.WriteString("\n")
 	if a.inventoryPending {
-		for _, line := range wrapPath("  A local inventory refresh is in progress; the state above is from the last successful read.", width) {
+		// The first frame may precede the first inventory read. Say which read
+		// the numbers come from instead of implying they are current.
+		note := "  A local inventory refresh is in progress; the state above is from the last successful read."
+		if !a.inventoryLoaded {
+			note = "  Reading the local inventory. Setup state and skill counts appear when the read completes."
+		}
+		for _, line := range wrapPath(note, width) {
 			b.WriteString(a.theme.Hint.Render(line) + "\n")
 		}
 		b.WriteString("\n")
