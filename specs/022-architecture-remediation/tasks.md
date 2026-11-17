@@ -470,7 +470,7 @@ or tests only; R2 step 1 runs Docker; R7 edits `Taskfile.yml`.
 | ID | Item | Owner decision needed | Verification | State |
 |---|---|---|---|---|
 | **A1** | R2 step 1: container suite re-run on HEAD, result recorded | go to run Docker | six of six tests with HEAD SHA, or the failures verbatim | **done 2026-11-17, awaiting human review:** 6 of 6 passed in 545 s at HEAD `a76d39b` plus an 11-path uncommitted working tree (`SDD_TRUSTED_CI_CONTAINERS=1`, log `/dev/shm/a1-container.log`). Not a clean-commit run: re-run after commit before citing it as qualifying evidence. |
-| **A2** | R2 step 2: advance trusted base, drop overlay | base SHA and live-adoption go (after A1 passes) | fresh gate run on later candidate | blocked on A1 |
+| **A2** | R2 step 2: advance trusted base, drop overlay | base SHA and live-adoption go (after A1 passes) | fresh gate run on later candidate | blocked: owner chose (2026-11-17) to designate one SHA after B13 |
 | **A3** | R1: Opus review request draft; later SHA designation | designation SHA | 008 AC-21 three conditions | blocked on A2 |
 | **A4** | R3: consent-provenance template and per-record notes | quotes or "not recoverable" | records contain only owner-supplied text | not started |
 | **A5** | R4: 014 per-AC/finding closeout table | accept / accept with exceptions / blocker | each row has an evidence pointer or `not_run` | **draft written, awaiting owner decision:** [a5-closeout-014-draft.md](a5-closeout-014-draft.md). Nothing accepted. |

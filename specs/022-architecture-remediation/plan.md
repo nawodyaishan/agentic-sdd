@@ -655,7 +655,7 @@ vendored copy is the offline mechanism, not a replacement for it.
 2. **A1:** re-run on a clean commit via an isolated detached worktree (`/dev/shm/wt-a1`), not the live tree.
 3. **014 closeout:** require more evidence first; an argon evidence pass writes `/dev/shm/022-A5/evidence-014.md`. The draft stays unaccepted.
 4. **D-02:** record "not recoverable" (13.3).
-5. **Trusted base:** options to be offered to the owner; no SHA chosen.
+5. **Trusted base:** owner chose option 1: wait for the 022 batches (B8, B10, T16 and the rest to B13), then designate one clean SHA. No SHA is chosen now, and A2/A3 stay blocked on B13 plus a clean-commit A1 re-run. Live adoption still needs its own explicit go. The Opus review request is drafted after B13.
 6. **O-02 pack overlay:** adopted (already committed at HEAD). A7/B8 unblocked.
 7. **R7 CI wiring:** best-approach decision in 13.9.
 8. **Parallel batches:** T16, B8 and B10 launched together on DeepSeek implement agents with disjoint paths; B11 waits for B8 and final B10 notes, B12/B13 wait for B1-B11.
