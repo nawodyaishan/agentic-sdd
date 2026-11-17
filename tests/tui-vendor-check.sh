@@ -40,7 +40,15 @@ env_off="GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS=
 (cd "$root/experiments/tui" && env $env_off go mod vendor -o "$tmp/vendor") >"$tmp/vendor.log" 2>&1 ||
   { cat "$tmp/vendor.log" >&2; blocked "go mod vendor failed offline; populate the module cache first"; }
 
-if ! diff -rq "$tmp/vendor" "$root/experiments/tui/vendor" >"$tmp/diff.log" 2>&1; then
+# Root-level docs and config in the vendored root copy are not inputs to the
+# companion build, so they do not count as drift. Everything else is compared.
+listing() {
+  (cd "$1" && find . -type f ! -regex './agentic-sdd/[^/]*\.\(md\|yml\)' ! -path './agentic-sdd/LICENSE' |
+    LC_ALL=C sort | while read -r f; do sha256sum "$f"; done)
+}
+listing "$tmp/vendor" >"$tmp/fresh.list"
+listing "$root/experiments/tui/vendor" >"$tmp/current.list"
+if ! diff "$tmp/fresh.list" "$tmp/current.list" >"$tmp/diff.log" 2>&1; then
   cat "$tmp/diff.log" >&2
   fail "vendored copy differs from a fresh offline vendor"
 fi
