@@ -487,6 +487,71 @@ func TestFleetApply(t *testing.T) {
 		}
 	})
 
+	t.Run("existing non-empty files are backed up under their expected digests", func(t *testing.T) {
+		home := newFleetHome(t)
+		targetRoot := TargetRootForHome(home)
+		if err := os.MkdirAll(targetRoot, 0755); err != nil {
+			t.Fatal(err)
+		}
+		oldA := "old-a\n"
+		oldB := "old-b\nuser-owned content\n"
+		if err := os.WriteFile(filepath.Join(targetRoot, "a.md"), []byte(oldA), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(targetRoot, "b.md"), []byte(oldB), 0644); err != nil {
+			t.Fatal(err)
+		}
+		// Each Old file carries the raw digest the caller planned against, so
+		// the engine re-checks before-state under its guard.
+		_, err := skillsync.ApplyAgentFiles(
+			skillsync.BackupRootFor("", home), home, "test",
+			[]skillsync.AgentFileChange{
+				{File: "a.md", Data: []byte("new-a\n"), Old: true, ExpectSHA256: digestOf([]byte(oldA))},
+				{File: "b.md", Data: []byte("new-b\n"), Old: true, ExpectSHA256: digestOf([]byte(oldB))},
+			}, nil, io.Discard)
+		if err != nil {
+			t.Fatalf("guarded transaction failed: %v", err)
+		}
+		if got := readString(t, filepath.Join(targetRoot, "b.md")); got != "new-b\n" {
+			t.Fatalf("b.md was not installed: %q", got)
+		}
+		dirs := backupDirs(t, home)
+		if len(dirs) != 1 {
+			t.Fatalf("expected one recoverable backup, got %v", dirs)
+		}
+		if got := readString(t, filepath.Join(dirs[0], "opencode-agents", "b.md")); got != oldB {
+			t.Fatalf("backup lost the previous bytes of b.md: %q", got)
+		}
+		if _, err := os.Stat(filepath.Join(dirs[0], "manifest.json")); err != nil {
+			t.Fatalf("backup manifest missing: %v", err)
+		}
+	})
+
+	t.Run("a stale expected digest is refused before any backup", func(t *testing.T) {
+		home := newFleetHome(t)
+		targetRoot := TargetRootForHome(home)
+		if err := os.MkdirAll(targetRoot, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(targetRoot, "b.md"), []byte("current-b\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := skillsync.ApplyAgentFiles(
+			skillsync.BackupRootFor("", home), home, "test",
+			[]skillsync.AgentFileChange{
+				{File: "b.md", Data: []byte("new-b\n"), Old: true, ExpectSHA256: digestOf([]byte("planned-b\n"))},
+			}, nil, io.Discard)
+		if !errors.Is(err, skillsync.ErrBeforeStateChanged) {
+			t.Fatalf("stale expected digest error = %v, want ErrBeforeStateChanged", err)
+		}
+		if n := len(backupDirs(t, home)); n != 0 {
+			t.Fatalf("a refused transaction created %d backup(s)", n)
+		}
+		if got := readString(t, filepath.Join(targetRoot, "b.md")); got != "current-b\n" {
+			t.Fatalf("refused transaction modified b.md: %q", got)
+		}
+	})
+
 	t.Run("engine rollback restores committed files and keeps the backup", func(t *testing.T) {
 		home := newFleetHome(t)
 		targetRoot := TargetRootForHome(home)
@@ -497,21 +562,23 @@ func TestFleetApply(t *testing.T) {
 		if err := os.WriteFile(first, []byte("old-a"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		// A non-empty directory at the second destination makes its rename
-		// fail after the first change committed, exercising rollback.
+		// b.md is absent at revalidation, so the engine accepts it. After the
+		// backup and before the commit, an unguarded writer creates a
+		// non-empty directory there, so the second rename fails after a.md has
+		// committed and rollback must restore a.md.
 		blocked := filepath.Join(targetRoot, "b.md")
-		if err := os.MkdirAll(blocked, 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(blocked, "marker"), []byte("dir"), 0644); err != nil {
-			t.Fatal(err)
-		}
 		_, err := skillsync.ApplyAgentFiles(
 			skillsync.BackupRootFor("", home), home, "test",
 			[]skillsync.AgentFileChange{
-				{File: "a.md", Data: []byte("new-a"), Old: true},
+				{File: "a.md", Data: []byte("new-a"), Old: true, ExpectSHA256: digestOf([]byte("old-a"))},
 				{File: "b.md", Data: []byte("new-b")},
-			}, nil, io.Discard)
+			},
+			func(string) ([]byte, error) {
+				if err := os.MkdirAll(blocked, 0755); err != nil {
+					return nil, err
+				}
+				return nil, os.WriteFile(filepath.Join(blocked, "marker"), []byte("dir"), 0644)
+			}, io.Discard)
 		if err == nil {
 			t.Fatal("expected the second rename to fail")
 		}

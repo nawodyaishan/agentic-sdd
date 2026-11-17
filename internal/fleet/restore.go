@@ -88,6 +88,8 @@ type restoreChange struct {
 	remove       bool
 	backupDigest string
 	record       FileRecord
+	// expect is the target's raw digest under the guard, re-checked by the engine.
+	expect string
 }
 
 // RestoreBackup validates the recorded transaction for backupID against the
@@ -118,6 +120,16 @@ func RestoreBackup(home, backupID string, out io.Writer) (RestoreResult, error) 
 		return result, err
 	}
 	defer func() { _ = lock.Release() }()
+	b6Acquired("legacy")
+	guard, err := acquireAgentGuard(absHome)
+	if err != nil {
+		return result, err
+	}
+	defer func() { _ = guard.Close() }()
+	b6Acquired("agent")
+	if err := reconcilePending(backupRoot, absHome, TargetRootForHome(absHome), out); err != nil {
+		return result, err
+	}
 
 	backupDir := filepath.Join(backupRoot, backupID)
 	backupInfo, err := os.Lstat(backupDir)
@@ -207,6 +219,7 @@ func RestoreBackup(home, backupID string, out io.Writer) (RestoreResult, error) 
 				remove:       true,
 				backupDigest: current,
 				record:       r,
+				expect:       current,
 			})
 			continue
 		}
@@ -225,6 +238,7 @@ func RestoreBackup(home, backupID string, out io.Writer) (RestoreResult, error) 
 			old:          exists,
 			backupDigest: current,
 			record:       r,
+			expect:       current,
 		})
 	}
 
@@ -263,13 +277,15 @@ func RestoreBackup(home, backupID string, out io.Writer) (RestoreResult, error) 
 	engineChanges := make([]skillsync.AgentFileChange, 0, len(changes))
 	for _, c := range changes {
 		engineChanges = append(engineChanges, skillsync.AgentFileChange{
-			File:   c.file,
-			Data:   c.data,
-			Old:    c.old,
-			Remove: c.remove,
+			File:         c.file,
+			Data:         c.data,
+			Old:          c.old,
+			Remove:       c.remove,
+			ExpectSHA256: c.expect,
 		})
 	}
-	written, restoreErr := skillsync.ApplyAgentFiles(backupRoot, absHome, "fleet-restore", engineChanges, hook, out)
+	b6BeforeEngine()
+	written, restoreErr := skillsync.ApplyAgentFilesGuarded(guard, backupRoot, absHome, "fleet-restore", engineChanges, hook, out)
 	result.BackupID = written.BackupID
 	result.BackupPath = written.BackupDir
 	result.Rollback = written.Rollback
@@ -306,15 +322,6 @@ func RestoreBackup(home, backupID string, out io.Writer) (RestoreResult, error) 
 		_ = writeManifestFile(written.BackupDir, &failed)
 		return result, fmt.Errorf("%w (backup is recoverable at %s)", err, written.BackupDir)
 	}
-	if err := writeManifestFile(written.BackupDir, &applied); err != nil {
-		return result, fmt.Errorf("fleet restore: write fleet manifest: %w", err)
-	}
-	merged := MergeLive(live, &applied)
-	if err := WriteLiveManifest(absHome, merged); err != nil {
-		return result, fmt.Errorf("fleet restore: write live manifest: %w", err)
-	}
-	result.LivePath = LivePointerPath(absHome)
-
 	for _, c := range changes {
 		if c.remove {
 			result.Removed++
@@ -322,6 +329,18 @@ func RestoreBackup(home, backupID string, out io.Writer) (RestoreResult, error) 
 			result.Restored++
 		}
 	}
+	// Files are committed here: a metadata failure is the distinct incomplete
+	// outcome, never a rollback or a success.
+	// Live pointer first, sidecar last (see ApplyPlan).
+	merged := MergeLive(live, &applied)
+	if err := finalizeLive(absHome, merged); err != nil {
+		return result, metadataIncomplete("live pointer", written.BackupDir, err)
+	}
+	if err := finalizeSidecar(written.BackupDir, &applied); err != nil {
+		return result, metadataIncomplete("sidecar", written.BackupDir, err)
+	}
+	result.LivePath = LivePointerPath(absHome)
+
 	fmt.Fprintf(out, "Restored %d file(s) from backup %s; removed %d created file(s).\n", result.Restored, backupID, result.Removed)
 	fmt.Fprintf(out, "Backup: %s\n", written.BackupDir)
 	fmt.Fprintf(out, "Live fleet manifest: %s\n", result.LivePath)

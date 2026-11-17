@@ -43,6 +43,9 @@ type applyChange struct {
 	remove       bool
 	backupDigest string
 	provenance   string
+	// expect is the raw digest the plan recorded for the target. The guarded
+	// engine re-checks it under the held guard before any backup or write.
+	expect string
 }
 
 // ApplyPlan revalidates a saved plan against current config, source and target
@@ -68,11 +71,22 @@ func ApplyPlan(plan *Plan, home string, out io.Writer) (ApplyResult, error) {
 		return result, fmt.Errorf("%w: home %s is not a directory", ErrUnsafeTarget, absHome)
 	}
 	backupRoot := skillsync.BackupRootFor("", absHome)
+	targetRoot := TargetRootForHome(absHome)
 	lock, err := AcquireLock(backupRoot)
 	if err != nil {
 		return result, err
 	}
 	defer func() { _ = lock.Release() }()
+	b6Acquired("legacy")
+	guard, err := acquireAgentGuard(absHome)
+	if err != nil {
+		return result, err
+	}
+	defer func() { _ = guard.Close() }()
+	b6Acquired("agent")
+	if err := reconcilePending(backupRoot, absHome, targetRoot, out); err != nil {
+		return result, err
+	}
 
 	if !plan.VerifyPlanID() {
 		return result, fmt.Errorf("%w: plan ID mismatch (corrupted or altered plan)", ErrStalePlan)
@@ -80,7 +94,6 @@ func ApplyPlan(plan *Plan, home string, out io.Writer) (ApplyResult, error) {
 	if plan.RendererVersion != RendererVersion {
 		return result, fmt.Errorf("%w: renderer version changed (plan %s, current %s)", ErrStalePlan, plan.RendererVersion, RendererVersion)
 	}
-	targetRoot := TargetRootForHome(absHome)
 	if filepath.Clean(plan.TargetRoot) != filepath.Clean(targetRoot) {
 		return result, fmt.Errorf("%w: target root changed (plan %s, current %s)", ErrStalePlan, plan.TargetRoot, targetRoot)
 	}
@@ -191,6 +204,7 @@ func ApplyPlan(plan *Plan, home string, out io.Writer) (ApplyResult, error) {
 				old:          exists,
 				backupDigest: current,
 				provenance:   provenance,
+				expect:       plan.LastKnownInstalled[op.File],
 			})
 		case "remove":
 			if !exists {
@@ -210,6 +224,7 @@ func ApplyPlan(plan *Plan, home string, out io.Writer) (ApplyResult, error) {
 				remove:       true,
 				backupDigest: current,
 				provenance:   ProvenanceRemoved,
+				expect:       plan.LastKnownInstalled[op.File],
 			})
 		default:
 			return result, fmt.Errorf("%w: unknown plan operation %q for %s", ErrPlanConflict, op.Op, op.File)
@@ -251,13 +266,15 @@ func ApplyPlan(plan *Plan, home string, out io.Writer) (ApplyResult, error) {
 	engineChanges := make([]skillsync.AgentFileChange, 0, len(changes))
 	for _, c := range changes {
 		engineChanges = append(engineChanges, skillsync.AgentFileChange{
-			File:   c.file,
-			Data:   c.data,
-			Old:    c.old,
-			Remove: c.remove,
+			File:         c.file,
+			Data:         c.data,
+			Old:          c.old,
+			Remove:       c.remove,
+			ExpectSHA256: c.expect,
 		})
 	}
-	written, applyErr := skillsync.ApplyAgentFiles(backupRoot, absHome, "fleet", engineChanges, hook, out)
+	b6BeforeEngine()
+	written, applyErr := skillsync.ApplyAgentFilesGuarded(guard, backupRoot, absHome, "fleet", engineChanges, hook, out)
 	result.BackupID = written.BackupID
 	result.BackupPath = written.BackupDir
 	result.Rollback = written.Rollback
@@ -294,15 +311,6 @@ func ApplyPlan(plan *Plan, home string, out io.Writer) (ApplyResult, error) {
 		_ = writeManifestFile(written.BackupDir, &failed)
 		return result, fmt.Errorf("%w (backup is recoverable at %s)", err, written.BackupDir)
 	}
-	if err := writeManifestFile(written.BackupDir, &applied); err != nil {
-		return result, fmt.Errorf("fleet apply: write fleet manifest: %w", err)
-	}
-	merged := MergeLive(live, &applied)
-	if err := WriteLiveManifest(absHome, merged); err != nil {
-		return result, fmt.Errorf("fleet apply: write live manifest: %w", err)
-	}
-	result.LivePath = LivePointerPath(absHome)
-
 	for _, c := range changes {
 		switch {
 		case c.remove:
@@ -313,6 +321,19 @@ func ApplyPlan(plan *Plan, home string, out io.Writer) (ApplyResult, error) {
 			result.Created++
 		}
 	}
+	// The files are committed and verified from here on. A metadata failure is
+	// the distinct incomplete outcome, never a rollback or a success.
+	// The live pointer is written before the sidecar becomes applied, so the
+	// transaction stays "applying" (and reconcilable) until both are final.
+	merged := MergeLive(live, &applied)
+	if err := finalizeLive(absHome, merged); err != nil {
+		return result, metadataIncomplete("live pointer", written.BackupDir, err)
+	}
+	if err := finalizeSidecar(written.BackupDir, &applied); err != nil {
+		return result, metadataIncomplete("sidecar", written.BackupDir, err)
+	}
+	result.LivePath = LivePointerPath(absHome)
+
 	fmt.Fprintf(out, "Applied %d change(s): %d created, %d updated, %d removed.\n", len(changes), result.Created, result.Updated, result.Removed)
 	fmt.Fprintf(out, "Backup: %s\n", written.BackupDir)
 	fmt.Fprintf(out, "Live fleet manifest: %s\n", result.LivePath)
@@ -490,6 +511,224 @@ func verifyInstalled(files []FileRecord) error {
 		}
 		if digest != r.InstalledDigest {
 			return fmt.Errorf("installed file %s does not match its recorded digest", r.Target)
+		}
+	}
+	return nil
+}
+
+// ErrMetadataIncomplete is the distinct outcome for an apply or restore whose
+// agent files were installed and verified, but whose provenance sidecar or live
+// pointer could not be finalized. It is never a success and never a silent
+// rollback; the next authorized mutation reconciles the recorded transaction.
+var ErrMetadataIncomplete = errors.New("files committed, metadata incomplete")
+
+// ErrPendingReconciliation reports an interrupted transaction whose target bytes
+// match neither its completed nor its prior state. Mutations refuse rather than
+// overwrite newer bytes; a human must review the target first.
+var ErrPendingReconciliation = errors.New("interrupted fleet transaction needs review before the next mutation")
+
+// b6Seams are test-only injection points, nil in production. They observe the
+// lock acquisition order, race a destination between revalidation and the
+// guarded engine, and fail one metadata write after files are committed.
+type b6Seams struct {
+	acquired     func(step string)
+	beforeEngine func()
+	metadata     func(step string) error
+}
+
+var b6Test b6Seams
+
+func b6Acquired(step string) {
+	if b6Test.acquired != nil {
+		b6Test.acquired(step)
+	}
+}
+
+func b6BeforeEngine() {
+	if b6Test.beforeEngine != nil {
+		b6Test.beforeEngine()
+	}
+}
+
+// acquireAgentGuard takes the agent-target guard for the canonical home. Fleet
+// takes it after the legacy fleet lock and holds it through revalidation, the
+// guarded engine and provenance finalization.
+func acquireAgentGuard(absHome string) (*skillsync.MutationGuard, error) {
+	canonical, err := filepath.EvalSymlinks(absHome)
+	if err != nil {
+		return nil, fmt.Errorf("fleet: canonical home: %w", err)
+	}
+	return skillsync.AcquireTargetMutation(canonical, skillsync.DomainAgentTarget)
+}
+
+// finalizeSidecar and finalizeLive are the only provenance writes after files
+// are committed. Each is atomic (see writeFileAtomic) and has a test seam.
+func finalizeSidecar(dir string, m *Manifest) error {
+	if b6Test.metadata != nil {
+		if err := b6Test.metadata("sidecar"); err != nil {
+			return err
+		}
+	}
+	return writeManifestFile(dir, m)
+}
+
+func finalizeLive(home string, m *Manifest) error {
+	if b6Test.metadata != nil {
+		if err := b6Test.metadata("live"); err != nil {
+			return err
+		}
+	}
+	return WriteLiveManifest(home, m)
+}
+
+// metadataIncomplete wraps a failed finalization step in the distinct outcome.
+// Error text names the step and the backup path only, never file content.
+func metadataIncomplete(step, backupDir string, err error) error {
+	return fmt.Errorf("%w: %s not finalized (%v); backup %s records the transaction and the next authorized mutation reconciles it", ErrMetadataIncomplete, step, err, backupDir)
+}
+
+// pendingOutcome classifies an interrupted transaction against the bytes on disk.
+type pendingOutcome string
+
+const (
+	// pendingCommitted: every target holds its completed state.
+	pendingCommitted pendingOutcome = "committed"
+	// pendingUncommitted: every target still holds its prior state.
+	pendingUncommitted pendingOutcome = "uncommitted"
+	// pendingConflict: some target matches neither state; it must not be overwritten.
+	pendingConflict pendingOutcome = "conflict"
+)
+
+// pendingTxn is one sidecar still in the applying state.
+type pendingTxn struct {
+	id       string
+	dir      string
+	manifest *Manifest
+}
+
+// listPending reads every applying sidecar under backupRoot. It only reads.
+func listPending(backupRoot, home, targetRoot string) ([]pendingTxn, error) {
+	entries, err := os.ReadDir(backupRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var ids []string
+	for _, e := range entries {
+		if e.IsDir() && skillsync.ValidateBackupID(e.Name()) == nil {
+			ids = append(ids, e.Name())
+		}
+	}
+	sort.Strings(ids)
+	var pending []pendingTxn
+	for _, id := range ids {
+		dir := filepath.Join(backupRoot, id)
+		m, err := ReadManifestFile(filepath.Join(dir, ManifestFileName))
+		if err != nil {
+			return nil, fmt.Errorf("backup %s fleet manifest: %w", id, err)
+		}
+		if m == nil || m.State != ManifestStateApplying {
+			continue
+		}
+		if err := m.Validate(id, home, backupRoot, targetRoot); err != nil {
+			return nil, fmt.Errorf("backup %s fleet manifest: %w", id, err)
+		}
+		pending = append(pending, pendingTxn{id: id, dir: dir, manifest: m})
+	}
+	return pending, nil
+}
+
+// classifyPending compares every record of an interrupted transaction with the
+// current bytes. Reads only.
+func classifyPending(m *Manifest) (pendingOutcome, error) {
+	committed, uncommitted := true, true
+	for _, r := range m.Files {
+		cur, exists, err := onDiskDigest(r.Target)
+		if err != nil {
+			return pendingConflict, err
+		}
+		if r.Provenance == ProvenanceRemoved {
+			if exists {
+				committed = false
+			}
+		} else if !exists || cur != r.DesiredDigest {
+			committed = false
+		}
+		if r.BackupRef == "" {
+			if exists {
+				uncommitted = false
+			}
+		} else if !exists || cur != r.BackupDigest {
+			uncommitted = false
+		}
+	}
+	switch {
+	case committed:
+		return pendingCommitted, nil
+	case uncommitted:
+		return pendingUncommitted, nil
+	}
+	return pendingConflict, nil
+}
+
+// reconcilePending runs under the held legacy lock and agent guard before any
+// authorized mutation. It writes provenance only and never changes a target.
+// A committed transaction is finalized to applied and merged into the live
+// pointer; an uncommitted one is marked failed. Any other transaction is refused
+// with ErrPendingReconciliation so newer bytes are never overwritten.
+func reconcilePending(backupRoot, home, targetRoot string, out io.Writer) error {
+	pending, err := listPending(backupRoot, home, targetRoot)
+	if err != nil {
+		return err
+	}
+	for _, p := range pending {
+		outcome, err := classifyPending(p.manifest)
+		if err != nil {
+			return err
+		}
+		m := p.manifest
+		switch outcome {
+		case pendingCommitted:
+			m.State = ManifestStateApplied
+			for i := range m.Files {
+				if m.Files[i].Provenance == ProvenanceRemoved {
+					continue
+				}
+				m.Files[i].InstalledDigest = m.Files[i].DesiredDigest
+			}
+			// Live pointer first, sidecar last: a failure leaves the sidecar
+			// applying, so the next mutation finishes the missing step.
+			live, err := ReadLiveManifest(home)
+			if err != nil {
+				return err
+			}
+			if live == nil {
+				if live, err = RebuildLiveManifest(home); err != nil {
+					return err
+				}
+			}
+			if err := finalizeLive(home, MergeLive(live, m)); err != nil {
+				return metadataIncomplete("live pointer", p.dir, err)
+			}
+			if err := finalizeSidecar(p.dir, m); err != nil {
+				return metadataIncomplete("sidecar", p.dir, err)
+			}
+			fmt.Fprintf(out, "Reconciled interrupted transaction %s: files were committed; provenance finalized.\n", p.id)
+		case pendingUncommitted:
+			m.State = ManifestStateFailed
+			m.Rollback = &RollbackState{
+				Attempted: false,
+				Complete:  false,
+				Error:     "interrupted before files were committed; no target was changed",
+			}
+			if err := finalizeSidecar(p.dir, m); err != nil {
+				return metadataIncomplete("sidecar", p.dir, err)
+			}
+			fmt.Fprintf(out, "Reconciled interrupted transaction %s: files were never committed; marked failed.\n", p.id)
+		default:
+			return fmt.Errorf("%w: backup %s; target bytes match neither its completed nor its prior state (nothing was overwritten)", ErrPendingReconciliation, p.id)
 		}
 	}
 	return nil

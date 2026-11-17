@@ -98,6 +98,17 @@ type Status struct {
 	TargetRoot   string
 	Instances    []InstanceStatus
 	Counts       map[string]int
+	// PendingTransactions lists interrupted transactions whose provenance is not
+	// finalized. It is reported only; status never reconciles them.
+	PendingTransactions []PendingTransaction
+}
+
+// PendingTransaction is one interrupted apply or restore. Outcome is
+// "committed" (files match the completed state and can be finalized), or
+// "conflict" (target bytes match neither state and need review).
+type PendingTransaction struct {
+	BackupID string
+	Outcome  string
 }
 
 // BuildStatus derives the read-only fleet inventory from configPath, the
@@ -159,12 +170,28 @@ func BuildStatus(configPath, repo, home string) (*Status, error) {
 		}
 	}
 
+	// Interrupted transactions are classified from the bytes on disk and
+	// reported only. Status never finalizes or repairs them.
+	pending, err := listPending(skillsync.BackupRootFor("", absHome), absHome, targetRoot)
+	if err != nil {
+		return nil, err
+	}
+	var pendingReport []PendingTransaction
+	for _, p := range pending {
+		outcome, err := classifyPending(p.manifest)
+		if err != nil {
+			return nil, err
+		}
+		pendingReport = append(pendingReport, PendingTransaction{BackupID: p.id, Outcome: string(outcome)})
+	}
+
 	status := &Status{
-		ConfigPath:   configPath,
-		ConfigDigest: configDigest,
-		TargetRoot:   targetRoot,
-		Instances:    make([]InstanceStatus, 0, len(resolved)),
-		Counts:       make(map[string]int, len(allInstalledStates)+4),
+		ConfigPath:          configPath,
+		ConfigDigest:        configDigest,
+		TargetRoot:          targetRoot,
+		Instances:           make([]InstanceStatus, 0, len(resolved)),
+		Counts:              make(map[string]int, len(allInstalledStates)+4),
+		PendingTransactions: pendingReport,
 	}
 
 	for _, r := range resolved {

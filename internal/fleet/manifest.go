@@ -2,11 +2,15 @@ package fleet
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 
 	"agentic-sdd/internal/skillsync"
 )
@@ -95,11 +99,53 @@ type Manifest struct {
 	Files           []FileRecord   `json:"files"`
 }
 
+// maxFleetManifestBytes is the per-file limit for fleet sidecars and the live
+// pointer (plan §4.2). Oversize input is refused, never truncated.
+const maxFleetManifestBytes int64 = 4 << 20
+
+// readBoundedManifest reads a regular fleet manifest of at most
+// maxFleetManifestBytes. A symbolic link, FIFO, device or directory is refused
+// before it can block or allocate. The file is opened non-blocking and its
+// identity is checked against the pre-open Lstat, so a replacement in between
+// is refused. At most limit+1 bytes are read.
+func readBoundedManifest(path string) ([]byte, error) {
+	pre, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !pre.Mode().IsRegular() {
+		return nil, fmt.Errorf("%w: %s is not a regular file", ErrUnsafeManifest, path)
+	}
+	if pre.Size() > maxFleetManifestBytes {
+		return nil, fmt.Errorf("%w: %s exceeds %d bytes", ErrUnsafeManifest, path, maxFleetManifestBytes)
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	post, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !post.Mode().IsRegular() || !os.SameFile(pre, post) {
+		return nil, fmt.Errorf("%w: %s changed or is not a regular file while it was opened", ErrUnsafeManifest, path)
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxFleetManifestBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxFleetManifestBytes {
+		return nil, fmt.Errorf("%w: %s exceeds %d bytes", ErrUnsafeManifest, path, maxFleetManifestBytes)
+	}
+	return data, nil
+}
+
 // ReadManifestFile loads a format-4 fleet sidecar. A missing file reports
 // (nil, nil) so callers can distinguish "no fleet provenance" from a
 // malformed manifest without treating absence as corruption.
 func ReadManifestFile(path string) (*Manifest, error) {
-	data, err := os.ReadFile(path)
+	data, err := readBoundedManifest(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -191,37 +237,65 @@ func WriteLiveManifest(home string, m *Manifest) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, ".current-*")
+	return writeFileAtomic(path, data, 0600)
+}
+
+// writeFileAtomic replaces path with data through a temporary file in the same
+// directory: the bytes are synced before the rename, and the directory is synced
+// after it where the platform supports directory sync. A failure leaves the
+// previous content in place and removes the temporary file.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) (err error) {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return err
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	if err := tmp.Chmod(0600); err != nil {
-		_ = tmp.Close()
+	defer func() {
+		if err != nil {
+			_ = tmp.Close()
+			_ = os.Remove(tmpName)
+		}
+	}()
+	if err = tmp.Chmod(perm); err != nil {
 		return err
 	}
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
+	if _, err = tmp.Write(data); err != nil {
 		return err
 	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
+	if err = tmp.Sync(); err != nil {
 		return err
 	}
-	if err := tmp.Close(); err != nil {
+	if err = tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, path)
+	if err = os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	return syncDir(dir)
 }
 
-// writeManifestFile writes a sidecar into an existing backup directory.
+// syncDir makes a completed rename durable on platforms that can sync a
+// directory. Windows cannot open a directory for sync, so it is skipped there.
+func syncDir(dir string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return d.Sync()
+}
+
+// writeManifestFile atomically writes a sidecar into an existing backup directory.
 func writeManifestFile(dir string, m *Manifest) error {
 	data, err := marshalManifest(m)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, ManifestFileName), data, 0600)
+	return writeFileAtomic(filepath.Join(dir, ManifestFileName), data, 0600)
 }
 
 func marshalManifest(m *Manifest) ([]byte, error) {
@@ -474,3 +548,7 @@ func onDiskDigest(path string) (string, bool, error) {
 	}
 	return digestBytes(data), true, nil
 }
+
+// ErrUnsafeManifest reports a fleet manifest that is not a regular file, changed
+// while it was opened, or exceeds its byte limit. Messages name the path only.
+var ErrUnsafeManifest = errors.New("unsafe or oversized fleet manifest")
