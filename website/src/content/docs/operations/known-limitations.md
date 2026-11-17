@@ -87,9 +87,6 @@ as certification. In particular:
 
 ## Documented gaps you may hit
 
-- **Top-level CLI help under-describes MCP.** `asdx-core --help` summarises `mcp` as
-  read-only and omits `apply` and `restore`, while `mcp help` and the dispatcher implement
-  them (`cmd/agentic-sdd/main.go` versus `cmd/agentic-sdd/mcp.go`). Trust the family help.
 - **No uninstall command.** Removal is a deliberate manual or restore-based action; there
   is no "delete the whole home" cleanup, and that refusal is intentional.
 - **No team administration.** There is no daemon, server, organisation policy engine or

@@ -40,7 +40,7 @@ GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go run ./cmd/agentic-sdd help preview
 **Expected observations:**
 
 - `asdx-core version` exits `0` and prints the CLI version, commit, build date, and Go version. Note that `version` accepts no flags or extra arguments (`asdx-core version --help` exits `2`; use `asdx-core help version`).
-- `asdx-core help preview` exits `0`, prints `Writes files: no (read-only)`, and then prints the top-level usage block, whose `Flags:` list is `--repo`, `--home`, `--apply`, `--version`, and `-h/--help`.
+- `asdx-core help preview` exits `0`, prints `Writes files: no (read-only)`, and then prints the top-level usage block, whose `Flags:` list is `--repo`, `--home`, `--with-opencode`, `--opencode-free-first`, `--apply`, `--version`, and `-h/--help`.
 
 ## Step 3: Preview without installing anything
 

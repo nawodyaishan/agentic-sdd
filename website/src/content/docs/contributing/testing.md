@@ -90,7 +90,7 @@ Everything beyond the core gate is opt-in and labeled as such. A skip caused by 
 | Guided container journeys | `task docker-guide-e2e` | Same container setup |
 | Website checks | `npm --prefix website run docs:check` and related scripts | Node.js under `website/` only |
 
-Hosted CI (`.github/workflows/ci.yml`) runs the trusted gate against candidate bytes as data; the release workflow (`.github/workflows/release.yml`) runs `task verify` on tag push. Local runs never reinterpret themselves as trusted-CI evidence.
+Hosted CI (`.github/workflows/ci.yml`) runs the trusted gate against candidate bytes as data. On a `v*` tag push, `Release build` (`.github/workflows/release.yml`) builds and manifests artifacts without tokens, and `Release publish` (`.github/workflows/release-publish.yml`, run from the default branch via `workflow_run`) refuses unless the tagged commit is on the default branch, CI on that commit has passed (waiting up to 40 minutes), the manifest matches, `RELEASE_TOOLS_SHA` pins the tooling, and the tap has the cask with no formula. Local runs never reinterpret themselves as trusted-CI evidence.
 
 ## Optional coverage contract
 

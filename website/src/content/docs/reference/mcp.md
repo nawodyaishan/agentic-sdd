@@ -26,7 +26,7 @@ typed operation seams in `internal/appops/mcp.go` and
 | `asdx-core mcp restore list` | no | Lists backups from the MCP store only. |
 | `asdx-core mcp restore preview ID` | no | Compares the current file with one backup, entry by entry. |
 | `asdx-core mcp restore apply ID` | yes | Requires `--expect-config`; restores recorded managed entries only. |
-| `asdx-core mcp help` | no | Family help. This is authoritative over the shorter root `--help` summary; see [CLI reference](./cli.md). |
+| `asdx-core mcp help` | no | Full family help for `mcp` subcommands and flags (root `--help` also lists `apply` and `restore`); see [CLI reference](./cli.md). |
 
 | Flag | Applies to | Contract |
 | --- | --- | --- |
