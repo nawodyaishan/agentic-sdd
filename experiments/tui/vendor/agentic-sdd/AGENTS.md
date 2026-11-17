@@ -40,6 +40,10 @@ session infrastructure, not as product scope or a source of approval.
 See [docs/codegraph.md](docs/codegraph.md) for the bootstrap, sync, MCP
 continuity and troubleshooting procedure.
 
+## OpenCode pack routing and lightweight modes
+
+For the optional OpenCode pack, `opencode-pack/routing.md` is the upstream owner of shipped profile routes and fallbacks. The provider table in a personal host config is an override and must not be imported into the pack. Shipped reviewer profiles are ordinary advisory reviewers; the strict independent method stays in the portable reference and is not installed as a profile. Lightweight explanation, teaching and handoff branches read `agentic-sdd-router/references/lightweight-authority.md` and escalate to `workflow-policy.md` only on a mode or workflow-state change.
+
 ## Product vision and engineering principles
 
 [docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md](docs/vision/Agentic-SDD-Project-Vision-and-Evolution.md) is the canonical product compass: mission, audiences, non-negotiable engineering principles, and conditional long-term direction.

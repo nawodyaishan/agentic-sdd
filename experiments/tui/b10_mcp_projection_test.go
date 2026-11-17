@@ -11,6 +11,9 @@ package tui
 import (
 	"context"
 	"errors"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -348,5 +351,158 @@ func TestB10MCPRestoreOutcomeIsVisibleWhereItHappened(t *testing.T) {
 	}
 	if !strings.Contains(rendered, "Backup ID: safety-backup") {
 		t.Fatalf("the recorded safety backup is not shown:\n%s", rendered)
+	}
+}
+
+// b10FailedMCPApply runs one real apply through the production appops seam and
+// the production host projection, and returns the message the root shell would
+// receive. The ownership manifest is corrupted after the preview, so the engine
+// fails after the rename and performs a real rollback on an isolated temp home.
+func b10FailedMCPApply(t *testing.T) WriteResultMsg {
+	t.Helper()
+	home := t.TempDir()
+	configDir := filepath.Join(home, ".config", "opencode")
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(configDir, "opencode.json")
+	if err := os.WriteFile(configPath, []byte("{\n  \"mcp\": {\n    \"servers\": {}\n  }\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(t.TempDir(), "opencode")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho '2.1.0'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	planReq, err := appops.NewMCPPlanRequest(home, configPath, []string{"codegraph"}, nil)
+	if err != nil {
+		t.Fatalf("NewMCPPlanRequest: %v", err)
+	}
+	planRes, err := appops.MCPPlanPreview(planReq)
+	if err != nil {
+		t.Fatalf("MCPPlanPreview: %v", err)
+	}
+
+	stateDir := filepath.Join(home, ".agentic-sdd", "mcp")
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, "manifest.json"), []byte("{not json\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	req := MCPWriteRequest{
+		Home:         home,
+		ConfigPath:   configPath,
+		Plan:         planRes.Plan,
+		Token:        planRes.Token,
+		ExpectDigest: planRes.Plan.BaseDigest,
+		OpenCodeBin:  bin,
+	}
+	result, err := appOpsMCPApply(req, planRes.Token, io.Discard)
+	if err == nil {
+		t.Fatal("the fixture apply was reported as success")
+	}
+	return WriteResultMsg{
+		Kind:    WriteMCPApply,
+		Result:  result,
+		Err:     err,
+		LogPath: filepath.Join(home, ".agentic-sdd", "logs", "apply.log"),
+	}
+}
+
+// TestB10MCPFailedApplyProjectsRollbackNotBareFailure is the F-01 regression
+// test: a real failed apply that rolled back must reach the TUI as "rolled back"
+// with its backup and log facts, not as a bare "failed" that hides that the
+// engine already undid the write.
+func TestB10MCPFailedApplyProjectsRollbackNotBareFailure(t *testing.T) {
+	msg := b10FailedMCPApply(t)
+
+	outcome := mcpOutcomeFromResult(msg)
+	if outcome.Headline != "rolled back" {
+		t.Fatalf("headline = %q, want rolled back (a rollback ran)", outcome.Headline)
+	}
+	if outcome.Rollback != "complete" {
+		t.Fatalf("rollback = %q, want complete", outcome.Rollback)
+	}
+	if outcome.BackupID == "" || outcome.BackupID != msg.Result.BackupID {
+		t.Fatalf("backup id = %q, want the engine's %q", outcome.BackupID, msg.Result.BackupID)
+	}
+	if outcome.BackupPath == "" || outcome.BackupPath != msg.Result.BackupPath {
+		t.Fatalf("backup path = %q, want the engine's %q", outcome.BackupPath, msg.Result.BackupPath)
+	}
+	if outcome.LogPath != msg.LogPath {
+		t.Fatalf("log path = %q, want %q", outcome.LogPath, msg.LogPath)
+	}
+	if len(outcome.PartiallyApplied) != 0 {
+		t.Fatalf("a rolled-back apply reported partial writes: %v", outcome.PartiallyApplied)
+	}
+	if !strings.Contains(outcome.Detail, "Engine: ") {
+		t.Fatalf("detail dropped the engine error: %q", outcome.Detail)
+	}
+
+	// The root shell and the child screen show the same truth.
+	app := b10MCPApp(t, &fakeMCPReader{}, &fakeMCPPlanner{})
+	next, _ := b10DeliverMCPResult(t, app, msg)
+	if got := next.mcp.Outcome(); got.Headline != "rolled back" || got.Rollback != "complete" {
+		t.Fatalf("child outcome = %+v, want a completed rollback", got)
+	}
+	rendered := b10RenderMCP(next)
+	if !strings.Contains(rendered, "Last operation: rolled back") {
+		t.Errorf("MCP screen missing the rolled-back headline:\n%s", rendered)
+	}
+	if strings.Contains(rendered, "Last operation: failed") {
+		t.Errorf("MCP screen presented a rolled-back write as a bare failure:\n%s", rendered)
+	}
+	// The structured rows are asserted on the child section itself: the engine's
+	// own message is long, so a full-viewport render can scroll them out of view.
+	rows := strings.Join(mcpOutcomeLines(next.mcp, 100), "\n")
+	for _, want := range []string{"Rollback: complete", "Backup ID: " + outcome.BackupID} {
+		if !strings.Contains(rows, want) {
+			t.Errorf("MCP outcome rows missing %q:\n%s", want, rows)
+		}
+	}
+}
+
+// TestB10MCPIncompleteRollbackProjectsRecovery proves the same projection keeps
+// an incomplete rollback distinct: the engine result reaches the screen with the
+// recovery backup and the incomplete state, not a flattened failure.
+func TestB10MCPIncompleteRollbackProjectsRecovery(t *testing.T) {
+	engineResult := &skillsync.MCPApplyResult{
+		TargetPath: "/home/.config/opencode/opencode.json",
+		BackupID:   "recovery-backup",
+		BackupPath: "/home/.agentic-sdd/mcp/backups/recovery-backup",
+		Rollback:   skillsync.RollbackInfo{Attempted: true, Complete: false, Error: "target is read-only"},
+	}
+	projected, err := projectMCPApplyResult(
+		skillsync.OperationApply, "mcp apply", engineResult, errors.New("mcp apply needs recovery"))
+	if err == nil {
+		t.Fatal("a needs-recovery apply was reported as success")
+	}
+	msg := WriteResultMsg{
+		Kind:    WriteMCPApply,
+		Result:  projected,
+		Err:     err,
+		LogPath: "/home/.agentic-sdd/logs/apply.log",
+	}
+
+	outcome := mcpOutcomeFromResult(msg)
+	if outcome.Headline != "incomplete" {
+		t.Fatalf("headline = %q, want incomplete", outcome.Headline)
+	}
+	if outcome.Rollback != "incomplete" {
+		t.Fatalf("rollback = %q, want incomplete", outcome.Rollback)
+	}
+	if outcome.BackupID != engineResult.BackupID || outcome.BackupPath != engineResult.BackupPath {
+		t.Fatalf("recovery facts lost: %+v", outcome)
+	}
+
+	app := b10MCPApp(t, &fakeMCPReader{}, &fakeMCPPlanner{})
+	next, _ := b10DeliverMCPResult(t, app, msg)
+	rows := strings.Join(mcpOutcomeLines(next.mcp, 100), "\n")
+	for _, want := range []string{"Last operation: incomplete", "Rollback: INCOMPLETE", "Backup path: " + engineResult.BackupPath} {
+		if !strings.Contains(rows, want) {
+			t.Errorf("MCP outcome rows missing %q:\n%s", want, rows)
+		}
 	}
 }
