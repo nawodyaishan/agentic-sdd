@@ -201,7 +201,7 @@ func restoreSourceDigest(backupDir, id string, records []restoreRecord) (string,
 			identity.add("payload-file", name, digest)
 			continue
 		}
-		digest, err := treeDigest(source, record.backupRel)
+		digest, err := treeEntryDigest(backupDir, record.backupRel, record.digestVersion)
 		if err != nil {
 			return "", err
 		}

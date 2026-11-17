@@ -57,6 +57,8 @@ type restoreRecord struct {
 	skill     string
 	action    string // actionReplaced or actionInstalled
 	backupRel string // relative path within the backup dir; set for actionReplaced only
+	// digestVersion is the recorded tree-digest version for a replaced skill tree.
+	digestVersion int
 }
 
 // Backup summarizes one entry under a backup root for listing and
@@ -310,11 +312,18 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 					return manifest{}, nil, fmt.Errorf("backup %s entry %s has no saved file", id, rel)
 				}
 				delete(diskTrees, rel)
+				// Agent profiles are single files: only the raw file digest exists.
+				if e.DigestVersion != 0 {
+					return manifest{}, nil, fmt.Errorf("backup %s entry %s has digest_version %d; agent entries use the raw digest only", id, rel, e.DigestVersion)
+				}
+				if e.SHA256 == "" {
+					return manifest{}, nil, fmt.Errorf("backup %s entry %s has no sha256", id, rel)
+				}
 				digest, err := fileDigest(os.DirFS(backupDir), rel)
 				if err != nil {
 					return manifest{}, nil, err
 				}
-				if e.SHA256 != "" && digest != e.SHA256 {
+				if digest != e.SHA256 {
 					return manifest{}, nil, fmt.Errorf("backup %s entry %s failed digest verification", id, rel)
 				}
 				records = append(records, restoreRecord{kind: "opencode-agent", isFile: true, client: e.Client, skill: e.Skill, action: actionReplaced, backupRel: rel})
@@ -347,14 +356,20 @@ func loadBackup(root, id, home string) (manifest, []restoreRecord, error) {
 				return manifest{}, nil, fmt.Errorf("backup %s entry %s has no saved tree", id, rel)
 			}
 			delete(diskTrees, rel)
-			digest, err := treeDigest(os.DirFS(backupDir), rel)
+			if err := checkTreeDigestVersion(e.DigestVersion); err != nil {
+				return manifest{}, nil, fmt.Errorf("backup %s entry %s: %w", id, rel, err)
+			}
+			if e.SHA256 == "" {
+				return manifest{}, nil, fmt.Errorf("backup %s entry %s has no sha256", id, rel)
+			}
+			digest, err := treeEntryDigest(backupDir, rel, e.DigestVersion)
 			if err != nil {
 				return manifest{}, nil, err
 			}
-			if e.SHA256 != "" && digest != e.SHA256 {
+			if digest != e.SHA256 {
 				return manifest{}, nil, fmt.Errorf("backup %s entry %s failed digest verification", id, rel)
 			}
-			records = append(records, restoreRecord{kind: "skill", client: e.Client, skill: e.Skill, action: actionReplaced, backupRel: rel})
+			records = append(records, restoreRecord{kind: "skill", client: e.Client, skill: e.Skill, action: actionReplaced, backupRel: rel, digestVersion: e.DigestVersion})
 		case actionInstalled:
 			if diskTrees[rel] {
 				return manifest{}, nil, fmt.Errorf("backup %s entry %s unexpectedly has a saved tree", id, rel)
@@ -418,6 +433,21 @@ func RestoreResult(repo, home, id string, apply bool, out io.Writer) (OperationR
 
 	if m.isLegacy() {
 		fmt.Fprintln(out, "Legacy backup: only the saved skills are recorded; any skill installed fresh by that apply is left as is.")
+	}
+
+	// An apply holds the agent-target guard from before destination planning
+	// through backup, commit and manifest write. Preview stays lock-free.
+	var guard *MutationGuard
+	if apply {
+		key, keyErr := agentTargetGuardKey(home)
+		if keyErr != nil {
+			return result, keyErr
+		}
+		guard, err = AcquireTargetMutation(key, DomainAgentTarget)
+		if err != nil {
+			return result, err
+		}
+		defer guard.Close()
 	}
 
 	source := os.DirFS(backupDir)
@@ -549,7 +579,7 @@ func RestoreResult(repo, home, id string, apply bool, out io.Writer) (OperationR
 		names = append(names, s)
 	}
 	sort.Strings(names)
-	written, err := installChanges(root, home, backupDir, source, names, changes, operation{kind: "restore", restoredFrom: id}, out)
+	written, err := installChangesGuarded(guard, root, home, backupDir, source, names, changes, operation{kind: "restore", restoredFrom: id}, out)
 	result.BackupID = written.backupID
 	result.BackupPath = written.backupPath
 	result.Rollback = written.rollback

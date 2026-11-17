@@ -436,7 +436,7 @@ func TestInstalledModesUseRequestedModesSubjectToUmask(t *testing.T) {
 				if replaced.Action != actionReplaced || replaced.SHA256 == "" {
 					t.Fatalf("manifest entry = %+v, want a replaced entry with a digest", replaced)
 				}
-				digest, err := treeDigest(os.DirFS(filepath.Join(backupRoot, id)), replaced.Backup)
+				digest, err := treeEntryDigest(filepath.Join(backupRoot, id), replaced.Backup, replaced.DigestVersion)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -454,7 +454,7 @@ func TestInstalledModesUseRequestedModesSubjectToUmask(t *testing.T) {
 				if info.Mode().Perm() == savedModes["SKILL.md"] {
 					t.Fatal("mode-only digest edit did not change actual permission bits")
 				}
-				after, err := treeDigest(os.DirFS(filepath.Join(backupRoot, id)), replaced.Backup)
+				after, err := treeEntryDigest(filepath.Join(backupRoot, id), replaced.Backup, replaced.DigestVersion)
 				if err != nil {
 					t.Fatal(err)
 				}

@@ -34,12 +34,17 @@ import (
 //     reports needs-recovery with the backup identity and digests.
 const (
 	mcpBackupsDirName = "backups"
-	mcpLockFileName   = ".lock"
-	mcpSnapshotFile   = "snapshot.json"
-	mcpIntentFile     = "intent.json"
+	// mcpLockFileName is the legacy per-state-directory lock older binaries
+	// created. It is read only to refuse or clear it; the current exclusion is
+	// the B1 MCP-domain guard, and this name is never created again.
+	mcpLockFileName = ".lock"
+	mcpSnapshotFile = "snapshot.json"
+	mcpIntentFile   = "intent.json"
 
-	mcpLockStaleAfter      = 30 * time.Second
-	mcpRuntimeProbeTimeout = 5 * time.Second
+	// mcpLegacyLockStaleAfter is the age below which a legacy lock still counts
+	// as a live writer. Age never evicts the current guard.
+	mcpLegacyLockStaleAfter = 30 * time.Second
+	mcpRuntimeProbeTimeout  = 5 * time.Second
 
 	mcpSnapshotFormat  = 1
 	mcpManifestFormat  = 1
@@ -239,6 +244,8 @@ func applyMCPPlan(home, configPath string, plan *MCPPlan, opts MCPApplyOptions, 
 			ErrMCPStale, opts.ExpectDigest, plan.BaseDigest)
 	}
 
+	// Fast refusal before any state directory is created: a stale preview writes
+	// nothing. This read is not authority; the re-read under the guard is.
 	current, _, err := mcpReadConfigBytes(expectedPath)
 	if err != nil {
 		return result, err
@@ -264,15 +271,18 @@ func applyMCPPlan(home, configPath string, plan *MCPPlan, opts MCPApplyOptions, 
 	}
 	defer func() { _ = lock.Release() }()
 
-	// Re-read under the lock: the CAS digest must still describe the file that
-	// is about to be replaced.
+	// Authoritative revalidation: re-read under the guard, so the CAS digest
+	// describes the file that is about to be replaced.
 	lockedBytes, lockedMode, err := mcpReadConfigBytes(expectedPath)
 	if err != nil {
 		return result, err
 	}
 	if got := mcpBytesDigest(lockedBytes); got != plan.BaseDigest {
-		return result, fmt.Errorf("%w: %s changed before the lock was acquired (base %s, current %s); re-run preview",
+		return result, fmt.Errorf("%w: %s changed while the lock was held (base %s, current %s); re-run preview",
 			ErrMCPStale, expectedPath, plan.BaseDigest, got)
+	}
+	if err := lock.check(); err != nil {
+		return result, err
 	}
 
 	runtimePath, runtimeVersion, err := probeMCPRuntime(opts.OpenCodeBin)
@@ -780,8 +790,12 @@ func restoreMCPConfig(home, backupID, configPath, expectDigest string, hook *mcp
 	}
 	defer func() { _ = lock.Release() }()
 
+	// Authoritative revalidation under the guard.
 	lockedBytes, lockedMode, err := mcpReadConfigBytes(state.TargetPath)
 	if err != nil {
+		return result, err
+	}
+	if err := lock.check(); err != nil {
 		return result, err
 	}
 	if got := mcpBytesDigest(lockedBytes); got != preview.BaseDigest {
@@ -1225,83 +1239,110 @@ func mcpValidateBackupID(backupID string) error {
 	return nil
 }
 
-// acquireMCPLock takes the shared, cross-process engine lock covering the
-// target and ownership manifest. A lock older than 30 seconds is treated as
-// abandoned by a crashed writer and reclaimed once.
+// mcpLegacyLockRecheckHook is a test seam. It runs after a legacy lock has been
+// inspected as old enough to clear and before it is re-checked for identity.
+// It is nil in production.
+var mcpLegacyLockRecheckHook func(path string)
+
+// acquireMCPLock takes the MCP-domain guard (B1) for home. Acquisition never
+// waits and age never evicts a live guard. While the guard is held, a legacy
+// lock from an older binary is refused if it is younger than the legacy window,
+// and otherwise removed only when the object inspected is still at the path.
 func acquireMCPLock(home string) (*mcpLock, error) {
-	dir := mcpStateDir(home)
-	if err := mcpEnsurePrivateDir(dir); err != nil {
+	if err := mcpEnsurePrivateDir(mcpStateDir(home)); err != nil {
 		return nil, err
 	}
-	lockPath := mcpLockPath(home)
-	for attempt := 0; attempt < 2; attempt++ {
-		token := fmt.Sprintf("%d\n%s\n", os.Getpid(), time.Now().UTC().Format(time.RFC3339Nano))
-		f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-		if err == nil {
-			if _, writeErr := f.WriteString(token); writeErr != nil {
-				_ = f.Close()
-				_ = os.Remove(lockPath)
-				return nil, fmt.Errorf("write MCP lock %s: %w", lockPath, writeErr)
-			}
-			if syncErr := f.Sync(); syncErr != nil {
-				_ = f.Close()
-				_ = os.Remove(lockPath)
-				return nil, fmt.Errorf("sync MCP lock %s: %w", lockPath, syncErr)
-			}
-			if closeErr := f.Close(); closeErr != nil {
-				_ = os.Remove(lockPath)
-				return nil, fmt.Errorf("close MCP lock %s: %w", lockPath, closeErr)
-			}
-			return &mcpLock{path: lockPath, token: token}, nil
-		}
-		if !errors.Is(err, os.ErrExist) {
-			return nil, fmt.Errorf("acquire MCP lock %s: %w", lockPath, err)
-		}
-		info, statErr := os.Stat(lockPath)
-		if statErr != nil {
-			if errors.Is(statErr, os.ErrNotExist) {
-				continue
-			}
-			return nil, fmt.Errorf("inspect MCP lock %s: %w", lockPath, statErr)
-		}
-		age := time.Since(info.ModTime())
-		if age < mcpLockStaleAfter {
-			return nil, fmt.Errorf(
-				"%w: %w: lock held at %s for %s; wait for the competing writer or retry after it exits",
-				ErrMCPConflict, ErrMCPLocked, lockPath, age.Round(time.Second))
-		}
-		if removeErr := os.Remove(lockPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return nil, fmt.Errorf("%w: %w: remove stale lock %s: %v",
-				ErrMCPConflict, ErrMCPLocked, lockPath, removeErr)
-		}
-	}
-	return nil, fmt.Errorf("%w: %w: could not acquire %s", ErrMCPConflict, ErrMCPLocked, lockPath)
-}
-
-// mcpLock is one acquired lock handle.
-type mcpLock struct {
-	path  string
-	token string
-}
-
-// Release removes the lock file only when it still carries this acquisition's
-// token, so a lock re-created by another process is never disturbed.
-func (l *mcpLock) Release() error {
-	if l == nil || l.path == "" {
-		return nil
-	}
-	data, err := os.ReadFile(l.path)
+	key, err := filepath.EvalSymlinks(home)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
+		return nil, fmt.Errorf("%w: resolve home directory: %v", ErrMCPUnsafeTarget, err)
 	}
-	if string(data) != l.token {
+	guard, err := AcquireTargetMutation(key, DomainMCPTarget)
+	if err != nil {
+		return nil, mcpLockRefusal(err)
+	}
+	if err := clearMCPLegacyLock(home); err != nil {
+		_ = guard.Close()
+		return nil, err
+	}
+	return &mcpLock{guard: guard, home: key}, nil
+}
+
+// mcpLockRefusal maps a guard refusal onto the MCP error classes. A held guard
+// is a conflict that also carries ErrMCPLocked and the retry instruction.
+func mcpLockRefusal(err error) error {
+	switch {
+	case errors.Is(err, ErrMutationConflict):
+		return fmt.Errorf("%w: %w: wait for the competing writer or retry after it exits: %w",
+			ErrMCPConflict, ErrMCPLocked, err)
+	case errors.Is(err, ErrMutationUnsupported):
+		return fmt.Errorf("%w: %w", ErrMCPUnsupported, err)
+	}
+	return fmt.Errorf("%w: %w", ErrMCPUnsafeTarget, err)
+}
+
+// clearMCPLegacyLock handles the legacy `.lock` under the MCP state directory.
+// It must be called only while the MCP-domain guard is held. The file is never
+// created again. A young legacy lock belongs to a live older writer and is a
+// conflict. An old one is removed only if device, inode, size and mtime still
+// match the object inspected, so a replaced or re-timed file is never removed.
+func clearMCPLegacyLock(home string) error {
+	path := mcpLockPath(home)
+	inspected, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	if err := os.Remove(l.path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
+	if err != nil {
+		return fmt.Errorf("inspect legacy MCP lock %s: %w", path, err)
+	}
+	if !inspected.Mode().IsRegular() {
+		return fmt.Errorf("%w: legacy MCP lock %s is not a regular file", ErrMCPUnsafeTarget, path)
+	}
+	if age := time.Since(inspected.ModTime()); age < mcpLegacyLockStaleAfter {
+		return fmt.Errorf("%w: %w: legacy lock held at %s for %s; wait for the older writer to exit",
+			ErrMCPConflict, ErrMCPLocked, path, age.Round(time.Second))
+	}
+	if mcpLegacyLockRecheckHook != nil {
+		mcpLegacyLockRecheckHook(path)
+	}
+	again, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("re-inspect legacy MCP lock %s: %w", path, err)
+	}
+	if !os.SameFile(inspected, again) || again.Size() != inspected.Size() || !again.ModTime().Equal(inspected.ModTime()) {
+		return fmt.Errorf("%w: %w: legacy lock %s changed while it was inspected; retry",
+			ErrMCPConflict, ErrMCPLocked, path)
+	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("%w: %w: remove legacy lock %s: %v", ErrMCPConflict, ErrMCPLocked, path, err)
+	}
+	return nil
+}
+
+// mcpLock is one held MCP-domain guard for a home.
+type mcpLock struct {
+	guard *MutationGuard
+	home  string
+}
+
+// Release drops the guard. The guard's lock file is never unlinked.
+func (l *mcpLock) Release() error {
+	if l == nil {
+		return nil
+	}
+	return l.guard.Close()
+}
+
+// check confirms the held guard still names the MCP domain of this home before a
+// nested write. Nested work uses the checked handle; it never reacquires.
+func (l *mcpLock) check() error {
+	if l == nil {
+		return mcpLockRefusal(ErrMutationNotHeld)
+	}
+	if err := l.guard.Require(l.home, DomainMCPTarget); err != nil {
+		return mcpLockRefusal(err)
 	}
 	return nil
 }

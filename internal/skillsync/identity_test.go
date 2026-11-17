@@ -239,13 +239,13 @@ func TestRestoreSourceDigestTracksPayload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest, err := treeDigest(os.DirFS(backupDir), rel)
-	if err != nil {
-		t.Fatal(err)
-	}
 	updated := false
 	for i := range m.Entries {
 		if filepath.Join(m.Entries[i].Client, m.Entries[i].Skill) == rel {
+			digest, err := treeEntryDigest(backupDir, rel, m.Entries[i].DigestVersion)
+			if err != nil {
+				t.Fatal(err)
+			}
 			m.Entries[i].SHA256 = digest
 			updated = true
 		}

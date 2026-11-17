@@ -17,6 +17,10 @@ type AgentFileChange struct {
 	Data   []byte
 	Old    bool
 	Remove bool
+	// ExpectSHA256, when non-empty, is the raw SHA-256 the destination must have
+	// under the guard. A mismatch fails with ErrBeforeStateChanged and nothing is
+	// written. Old is checked against the destination but is never backup authority.
+	ExpectSHA256 string
 }
 
 // AgentFileResult identifies the backup a fleet transaction wrote and what the
@@ -30,8 +34,10 @@ type AgentFileResult struct {
 
 // ApplyAgentFiles writes managed OpenCode agent profiles through the same
 // backup, staging, rename and rollback engine Sync and Restore use. It does
-// not decide fleet policy: callers must validate file names, provenance and
-// current hashes first.
+// not decide fleet policy: callers must validate file names and provenance
+// first. The engine holds the agent-target guard for the whole transaction,
+// re-reads each destination under it and refuses a mismatch with Old or
+// ExpectSHA256 (ErrBeforeStateChanged) before any backup or write.
 //
 // afterBackup, when non-nil, runs once the backup directory is complete and
 // restorable but before any destination is staged or changed. Its bytes are
@@ -44,6 +50,38 @@ func ApplyAgentFiles(backupRoot, home, sourceLabel string, changes []AgentFileCh
 	}
 	home, err := filepath.Abs(home)
 	if err != nil {
+		return result, err
+	}
+	key, err := agentTargetGuardKey(home)
+	if err != nil {
+		return result, err
+	}
+	guard, err := AcquireTargetMutation(key, DomainAgentTarget)
+	if err != nil {
+		return result, err
+	}
+	defer func() { _ = guard.Close() }()
+	return ApplyAgentFilesGuarded(guard, backupRoot, home, sourceLabel, changes, afterBackup, out)
+}
+
+// ApplyAgentFilesGuarded is ApplyAgentFiles for a caller that already holds the
+// agent-target guard for home, such as the fleet writer that takes it before
+// its own plan compare-and-swap. The guard is checked against home and the
+// agent-target domain, then used; it is never reacquired.
+func ApplyAgentFilesGuarded(guard *MutationGuard, backupRoot, home, sourceLabel string, changes []AgentFileChange, afterBackup func(backupDir string) ([]byte, error), out io.Writer) (AgentFileResult, error) {
+	var result AgentFileResult
+	if len(changes) == 0 {
+		return result, nil
+	}
+	home, err := filepath.Abs(home)
+	if err != nil {
+		return result, err
+	}
+	key, err := agentTargetGuardKey(home)
+	if err != nil {
+		return result, err
+	}
+	if err := guard.Require(key, DomainAgentTarget); err != nil {
 		return result, err
 	}
 	agentTarget := openCodeAgentsTarget(home)
@@ -82,6 +120,7 @@ func ApplyAgentFiles(backupRoot, home, sourceLabel string, changes []AgentFileCh
 			old:    c.Old,
 			remove: c.Remove,
 			data:   c.Data,
+			expect: c.ExpectSHA256,
 		})
 		names = append(names, c.File)
 	}
@@ -102,7 +141,7 @@ func ApplyAgentFiles(backupRoot, home, sourceLabel string, changes []AgentFileCh
 		}
 	}
 
-	written, err := installChangesWithHook(backupRoot, home, sourceLabel, nil, names, engineChanges, operation{kind: "fleet-apply"}, engineHook, out)
+	written, err := installChangesWithHook(guard, backupRoot, home, sourceLabel, nil, names, engineChanges, operation{kind: "fleet-apply"}, engineHook, out)
 	result.BackupID = written.backupID
 	result.BackupDir = written.backupPath
 	result.Applied = written.applied

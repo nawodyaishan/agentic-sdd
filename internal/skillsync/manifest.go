@@ -4,12 +4,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 )
+
+// ErrUnsupportedDigestVersion reports a recorded digest_version this build does
+// not know. Such an entry is refused, never reinterpreted under another digest.
+var ErrUnsupportedDigestVersion = errors.New("unsupported backup digest_version")
 
 // manifest is the on-disk record written to <backup>/manifest.json by every
 // apply or restore that changes anything. The format 1 fields (Created,
@@ -50,14 +56,20 @@ type toolInfo struct {
 // skill existed before the operation (its previous tree is saved under
 // Backup, with SHA256 over that saved tree), or "installed" when it did
 // not (nothing to save).
+//
+// DigestVersion is the per-entry discriminator for the saved tree digest. It is
+// absent or 0 for the legacy TreeDigest (a skill tree written before FR-10) and 2
+// for TreeDigestV2. Agent-profile entries are a single file and always use the
+// raw file SHA-256, so they never carry a nonzero DigestVersion.
 type entry struct {
-	Kind   string `json:"kind,omitempty"`
-	Client string `json:"client"`
-	Skill  string `json:"skill"`
-	Path   string `json:"path"`
-	Action string `json:"action"`
-	Backup string `json:"backup,omitempty"`
-	SHA256 string `json:"sha256,omitempty"`
+	Kind          string `json:"kind,omitempty"`
+	Client        string `json:"client"`
+	Skill         string `json:"skill"`
+	Path          string `json:"path"`
+	Action        string `json:"action"`
+	Backup        string `json:"backup,omitempty"`
+	SHA256        string `json:"sha256,omitempty"`
+	DigestVersion int    `json:"digest_version,omitempty"`
 }
 
 const (
@@ -75,7 +87,7 @@ func (m manifest) isLegacy() bool {
 // whatever format the file was written in: a legacy caller distinguishes
 // the two with isLegacy.
 func readManifest(path string) (manifest, error) {
-	data, err := os.ReadFile(path)
+	data, err := readBoundedRegularFile(path, maxManifestFileBytes)
 	if err != nil {
 		return manifest{}, err
 	}
@@ -84,6 +96,28 @@ func readManifest(path string) (manifest, error) {
 		return manifest{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	return m, nil
+}
+
+// checkTreeDigestVersion accepts only the skill-tree digest versions this build
+// writes or verifies: absent/0 (legacy TreeDigest) and TreeDigestVersion2.
+func checkTreeDigestVersion(version int) error {
+	switch version {
+	case 0, TreeDigestVersion2:
+		return nil
+	}
+	return fmt.Errorf("%w: %d for a skill tree entry", ErrUnsupportedDigestVersion, version)
+}
+
+// treeEntryDigest hashes the saved skill tree at backupDir/rel under the digest
+// its manifest entry recorded. An unknown version is refused, never guessed.
+func treeEntryDigest(backupDir, rel string, version int) (string, error) {
+	if err := checkTreeDigestVersion(version); err != nil {
+		return "", err
+	}
+	if version == TreeDigestVersion2 {
+		return TreeDigestV2(filepath.Join(backupDir, rel))
+	}
+	return treeDigest(os.DirFS(backupDir), rel)
 }
 
 // treeDigest returns a hex-encoded SHA-256 digest over the subtree at root

@@ -342,14 +342,15 @@ func TestInstallChangesReportsRollbackAfterBackup(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(removeDir, "SKILL.md"), []byte("keep me"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// A non-empty pre-existing directory makes the final install rename fail
-	// after the remove change above has already committed.
+	// A non-empty directory appears at the failing destination after the
+	// before-state check and the backup, as a writer outside the guard could
+	// cause. The final install rename then fails after the removal committed.
 	failDir := filepath.Join(targetPath, failName)
-	if err := os.MkdirAll(failDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(failDir, "marker.md"), []byte("pre-existing"), 0644); err != nil {
-		t.Fatal(err)
+	appears := func(string) error {
+		if err := os.MkdirAll(failDir, 0755); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(failDir, "marker.md"), []byte("pre-existing"), 0644)
 	}
 	source := fstest.MapFS{failName + "/SKILL.md": &fstest.MapFile{Data: []byte("new"), Mode: 0644}}
 	tgt := target{name: "claude", path: targetPath}
@@ -359,7 +360,16 @@ func TestInstallChangesReportsRollbackAfterBackup(t *testing.T) {
 	}
 	backupRoot := filepath.Join(root, "backups")
 	var out bytes.Buffer
-	written, err := installChanges(backupRoot, home, "test-source", source, []string{failName}, changes, operation{kind: "apply"}, &out)
+	key, err := agentTargetGuardKey(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard, err := AcquireTargetMutation(key, DomainAgentTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer guard.Close()
+	written, err := installChangesWithHook(guard, backupRoot, home, "test-source", source, []string{failName}, changes, operation{kind: "apply"}, appears, &out)
 	if err == nil {
 		t.Fatal("expected the forced rename failure")
 	}

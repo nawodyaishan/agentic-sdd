@@ -106,7 +106,7 @@ func TestApplyWritesFormat2Manifest(t *testing.T) {
 			if e.SHA256 == "" {
 				t.Fatal("sha256 empty for replaced entry")
 			}
-			got, err := treeDigest(os.DirFS(filepath.Join(repo, "backups", backupDir)), e.Backup)
+			got, err := treeEntryDigest(filepath.Join(repo, "backups", backupDir), e.Backup, e.DigestVersion)
 			if err != nil {
 				t.Fatal(err)
 			}

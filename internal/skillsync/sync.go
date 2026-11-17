@@ -44,6 +44,67 @@ type change struct {
 	data  []byte
 	stage string
 	undo  string
+	// expect, when non-empty, is the raw SHA-256 the destination must still have
+	// under the guard before it is backed up or replaced.
+	expect string
+}
+
+// agentTargetGuardKey returns the canonical key for the agent-target guard of
+// home. Apply paths create a missing home, as installs always have, and resolve
+// symbolic links, so two spellings of one home contend on one lock.
+func agentTargetGuardKey(home string) (string, error) {
+	abs, err := filepath.Abs(home)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(abs, 0o755); err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(abs)
+}
+
+// ErrBeforeStateChanged reports that a destination no longer matches the state
+// the caller planned against. Nothing was backed up or written; re-run preview.
+var ErrBeforeStateChanged = errors.New("destination changed since it was planned; re-run preview")
+
+// checkBeforeState re-reads every destination under the held guard. A change
+// whose planned existence or expected digest no longer matches is refused before
+// any backup or write. The backup always comes from what is on disk now: a
+// caller's Old flag is never backup authority.
+func checkBeforeState(changes []change) error {
+	for _, c := range changes {
+		path := filepath.Join(c.target.path, c.skill)
+		info, err := os.Lstat(path)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		exists := err == nil
+		if exists {
+			if c.isFile && !info.Mode().IsRegular() {
+				return fmt.Errorf("refusing special file or symlink %s", path)
+			}
+			if !c.isFile && !info.IsDir() {
+				return fmt.Errorf("refusing non-directory target %s", path)
+			}
+		}
+		if exists != c.old {
+			return fmt.Errorf("%w: %s", ErrBeforeStateChanged, path)
+		}
+		if c.expect == "" {
+			continue
+		}
+		if !exists {
+			return fmt.Errorf("%w: %s is absent", ErrBeforeStateChanged, path)
+		}
+		digest, err := fileDigest(os.DirFS(c.target.path), c.skill)
+		if err != nil {
+			return err
+		}
+		if digest != c.expect {
+			return fmt.Errorf("%w: %s", ErrBeforeStateChanged, path)
+		}
+	}
+	return nil
 }
 
 // operation identifies which command is writing a backup, so installChanges
@@ -114,6 +175,20 @@ func SyncWithOptionsResult(repo, home string, apply bool, opts Options, out io.W
 	names, err := discoverSkills(source)
 	if err != nil {
 		return result, err
+	}
+	// An apply holds the agent-target guard from before destination planning
+	// through backup, commit and manifest write. Preview remains lock-free.
+	var guard *MutationGuard
+	if apply {
+		key, keyErr := agentTargetGuardKey(home)
+		if keyErr != nil {
+			return result, keyErr
+		}
+		guard, err = AcquireTargetMutation(key, DomainAgentTarget)
+		if err != nil {
+			return result, err
+		}
+		defer guard.Close()
 	}
 	coreNames := append([]string(nil), names...)
 	changes, planned, err := planChanges(source, home, names, targets, out)
@@ -282,7 +357,7 @@ func SyncWithOptionsResult(repo, home string, apply bool, opts Options, out io.W
 		return result, nil
 	}
 	backupRoot, sourceLabel := backupRootFor(repo, home)
-	written, err := installChanges(backupRoot, home, sourceLabel, source, names, changes, operation{kind: "apply"}, out)
+	written, err := installChangesGuarded(guard, backupRoot, home, sourceLabel, source, names, changes, operation{kind: "apply"}, out)
 	result.BackupID = written.backupID
 	result.BackupPath = written.backupPath
 	result.Rollback = written.rollback
@@ -416,11 +491,26 @@ type writeOutcome struct {
 	rollback   RollbackInfo
 }
 
-// installChanges backs up every destination it will replace or remove, writes
-// a manifest whose Targets stay the full canonical client identity for home,
-// then stages and commits the changes with rollback on failure.
+// installChanges is the convenience form for a caller that does not already
+// hold the agent-target guard for home: it acquires the guard, runs the guarded
+// engine and releases the guard.
 func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []string, changes []change, op operation, out io.Writer) (writeOutcome, error) {
-	return installChangesWithHook(backupRoot, home, sourceLabel, source, names, changes, op, nil, out)
+	key, err := agentTargetGuardKey(home)
+	if err != nil {
+		return writeOutcome{}, err
+	}
+	guard, err := AcquireTargetMutation(key, DomainAgentTarget)
+	if err != nil {
+		return writeOutcome{}, err
+	}
+	defer guard.Close()
+	return installChangesGuarded(guard, backupRoot, home, sourceLabel, source, names, changes, op, out)
+}
+
+// installChangesGuarded runs the engine under a guard the caller already holds
+// for home. It never reacquires the guard.
+func installChangesGuarded(guard *MutationGuard, backupRoot, home, sourceLabel string, source fs.FS, names []string, changes []change, op operation, out io.Writer) (writeOutcome, error) {
+	return installChangesWithHook(guard, backupRoot, home, sourceLabel, source, names, changes, op, nil, out)
 }
 
 // afterBackupHook is called once the backup directory is complete and
@@ -429,8 +519,20 @@ func installChanges(backupRoot, home, sourceLabel string, source fs.FS, names []
 // transaction with no destination modified.
 type afterBackupHook func(backupDir string) error
 
-func installChangesWithHook(backupRoot, home, sourceLabel string, source fs.FS, names []string, changes []change, op operation, afterBackup afterBackupHook, out io.Writer) (writeOutcome, error) {
+func installChangesWithHook(guard *MutationGuard, backupRoot, home, sourceLabel string, source fs.FS, names []string, changes []change, op operation, afterBackup afterBackupHook, out io.Writer) (writeOutcome, error) {
 	var written writeOutcome
+	// Nested under the caller's guard: refuse unless the held handle is for this
+	// home and the agent-target domain, then re-read destinations under it.
+	key, err := agentTargetGuardKey(home)
+	if err != nil {
+		return written, err
+	}
+	if err := guard.Require(key, DomainAgentTarget); err != nil {
+		return written, err
+	}
+	if err := checkBeforeState(changes); err != nil {
+		return written, err
+	}
 	now := time.Now().UTC()
 	stamp := now.Format("20060102T150405.000000000Z")
 	if info, err := os.Lstat(backupRoot); err == nil && !info.IsDir() {
@@ -489,11 +591,13 @@ func installChangesWithHook(backupRoot, home, sourceLabel string, source fs.FS, 
 				}
 				e.SHA256 = digest
 			} else {
-				digest, err := treeDigest(os.DirFS(backup), e.Backup)
+				// New tree entries use the versioned, framed identity (FR-10).
+				digest, err := TreeDigestV2(filepath.Join(backup, e.Backup))
 				if err != nil {
 					return written, fmt.Errorf("digest %s: %w", e.Backup, err)
 				}
 				e.SHA256 = digest
+				e.DigestVersion = TreeDigestVersion2
 			}
 		} else {
 			e.Action = actionInstalled
