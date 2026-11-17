@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "kind": "qualification-contract",
+  "core_contract": "harness/checks.json",
+  "lanes": {
+    "core": {
+      "status": "active",
+      "contract": "harness/checks.json",
+      "scope": "required",
+      "note": "Existing 11-package required contract; sdd-check retained in build-darwin and not counted as one of the four shipped applications."
+    },
+    "nested_tui": {
+      "status": "active",
+      "cwd": "experiments/tui",
+      "note": "Offline vendored supply (-mod=vendor, plan §12.5 owner decision 2026-11-17). Replaces go mod verify (requires GOMODCACHE ziphashes and fails on local replace) with go list -mod=vendor ./....",
+      "checks": [
+        {
+          "id": "tui-vendor-check",
+          "argv": ["go", "list", "-mod=vendor", "./..."]
+        },
+        {
+          "id": "tui-vet",
+          "argv": ["go", "vet", "-mod=vendor", "./..."]
+        },
+        {
+          "id": "tui-test",
+          "argv": ["go", "test", "-mod=vendor", "-count=1", "-timeout=15m", "./..."]
+        }
+      ]
+    },
+    "python_suites": {
+      "status": "active",
+      "discovery_policy": "individually-named-audited-suites-only",
+      "suites": [
+        {
+          "id": "core-workflow",
+          "path": "tests/harness/test_core_workflow.py",
+          "cwd": ".",
+          "prerequisites": ["python3"],
+          "timeout_seconds": 60,
+          "argv": [
+            "python3",
+            "-B",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harness",
+            "-p",
+            "test_core_workflow.py"
+          ],
+          "env": {}
+        },
+        {
+          "id": "research-workflow",
+          "path": "tests/harness/test_research_workflow.py",
+          "cwd": ".",
+          "prerequisites": ["python3"],
+          "timeout_seconds": 60,
+          "argv": [
+            "python3",
+            "-B",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harness",
+            "-p",
+            "test_research_workflow.py"
+          ],
+          "env": {}
+        },
+        {
+          "id": "supported-core-go",
+          "path": "tests/harness/test_supported_core_go.py",
+          "cwd": ".",
+          "prerequisites": ["python3", "task"],
+          "timeout_seconds": 60,
+          "argv": [
+            "python3",
+            "-B",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harness",
+            "-p",
+            "test_supported_core_go.py"
+          ],
+          "env": {}
+        },
+        {
+          "id": "appops-core-selection",
+          "path": "tests/harness/test_appops_core_selection.py",
+          "cwd": ".",
+          "prerequisites": ["python3"],
+          "timeout_seconds": 60,
+          "argv": [
+            "python3",
+            "-B",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harness",
+            "-p",
+            "test_appops_core_selection.py"
+          ],
+          "env": {}
+        },
+        {
+          "id": "trusted-ci-policy",
+          "path": "tests/harness/test_trusted_ci.py",
+          "cwd": ".",
+          "prerequisites": ["python3"],
+          "timeout_seconds": 60,
+          "argv": [
+            "python3",
+            "-B",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harness",
+            "-p",
+            "test_trusted_ci.py"
+          ],
+          "env": {}
+        },
+        {
+          "id": "trusted-ci-container",
+          "path": "tests/harness/test_trusted_ci_container.py",
+          "cwd": ".",
+          "prerequisites": [
+            "python3",
+            "docker",
+            "running Docker daemon",
+            "preloaded_go_image",
+            "git",
+            "task"
+          ],
+          "timeout_seconds": 1200,
+          "argv": [
+            "python3",
+            "-B",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests/harness",
+            "-p",
+            "test_trusted_ci_container.py"
+          ],
+          "env": {
+            "SDD_TRUSTED_CI_CONTAINERS": "1"
+          }
+        }
+      ]
+    },
+    "archive_distribution": {
+      "status": "active",
+      "shipped_applications": [
+        "asdx",
+        "asdx-core",
+        "agentic-sdd",
+        "agentic-sdd-tui"
+      ],
+      "sdd_check_counted_as_shipped": false,
+      "darwin_architectures": ["amd64", "arm64"],
+      "checksum_file": "checksums.txt",
+      "protocol_revision": 2,
+      "distribution_marker": "generic",
+      "darwin_builds": [
+        {
+          "id": "cli-core",
+          "binary": "asdx-core",
+          "module": ".",
+          "main": "./cmd/agentic-sdd",
+          "arches": ["amd64", "arm64"]
+        },
+        {
+          "id": "cli-legacy",
+          "binary": "agentic-sdd",
+          "module": ".",
+          "main": "./cmd/agentic-sdd",
+          "arches": ["amd64", "arm64"]
+        },
+        {
+          "id": "tui-canonical",
+          "binary": "asdx",
+          "module": "experiments/tui",
+          "main": "./cmd/tui-companion",
+          "arches": ["amd64", "arm64"]
+        },
+        {
+          "id": "tui-legacy",
+          "binary": "agentic-sdd-tui",
+          "module": "experiments/tui",
+          "main": "./cmd/tui-companion",
+          "arches": ["amd64", "arm64"]
+        }
+      ],
+      "native_pair_smoke": {
+        "canonical_cli": "asdx-core",
+        "legacy_cli": "agentic-sdd",
+        "canonical_tui": "asdx",
+        "legacy_tui": "agentic-sdd-tui",
+        "protocol_revision": 2
+      }
+    }
+  }
+}

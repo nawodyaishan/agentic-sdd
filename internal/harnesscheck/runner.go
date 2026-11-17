@@ -188,13 +188,59 @@ func contextStatus(ctx context.Context) string {
 	return "cancelled"
 }
 
+// goSelectionControls are inherited Go build/selection controls that could
+// silently change which code an approved contract builds, tests or runs. They
+// are removed from the inherited environment before a check executes. This is
+// the frozen environment projection gate consumers may rely on.
+//
+// GOFLAGS/GOENV/GOWORK are removed and then pinned explicitly below, because
+// leaving them merely unset would let the user `go env` file or an enclosing
+// go.work supply the same controls from ambient configuration.
+var goSelectionControls = map[string]bool{
+	"GOFLAGS":      true,
+	"GOENV":        true,
+	"GOWORK":       true,
+	"GO111MODULE":  true,
+	"GOTOOLCHAIN":  true,
+	"GOEXPERIMENT": true,
+	"GOOS":         true,
+	"GOARCH":       true,
+	"CGO_ENABLED":  true,
+	"GOARM":        true,
+	"GOARM64":      true,
+	"GOAMD64":      true,
+	"GO386":        true,
+	"GOMIPS":       true,
+	"GOMIPS64":     true,
+	"GOPPC64":      true,
+	"GORISCV64":    true,
+	"GOWASM":       true,
+}
+
+// goSelectionDefaults pin the three controls that would otherwise be
+// rediscovered from CLI flags, the user `go env` file or an enclosing
+// go.work file. A trusted contract step may still set any of them explicitly;
+// those approved overrides are applied last and win.
+var goSelectionDefaults = [][2]string{
+	{"GOFLAGS", ""},
+	{"GOENV", "off"},
+	{"GOWORK", "off"},
+}
+
+// environment projects the inherited environment plus contract overrides for
+// one executed check. It does not change the runner process's own environment
+// or the `run check` command's inherited environment: only the environment
+// handed to the check process and its executable lookup is narrowed.
 func environment(overrides map[string]string) []string {
 	values := map[string]string{}
 	for _, entry := range os.Environ() {
 		key, value, ok := strings.Cut(entry, "=")
-		if ok {
+		if ok && !goSelectionControls[key] {
 			values[key] = value
 		}
+	}
+	for _, pair := range goSelectionDefaults {
+		values[pair[0]] = pair[1]
 	}
 	for key, value := range overrides {
 		values[key] = value

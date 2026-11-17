@@ -7,23 +7,61 @@ import (
 	"testing"
 )
 
+// TestSDDTrustedDefaultBuildBoundary checks the default-build experimental gate:
+// the opencode subcommand stays unreachable, root help discloses the opt-in
+// flags, and the default preview plans no opt-in OpenCode pack installs.
 func TestSDDTrustedDefaultBuildBoundary(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	code := runNonInteractive([]string{"opencode", "--help"}, &stdout, &stderr)
-	if code != 2 {
-		t.Fatalf("default build opencode --help exit code = %d; want 2", code)
-	}
-	if !strings.Contains(stderr.String(), "unavailable in this build") {
-		t.Fatalf("default build opencode --help stderr = %q; want containing %q", stderr.String(), "unavailable in this build")
+	// 1. The experimental opencode subcommand is unreachable in the default build.
+	for _, args := range [][]string{{"opencode", "--help"}, {"opencode"}} {
+		var stdout, stderr bytes.Buffer
+		code := runNonInteractive(args, &stdout, &stderr)
+		if code != 2 {
+			t.Fatalf("default build %v exit code = %d; want 2", args, code)
+		}
+		if !strings.Contains(stderr.String(), "unavailable in this build") {
+			t.Fatalf("default build %v stderr = %q; want containing %q", args, stderr.String(), "unavailable in this build")
+		}
 	}
 
-	stdout.Reset()
-	stderr.Reset()
-	code = runNonInteractive([]string{"--help"}, &stdout, &stderr)
+	// 2. Root help (exit 0) discloses the opt-in OpenCode flags.
+	var stdout, stderr bytes.Buffer
+	code := runNonInteractive([]string{"--help"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("default build --help exit code = %d; want 0", code)
 	}
-	if strings.Contains(strings.ToLower(stdout.String()), "opencode") {
-		t.Fatalf("default build --help stdout unexpectedly contained %q: %s", "opencode", stdout.String())
+	for _, flag := range []string{"--with-opencode", "--opencode-free-first"} {
+		if !strings.Contains(stdout.String(), flag) {
+			t.Fatalf("default build --help stdout missing opt-in flag %q: %s", flag, stdout.String())
+		}
+	}
+
+	// 3. --opencode-free-first without --with-opencode is rejected.
+	stdout.Reset()
+	stderr.Reset()
+	code = runNonInteractive([]string{"preview", "--opencode-free-first", "--home", t.TempDir()}, &stdout, &stderr)
+	if code != 2 {
+		t.Fatalf("default build preview --opencode-free-first exit code = %d; want 2", code)
+	}
+
+	// 4. Default preview (no flags) plans no opencode-agents install.
+	stdout.Reset()
+	stderr.Reset()
+	code = runNonInteractive([]string{"preview", "--home", t.TempDir()}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("default build preview exit code = %d; want 0: stderr=%q", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "opencode-agents") {
+		t.Fatalf("default build preview unexpectedly planned opt-in opencode-agents installs: %s", stdout.String())
+	}
+
+	// 5. The opt-in pack is accepted and plans opencode-agents installs.
+	stdout.Reset()
+	stderr.Reset()
+	code = runNonInteractive([]string{"preview", "--with-opencode", "--home", t.TempDir()}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("preview --with-opencode exit code = %d; want 0: stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "opencode-agents/") {
+		t.Fatalf("preview --with-opencode stdout missing opencode-agents installs: %s", stdout.String())
 	}
 }

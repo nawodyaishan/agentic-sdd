@@ -88,7 +88,7 @@ tasks:
         umask 077
         output="$1"
         if [ -z "$output" ]; then output=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-tidy.XXXXXX") || exit 2; output=$(cd "$output" && pwd -P); fi
-        GOCACHE="$2" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go run ./cmd/sdd-check --scope focused --check tidy-check --workspace . --contract ./harness/checks.json --output "$output"
+        GOCACHE="$2" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go run ./cmd/sdd-check --scope focused --check tidy-check --workspace . --contract ./harness/checks.json --output "$output"
         ' sh {{.SDD_OUTPUT | shellQuote}} {{.GOCACHE | shellQuote}}
   build-darwin:
     desc: Cross-compile both CLIs for Darwin amd64 and arm64
@@ -108,7 +108,7 @@ tasks:
         umask 077
         output="$1"
         if [ -z "$output" ]; then output=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-verify.XXXXXX") || exit 2; output=$(cd "$output" && pwd -P); fi
-        GOCACHE="$2" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go run ./cmd/sdd-check --scope required --workspace . --contract ./harness/checks.json --output "$output"
+        GOCACHE="$2" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= go run ./cmd/sdd-check --scope required --workspace . --contract ./harness/checks.json --output "$output"
         ' sh {{.SDD_OUTPUT | shellQuote}} {{.GOCACHE | shellQuote}}
   verify-trusted:
     desc: Run the reviewed base's isolated gate against a separate candidate
@@ -134,10 +134,151 @@ tasks:
         git tag -a "$1" -m "$2"
         echo "Tagged $1 — push with: git push origin $1"
         ' sh {{.V | shellQuote}} {{.MSG | shellQuote}}
+  # Documented nonpublishing snapshot policy (shared with the experimental
+  # snapshot entrypoint):
+  #   - Prerequisites: git, goreleaser (pinned version), go (pinned patch),
+  #     sha256sum/shasum, valid .goreleaser.yml (`goreleaser check`), offline
+  #     experiments/tui module cache, and a clean git working tree.
+  #   - Dirty working trees are refused (exit 2) so snapshots never carry a
+  #     misleading commit-only identity.
+  #   - Snapshot outputs and build/tool caches (GOCACHE, XDG_CACHE_HOME, clean
+  #     source clone) always live outside the source tree.
+  #   - Never tags, pushes, reads release tokens, or publishes.
   release:
-    desc: Run a local GoReleaser snapshot without publishing
+    desc: Run a local nonpublishing GoReleaser snapshot into an external output directory (never tags, pushes or publishes)
+    dir: '{{.ROOT_DIR}}'
+    silent: true
+    vars:
+      SDD_RELEASE_GO_PATCH: '{{.SDD_RELEASE_GO_PATCH | default "go1.27.1"}}'
+      SDD_RELEASE_GORELEASER_VERSION: '{{.SDD_RELEASE_GORELEASER_VERSION | default "v2.14.0"}}'
+      SDD_SNAPSHOT_OUTPUT: '{{.SDD_SNAPSHOT_OUTPUT | default .SDD_OUTPUT}}'
     cmds:
-      - GOVERSION=$(go version | awk '{print $3}') goreleaser release --snapshot --clean
+      - |
+        sh -c '
+        set -eu
+        blocked() { printf "snapshot: BLOCKED - %s This is not a pass.\n" "$*" >&2; exit 2; }
+        resolve_path() {
+          target=$1
+          case "$target" in /*) ;; *) target="$PWD/$target" ;; esac
+          suffix=""
+          cur=$target
+          while [ ! -d "$cur" ]; do
+            parent=$(dirname "$cur")
+            base=$(basename "$cur")
+            if [ "$parent" = "$cur" ]; then break; fi
+            suffix="$base${suffix:+/$suffix}"
+            cur=$parent
+          done
+          resolved=$(cd "$cur" 2>/dev/null && pwd -P) || return 1
+          if [ -n "$suffix" ]; then
+            printf "%s/%s\n" "${resolved%/}" "$suffix"
+          else
+            printf "%s\n" "$resolved"
+          fi
+        }
+        inside_root() {
+          case "$1" in
+            "$root_real"|"$root_real"/*) return 0 ;;
+            *) return 1 ;;
+          esac
+        }
+
+        root=$(pwd)
+        root_real=$(cd "$root" && pwd -P)
+
+        missing=""
+        command -v git >/dev/null 2>&1 || missing="$missing git"
+        command -v goreleaser >/dev/null 2>&1 || missing="$missing goreleaser"
+        command -v go >/dev/null 2>&1 || missing="$missing go"
+        if [ -n "$missing" ]; then
+          blocked "missing prerequisites:$missing. GoReleaser creates macOS universal binaries internally; no external lipo is required. The local snapshot did not run; no archive, Mach-O slice or cask evidence exists."
+        fi
+        if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+          blocked "missing prerequisites: sha256sum or shasum. The local snapshot did not run."
+        fi
+
+        found_goreleaser=$(goreleaser --version 2>/dev/null | sed -n "s/^GitVersion:[[:space:]]*//p" | head -n 1) || found_goreleaser=""
+        if [ "$found_goreleaser" != "$3" ]; then
+          blocked "reviewed GoReleaser version is $3; found ${found_goreleaser:-unknown}. Update SDD_RELEASE_GORELEASER_VERSION deliberately after review."
+        fi
+        goreleaser check >/dev/null || blocked "goreleaser check rejected the current .goreleaser.yml."
+
+        version=$(GOTOOLCHAIN=local GOENV=off go env GOVERSION) || blocked "GOTOOLCHAIN=local go env GOVERSION failed; an explicit reviewed toolchain is required."
+        if [ "$version" != "$2" ]; then
+          blocked "reviewed release-build Go patch is $2; found ${version:-unknown}. Update SDD_RELEASE_GO_PATCH deliberately after review; do not download a toolchain."
+        fi
+
+        if [ -n "$(git status --porcelain)" ]; then
+          blocked "working tree is dirty; reproducible snapshots refuse uncommitted or untracked changes."
+        fi
+
+        gomodcache=$(GOTOOLCHAIN=local GOENV=off go env GOMODCACHE 2>/dev/null || true)
+        if ! (cd experiments/tui && GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off GOFLAGS= GOMODCACHE="$gomodcache" go list -deps ./cmd/tui-companion >/dev/null 2>&1); then
+          blocked "the nested companion dependencies are not available offline. Populate the module cache before retrying; this task never downloads."
+        fi
+
+        out_arg=$4
+        if [ -n "$out_arg" ]; then
+          out_real=$(resolve_path "$out_arg") || blocked "cannot resolve snapshot output path: $out_arg"
+          if inside_root "$out_real"; then
+            blocked "snapshot output must be outside the source tree: $out_real"
+          fi
+        fi
+
+        work=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-snapwork.XXXXXX") || blocked "cannot create external temporary workspace."
+        work_real=$(resolve_path "$work") || { rm -rf -- "$work"; blocked "cannot resolve external temporary workspace."; }
+        if inside_root "$work_real"; then
+          rm -rf -- "$work"
+          blocked "temporary workspace must be outside the source tree: $work_real"
+        fi
+        trap "rm -rf -- \"$work_real\"" EXIT INT TERM
+
+        if [ -n "$out_arg" ]; then
+          mkdir -p "$out_real" || blocked "cannot create snapshot output directory: $out_real"
+        else
+          out_real=$(mktemp -d "${TMPDIR:-/tmp}/agentic-sdd-snapshot.XXXXXX") || blocked "cannot create external snapshot output directory."
+          out_real=$(resolve_path "$out_real") || blocked "cannot resolve external snapshot output directory."
+          if inside_root "$out_real"; then
+            blocked "snapshot output must be outside the source tree: $out_real"
+          fi
+        fi
+
+        ext_gocache=""
+        if [ -n "$1" ]; then
+          gocache_real=$(resolve_path "$1") || gocache_real=""
+          if [ -n "$gocache_real" ] && ! inside_root "$gocache_real"; then
+            ext_gocache="$gocache_real"
+          fi
+        fi
+        if [ -z "$ext_gocache" ]; then
+          ext_gocache="$work_real/go-build"
+        fi
+        mkdir -p "$ext_gocache" "$work_real/xdg-cache"
+
+        head_sha=$(git rev-parse HEAD) || blocked "cannot resolve HEAD commit."
+        revision=$(git describe --tags --exact-match 2>/dev/null || printf "dev+%s" "$(git rev-parse --short=12 HEAD)")
+        git clone --local --quiet "$root_real" "$work_real/src" || blocked "cannot create clean external source clone."
+        git -C "$work_real/src" checkout --quiet "$head_sha" || blocked "cannot check out $head_sha in external clone."
+
+        unset HOMEBREW_TAP_TOKEN GITHUB_TOKEN GH_TOKEN GITLAB_TOKEN GITEA_TOKEN SDD_SOURCE_DIGEST
+        umask 077
+        (
+          cd "$work_real/src"
+          GOCACHE="$ext_gocache" \
+          GOMODCACHE="$gomodcache" \
+          XDG_CACHE_HOME="$work_real/xdg-cache" \
+          GOVERSION="$version" \
+          GOTOOLCHAIN=local \
+          GOPROXY=off \
+          GOSUMDB=off \
+          GOENV=off \
+          GOWORK=off \
+          GOFLAGS= \
+          goreleaser release --snapshot --clean
+        )
+        cp -R "$work_real/src/dist/." "$out_real/"
+        echo "snapshot: local nonpublishing snapshot complete for $revision; artifacts written outside source tree to $out_real"
+        ' sh {{.GOCACHE | shellQuote}} {{.SDD_RELEASE_GO_PATCH | shellQuote}} {{.SDD_RELEASE_GORELEASER_VERSION | shellQuote}} {{.SDD_SNAPSHOT_OUTPUT | shellQuote}}
   # Additive documentation-tooling wrappers (Feature 020 / T09 + T10). They
   # never replace `task test`, `task vet` or `task verify`, are not part of
   # required-check selection and add nothing to `task test`. Extra arguments

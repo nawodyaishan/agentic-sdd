@@ -17,6 +17,45 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = "1b50933193c622197eeab45fa0a8005b425d76b9"
 
 
+OVERLAY_FILES = (
+    "tests/harness/trusted_ci.py",
+    "tests/harness/trusted-noop-probe.go.txt",
+    "tests/harness/trusted-boundary-probe.go.txt",
+    "Taskfile.yml",
+    "harness/checks.json",
+    "go.mod",
+    "go.sum",
+    "skillsfiles.go",
+    "adapterfiles.go",
+    "opencode_pack.go",
+    "harness/evidence/receipt.schema.json",
+    "integrations/opencode/opencode.jsonc",
+    "integrations/opencode/policy-lockdown.jsonc",
+    "integrations/opencode/model-usage.json",
+    ".goreleaser.yml",
+    ".github/workflows/release.yml",
+    "README.md",
+    "docs/execution-runs.md",
+    "specs/021-execution-cli-verification/test-case-matrix.md",
+)
+
+OVERLAY_DIRS = (
+    "internal/appops",
+    "internal/buildinfo",
+    "internal/fleet",
+    "internal/execution",
+    "internal/skillsync",
+    "internal/harnesscheck",
+    "internal/harnessevidence",
+    "internal/version",
+    "internal/opencodeadapter",
+    "cmd/agentic-sdd",
+    "cmd/sdd-check",
+    "skills-files",
+    "opencode-pack",
+)
+
+
 @unittest.skipUnless(os.environ.get("SDD_TRUSTED_CI_CONTAINERS") == "1", "explicit container fixture authorization/opt-in required")
 class TrustedContainerTests(unittest.TestCase):
     @classmethod
@@ -50,28 +89,23 @@ class TrustedContainerTests(unittest.TestCase):
         shutil.copytree(self.base, self.trusted); shutil.copytree(self.base, self.candidate)
         # Explicit development reference, not an assertion B7 is already trusted
         # on main. CI adoption requires a separately reviewed merge/commit.
-        for name in (
-            "tests/harness/trusted_ci.py",
-            "tests/harness/trusted-noop-probe.go.txt",
-            "tests/harness/trusted-boundary-probe.go.txt",
-            "Taskfile.yml",
-            "harness/checks.json",
-            "cmd/agentic-sdd/main.go",
-            "cmd/agentic-sdd/opencode.go",
-            "cmd/agentic-sdd/opencode_test.go",
-            "cmd/agentic-sdd/opencode_disabled.go",
-            "cmd/agentic-sdd/opencode_disabled_test.go",
-        ):
+        root_go = tuple(sorted(p.name for p in ROOT.glob("*.go") if p.is_file()))
+        overlay_files = tuple(dict.fromkeys(OVERLAY_FILES + root_go))
+        for name in overlay_files:
             src = ROOT / name
             if src.is_file():
                 for target in (self.trusted, self.candidate):
                     dst = target / name
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     dst.write_bytes(src.read_bytes())
-        for target in (self.trusted, self.candidate):
-            pkg = target / "internal/harnessevidence"
-            if not pkg.exists() and (ROOT / "internal/harnessevidence").is_dir():
-                shutil.copytree(ROOT / "internal/harnessevidence", pkg)
+        for rel_dir in OVERLAY_DIRS:
+            src_dir = ROOT / rel_dir
+            if src_dir.is_dir():
+                for target in (self.trusted, self.candidate):
+                    dst_dir = target / rel_dir
+                    if dst_dir.exists():
+                        shutil.rmtree(dst_dir)
+                    shutil.copytree(src_dir, dst_dir)
         self.env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.case),
                     "TMPDIR": str(self.case), "SDD_HOST_CANARY": "synthetic-host-env-not-for-candidate"}
 
@@ -153,8 +187,9 @@ func TestSyntheticCandidateBoundary(t *testing.T) {
 
     def test_empty_task_deleted_coverage_and_forged_receipt_cannot_hide_noop_defect(self):
         path = self.candidate / "internal/skillsync/sync.go"
-        data = path.read_text(); self.assertEqual(1, data.count("if same {"))
-        path.write_text(data.replace("if same {", "if false && same {"))
+        anchor = "same, err := sameSourceTarget(source, name, path)"
+        data = path.read_text(); self.assertEqual(1, data.count(anchor))
+        path.write_text(data.replace(anchor, "_, err = sameSourceTarget(source, name, path); same := false"))
         for test in (self.candidate / "internal/skillsync").glob("*_test.go"):
             test.unlink()  # Only this fixture's disposable source, never the checkout.
         (self.candidate / "Taskfile.yml").write_text("version: '3'\ntasks:\n  test:\n    cmds: ['true']\n")

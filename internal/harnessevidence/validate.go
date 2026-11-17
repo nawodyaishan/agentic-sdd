@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -353,21 +354,91 @@ func parseResult(data []byte) (harnesscheck.Result, error) {
 	return ParseResult(data)
 }
 
-// ParseResult strictly decodes independently observed runner result bytes.
+// ParseResult strictly decodes independently observed runner result bytes. It
+// accepts exactly one schema-valid JSON document followed only by permitted
+// trailing whitespace, and rejects trailing malformed data, extra documents and
+// duplicate object keys. Diagnostics stay fixed so hostile input cannot inflate
+// them.
 func ParseResult(data []byte) (harnesscheck.Result, error) {
 	var result harnesscheck.Result
+	if err := checkResultKeys(data); err != nil {
+		return result, err
+	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&result); err != nil {
-		return result, fmt.Errorf("independent check result required")
+		return result, fmt.Errorf("%s", resultRequired)
 	}
-	if err := dec.Decode(new(any)); err == nil {
-		return result, fmt.Errorf("independent check result required")
+	// Require EOF after the first document: permitted trailing whitespace
+	// decodes as io.EOF, while a malformed tail, a partial second value or a
+	// complete second document must fail closed.
+	if err := dec.Decode(new(any)); err != io.EOF {
+		return result, fmt.Errorf("%s: trailing data after result document", resultRequired)
 	}
 	if result.Version != 1 {
-		return result, fmt.Errorf("independent check result required")
+		return result, fmt.Errorf("%s", resultRequired)
 	}
 	return result, nil
+}
+
+const resultRequired = "independent check result required"
+
+// checkResultKeys walks the raw token stream once so duplicate object keys,
+// which encoding/json silently accepts, fail closed at any nesting depth.
+func checkResultKeys(data []byte) error {
+	type frame struct {
+		object        bool
+		awaitingValue bool
+		keys          map[string]struct{}
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var stack []frame
+	for {
+		token, err := dec.Token()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("%s", resultRequired)
+		}
+		if delim, ok := token.(json.Delim); ok {
+			switch delim {
+			case '{', '[':
+				stack = append(stack, frame{object: delim == '{', keys: map[string]struct{}{}})
+			case '}', ']':
+				if len(stack) == 0 {
+					return fmt.Errorf("%s", resultRequired)
+				}
+				stack = stack[:len(stack)-1]
+				// A closed container just completed its parent's value.
+				if len(stack) > 0 && stack[len(stack)-1].object {
+					stack[len(stack)-1].awaitingValue = false
+				}
+			}
+			continue
+		}
+		if len(stack) == 0 {
+			continue
+		}
+		top := &stack[len(stack)-1]
+		if !top.object {
+			continue
+		}
+		if top.awaitingValue {
+			top.awaitingValue = false
+			continue
+		}
+		key, ok := token.(string)
+		if !ok {
+			return fmt.Errorf("%s", resultRequired)
+		}
+		if _, duplicate := top.keys[key]; duplicate {
+			return fmt.Errorf("%s: duplicate object key", resultRequired)
+		}
+		top.keys[key] = struct{}{}
+		top.awaitingValue = true
+	}
 }
 
 // ChecksFromResult converts runner check results into the receipt's exact
