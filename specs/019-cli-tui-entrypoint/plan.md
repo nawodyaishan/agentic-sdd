@@ -1,7 +1,7 @@
 # Feature 019 — Plan
 
 **Revision:** DRAFT r2, 2026-11-13 — naming/migration amendment. Input: [spec.md r2](spec.md), [naming study](naming-and-migration-study.md).
-**Approval:** [spec §6](spec.md#6-approval) pending; N-01–N-06 require confirmation. No implementation authorized.
+**Approval:** [spec §6](spec.md#6-approval) pending; N-01–N-06 require confirmation. No implementation authorized. *(Reconciled 2026-11-17, Feature 022 D-05: this line is superseded. [spec §6](spec.md#6-approval) records the combined approval of spec, plan and tasks r2 on 2026-11-13, including N-01–N-06.)*
 
 ## 1. Approach
 

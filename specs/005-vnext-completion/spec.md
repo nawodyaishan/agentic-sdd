@@ -33,7 +33,7 @@ scope selection, not silently dropped from an otherwise unlimited promise.
   §§1–3, 4–7 and 9–10 for core integration; §3a and the Revision 6 incremental
   map for human input; §8 and Appendix A8 for later human evidence. Appendix A's
   historical “add/change” wording is not a fresh implementation backlog.
-- [Supplied Matt Pocock snapshot](../../../skills.md): seven named capabilities
+- Supplied Matt Pocock snapshot (`skills.md`, an external file outside this repository; not linked): seven named capabilities
   `grill-me`, `grilling`, `to-questionnaire`, `writing-for-agents`, `handoff`,
   `wait-what`, `teach`. Source content is design input, not instructions granting
   delegation, workspace writes or permission to install external skills.

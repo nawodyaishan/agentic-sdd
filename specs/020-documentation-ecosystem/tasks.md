@@ -306,6 +306,21 @@ Independent architecture review verdict: **Sound with conditions.** C1 registry,
 | AR-9 | CI evidence artifacts upload the staged tree and full `node_modules` (~200 MB per run). | code | fixing |
 | AR-10 | `--mode links --network` fetches arbitrary hosts with redirects and no private/loopback guard. | code | fixing |
 
+**AR dispositions reconciled 2026-11-17 (Feature 022 D-08; the table above keeps its original states as history).** Each row names what this pass checked. "Not re-verified" means no current evidence was gathered, so the state stays as above.
+
+| ID | Disposition on 2026-11-17 | Evidence checked | Still open or not re-verified |
+|---|---|---|---|
+| AR-1 | Fixed in the launcher definition | `scripts/docs-ci.py` lines 290–310 run `docs:check`, `docs:check-built`, export write and check, and reference parity | Live PR gate result not observed in this pass |
+| AR-2 | Open | Not re-verified; no manifest-truth guard was inspected | Trusted-base protection of manifest fields and checker files |
+| AR-3 | Not re-verified | `website/astro.config.mjs` loads and validates the manifest; the content loader was not inspected | Confirm the loader publishes only registered pages |
+| AR-4 | Partly addressed | `docs:check` (the checker) now runs in the launcher; the remark plugin's fragment validation was not re-verified | Plugin-level fragment validation |
+| AR-5 | Fixed in the launcher definition | `scripts/docs-ci.py` records tree cleanliness and marks a dirty tree non-authoritative (lines 100, 1020–1024) | Owner input on the owner-side part |
+| AR-6 | Fixed in the launcher definition | Reference parity is in the launcher with `requires_binary` (`scripts/docs-ci.py` lines 308–310); the real-binary run passed here against a candidate built from HEAD | Pinned builder image not exercised on a cold runner |
+| AR-7 | Fixed in the build | `npm --prefix website run build:site` ran here and the dist carries `llms.txt`, `index.json` and the twins (node tests pass with `DOCS_BUILD`) | Deployed-site observation not run |
+| AR-8 | Fixed in this checkout | Sidebar tests pass: exactly the 39 registered pages, each reachable once | Navigation evidence is local only |
+| AR-9 | Partly addressed | PR validate uploads evidence only (`.github/workflows/docs.yml` lines 365–374) | Other upload steps were not re-verified |
+| AR-10 | Not re-verified | `--mode links --network` was not re-tested in this pass | Private, loopback and redirect guard for network link checks |
+
 **Boundary findings:** page scope is duplicated across sitemap, manifest, sidebar and hardcoded test IDs; `reference.mjs` hardcodes its eight page IDs instead of reading the manifest; the trusted launcher re-implements C1 validation in weaker Python; review/release claims are self-asserted in the manifest; `.agentic-sdd` is private to the manifest but staged by the launcher; the TUI's seven URLs are a second URL authority; the public `contributing/docs-and-changes` page tells maintainers not to run the local checks that now exist; and the "release observation" job records identity only, not release-doc sync.
 
 **Deferred/optional surface to freeze or cut before acceptance:** `--mode links --network`, rollback trust-record reuse before any deployment, `release-status` and `scheduled-observation` jobs with aspirational names, the unused `aliases`/`examples`/`diagrams`/`impactPaths` schema surface, and the eight-job workflow's run-on-every-PR cost.

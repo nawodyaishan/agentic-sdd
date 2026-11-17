@@ -1,6 +1,6 @@
 # Tasks: Restore skill backups
 
-Status: **draft, awaiting combined human approval** of `spec.md` / `plan.md` / `tasks.md` r2. The approval record lives only in `spec.md` under `## Approval`. No batch is authorized yet.
+Status: **draft, awaiting combined human approval** of `spec.md` / `plan.md` / `tasks.md` r2. The approval record lives only in `spec.md` under `## Approval`. No batch is authorized yet. *(Reconciled 2026-11-17, Feature 022 D-05: this status line is historical. `spec.md` `## Approval` records the owner's approval of the r2 scope for implementation (Batches B1–B3). Batch state stays in this file's continuation notes.)*
 
 Default specialist and tools come from `plan.md` (`golang-pro` for Go; targeted local search; repository gates). The exceptions are listed per task.
 

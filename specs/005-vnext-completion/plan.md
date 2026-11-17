@@ -1,7 +1,7 @@
 # vNext completion implementation plan
 
 Revision: r1 — draft, 2026-11-02. Input: [spec r1](spec.md).
-Approval is recorded only in [spec §Approval](spec.md#approval); none yet.
+Approval is recorded only in [spec §Approval](spec.md#approval); none yet. *(Reconciled 2026-11-17, Feature 022 D-05: this draft-date line is historical. The `spec.md` header and `## Approval` record that the historical draft was approved and implemented; this plan file records no separate approval.)*
 This plan covers **R0–R2 core plus seven Matt-inspired capabilities, OpenCode
 only**. R3/R4, autonomous evaluation and live installation remain excluded.
 

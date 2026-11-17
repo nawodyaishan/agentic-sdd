@@ -1,5 +1,7 @@
 # CLI quality and usability
 
+> **Provenance note (reconciled 2026-11-17, Feature 022 D-13).** The earliest committed copy of this record (`6a3449a`, 2026-09-25) follows implementation commits (`0ea53f7`, `aec99e7`). The approval under `## Approval` cites an owner message from a conversation that is not in this repository, and no transcript was recovered. That evidence is recorded as absent, not reconstructed. The approval text itself is unchanged.
+
 ## Outcome and sources
 
 Make the Go skill installer easier to understand and maintain without changing its installation safety contract. Sources: `README.md` (Get started, Backups and safe replacement, Use another home or repository), `AGENTS.md` (Go layout, Safe changes, Verification), and the existing CLI and sync tests. This repository has no top-level product SRS or roadmap.

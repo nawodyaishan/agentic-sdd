@@ -262,7 +262,7 @@ The parent confirms each child's actual model before launch and reports fallback
 1. **AC ownership:** AC-01 → existing extraction tests + T03 + T09; AC-02 → T01/T07; AC-03 → T05/T07; AC-04 → T03; AC-05 → T07; AC-06 → T09–T11; AC-07 → T12/T13; AC-08 → all lanes + T14; AC-09 → T14; AC-10 → T14/T17.
 2. **Shared contract:** plan §3 freezes test names, exit/JSON invariants and skill constraints once; tasks reference it.
 3. **Dependencies:** B1–B6 are disjoint-file parallel lanes; B7 is serial and depends on all. No shared writer.
-4. **Tests:** each lane runs focused cases; B7 runs the full 11-package gate, race and diff check; V1/V2 independently rerun groups.
+4. **Tests:** each lane runs focused cases; B7 runs the full 11-package gate, race and diff check; V1/V2 independently rerun groups. *(Reconciled 2026-11-17, Feature 022 D-12: this sentence is superseded. V1 and V2 were shell-denied, as the Independent reviews paragraph above records, and did not rerun any group. The gates were run by the parent; reviewer evidence is static inspection only.)*
 5. **Assumptions:** no production Go change; defects are findings; model fallbacks recorded; a skip is `not_run`.
 
 ## Continuation

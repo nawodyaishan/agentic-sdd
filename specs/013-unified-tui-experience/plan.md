@@ -7,7 +7,7 @@
 
 ## 1. Architecture and verified baseline
 
-Keep the existing Bubble Tea v2 foundation and `experiments/tui` nested module. Root `go.mod` stays dependency-free at Go 1.23, with no root `go.sum` or `go.work`. The nested module currently declares Go 1.26; that is its selected target, not evidence that all Charm v2 packages require Go 1.26. [Architecture §4](../../docs/tui-architecture.md#4-toolchain-migration-blueprint) distinguishes measured dependency floors from platform choices.
+Keep the existing Bubble Tea v2 foundation and `experiments/tui` nested module. Root `go.mod` stays dependency-free at Go 1.23, with no root `go.sum` or `go.work`. The nested module currently declares Go 1.26; that is its selected target, not evidence that all Charm v2 packages require Go 1.26. [Architecture §4](../../docs/tui-architecture.md#4-toolchain-migration-blueprint-012-history-no-013-root-migration-required) distinguishes measured dependency floors from platform choices.
 
 Current source anchors: `experiments/tui/{config,catalog,theme}.go`, `screens/catalog.go`, `cmd/tui-spike/main.go`; root `cmd/agentic-sdd/{main,guide,guide_catalog,logs,updates}.go`; `internal/skillsync/{sync,inventory,restore}.go`. Inspect current Git state before editing: the r3 session finds only the untracked 013 documents/handover, not the earlier 011/012 working changes. CodeGraph could not resolve this checkout's index; use targeted reads/search unless available later.
 
