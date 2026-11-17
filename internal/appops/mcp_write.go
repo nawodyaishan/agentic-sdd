@@ -251,14 +251,23 @@ func (r MCPApplyRequest) ExpectDigest() string { return r.expectDigest }
 // OpenCodeBin returns the explicit OpenCode binary path, or "".
 func (r MCPApplyRequest) OpenCodeBin() string { return r.openCodeBin }
 
-// MCPApplyResult is the structured outcome of an MCP apply or restore.
+// MCPApplyResult is the structured outcome of an MCP apply or restore. Result
+// is the engine's own record. It is also returned when the engine fails, because
+// the facts a failed transaction still has (target path, backup identity,
+// rollback state and the entries it reported) are evidence the caller has to be
+// able to show; only the accompanying error decides the outcome. A request that
+// appops itself refuses before calling the engine returns no Result, because
+// then no transaction exists.
 type MCPApplyResult struct {
 	Result *skillsync.MCPApplyResult
 }
 
 // MCPApply revalidates the preview token and expect digest in-call and then
 // applies the plan via skillsync.ApplyMCPPlan. An empty or mismatched token,
-// or an empty or mismatched digest, returns ErrNeedsPreview with no write.
+// or an empty or mismatched digest, returns ErrNeedsPreview with no write. An
+// engine failure returns the engine's partial result alongside the error, so a
+// caller can report a rollback and the backup it recorded instead of a bare
+// failure.
 func MCPApply(req MCPApplyRequest) (MCPApplyResult, error) {
 	if req.home == "" || req.plan == nil {
 		return MCPApplyResult{}, errors.New("invalid mcp apply request")
@@ -281,10 +290,10 @@ func MCPApply(req MCPApplyRequest) (MCPApplyResult, error) {
 		OpenCodeBin:  req.openCodeBin,
 	}
 	res, err := skillsync.ApplyMCPPlan(req.home, req.configPath, req.plan.Clone(), opts)
-	if err != nil {
-		return MCPApplyResult{}, err
-	}
-	return MCPApplyResult{Result: &res}, nil
+	// Keep the engine's structured result on failure: it carries the target, the
+	// backup identity and the rollback outcome that a failed write must still
+	// report. The error, not the result, states whether the write succeeded.
+	return MCPApplyResult{Result: &res}, err
 }
 
 // MCPRestorePreviewRequest is one immutable, validated request to preview an
@@ -517,7 +526,8 @@ type MCPRestoreResult = MCPApplyResult
 // MCPRestore revalidates the restore preview token by running a fresh
 // PreviewMCPRestore and verifying the token and base digest before calling
 // skillsync.RestoreMCPConfig. A token mismatch, digest mismatch or missing token
-// returns ErrNeedsPreview with no write.
+// returns ErrNeedsPreview with no write. An engine failure returns the engine's
+// partial result alongside the error, exactly as MCPApply does.
 func MCPRestore(req MCPRestoreRequest) (MCPRestoreResult, error) {
 	if req.home == "" || req.backupID == "" {
 		return MCPRestoreResult{}, errors.New("invalid mcp restore request")
@@ -542,8 +552,7 @@ func MCPRestore(req MCPRestoreRequest) (MCPRestoreResult, error) {
 		return MCPRestoreResult{}, ErrNeedsPreview
 	}
 	res, err := skillsync.RestoreMCPConfig(req.home, req.backupID, req.configPath, req.expectDigest)
-	if err != nil {
-		return MCPRestoreResult{}, err
-	}
-	return MCPRestoreResult{Result: &res}, nil
+	// Keep the engine's structured result on failure, for the same reason as
+	// MCPApply: a failed restore still recorded a backup and may have rolled back.
+	return MCPRestoreResult{Result: &res}, err
 }

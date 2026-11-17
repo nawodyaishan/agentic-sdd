@@ -1,6 +1,7 @@
 package appops
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -652,5 +653,228 @@ func TestMCPWriteSourceIsOfflineOnly(t *testing.T) {
 		if strings.Contains(text, forbiddenWord) {
 			t.Fatalf("internal/appops/mcp_write.go contains %q; adopt/replace are deferred", forbiddenWord)
 		}
+	}
+}
+
+// mcpTestOpenCodeRuntime writes a fake OpenCode binary that reports the runtime
+// version the apply probe accepts, so a fixture write can reach the transaction
+// phase without a real installation.
+func mcpTestOpenCodeRuntime(t *testing.T) string {
+	t.Helper()
+	bin := filepath.Join(t.TempDir(), "opencode")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho '2.1.0'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return bin
+}
+
+// corruptMCPOwnershipManifest replaces the private ownership manifest with
+// invalid JSON after a preview. The next write fails at the post-rename
+// manifest step, so the engine has to roll the target entries back.
+func corruptMCPOwnershipManifest(t *testing.T, home string) {
+	t.Helper()
+	dir := filepath.Join(home, ".agentic-sdd", "mcp")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{not json\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestMCPApplyFailureKeepsStructuredResult proves a failed apply still returns
+// the engine's record. The backup identity, the target and the completed
+// rollback are facts the caller has to be able to show, so appops must not
+// replace them with a bare error; only the error says the write failed.
+func TestMCPApplyFailureKeepsStructuredResult(t *testing.T) {
+	fixture := newMCPTestFixture(t)
+	configPath := fixture.write(t, "opencode.json", "{\n  \"mcp\": {\n    \"servers\": {}\n  }\n}\n")
+	bin := mcpTestOpenCodeRuntime(t)
+
+	planReq, err := NewMCPPlanRequest(fixture.home, configPath, []string{"codegraph"}, nil)
+	if err != nil {
+		t.Fatalf("NewMCPPlanRequest: %v", err)
+	}
+	planRes, err := MCPPlanPreview(planReq)
+	if err != nil {
+		t.Fatalf("MCPPlanPreview: %v", err)
+	}
+	baseDigest := planRes.Plan.BaseDigest
+
+	corruptMCPOwnershipManifest(t, fixture.home)
+
+	applyReq, err := NewMCPApplyRequest(fixture.home, configPath, planRes.Plan, planRes.Token, baseDigest, bin)
+	if err != nil {
+		t.Fatalf("NewMCPApplyRequest: %v", err)
+	}
+	res, err := MCPApply(applyReq)
+	if err == nil {
+		t.Fatal("apply with a corrupt ownership manifest was reported as success")
+	}
+	if !strings.Contains(err.Error(), "rolled back") {
+		t.Fatalf("error = %q, want an explicit rolled-back report", err.Error())
+	}
+	if res.Result == nil {
+		t.Fatal("failed apply dropped the engine result; the caller cannot report the rollback")
+	}
+	if res.Result.TargetPath != configPath {
+		t.Fatalf("result target = %q, want %q", res.Result.TargetPath, configPath)
+	}
+	if res.Result.BackupID == "" || res.Result.BackupPath == "" {
+		t.Fatalf("failed apply lost the backup identity: %+v", res.Result)
+	}
+	if _, statErr := os.Stat(res.Result.BackupPath); statErr != nil {
+		t.Fatalf("reported backup path is not present: %v", statErr)
+	}
+	if !res.Result.Rollback.Attempted || !res.Result.Rollback.Complete {
+		t.Fatalf("rollback facts lost: %+v", res.Result.Rollback)
+	}
+	if res.Result.Rollback.Error != "" {
+		t.Fatalf("complete rollback carried an error: %q", res.Result.Rollback.Error)
+	}
+	if res.Result.InstalledDigest != baseDigest {
+		t.Fatalf("rolled-back result reports digest %q, want the base digest %q", res.Result.InstalledDigest, baseDigest)
+	}
+	if len(res.Result.Applied) != 0 {
+		t.Fatalf("rolled-back apply claimed applied changes: %v", res.Result.Applied)
+	}
+
+	// The rollback is real: the managed entry is gone from the target again.
+	after, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(after), "codegraph") {
+		t.Fatalf("rollback left the managed entry behind:\n%s", after)
+	}
+	root := map[string]any{}
+	if err := json.Unmarshal(after, &root); err != nil {
+		t.Fatalf("target after rollback is not JSON: %v", err)
+	}
+	mcpSection, ok := root["mcp"].(map[string]any)
+	if !ok {
+		t.Fatalf("target after rollback lost the mcp section:\n%s", after)
+	}
+	servers, ok := mcpSection["servers"].(map[string]any)
+	if !ok || len(servers) != 0 {
+		t.Fatalf("servers after rollback = %v, want the original empty object", mcpSection["servers"])
+	}
+}
+
+// TestMCPRestoreFailureKeepsStructuredResult proves the restore seam reports the
+// same partial facts as apply: a failed restore returns its own safety backup
+// and the rollback state along with the error.
+func TestMCPRestoreFailureKeepsStructuredResult(t *testing.T) {
+	fixture := newMCPTestFixture(t)
+	configPath := fixture.write(t, "opencode.json", "{\n  \"mcp\": {\n    \"servers\": {}\n  }\n}\n")
+	bin := mcpTestOpenCodeRuntime(t)
+
+	planReq, err := NewMCPPlanRequest(fixture.home, configPath, []string{"codegraph"}, nil)
+	if err != nil {
+		t.Fatalf("NewMCPPlanRequest: %v", err)
+	}
+	planRes, err := MCPPlanPreview(planReq)
+	if err != nil {
+		t.Fatalf("MCPPlanPreview: %v", err)
+	}
+	applyReq, err := NewMCPApplyRequest(fixture.home, configPath, planRes.Plan, planRes.Token, planRes.Plan.BaseDigest, bin)
+	if err != nil {
+		t.Fatalf("NewMCPApplyRequest: %v", err)
+	}
+	applyRes, err := MCPApply(applyReq)
+	if err != nil {
+		t.Fatalf("MCPApply: %v", err)
+	}
+	appliedBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	previewReq, err := NewMCPRestorePreviewRequest(fixture.home, configPath, applyRes.Result.BackupID)
+	if err != nil {
+		t.Fatalf("NewMCPRestorePreviewRequest: %v", err)
+	}
+	previewRes, err := MCPRestorePreview(previewReq)
+	if err != nil {
+		t.Fatalf("MCPRestorePreview: %v", err)
+	}
+
+	corruptMCPOwnershipManifest(t, fixture.home)
+
+	restoreReq, err := NewMCPRestoreRequest(
+		fixture.home, configPath, applyRes.Result.BackupID, previewRes.Token, previewRes.Preview.BaseDigest,
+	)
+	if err != nil {
+		t.Fatalf("NewMCPRestoreRequest: %v", err)
+	}
+	res, err := MCPRestore(restoreReq)
+	if err == nil {
+		t.Fatal("restore with a corrupt ownership manifest was reported as success")
+	}
+	if !strings.Contains(err.Error(), "rolled back") {
+		t.Fatalf("error = %q, want an explicit rolled-back report", err.Error())
+	}
+	if res.Result == nil {
+		t.Fatal("failed restore dropped the engine result; the caller cannot report the rollback")
+	}
+	if res.Result.TargetPath != configPath {
+		t.Fatalf("result target = %q, want %q", res.Result.TargetPath, configPath)
+	}
+	if res.Result.BackupID == "" || res.Result.BackupID == applyRes.Result.BackupID {
+		t.Fatalf("failed restore backup id = %q, want its own safety backup", res.Result.BackupID)
+	}
+	if _, statErr := os.Stat(res.Result.BackupPath); statErr != nil {
+		t.Fatalf("reported backup path is not present: %v", statErr)
+	}
+	if !res.Result.Rollback.Attempted || !res.Result.Rollback.Complete {
+		t.Fatalf("rollback facts lost: %+v", res.Result.Rollback)
+	}
+	if len(res.Result.Applied) != 0 {
+		t.Fatalf("rolled-back restore claimed applied changes: %v", res.Result.Applied)
+	}
+
+	// The rollback reproduced the applied bytes exactly.
+	assertMCPConfigUnchanged(t, configPath, string(appliedBytes))
+}
+
+// TestMCPRefusalsReportNoEngineResult keeps the refusal path distinct from a
+// failed transaction: a request appops rejects before the engine runs carries
+// no facts, so a caller cannot present it as a recorded write.
+func TestMCPRefusalsReportNoEngineResult(t *testing.T) {
+	tempDir := t.TempDir()
+	plan := &skillsync.MCPPlan{
+		TargetPath: filepath.Join(tempDir, "opencode.json"),
+		Format:     "json",
+		Schema:     "v2",
+		BaseDigest: "1111111111111111111111111111111111111111111111111111111111111111",
+		PlanDigest: "2222222222222222222222222222222222222222222222222222222222222222",
+		Selected:   []string{"codegraph"},
+	}
+	req, err := NewMCPApplyRequest(tempDir, "", plan, mcpPlanPreviewToken(plan), plan.BaseDigest, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A cleared token is a refusal: appops never calls the engine, so it has no
+	// facts to report.
+	req.token = ""
+	applyRes, err := MCPApply(req)
+	if !errors.Is(err, ErrNeedsPreview) {
+		t.Fatalf("MCPApply refusal error = %v, want ErrNeedsPreview", err)
+	}
+	if applyRes.Result != nil {
+		t.Fatalf("refused apply reported engine facts: %+v", applyRes.Result)
+	}
+
+	restoreReq, err := NewMCPRestoreRequest(tempDir, "", "20261113T000000.000000000Z", "token", plan.BaseDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restoreReq.token = ""
+	restoreRes, err := MCPRestore(restoreReq)
+	if !errors.Is(err, ErrNeedsPreview) {
+		t.Fatalf("MCPRestore refusal error = %v, want ErrNeedsPreview", err)
+	}
+	if restoreRes.Result != nil {
+		t.Fatalf("refused restore reported engine facts: %+v", restoreRes.Result)
 	}
 }
