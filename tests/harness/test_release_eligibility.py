@@ -75,5 +75,13 @@ class TagRunTests(unittest.TestCase):
         self.assertEqual(self.check(record(), ref=ref).returncode, 1)
 
 
+class PublisherWiringTests(unittest.TestCase):
+    def test_associated_prs_are_fetched_in_full(self):
+        # The commit's PR list lacks `merged` and `merged_by` (hosted rehearsal).
+        text = (HELPER.parents[1] / ".github/workflows/release-publish.yml").read_text()
+        self.assertIn('pulls/${number}', text)
+        self.assertIn("jq -s .", text)
+
+
 if __name__ == "__main__":
     unittest.main()

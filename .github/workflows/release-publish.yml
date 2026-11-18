@@ -164,7 +164,11 @@ jobs:
           else
             printf 'null\n' > "$out/tag-object.json"
           fi
-          gh api "${api}/commits/${TAG_COMMIT}/pulls" > "$out/pulls.json"
+          # The commit's PR list is the short form (no `merged`, no `merged_by`), so each
+          # associated PR is fetched in full.
+          gh api "${api}/commits/${TAG_COMMIT}/pulls" --jq '.[].number' | while read -r number; do
+            gh api "${api}/pulls/${number}"
+          done | jq -s . > "$out/pulls.json"
           # Immutable parents of the merge itself; the PR's current base SHA is deliberately unused.
           read -r merge first_parent second_parent extra < <(git -C gate-candidate rev-list --parents -n 1 "$TAG_COMMIT")
           if [ "${merge:-}" != "$TAG_COMMIT" ] || [ -z "${first_parent:-}" ] || [ -z "${second_parent:-}" ] || [ -n "${extra:-}" ]; then
