@@ -1,6 +1,6 @@
 # 023 — Develop on `dev`, release from `main`
 
-Draft r2 · 2026-11-18 · Solo maintainer: `nawodyaishan`
+Revision r3 · 2026-11-18 · Solo maintainer: `nawodyaishan`
 
 ## Outcome
 
@@ -24,7 +24,7 @@ Owner decision (2026-11-18): a PR determines what ships; pushing the matching ow
 
 **AC2 — One meaningful development gate.** For product changes, reuse the isolated trusted gate and the supported selection in [the checks manifest](../../harness/checks.json): module integrity/tidiness, vet, supported-core tests, Darwin build and diff hygiene. Retain the existing applicable skill, documentation and nested-module checks and the Feature 008 exclusions. PR code runs as candidate data under reviewed tooling, with no release credentials. In particular, a direct `dev` push must not make a changed gate its own trusted base. Cancel obsolete development checks where useful. Never cancel an in-progress publication to save CI time.
 
-**AC3 — Optimize duplicate work, not evidence.** Require a consistently named result from the trusted workflow for the candidate under consideration. Docs/spec-only PRs get an explicit scope decision and applicable docs checks, not a permanently pending required check or invented product-test pass. Mixed changes run product CI. A newer `dev` head or changed `main` base invalidates stale promotion evidence. Reuse green `dev` evidence only when the promoted tree, reviewed gate and inputs match. Otherwise run the gate on the actual promotion result. The publisher must see a successful release-eligibility check on the **tagged `main` SHA** linking the relevant quality evidence; an unrelated green job, base-branch check or green badge on another SHA is insufficient. Missing, cancelled or failed evidence blocks publication.
+**AC3 — Owner tag + fresh CI.** Before merge, require the named GitHub Actions status on the current candidate. Docs/spec-only PRs report scope and applicable docs checks; mixed changes run product CI. A changed head/base invalidates stale admission evidence. The owner accepts that the ruleset identifies the Actions integration, not one exclusive workflow: a misleading green status could admit bad code to `main`. No dedicated reporter App. Before publication, trusted `main` code must independently verify the owner tag and release PR and run fresh isolated product CI against the exact tagged merge, even if the tree matches green development evidence. A missing, skipped, failed or cancelled fresh gate cannot release.
 
 **AC4 — One version, one immutable target.** Only strictly increasing stable `vMAJOR.MINOR.PATCH` versions, without leading zeroes, qualify. Bind the version at merge time; editing the PR description later cannot change it. Verify owner identity for tag creation and release promotion, the merged PR's base and head repository/branches, version, and exact merge SHA before any public write. A valid-looking tag on `dev`, an older arbitrary ancestor of `main`, a different PR's merge, a branch named like a tag, or a version already used for another commit cannot ship. Protect `v*` creation separately from update/deletion: even the owner cannot move a published tag under the policy. Ordinary tags never publish.
 
@@ -48,3 +48,5 @@ The existing [022 decision §12.9 item 12](../022-architecture-remediation/plan.
 ## Approval
 
 Approved together by owner `nawodyaishan`, 2026-11-18. Evidence: “approve spec r2, plan r1, and tasks r1 together and authorize B1 only”. Execution scope is B1 (T1–T2); no later batch or live cutover authorized.
+
+Subsequently the owner accepted B1 and selected B2 (“b1 approved / start b2”). B2 amendment: in response to the policy choice the owner selected **“Owner tag + fresh CI (Recommended)”** and instructed “based on my decisions update spec plan tasks and continue implementation”. Spec r3 / plan r2 / tasks r2 record that scoped decision. B3 and production cutover remain separate.
