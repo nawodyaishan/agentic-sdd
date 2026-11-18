@@ -507,3 +507,12 @@ conclusion. Fixed per the owner's approval: required checks are now an explicit
 present-and-success set (`quality`, `verify`, `Trusted main validate and build`); named
 non-applicable lanes may skip; everything else still refuses. `RELEASE_TOOLS_SHA` must
 be re-set to the new tooling commit, then re-run the same publish run (no retag).
+
+**v0.14.0 published 2026-11-18 (owner approved the deployment).** Release assets
+(archive, `checksums.txt`, `manifest.json`) and tap cask 0.14.0 are live. First live
+`Docs observe` run succeeded and matched the published revision: AC-08 live evidence
+exists; the workflow_run chain (build -> publish -> observe) is observed. Auto-approval
+for the owner's own publishes needs a UI-only step (remove the release environment's
+required reviewer; no API exists). Still open: D-01 trusted-base designation, the 014
+exceptions, B13 final integration closure, and the `real-guides.json` re-baseline
+confirmation.

@@ -693,3 +693,15 @@ Promoting it to a required status check is a later adoption step with the truste
     skipped name it does not know. Fixing the gate scripts changes the tooling commit,
     so `RELEASE_TOOLS_SHA` must be re-set to the commit that carries this change
     before the next publish attempt; the publisher workflow file itself is unchanged.
+
+16. **v0.14.0 published and auto-approval scope (owner, 2026-11-18):** the owner
+    approved the waiting deployment, and `v0.14.0` published from `effab6e` (release
+    assets plus tap cask 0.14.0, tap commit `2026-11-18T07:09:27Z`). The first live
+    `Docs observe` run (`44256694768`) then recorded the route evidence and matched the
+    binding to the published revision, so the F-02 window fix is confirmed on a real
+    release and AC-08 has live evidence for the first time. The owner asked that their
+    own pushes publish without a further click. GitHub exposes no REST/GraphQL endpoint
+    for a classic environment required-reviewer rule (DELETE returned 404), so that step
+    is UI-only: Settings -> Environments -> release -> Required reviewers -> remove the
+    reviewer. Until the owner does this, each publish keeps one approval click. The
+    branch policies (`branch:main`, `tag:v*`) stay regardless.
