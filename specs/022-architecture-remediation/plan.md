@@ -681,3 +681,15 @@ Promoting it to a required status check is a later adoption step with the truste
     workflow file comes from the default branch by design. This could not be found
     offline; the offline tests did not model environment deployment rules. The failed run
     was re-run (attempt 2) per the workflow's recovery notes, without retagging.
+
+15. **CI gate skip semantics (owner, 2026-11-18):** the second publish attempt for
+    `v0.14.0` refused because event-conditional Docs workflow jobs report conclusion
+    `skipped` for a tag push, and `release_manifest.py` treated every non-success
+    conclusion as a failure. The gate now requires exactly the hosted release checks
+    (`quality`, `verify`, `Trusted main validate and build`) to be present and to
+    succeed, tolerates `skipped` only for the named non-applicable lanes (PR validate,
+    scheduled and documentation observations, Pages deploy/rollback), and still refuses
+    failures, cancellations, unknown conclusions, missing required checks and any
+    skipped name it does not know. Fixing the gate scripts changes the tooling commit,
+    so `RELEASE_TOOLS_SHA` must be re-set to the commit that carries this change
+    before the next publish attempt; the publisher workflow file itself is unchanged.

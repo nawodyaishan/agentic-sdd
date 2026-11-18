@@ -499,3 +499,11 @@ overlay decision.
 **Opus re-check 2026-11-18 (candidate `a4e95c0`): Needs changes for tagging.** F-01 resolved for the TUI (CLI still hides rollback facts on failure; Low, contract change not authorized); F-03/F-04/F-05/F-06 resolved apart from stale phrases; F-02 open with a NEW Medium defect: the `created_at` window check refuses every genuine release. The defect cannot affect publication (separate non-blocking workflow) but would waste the first live observation, so the tag waits for the fix. Low items: three separate `releases/latest` reads; `go mod verify` wording left in plan 13.7.
 
 **Release v0.14.0 (2026-11-18):** tag `v0.14.0` on `effab6e` (CI and Docs green; Opus said Ready at `c571c80`; the later delta is website prose and fingerprints). `Release build` succeeded. First `Release publish` failed closed at the `release` environment (deployment ref `main` vs tag-only policy); policy amended (plan 12.9 item 14); the failed run was re-run and is waiting for the owner's environment approval. Not yet published: confirm with `gh release view v0.14.0` and the tap cask.
+
+**v0.14.0 publish attempt 2 (2026-11-18):** refused at the CI gate. Docs workflow jobs
+that are event-conditional (PR validate, scheduled observations, publish-time
+observations) report `skipped` on a tag push, and the gate refused every non-success
+conclusion. Fixed per the owner's approval: required checks are now an explicit
+present-and-success set (`quality`, `verify`, `Trusted main validate and build`); named
+non-applicable lanes may skip; everything else still refuses. `RELEASE_TOOLS_SHA` must
+be re-set to the new tooling commit, then re-run the same publish run (no retag).
