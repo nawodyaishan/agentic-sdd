@@ -219,6 +219,17 @@ class BuildWorkflowTests(unittest.TestCase):
         self.assertEqual(_on_keys(self.text), ["push"])
         self.assertIn('- "v*"', _top_block(self.text, "on"))
 
+    def test_run_name_renders_the_original_tag_event_for_the_publisher(self):
+        # 023 B2: the publisher preflight binds the original push through GitHub's
+        # rendered run-name (display_title). Four `|` fields, no secret or expression
+        # beyond the reviewed ones. A rerun retains this title.
+        match = re.search(r"(?m)^run-name:\s*(.+?)\s*$", self.text)
+        self.assertIsNotNone(match, "build workflow has no rendered run-name")
+        self.assertEqual(match.group(1),
+                         "${{ github.ref }}|${{ github.event.created }}|"
+                         "${{ github.event.sender.id }}|${{ github.sha }}")
+        self.assertNotIn("secrets.", match.group(1))
+
     def test_workflow_level_permissions_are_empty(self):
         self.assertEqual(_perm_map(self.text), {})
 
@@ -309,6 +320,8 @@ class PublishWorkflowTests(unittest.TestCase):
         cls.jobs = _jobs(cls.text)
         cls.head = _job_head(cls.jobs["publish"])
         cls.steps = _steps(cls.jobs["publish"])
+        cls.preflight_head = _job_head(cls.jobs["preflight"])
+        cls.preflight_steps = _steps(cls.jobs["preflight"])
 
     def test_name_and_trigger_is_workflow_run_of_the_build_only(self):
         self.assertEqual(_workflow_name(self.text), "Release publish")
@@ -339,8 +352,130 @@ class PublishWorkflowTests(unittest.TestCase):
         self.assertEqual(_perm_map(self.text), {})
 
     def test_exactly_one_publish_job_and_no_cross_job_needs(self):
-        self.assertEqual(set(self.jobs), {"publish"})
-        self.assertNotIn("needs:", self.text)
+        # 023 B2: one read-only `preflight` job must succeed before the token-bearing
+        # `publish` job runs. No other job may exist, and `publish` may depend only on
+        # that preflight (no outputs or artifacts can promote themselves).
+        self.assertEqual(set(self.jobs), {"preflight", "publish"})
+        self.assertNotIn("needs:", self.preflight_head)
+        self.assertRegex(self.head, r"(?m)^    needs:\s*preflight\s*$")
+        self.assertEqual(self.head.count("needs:"), 1)
+        self.assertNotIn("needs.preflight", self.text)
+
+    def test_preflight_and_publish_share_the_successful_tag_push_gate(self):
+        for head in (self.preflight_head, self.head):
+            with self.subTest(job=head.splitlines()[0]):
+                self.assertRegex(head, r"(?m)^    if:")
+                self.assertIn("github.event.workflow_run.conclusion == 'success'", head)
+                self.assertIn("github.event.workflow_run.event == 'push'", head)
+                self.assertIn("startsWith(github.event.workflow_run.head_branch, 'v')", head)
+
+    def test_preflight_is_read_only_without_environment_or_secrets(self):
+        self.assertEqual(_perm_map(self.preflight_head),
+                         {"contents": "read", "actions": "read", "pull-requests": "read"})
+        self.assertNotIn("environment:", self.preflight_head)
+        for scope in ("contents: write", "checks: write", "actions: write",
+                      "pull-requests: write", "id-token", "packages: write"):
+            with self.subTest(scope=scope):
+                self.assertNotIn(scope, self.preflight_head)
+        for marker in ("secrets.", "HOMEBREW_TAP_TOKEN", "RELEASE_TOOLS_SHA"):
+            with self.subTest(marker=marker):
+                self.assertNotIn(marker, self.preflight_head)
+
+    def test_preflight_checks_out_the_reviewed_commit_and_the_tag_only_as_data(self):
+        _, trusted = _find_step(self.jobs["preflight"],
+                                lambda b: "ref: ${{ github.sha }}" in b)
+        self.assertIsNotNone(trusted, "preflight has no reviewed launcher checkout")
+        self.assertIn("path: gate-trusted", trusted)
+        self.assertRegex(trusted, r"(?m)^\s+persist-credentials:\s*false\s*$")
+        _, candidate = _find_step(
+            self.jobs["preflight"],
+            lambda b: "ref: ${{ github.event.workflow_run.head_sha }}" in b)
+        self.assertIsNotNone(candidate, "preflight has no tagged-commit checkout")
+        self.assertIn("path: gate-candidate", candidate)
+        self.assertRegex(candidate, r"(?m)^\s+persist-credentials:\s*false\s*$")
+        for body in self.preflight_steps:
+            if "path: gate-candidate" in body:
+                with self.subTest(step=_step_name(body)):
+                    self.assertNotIn("verify-trusted", body)
+
+    def test_preflight_runs_a_fresh_gate_with_the_reviewed_launcher(self):
+        _, gate = _find_step(self.jobs["preflight"], lambda b: "verify-trusted" in b)
+        self.assertIsNotNone(gate, "preflight has no isolated gate")
+        self.assertNotIn("if:", gate, "the fresh gate must not be conditional or cached")
+        self.assertIn("docker pull golang@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59",
+                      self.jobs["preflight"])
+        self.assertIn("uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2",
+                      self.jobs["preflight"])
+        tail = gate.split("run: >-", 1)[1]
+        self.assertIn('task --dir "$GITHUB_WORKSPACE/gate-trusted" verify-trusted', tail)
+        self.assertIn('"SDD_TRUSTED=$GITHUB_WORKSPACE/gate-trusted"', tail)
+        self.assertIn('"SDD_CANDIDATE=$GITHUB_WORKSPACE/gate-candidate"', tail)
+        self.assertNotIn("${{", tail)
+
+    def test_preflight_verifies_the_original_tag_event_and_reviewed_workflow_blob(self):
+        _, verify = _find_step(self.jobs["preflight"], lambda b: "tag-run" in b)
+        self.assertIsNotNone(verify, "preflight has no original-tag verification")
+        self.assertIn("gate-trusted/scripts/release_eligibility.py tag-run", verify)
+        self.assertIn("actions/runs/${BUILD_RUN_ID}", verify)
+        self.assertIn("contents/.github/workflows/release.yml?ref=${TAG_COMMIT}", verify)
+        self.assertIn("contents/.github/workflows/release.yml?ref=${trusted_head}", verify)
+        self.assertIn("git/ref/tags/${TAG_NAME}", verify)
+        self.assertIn("git/tags/${tag_target}", verify)
+        self.assertIn('--tag-commit "$TAG_COMMIT"', verify)
+        self.assertIn('--repository-id "$REPOSITORY_ID"', verify)
+        self.assertNotIn("gate-candidate/scripts", verify)
+
+    def test_preflight_binds_the_promotion_to_immutable_parents_and_version_blobs(self):
+        _, verify = _find_step(self.jobs["preflight"], lambda b: "promotion" in b)
+        self.assertIsNotNone(verify, "preflight has no promotion binding")
+        self.assertIn("gate-trusted/scripts/release_eligibility.py promotion", verify)
+        self.assertIn('rev-list --parents -n 1 "$TAG_COMMIT"', verify)
+        self.assertIn("commits/${TAG_COMMIT}/pulls", verify)
+        self.assertIn('show "${TAG_COMMIT}:release-version"', verify)
+        self.assertIn('show "${first_parent}:release-version"', verify)
+        self.assertIn('show "${trusted_head}:release-version"', verify)
+        self.assertIn("git/refs/tags", verify)
+        self.assertIn('--parent1 "$first_parent"', verify)
+        self.assertIn('--parent2 "$second_parent"', verify)
+        # PR base.sha can be a later main tip; the merge object's parents are the evidence.
+        self.assertNotIn("base.sha", verify)
+        self.assertNotIn("gate-candidate/scripts", verify)
+
+    def test_preflight_evidence_is_attempt_scoped_and_publish_requires_this_attempt(self):
+        # `needs:` can be satisfied by a preflight from an earlier attempt after a
+        # "re-run failed jobs". Evidence is therefore attempt-scoped, and the
+        # token-bearing job refuses without this attempt's evidence.
+        _, upload = _find_step(self.jobs["preflight"], lambda b: "upload-artifact@" in b)
+        self.assertIsNotNone(upload, "preflight keeps no gate observation")
+        self.assertIn("name: release-preflight-evidence-${{ github.run_attempt }}", upload)
+        self.assertRegex(upload, r"(?m)^\s+if-no-files-found:\s*error\s*$")
+        self.assertRegex(upload, r"(?m)^\s+retention-days:\s*7\s*$")
+
+        self.assertIn("RUN_ATTEMPT: ${{ github.run_attempt }}", self.head)
+        index, require = _find_step(
+            self.jobs["publish"],
+            lambda b: "release-preflight-evidence-${RUN_ATTEMPT}" in b)
+        self.assertIsNotNone(index, "publish does not require this attempt's preflight")
+        # It must gate every step that reads the tap or publishes anything.
+        for later in (_is_ci_gate,
+                      lambda b: "download-artifact@" in b,
+                      lambda b: "Read Homebrew tap" in _step_name(b),
+                      lambda b: "gh release create" in b,
+                      lambda b: "Update Homebrew tap" in _step_name(b)):
+            self.assertLess(index, self._first_index(later))
+        self.assertGreater(index, self._first_index(_is_ancestry_check))
+        script = _run_block(require)
+        self.assertIn('expected="release-preflight-evidence-${RUN_ATTEMPT}"', script)
+        self.assertIn('grep -Fxq "$expected"', script)
+        self.assertIn("actions/runs/${GITHUB_RUN_ID}/artifacts", script)
+        self.assertIn("exit 1", script)
+        self.assertNotIn("${{", script)
+        self.assertNotIn("secrets.", require)
+
+    def _first_index(self, predicate):
+        index, _ = _find_step(self.jobs["publish"], predicate)
+        self.assertIsNotNone(index)
+        return index
 
     def test_publish_job_permissions_are_exactly_contents_checks_and_actions_read(self):
         self.assertEqual(_perm_map(self.head),
@@ -362,13 +497,24 @@ class PublishWorkflowTests(unittest.TestCase):
     def test_tag_and_commit_come_only_from_the_build_run_payload(self):
         self.assertIn("TAG_NAME: ${{ github.event.workflow_run.head_branch }}", self.head)
         self.assertIn("TAG_COMMIT: ${{ github.event.workflow_run.head_sha }}", self.head)
-        # The workflow_run context carries the default branch in GITHUB_SHA and
-        # GITHUB_REF_NAME, so neither may appear anywhere in this file.
+        self.assertIn("TAG_NAME: ${{ github.event.workflow_run.head_branch }}", self.preflight_head)
+        self.assertIn("TAG_COMMIT: ${{ github.event.workflow_run.head_sha }}", self.preflight_head)
+        # The token-bearing job must never read the default branch's commit/ref context.
         for name in ("GITHUB_SHA", "GITHUB_REF_NAME", "github.sha", "github.ref_name",
                      "github.ref"):
-            with self.subTest(name=name):
-                self.assertNotIn(name, self.text)
+            with self.subTest(job="publish", name=name):
+                self.assertNotIn(name, self.head)
+        # The read-only preflight may use github.sha only as its reviewed launcher; it is
+        # never the tag identity, which always comes from the build-run payload.
+        for name in ("GITHUB_REF_NAME", "github.ref_name", "github.ref"):
+            with self.subTest(job="preflight", name=name):
+                self.assertNotIn(name, self.preflight_head)
+        self.assertIn("ref: ${{ github.sha }}", self.jobs["preflight"])
+        for body in self.preflight_steps:
+            with self.subTest(step=_step_name(body)):
+                self.assertNotRegex(body, r"TAG_(?:NAME|COMMIT):[^\n]*github\.sha")
         self.assertIn("GITHUB_RUN_ID", self.text)
+        self.assertIn("BUILD_RUN_ID: ${{ github.event.workflow_run.id }}", self.preflight_head)
 
     def test_tag_is_validated_by_the_first_step_before_any_other_use(self):
         self.assertTrue(self.steps)
@@ -378,12 +524,20 @@ class PublishWorkflowTests(unittest.TestCase):
         self.assertIn('[[ ! "${TAG_NAME:-}" =~ ^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$ ]]',
                       script)
         self.assertIn('[[ ! "${TAG_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]]', script)
+        # The preflight repeats the same validation before it checks anything out.
+        self.assertTrue(_step_name(self.preflight_steps[0]).startswith("Validate the tag"),
+                        _step_name(self.preflight_steps[0]))
+        self.assertEqual(_run_block(self.preflight_steps[0]), script)
 
     def test_no_run_block_interpolates_an_expression(self):
-        for body in self.steps:
-            if "        run: |" in body:
-                with self.subTest(step=_step_name(body)):
-                    self.assertNotIn("${{", _run_block(body))
+        for job_name in ("preflight", "publish"):
+            for body in _steps(self.jobs[job_name]):
+                if "        run: |" in body:
+                    with self.subTest(job=job_name, step=_step_name(body)):
+                        self.assertNotIn("${{", _run_block(body))
+                if "        run: >-" in body:
+                    with self.subTest(job=job_name, step=_step_name(body)):
+                        self.assertNotIn("${{", body.split("        run: >-", 1)[1])
 
     def test_tagged_commit_is_checked_out_explicitly_with_tags(self):
         _, checkout = _find_step(self.jobs["publish"],
@@ -631,6 +785,18 @@ class PublishWorkflowTests(unittest.TestCase):
             if re.search(r"scripts/release_(?:manifest|cask)\.py", body):
                 with self.subTest(step=_step_name(body)):
                     self.assertGreater(index, tooling_idx)
+
+    def test_eligibility_helper_runs_only_from_the_reviewed_parent(self):
+        # The preflight helper decides eligibility, so it must be the reviewed copy in
+        # gate-trusted, never a candidate or tag copy and never the tap tooling pin.
+        invocations = re.findall(r"(\S*)scripts/release_eligibility\.py", self.text)
+        self.assertEqual(sorted(invocations),
+                         ["gate-trusted/", "gate-trusted/"],
+                         invocations)
+        for body in self.steps + self.preflight_steps:
+            if "release_eligibility.py" in body:
+                self.assertNotIn("gate-candidate/", body)
+                self.assertNotIn("release-tools/", body)
 
     def test_unset_or_non_sha_variable_fails_closed(self):
         _, pin = _find_step(self.jobs["publish"], _is_pin_check)

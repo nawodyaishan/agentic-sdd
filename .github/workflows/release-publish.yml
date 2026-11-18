@@ -11,8 +11,10 @@ name: Release publish
 # commit against a strict pattern before any other use.
 #
 # Identity: TAG_NAME is the build run's head_branch and TAG_COMMIT is its head_sha.
-# The usual commit and ref variables describe the default branch in this context, so
-# they are never read. GITHUB_RUN_ID is this publisher run, used for own-suite exclusion.
+# The publish job never reads the default branch's commit/ref context. The read-only
+# `preflight` job reads `github.sha` only to check out the reviewed launcher whose
+# workflow blob it verifies, never as the tag identity. GITHUB_RUN_ID is this
+# publisher run, used for own-suite exclusion.
 #
 # Steps (each token-bearing step runs after the tooling checkout and the ancestry check):
 #   1. validate the tag name and commit from the build run's payload (strict pattern).
@@ -27,6 +29,27 @@ name: Release publish
 #   9. preflight the Homebrew tap (token used for reads only) and refuse a downgrade.
 #  10. create or reuse the GitHub release and upload assets without overwrite.
 #  11. render the cask from the verified manifest and push it (token used here only).
+#
+# Eligibility preflight (023 B2, owner amendment 2026-11-18): a separate read-only
+# `preflight` job runs before the token-bearing `publish` job, which `needs:` it.
+# It runs reviewed default-branch code (never the tag's) and:
+#   * verifies the original tag push from GitHub's rendered run-name
+#     `refs/tags/vX.Y.Z|true|50957846|<sha>`, the run id/path/event/actor, same
+#     repository on both sides, and the tag ref target (annotated tags are peeled);
+#   * independently verifies that the `release.yml` blob at the tagged commit equals
+#     the reviewed blob on the default branch, so a tag cannot ship a changed build
+#     workflow;
+#   * resolves the merged `dev` -> `main` promotion PR and binds its merge commit,
+#     owner merger, and immutable parents from the merge object itself (not from a
+#     later PR `base.sha`), then reads the version from the tracked `release-version`
+#     blob in the merged tree and in trusted `main`, requiring it to increase over
+#     the first parent and every earlier stable tag;
+#   * runs a fresh isolated trusted gate on the exact tagged merge every time, with
+#     the reviewed parent as launcher and the tagged tree as data only. A cached or
+#     previously green result cannot substitute for this run.
+# A failure in any of those leaves `publish` skipped. This replaces the manual
+# release-environment confirmation only after AC6 hosted proof and a separately
+# authorized cutover (spec Transition and limits).
 #
 # Permissions: workflow-level is empty. The job holds contents write, checks read and
 # actions read, and nothing else.
@@ -53,7 +76,161 @@ on:
 permissions: {}
 
 jobs:
+  preflight:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
+    runs-on: ubuntu-latest
+    # Fresh isolated gate plus the read-only GitHub verification steps.
+    timeout-minutes: 45
+    # Read-only: no environment, no secret and no write scope. The gate runs candidate
+    # content only inside its own containers, exactly as the CI candidate lane does.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    env:
+      TAG_NAME: ${{ github.event.workflow_run.head_branch }}
+      TAG_COMMIT: ${{ github.event.workflow_run.head_sha }}
+      BUILD_RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Validate the tag and commit from the build run (fails closed)
+        run: |
+          set -euo pipefail
+          if [[ ! "${TAG_NAME:-}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "the build run's branch is not a release tag vX.Y.Z; refusing to publish" >&2
+            exit 1
+          fi
+          if [[ ! "${TAG_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "the build run's commit is not a full lowercase SHA; refusing to publish" >&2
+            exit 1
+          fi
+
+      - name: Checkout the exact reviewed default-branch commit as the trusted launcher
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # `github.sha` is this workflow_run's default-branch commit, so the gate code
+          # and the blob comparison below are the same reviewed revision. No candidate
+          # fallback: a missing reviewed checkout fails the job.
+          ref: ${{ github.sha }}
+          path: gate-trusted
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout the tagged merge as data only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: gate-candidate
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Verify the original tag event, reviewed workflow and promotion (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REPOSITORY_ID: ${{ github.repository_id }}
+        run: |
+          set -euo pipefail
+          api="repos/${GH_REPO}"
+          out="$RUNNER_TEMP/release-eligibility"
+          mkdir -p "$out"
+          trusted_head="$(git -C gate-trusted rev-parse --verify HEAD)"
+          candidate_head="$(git -C gate-candidate rev-parse --verify HEAD)"
+          if [ "$trusted_head" != "$GITHUB_SHA" ]; then
+            echo "trusted checkout $trusted_head is not this run's reviewed commit $GITHUB_SHA; refusing to publish" >&2
+            exit 1
+          fi
+          if [ "$candidate_head" != "$TAG_COMMIT" ]; then
+            echo "candidate checkout $candidate_head is not the tag commit $TAG_COMMIT; refusing to publish" >&2
+            exit 1
+          fi
+          if ! git -C gate-trusted merge-base --is-ancestor "$TAG_COMMIT" "$trusted_head"; then
+            echo "the tag commit is not reachable from the reviewed default branch; refusing to publish" >&2
+            exit 1
+          fi
+          # GitHub records, fetched read-only. Missing delivery or API failure refuses.
+          gh api "${api}/actions/runs/${BUILD_RUN_ID}" > "$out/build-run.json"
+          gh api "${api}/actions/workflows/release.yml" --jq .id > "$out/workflow-id"
+          gh api "${api}/contents/.github/workflows/release.yml?ref=${TAG_COMMIT}" --jq .sha > "$out/tagged-blob"
+          gh api "${api}/contents/.github/workflows/release.yml?ref=${trusted_head}" --jq .sha > "$out/reviewed-blob"
+          gh api "${api}/git/ref/tags/${TAG_NAME}" > "$out/tag-ref.json"
+          tag_type="$(gh api "${api}/git/ref/tags/${TAG_NAME}" --jq .object.type)"
+          tag_target="$(gh api "${api}/git/ref/tags/${TAG_NAME}" --jq .object.sha)"
+          if [ "$tag_type" = "tag" ]; then
+            gh api "${api}/git/tags/${tag_target}" > "$out/tag-object.json"
+          else
+            printf 'null\n' > "$out/tag-object.json"
+          fi
+          gh api "${api}/commits/${TAG_COMMIT}/pulls" > "$out/pulls.json"
+          # Immutable parents of the merge itself; the PR's current base SHA is deliberately unused.
+          read -r merge first_parent second_parent extra < <(git -C gate-candidate rev-list --parents -n 1 "$TAG_COMMIT")
+          if [ "${merge:-}" != "$TAG_COMMIT" ] || [ -z "${first_parent:-}" ] || [ -z "${second_parent:-}" ] || [ -n "${extra:-}" ]; then
+            echo "the tag commit is not a two-parent promotion merge; refusing to publish" >&2
+            exit 1
+          fi
+          # Versions come from tracked blobs, never from PR title/body or a branch tip.
+          git -C gate-candidate show "${TAG_COMMIT}:release-version" > "$out/merge-version"
+          git -C gate-candidate show "${first_parent}:release-version" > "$out/parent-version"
+          git -C gate-trusted show "${trusted_head}:release-version" > "$out/trusted-version"
+          # Every tag ref from GitHub, so the monotonic check does not depend on a
+          # checkout that may not have fetched tags.
+          gh api --paginate "${api}/git/refs/tags" --jq '.[].ref' > "$out/prior-tags"
+          python3 -I -B gate-trusted/scripts/release_eligibility.py tag-run \
+            --run "$out/build-run.json" \
+            --run-id "$BUILD_RUN_ID" \
+            --workflow-id "$(cat "$out/workflow-id")" \
+            --tagged-workflow-blob "$(cat "$out/tagged-blob")" \
+            --reviewed-workflow-blob "$(cat "$out/reviewed-blob")" \
+            --tag-ref "$out/tag-ref.json" \
+            --tag-object "$out/tag-object.json" \
+            --tag "$TAG_NAME" \
+            --tag-commit "$TAG_COMMIT" \
+            --repository-id "$REPOSITORY_ID"
+          python3 -I -B gate-trusted/scripts/release_eligibility.py promotion \
+            --pulls "$out/pulls.json" \
+            --merge-sha "$TAG_COMMIT" \
+            --parent1 "$first_parent" \
+            --parent2 "$second_parent" \
+            --version "$TAG_NAME" \
+            --merge-version-file "$out/merge-version" \
+            --parent-version-file "$out/parent-version" \
+            --trusted-version-file "$out/trusted-version" \
+            --prior-tags "$out/prior-tags" \
+            --repository-id "$REPOSITORY_ID"
+
+      - name: Provision exact reviewed toolchain image
+        run: docker pull golang@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
+
+      - name: Install Task
+        uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2
+        with:
+          version: '3.54.0'
+
+      - name: Run a fresh isolated gate on the exact tagged merge
+        env:
+          EVIDENCE: ${{ runner.temp }}/agentic-sdd-preflight
+        run: >-
+          task --dir "$GITHUB_WORKSPACE/gate-trusted" verify-trusted
+          "SDD_TRUSTED=$GITHUB_WORKSPACE/gate-trusted"
+          "SDD_CANDIDATE=$GITHUB_WORKSPACE/gate-candidate"
+          "SDD_OUTPUT=$EVIDENCE"
+
+      - name: Retain the gate observation, not an approval
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          # Attempt-scoped: the publisher requires this exact name, so a
+          # "re-run failed jobs" cannot publish on an earlier attempt's preflight.
+          name: release-preflight-evidence-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/agentic-sdd-preflight/evidence
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
+    needs: preflight
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
@@ -77,6 +254,9 @@ jobs:
     env:
       TAG_NAME: ${{ github.event.workflow_run.head_branch }}
       TAG_COMMIT: ${{ github.event.workflow_run.head_sha }}
+      # This run's attempt. Explicit so a re-run is visible to the step below rather
+      # than depending on an ambient variable.
+      RUN_ATTEMPT: ${{ github.run_attempt }}
     steps:
       - name: Validate the tag and commit from the build run (fails closed)
         run: |
@@ -143,6 +323,32 @@ jobs:
           fi
           if ! git merge-base --is-ancestor "$TAG_COMMIT" "origin/$DEFAULT_BRANCH"; then
             echo "cannot confirm $TAG_COMMIT is reachable from default branch $DEFAULT_BRANCH; refusing to publish" >&2
+            exit 1
+          fi
+
+      - name: Require the preflight of this same run attempt (read-only, fails closed)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # `needs: preflight` alone can be satisfied by an earlier attempt: a
+          # "re-run failed jobs" re-runs only the failed jobs and keeps the preflight
+          # from before it. The gate must run fresh for every publish execution, so the
+          # preflight publishes attempt-scoped evidence and this step requires the
+          # evidence of the current attempt. A re-run must therefore "re-run all jobs",
+          # which runs the gate again. The job token is used for this read only.
+          if [[ ! "${RUN_ATTEMPT:-}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "run attempt '$RUN_ATTEMPT' is not a positive integer; refusing to publish" >&2
+            exit 1
+          fi
+          expected="release-preflight-evidence-${RUN_ATTEMPT}"
+          names="$(gh api --paginate "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" --jq '.artifacts[].name')" || {
+            echo "cannot list this run's artifacts; refusing to publish" >&2
+            exit 1
+          }
+          if ! printf '%s\n' "$names" | grep -Fxq "$expected"; then
+            echo "no $expected for attempt ${RUN_ATTEMPT}; re-run all jobs so the read-only gate runs again; refusing to publish" >&2
             exit 1
           fi
 

@@ -1,5 +1,16 @@
 name: Release build
 
+# Rendered run-name (023 B2): GitHub stores this as the run's display_title from the
+# original event, so the publisher preflight can still prove "the owner created this
+# exact tag at this exact commit" after a rerun, without an App and without a second
+# sign-off. Format, four `|`-separated fields: ref|created|sender.id|sha.
+#   refs/tags/vX.Y.Z | true | 50957846 | <40-hex tagged commit>
+# The publisher refuses any other format, a false creation flag, a different sender,
+# or a different SHA. `release-publish.yml` never trusts this title alone: it also
+# verifies the run record, the tag ref, and that the build workflow blob at the tagged
+# commit equals the reviewed blob on the default branch.
+run-name: ${{ github.ref }}|${{ github.event.created }}|${{ github.event.sender.id }}|${{ github.sha }}
+
 # Tag build (B7/T14, plan 12.4; owner decision 2026-11-17, "Tag trust", plan 12.9).
 #   This workflow is loaded from the tag's own commit, so it holds no environment,
 #   secret, OIDC or token. It builds the paired archive without publishing, writes a
