@@ -669,3 +669,15 @@ limited to the root packages and nested module. The diff ignores root-level docs
 config (`*.md`, `LICENSE`, `Taskfile*.yml`, `lefthook.yml`) so documentation edits no
 longer force a re-vendor; Go sources, embedded skills and pack files stay compared.
 Promoting it to a required status check is a later adoption step with the trusted base.
+
+14. **Release environment branch policy (owner, 2026-11-18, amends 12.9 item 12 and 12.7):**
+    the first live publish for `v0.14.0` (run `44165821810`) was refused in about two
+    seconds with no steps run. `Release publish` is a `workflow_run` workflow, so its
+    deployment ref is the default branch `main`, and the `release` environment allowed
+    only the tag policy `v*`. Nothing was published (no release, tap still 0.13.0). The
+    owner approved adding the branch policy `main` to the `release` environment (policies
+    are now `branch:main` and `tag:v*`; the owner stays the required reviewer,
+    prevent-self-review off, admin bypass on). The tag-trust design is unchanged: the
+    workflow file comes from the default branch by design. This could not be found
+    offline; the offline tests did not model environment deployment rules. The failed run
+    was re-run (attempt 2) per the workflow's recovery notes, without retagging.
