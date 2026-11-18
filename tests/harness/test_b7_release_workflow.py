@@ -18,6 +18,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import json
 import unittest
@@ -689,13 +690,26 @@ class EveryWorkflowTests(unittest.TestCase):
 
 
 def _ci_run(name, status="completed", conclusion="success", suite=CI_SUITE):
-    """A check run as the workflow projects it (no details_url)."""
+    """A check run as the workflow projects it (no details_url).
+
+    Default names mirror the hosted suites observed on the v0.14.0 candidate: the
+    "quality" and "verify" workflows plus the trusted docs build, with one
+    deliberately skipped event-conditional lane. Individual tests override names
+    to exercise the gate's name rules.
+    """
+    if name in ("test", "docs", "lint", "slow", "sneaky", "legacy"):
+        name = {"test": "quality", "docs": "verify", "lint": "quality",
+                "slow": "verify", "sneaky": "verify", "legacy": "verify"}[name]
     return {
         "name": name,
         "status": status,
         "conclusion": conclusion,
         "check_suite": {"id": suite},
     }
+
+
+def _ci_runs_success():
+    return [_ci_run("quality"), _ci_run("verify"), _ci_run("Trusted main validate and build")]
 
 
 class CiGateStepTests(unittest.TestCase):
@@ -753,11 +767,13 @@ class CiGateStepTests(unittest.TestCase):
                               capture_output=True, text=True, timeout=120)
 
     def test_in_progress_run_blocks_until_it_completes_then_publishes(self):
+        base = [_ci_run("verify"), _ci_run("Trusted main validate and build")]
         self._polls(
-            [_ci_run("test", status="in_progress", conclusion=None),
+            [_ci_run("quality", status="in_progress", conclusion=None),
+             *base,
              _ci_run("publish", status="in_progress", conclusion=None, suite=PUBLISHER_SUITE)],
-            [_ci_run("test", status="in_progress", conclusion=None)],
-            [_ci_run("test")],
+            [_ci_run("quality", status="in_progress", conclusion=None), *base],
+            [_ci_run("quality"), *base],
         )
         result = self._execute()
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -766,7 +782,10 @@ class CiGateStepTests(unittest.TestCase):
         self.assertIn("completed successfully", result.stdout)
 
     def test_timeout_fails_closed_after_the_bounded_poll_budget(self):
-        self._polls([_ci_run("test", status="in_progress", conclusion=None)])
+        self._polls([_ci_run("verify", status="in_progress", conclusion=None),
+                     _ci_run("quality", status="in_progress", conclusion=None),
+                     _ci_run("Trusted main validate and build", status="in_progress",
+                             conclusion=None)])
         polls = int(re.search(r"(?m)^polls=(\d+)$", self.script).group(1))
         result = self._execute()
         self.assertNotEqual(result.returncode, 0)
@@ -776,16 +795,18 @@ class CiGateStepTests(unittest.TestCase):
         self.assertNotIn("completed successfully", result.stdout)
 
     def test_completed_failure_fails_fast_even_while_another_run_is_pending(self):
-        self._polls([_ci_run("lint", conclusion="failure"),
-                     _ci_run("slow", status="in_progress", conclusion=None)])
+        self._polls([_ci_run("quality", conclusion="failure"),
+                     _ci_run("verify", status="in_progress", conclusion=None),
+                     _ci_run("Trusted main validate and build")])
         result = self._execute()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("lint (failure)", result.stderr)
+        self.assertIn("quality (failure)", result.stderr)
         self.assertEqual(self._gh_calls(), 1)
         self.assertEqual(self._sleeps(), [])
 
     def test_unknown_status_fails_at_once_without_polling_the_budget(self):
-        self._polls([_ci_run("test"), _ci_run("odd", status="stale", conclusion=None)])
+        self._polls([*self._required_success_runs(),
+                     _ci_run("odd", status="stale", conclusion=None)])
         result = self._execute()
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("refusing to publish", result.stderr)
@@ -801,7 +822,7 @@ class CiGateStepTests(unittest.TestCase):
         self.assertEqual(self._sleeps(), [])
 
     def test_api_error_fails_closed(self):
-        self._polls([_ci_run("test")])
+        self._polls([*self._required_success_runs()])
         (self.state / "gh-fail").write_text("")
         result = self._execute()
         self.assertNotEqual(result.returncode, 0)
@@ -810,22 +831,33 @@ class CiGateStepTests(unittest.TestCase):
         self.assertEqual(self._sleeps(), [])
 
     def test_all_completed_success_passes_without_waiting(self):
-        self._polls([_ci_run("test"), _ci_run("docs")])
+        self._polls(self._required_success_runs())
         result = self._execute()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self._gh_calls(), 1)
         self.assertEqual(self._sleeps(), [])
 
+    @staticmethod
+    def _required_success_runs():
+        return [
+            _ci_run("quality"),
+            _ci_run("verify"),
+            _ci_run("Trusted main validate and build"),
+            {"name": "PR validate (reviewed base, candidate as data)", "status": "completed",
+             "conclusion": "skipped", "check_suite": {"id": CI_SUITE}},
+        ]
+
     def test_build_run_on_the_same_commit_counts_as_another_suite_and_must_pass(self):
         # The build run is a different check suite on the tagged commit; it is not excluded.
         build_suite = 777
-        self._polls([_ci_run("verify", suite=build_suite, conclusion="failure")])
+        self._polls([_ci_run("quality"), _ci_run("Trusted main validate and build"),
+                     _ci_run("verify", suite=build_suite, conclusion="failure")])
         result = self._execute()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("verify (failure)", result.stderr)
 
     def test_own_suite_run_is_excluded_even_while_incomplete(self):
-        self._polls([_ci_run("test"),
+        self._polls([*_ci_runs_success(),
                      _ci_run("publish", status="in_progress", conclusion=None,
                              suite=PUBLISHER_SUITE)])
         result = self._execute()
@@ -835,16 +867,20 @@ class CiGateStepTests(unittest.TestCase):
     def test_foreign_suite_run_is_not_excluded_by_a_url_naming_the_publisher_run(self):
         sneaky = _ci_run("sneaky", status="in_progress", conclusion=None)
         sneaky["details_url"] = "https://github.com/nawodyaishan/agentic-sdd/actions/runs/222/job/1"
-        self._polls([_ci_run("test"), sneaky], [_ci_run("test"), _ci_run("sneaky")])
+        base = [_ci_run("quality"), _ci_run("Trusted main validate and build")]
+        self._polls([_ci_run("verify"), *base, sneaky], [_ci_run("verify"), *base, _ci_run("sneaky")])
         result = self._execute()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self._gh_calls(), 2)
         self.assertEqual(self._sleeps(), ["30"])
 
     def test_run_without_a_check_suite_is_counted_not_excluded(self):
-        legacy_pending = {"name": "legacy", "status": "in_progress", "conclusion": None}
-        legacy_done = {"name": "legacy", "status": "completed", "conclusion": "success"}
-        self._polls([_ci_run("test"), legacy_pending], [_ci_run("test"), legacy_done])
+        legacy_pending = {"name": "legacy", "status": "in_progress", "conclusion": None,
+                          "check_suite": {"id": None}}
+        legacy_done = {"name": "legacy", "status": "completed", "conclusion": "success",
+                       "check_suite": {"id": None}}
+        self._polls([*self._required_success_runs(), legacy_pending],
+                    [*self._required_success_runs(), legacy_done])
         result = self._execute()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self._gh_calls(), 2)
@@ -999,3 +1035,93 @@ class GoReleaserConfigIsReadOnlyInputTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReleaseManifestCheckCITests(unittest.TestCase):
+    """The CI gate tolerates only known non-applicable skips (owner, 2026-11-18).
+
+    The first v0.14.0 publish attempt refused because event-conditional jobs of
+    the Docs workflow report conclusion "skipped" for a tag push. The gate must
+    still require the quality, verify and trusted-build checks, refuse failures
+    and refuse a skipped name it does not know.
+    """
+
+    def invoke(self, runs, command="check-ci"):
+        work = Path(tempfile.mkdtemp(prefix="release-manifest-ci-"))
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        path = work / "check-runs.jsonl"
+        path.write_text("\n".join(json.dumps(run) for run in runs) + "\n", encoding="utf-8")
+        argv = [sys.executable, "-B", str(MANIFEST_SCRIPT), command,
+                "--runs", str(path), "--commit", COMMIT, "--suite-id", "119561318922"]
+        return subprocess.run(argv, capture_output=True, text=True, timeout=60)
+
+    def base_runs(self):
+        return [
+            {"name": "quality", "status": "completed", "conclusion": "success",
+             "check_suite": {"id": 119560503146}},
+            {"name": "verify", "status": "completed", "conclusion": "success",
+             "check_suite": {"id": 119560503146}},
+            {"name": "Trusted main validate and build", "status": "completed",
+             "conclusion": "success", "check_suite": {"id": 119559215709}},
+            {"name": "PR validate (reviewed base, candidate as data)", "status": "completed",
+             "conclusion": "skipped", "check_suite": {"id": 119559215709}},
+            {"name": "Post-publish documentation observation (read-only, non-blocking)",
+             "status": "completed", "conclusion": "skipped", "check_suite": {"id": 119559215709}},
+        ]
+
+    def test_known_skips_and_passing_required_checks_accept(self):
+        result = self.invoke(self.base_runs())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("completed successfully", result.stdout)
+
+    def test_a_failure_still_refuses(self):
+        runs = self.base_runs()
+        runs[0] = dict(runs[0], conclusion="failure")
+        result = self.invoke(runs)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("quality (failure)", result.stderr)
+
+    def test_a_required_check_may_not_skip(self):
+        runs = self.base_runs()
+        runs[1] = dict(runs[1], conclusion="skipped")
+        result = self.invoke(runs)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("verify (skipped)", result.stderr)
+
+    def test_a_missing_required_check_refuses(self):
+        runs = [r for r in self.base_runs() if r["name"] != "verify"]
+        result = self.invoke(runs)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("required check runs are missing", result.stderr)
+        self.assertIn("verify", result.stderr)
+
+    def test_an_unknown_skipped_name_refuses(self):
+        runs = self.base_runs() + [
+            {"name": "Newly renamed required check", "status": "completed",
+             "conclusion": "skipped", "check_suite": {"id": 119560503146}}]
+        result = self.invoke(runs)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Newly renamed required check (skipped)", result.stderr)
+
+    def test_cancelled_or_absent_conclusions_refuse(self):
+        for conclusion in ("cancelled", "timed_out", "startup_failure", "neutral", None):
+            runs = self.base_runs()
+            runs[0] = dict(runs[0], conclusion=conclusion)
+            result = self.invoke(runs)
+            self.assertNotEqual(result.returncode, 0, f"conclusion {conclusion!r} was accepted")
+
+    def test_own_publisher_run_is_excluded_from_the_gate(self):
+        runs = self.base_runs() + [
+            {"name": "publish", "status": "completed", "conclusion": "failure",
+             "check_suite": {"id": 119561318922}}]
+        result = self.invoke(runs)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_wait_ci_accepts_known_skips_and_reports_pending(self):
+        runs = self.base_runs()
+        runs[2] = dict(runs[2], status="in_progress", conclusion=None)
+        result = self.invoke(runs, command="wait-ci")
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertIn("not completed yet", result.stdout)
+        result = self.invoke(self.base_runs(), command="wait-ci")
+        self.assertEqual(result.returncode, 0, result.stderr)

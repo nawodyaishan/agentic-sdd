@@ -316,6 +316,30 @@ def load_check_runs(path):
 PENDING_EXIT = 4
 KNOWN_CHECK_STATUSES = ("queued", "in_progress", "completed")
 
+# The release gate requires these check names to be present and to succeed. The
+# Trusted CI container lane and the release snapshot lane cannot run on a push of
+# the default branch; the required set is the hosted evidence the publisher trusts.
+REQUIRED_CHECKS = frozenset({
+    "quality",
+    "verify",
+    "Trusted main validate and build",
+})
+
+# Jobs whose "skipped" conclusion is expected for a tag push: PR review lanes,
+# scheduled observations, non-blocking documentation observations and the Pages
+# deploy/rollback lanes, none of which gate a release. Everything else that
+# skipped is treated as a failure of the gate.
+SKIPPABLE_CHECKS = frozenset({
+    "PR validate (reviewed base, candidate as data)",
+    "Protected rollback from a retained artifact",
+    "Scheduled observation (identity only, disabled by default)",
+    "Scheduled external-link observation (observation-only, disabled by default)",
+    "Release documentation observation (read-only)",
+    "Post-publish documentation observation (read-only, non-blocking)",
+    "Observe the deployed site (evidence recorded, non-blocking)",
+    "Protected Pages deploy",
+})
+
 
 def is_own_suite(run, suite_id):
     """True only when check_suite.id is exactly this publisher run's integer suite id."""
@@ -327,7 +351,15 @@ def is_own_suite(run, suite_id):
 
 
 def judge_check_runs(args):
-    """Return the check runs still pending. Refuse on no runs or any completed failure."""
+    """Return the check runs still pending. Refuse on no runs or any completed failure.
+
+    A check run whose conclusion is "skipped" is tolerated only when its name names a
+    known, deliberately non-applicable workflow job (a PR, schedule or observation lane
+    that cannot run for a push or a release). Required release checks must succeed; any
+    other completed conclusion (failure, cancelled, timed out, ...) is refused, and an
+    unexpected name that skipped is refused too, so a new or renamed required check can
+    never be dropped from the gate by being skipped.
+    """
     check_commit(args.commit)
     if not args.suite_id or not re.fullmatch(r"[1-9][0-9]*", args.suite_id):
         raise UsageError("suite id must be a positive integer")
@@ -344,8 +376,20 @@ def judge_check_runs(args):
         names = ", ".join(f"{run['name']} ({run['status']})" for run in unknown)
         raise Refusal(f"check runs on {args.commit} report a status other than queued, "
                       f"in_progress or completed: {names}; refusing to publish")
-    failed = [run for run in others
-              if run["status"] == "completed" and run.get("conclusion") != "success"]
+    missing_required = sorted(REQUIRED_CHECKS - {run["name"] for run in others})
+    if missing_required:
+        raise Refusal("required check runs are missing on "
+                      f"{args.commit}: {', '.join(missing_required)}; refusing to publish")
+    failed = []
+    for run in others:
+        if run["status"] != "completed":
+            continue
+        conclusion = run.get("conclusion")
+        if conclusion == "success":
+            continue
+        if conclusion == "skipped" and run["name"] in SKIPPABLE_CHECKS:
+            continue
+        failed.append(run)
     if failed:
         names = ", ".join(f"{run['name']} ({run.get('conclusion')})" for run in failed)
         raise Refusal(f"check runs did not succeed on {args.commit}: {names}; refusing to publish")
