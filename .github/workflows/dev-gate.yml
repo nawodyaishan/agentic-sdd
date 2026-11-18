@@ -57,17 +57,18 @@ jobs:
           install -d -m 0700 "$STATE"
           # The run document from the API is authoritative, not the event payload.
           gh api "repos/$GH_REPO/actions/runs/$RUN_ID" > "$STATE/run.json"
-          common="--run $STATE/run.json --repository-id $REPO_ID --repository $GH_REPO --run-id $RUN_ID --workflow-name $WAKE_NAME --workflow-path $WAKE_PATH --out $STATE/decision.json --github-output $GITHUB_OUTPUT"
+          # An array, not a string: WAKE_NAME contains a space and must stay one argument.
+          common=(--run "$STATE/run.json" --repository-id "$REPO_ID" --repository "$GH_REPO" --run-id "$RUN_ID" --workflow-name "$WAKE_NAME" --workflow-path "$WAKE_PATH" --out "$STATE/decision.json" --github-output "$GITHUB_OUTPUT")
           case "$EVENT" in
             push)
               gh api "repos/$GH_REPO/branches/dev" > "$STATE/branch.json"
-              python3 "$TRUSTED/scripts/dev_lane.py" resolve-push $common \
+              python3 "$TRUSTED/scripts/dev_lane.py" resolve-push "${common[@]}" \
                 --branch "$STATE/branch.json"
               ;;
             pull_request)
               head="$(python3 "$TRUSTED/scripts/dev_lane.py" head-sha --run "$STATE/run.json")"
               gh api "repos/$GH_REPO/commits/$head/pulls" > "$STATE/pulls.json"
-              python3 "$TRUSTED/scripts/dev_lane.py" resolve-pr $common \
+              python3 "$TRUSTED/scripts/dev_lane.py" resolve-pr "${common[@]}" \
                 --pulls "$STATE/pulls.json"
               ;;
             *) echo "::error::unexpected wake event $EVENT"; exit 1 ;;

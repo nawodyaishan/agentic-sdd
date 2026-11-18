@@ -100,6 +100,16 @@ class HelperCase(unittest.TestCase):
             name=WAKE_NAME, path=WAKE_PATH)
 
 
+class ShellQuotingTests(unittest.TestCase):
+    def test_helper_arguments_are_a_bash_array_not_a_split_string(self):
+        # Found on a hosted run: WAKE_NAME is "Dev wake", so an unquoted string
+        # variable split it into two arguments and the helper refused.
+        text = GATE.read_text(encoding="utf-8")
+        self.assertIn("common=(", text)
+        self.assertNotIn("$common", text)
+        self.assertEqual(text.count('"${common[@]}"'), 2)
+
+
 class WakeResolutionTests(HelperCase):
     def test_push_at_tip_is_accepted_and_a_moved_tip_is_superseded(self):
         accepted = self.push()
