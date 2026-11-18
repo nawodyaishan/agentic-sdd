@@ -57,7 +57,6 @@ import sys
 # The sole repository owner (spec AC1/AC4, B2 amendment: no App, no bot proxy).
 OWNER_ID = 50957846
 OWNER_TYPE = "User"
-BUILD_WORKFLOW_NAME = "Release build"
 BUILD_WORKFLOW_PATH = ".github/workflows/release.yml"
 
 VERSION_RE = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
@@ -201,8 +200,8 @@ def cmd_tag_run(args):
         deny(f"build run event is {run.get('event')!r}, not a tag push")
     if run.get("path") != BUILD_WORKFLOW_PATH:
         deny(f"build run path is {run.get('path')!r}, not {BUILD_WORKFLOW_PATH}")
-    if run.get("name") != BUILD_WORKFLOW_NAME:
-        deny(f"build run workflow name is {run.get('name')!r}, not {BUILD_WORKFLOW_NAME!r}")
+    # `name` is deliberately not checked: with a `run-name`, GitHub reports the
+    # rendered run-name there. The workflow is pinned by id and path.
     if positive_int(run.get("workflow_id"), "build workflow id in the record") != workflow_id:
         deny("the run record's workflow id is not the reviewed build workflow")
 
