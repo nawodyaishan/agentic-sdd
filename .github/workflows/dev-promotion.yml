@@ -47,8 +47,16 @@ jobs:
           head="$(gh api "repos/$GH_REPO/pulls/$PR" --jq '.head.sha')"
           gh api "repos/$GH_REPO/branches/dev" > "$STATE/dev.json"
           gh api "repos/$GH_REPO/branches/main" > "$STATE/main.json"
-          gh api "repos/$GH_REPO/commits/$head/check-runs?check_name=dev-gate" \
-            > "$STATE/checks.json"
+          # The gate on this head may still be running when the PR opens or
+          # updates. Wait a bounded time for it to finish; if it never does, the
+          # decision below sees no completed result and fails closed.
+          for _ in $(seq 1 45); do
+            gh api "repos/$GH_REPO/commits/$head/check-runs?check_name=dev-gate" \
+              > "$STATE/checks.json"
+            open="$(python3 -c 'import json,sys; r=json.load(open(sys.argv[1]))["check_runs"]; print(0 if r and all(c["status"]=="completed" for c in r) else 1)' "$STATE/checks.json")"
+            [ "$open" = 0 ] && break
+            sleep 20
+          done
 
       - name: Compute the prospective two-parent tree and release-version
         env:

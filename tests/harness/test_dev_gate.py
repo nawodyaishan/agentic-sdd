@@ -110,6 +110,17 @@ class ShellQuotingTests(unittest.TestCase):
         self.assertEqual(text.count('"${common[@]}"'), 2)
 
 
+class PromotionWaitTests(unittest.TestCase):
+    def test_admission_waits_a_bounded_time_for_the_head_gate(self):
+        # Hosted rehearsal: admission raced a still-running dev-gate and recorded a
+        # failure that nothing re-evaluated.
+        text = PROMOTION.read_text(encoding="utf-8")
+        self.assertIn("seq 1 45", text)
+        self.assertIn("sleep 20", text)
+        self.assertLess(45 * 20, 20 * 60)  # inside the job's 20-minute timeout
+        self.assertIn("timeout-minutes: 20", text)
+
+
 class WakeResolutionTests(HelperCase):
     def test_push_at_tip_is_accepted_and_a_moved_tip_is_superseded(self):
         accepted = self.push()
