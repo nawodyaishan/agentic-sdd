@@ -1,0 +1,26 @@
+name: Dev wake
+# Candidate content on `dev`. It may only complete: a reviewed default-branch
+# `workflow_run` listener (dev-gate.yml) does the judging. No checkout, gate,
+# artifact, secret or write permission here; a missing wake is fail-closed.
+# No scopes filter: a docs-only tip still needs a wake so its result can end.
+on:
+  push:
+    branches: ["dev"]
+  pull_request:
+    branches: ["dev"]
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions: {}
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Signal only (no evidence)
+        env:
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.sha }}
+          RUN: ${{ github.run_id }}
+        run: |
+          echo "wake event=$EVENT sha=$SHA run=$RUN"
+          echo "This run wakes dev-gate.yml; it produces no quality evidence."

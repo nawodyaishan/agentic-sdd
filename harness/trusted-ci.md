@@ -165,9 +165,57 @@ candidate output, not instructions or universally sanitized text. Default raw
 retention is seven days with manual local cleanup; no native-store/old-sandbox
 cleanup occurs.
 
-Sources consulted through Context7 on 2026-10-30:
-[GitHub event security](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target),
-[checkout v4](https://github.com/actions/checkout/tree/11d5960a326750d5838078e36cf38b85af677262),
-[Docker run](https://docs.docker.com/reference/cli/docker/container/run/).
-Native correlation/recovery and useful adoption benefit remain separate
-acceptance, not consequences of green CI.
+## 5. Development lane (`dev`) - Feature 023 B2/T3
+
+`Dev wake` (`.github/workflows/dev-wake.yml`) is candidate content on `dev` and
+may only complete; it has no checkout, gate, artifact or write permission. A
+missing wake is fail-closed because no listener run can report a result. The
+reviewed listeners are loaded from the default branch:
+
+| Listener | Judges |
+| --- | --- |
+| `dev-gate.yml` | a completed wake: run identity, freshness, change scope, one check run |
+| `dev-promotion.yml` | a `dev` -> `main` pull request: owner, same repository, current tips, prospective merge tree, release-version increment |
+
+Identity comes from API documents re-read by the listener (`actions: read`,
+`pull-requests: read`), never from the event payload. A push must still be the
+`dev` tip; a PR must still be the open PR's head. Superseded wakes report
+**nothing**, so a stale SHA cannot receive a pass. `dev-gate` reads permissions
+`contents: read` + `checks: write` plus those two read scopes only.
+
+Scope uses **local git** on the resolved commits, not the compare API: a
+page-limited or 300-file-capped response cannot silently classify product work
+as docs. `git diff --name-only -z --no-renames BASE...HEAD` yields NUL paths
+including both names of a rename; a missing object or failed diff widens the
+gate to product. `docs/**` and `specs/**` are non-product; an empty diff is
+`no-change`; everything else, including unrecognised paths, is product.
+
+Product work runs the reviewed `verify-trusted` gate from the default-branch
+checkout with the candidate as data. A docs/specs-only change runs the **reviewed
+main** `scripts/docs-ci.py` (`--mode pr`, candidate as data, no `--artifact`):
+neither the `dev` tip nor a dev PR base is ever its own trusted/executable
+source. The candidate tree is bound to the resolved head SHA before either
+runner sees it. `.github/workflows/docs.yml` keeps its original main-only
+publication routes; `main-build` -> `deploy` and the release pair are untouched.
+
+`promotion-admission` additionally requires owner authorship, both sides in
+this repository, head/base equal to the current `dev`/`main` tips, a two-parent
+prospective merge tree equal to the tested tree, a strictly increased
+`release-version`, and a successful `dev-gate` for the exact head from the
+Actions app. The app identity is an accepted source, not exclusive proof:
+promotion re-runs the gate on the merge result and the publisher re-runs
+quality. A non-promotion PR gets an explicit success scope so a required check
+terminates; a missing version file or evidence fails closed.
+
+Owner-only push/merge, fork denial, contributor review and the rule that new
+commits invalidate an existing review are **hosted branch-protection settings**;
+no checked-in file can enforce them. The B3/T6 runbook must set them and record
+the effective rules.
+
+Named unverified behaviours: no hosted `workflow_run` delivery, no hosted
+check-run write or producer identity, no effective required-check placement, no
+fork checkout across a private fork, no real version file adoption yet (the
+promotion check currently fails closed with `version-missing`), no container or
+launcher execution, and no post-merge/publisher evidence. `tests/harness/test_dev_gate.py`
+executes shipped step text with stubs and a scratch git repository; that is
+fixture evidence only.

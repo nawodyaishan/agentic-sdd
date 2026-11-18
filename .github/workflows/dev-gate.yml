@@ -1,0 +1,233 @@
+name: Dev gate
+# Reviewed listener, loaded from the default branch, never from the candidate
+# it judges. A `Dev wake` run is only a signal: identity and freshness are
+# re-resolved through the read-only API, the change set is compared with local
+# git on the resolved commits, reviewed tooling runs with the candidate as
+# data, and exactly one `dev-gate` check is reported for the candidate head.
+# The Actions app identity is an accepted source, not exclusive proof; the
+# promotion listener re-runs the gate on the merge result and the publisher
+# re-runs quality. Hosted delivery, permissions and rules are not_run locally.
+on:
+  workflow_run:
+    workflows: ["Dev wake"]
+    types: [completed]
+permissions: {}
+env:
+  GATE_IMAGE: "golang@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59"
+  DOCS_IMAGE: "node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54"
+  DOCS_BUILDER_IMAGE: "golang@sha256:ec47ea3725fea0cc88f6de94919aef19f40f12fc1ec0e2d1b3426dbf15ecca04"
+jobs:
+  gate:
+    name: Dev gate
+    if: github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'pull_request'
+    permissions:
+      actions: read         # re-read the wake run
+      contents: read        # trusted and candidate checkouts
+      pull-requests: read   # associate a PR head with its open pull request
+      checks: write         # the one reported result
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: dev-gate-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout reviewed default-branch tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          ref: ${{ github.sha }}   # default-branch head, never the candidate
+          path: gate-trusted
+          fetch-depth: 0           # base commit and its history for local diff
+          submodules: false
+          persist-credentials: false
+
+      - name: Resolve the wake run and candidate
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REPO_ID: ${{ github.repository_id }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          WAKE_NAME: "Dev wake"
+          WAKE_PATH: .github/workflows/dev-wake.yml
+          TRUSTED: ${{ github.workspace }}/gate-trusted
+          STATE: ${{ runner.temp }}/dev-gate
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$STATE"
+          # The run document from the API is authoritative, not the event payload.
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID" > "$STATE/run.json"
+          common="--run $STATE/run.json --repository-id $REPO_ID --repository $GH_REPO --run-id $RUN_ID --workflow-name $WAKE_NAME --workflow-path $WAKE_PATH --out $STATE/decision.json --github-output $GITHUB_OUTPUT"
+          case "$EVENT" in
+            push)
+              gh api "repos/$GH_REPO/branches/dev" > "$STATE/branch.json"
+              python3 "$TRUSTED/scripts/dev_lane.py" resolve-push $common \
+                --branch "$STATE/branch.json"
+              ;;
+            pull_request)
+              head="$(python3 "$TRUSTED/scripts/dev_lane.py" head-sha --run "$STATE/run.json")"
+              gh api "repos/$GH_REPO/commits/$head/pulls" > "$STATE/pulls.json"
+              python3 "$TRUSTED/scripts/dev_lane.py" resolve-pr $common \
+                --pulls "$STATE/pulls.json"
+              ;;
+            *) echo "::error::unexpected wake event $EVENT"; exit 1 ;;
+          esac
+
+      - name: Stop when superseded (no stale result)
+        if: steps.resolve.outputs.decision == 'superseded'
+        run: |
+          echo "dev-gate: superseded (${{ steps.resolve.outputs.reason }}); no check run is reported."
+
+      - name: Classify change set with local git (NUL paths, old and new)
+        id: scope
+        if: steps.resolve.outputs.accepted == 'true'
+        env:
+          TRUSTED: ${{ github.workspace }}/gate-trusted
+          STATE: ${{ runner.temp }}/dev-gate
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+          HEAD_REPO: ${{ steps.resolve.outputs.head_repo }}
+          COMPARE_BASE: ${{ steps.resolve.outputs.compare_base }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$STATE"
+          product() {
+            echo "::warning::$1; treating the change set as product work"
+            python3 "$TRUSTED/scripts/dev_lane.py" scope --force-product "$1" \
+              --out "$STATE/scope.json" --github-output "$GITHUB_OUTPUT"
+            exit 0
+          }
+          # Local git on exact commits: no API page limit, no 300-file cap, no
+          # candidate history trusted. Any missing object or failed diff widens
+          # the gate instead of silently passing a truncated change set.
+          base="$(git -C "$TRUSTED" rev-parse --verify "refs/remotes/origin/$COMPARE_BASE^{commit}" 2>/dev/null || true)"
+          [ -n "$base" ] || product "compare-base-unavailable"
+          if ! git -C "$TRUSTED" cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null; then
+            git -C "$TRUSTED" fetch --no-tags --filter=blob:none \
+              "$SERVER/$HEAD_REPO" "$HEAD_SHA" || product "head-unavailable"
+          fi
+          # --no-renames makes a rename appear as both its old and new path,
+          # so a product path cannot vanish by being renamed into docs/.
+          git -C "$TRUSTED" diff --name-only -z --no-renames "$base...$HEAD_SHA" \
+            > "$STATE/names" || product "compare-failed"
+          python3 "$TRUSTED/scripts/dev_lane.py" scope --names "$STATE/names" \
+            --out "$STATE/scope.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Checkout the candidate as data only
+        if: steps.resolve.outputs.accepted == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          repository: ${{ steps.resolve.outputs.head_repo }}
+          ref: ${{ steps.resolve.outputs.head_sha }}
+          path: gate-candidate
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Bind the candidate tree to the resolved head
+        if: steps.resolve.outputs.accepted == 'true'
+        env:
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+          CANDIDATE: ${{ github.workspace }}/gate-candidate
+        run: |
+          set -euo pipefail
+          actual="$(git -C "$CANDIDATE" rev-parse HEAD)"
+          [ "$actual" = "$HEAD_SHA" ] || {
+            echo "::error::candidate $actual is not the resolved head $HEAD_SHA"
+            exit 1
+          }
+
+      - name: Install Task (product scope only)
+        if: steps.scope.outputs.scope == 'product'
+        uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2, same pin as ci.yml
+        with:
+          version: '3.54.0'
+
+      - name: Product work - run the reviewed trusted gate
+        if: steps.scope.outputs.scope == 'product'
+        env:
+          EVIDENCE: ${{ runner.temp }}/dev-gate/evidence
+          STATE: ${{ runner.temp }}/dev-gate
+        run: |
+          set -euo pipefail
+          docker pull "$GATE_IMAGE"
+          docker image inspect "$GATE_IMAGE" >/dev/null
+          set +e
+          # Taskfile and the gate come from the reviewed checkout; the candidate
+          # tree is an argument staged privately by the gate, never executed here.
+          task --dir "$GITHUB_WORKSPACE/gate-trusted" verify-trusted \
+            "SDD_TRUSTED=$GITHUB_WORKSPACE/gate-trusted" \
+            "SDD_CANDIDATE=$GITHUB_WORKSPACE/gate-candidate" \
+            "SDD_OUTPUT=$EVIDENCE"
+          code=$?
+          set -e
+          printf '%s\n' "$code" > "$STATE/validation-exit"
+          exit "$code"
+
+      - name: Docs/specs only - reviewed main launcher, candidate as data
+        if: steps.scope.outputs.scope == 'docs-only'
+        env:
+          TRUSTED: ${{ github.workspace }}/gate-trusted
+          CANDIDATE: ${{ github.workspace }}/gate-candidate
+          STATE: ${{ runner.temp }}/dev-gate
+          HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+          OUT: ${{ runner.temp }}/dev-gate/docs
+          HOME: ${{ runner.temp }}/dev-gate/home
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$OUT" "$HOME"
+          docker pull "$DOCS_IMAGE"
+          docker pull "$DOCS_BUILDER_IMAGE"
+          docker image inspect "$DOCS_IMAGE" >/dev/null
+          docker image inspect "$DOCS_BUILDER_IMAGE" >/dev/null
+          set +e
+          # The launcher itself is main's reviewed file, never the dev tip's or
+          # the PR base's copy. No --artifact: this can validate, not publish.
+          python3 "$TRUSTED/scripts/docs-ci.py" \
+            --mode pr --action run \
+            --trusted "$TRUSTED" --candidate "$CANDIDATE" \
+            --output "$OUT" --candidate-sha "$HEAD_SHA" \
+            --image "$DOCS_IMAGE"
+          code=$?
+          set -e
+          printf '%s\n' "$code" > "$STATE/validation-exit"
+          exit "$code"
+
+      - name: Retain observations
+        if: always() && steps.resolve.outputs.accepted == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, same pin as ci.yml
+        with:
+          name: dev-gate-evidence-${{ steps.resolve.outputs.head_sha }}
+          path: |
+            ${{ runner.temp }}/dev-gate/evidence/evidence
+            ${{ runner.temp }}/dev-gate/docs/identity.json
+            ${{ runner.temp }}/dev-gate/docs/records.json
+            ${{ runner.temp }}/dev-gate/docs/status.json
+            ${{ runner.temp }}/dev-gate/scope.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Report the exact candidate head status
+        if: always() && steps.resolve.outputs.accepted == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TRUSTED: ${{ github.workspace }}/gate-trusted
+          STATE: ${{ runner.temp }}/dev-gate
+          GATE_REVISION: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+          DETAILS: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          exit_code=not-run
+          [ ! -s "$STATE/validation-exit" ] || exit_code="$(head -n 1 "$STATE/validation-exit")"
+          python3 "$TRUSTED/scripts/dev_lane.py" check \
+            --decision "$STATE/decision.json" --scope "$STATE/scope.json" \
+            --exit-code "$exit_code" --gate-revision "$GATE_REVISION" \
+            --run-id "$RUN_ID" --attempt "$ATTEMPT" --details-url "$DETAILS" \
+            --out "$STATE/check-run.json" --github-output "$GITHUB_OUTPUT"
+          gh api --method POST "repos/$GH_REPO/check-runs" \
+            --input "$STATE/check-run.json" > "$STATE/check-run-response.json"

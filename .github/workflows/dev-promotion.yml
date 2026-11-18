@@ -1,0 +1,104 @@
+name: Promotion admission
+# Reviewed pre-merge admission for a `dev` -> `main` promotion (loaded from main
+# via pull_request_target). It needs owner authorship, the same repository, the
+# current dev and main tips, a two-parent prospective merge tree equal to the
+# tested tree, a strictly increased release-version, and a passing dev-gate on
+# that exact head. A non-promotion PR terminates as success with that scope.
+# Hosted rules (who may push/merge and why a review stays current) are settings,
+# not something this file can enforce.
+on:
+  pull_request_target:
+    branches: ["main"]
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions: {}
+jobs:
+  admission:
+    name: Promotion admission
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: write   # read dev-gate results and write one admission result
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: promotion-admission-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout reviewed main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, same pin as ci.yml
+        with:
+          ref: ${{ github.sha }}
+          path: admit-trusted
+          fetch-depth: 0
+          submodules: false
+          persist-credentials: false
+
+      - name: Re-resolve the pull request and its evidence through the API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          STATE: ${{ runner.temp }}/promotion
+          TRUSTED: ${{ github.workspace }}/admit-trusted
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$STATE"
+          gh api "repos/$GH_REPO/pulls/$PR" > "$STATE/pull.json"
+          head="$(gh api "repos/$GH_REPO/pulls/$PR" --jq '.head.sha')"
+          gh api "repos/$GH_REPO/branches/dev" > "$STATE/dev.json"
+          gh api "repos/$GH_REPO/branches/main" > "$STATE/main.json"
+          gh api "repos/$GH_REPO/commits/$head/check-runs?check_name=dev-gate" \
+            > "$STATE/checks.json"
+
+      - name: Compute the prospective two-parent tree and release-version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          STATE: ${{ runner.temp }}/promotion
+          TRUSTED: ${{ github.workspace }}/admit-trusted
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          base="$(gh api "repos/$GH_REPO/pulls/$PR" --jq '.base.sha' 2>/dev/null || true)"
+          head="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["head"]["sha"])' "$STATE/pull.json")"
+          head_repo="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["head"]["repo"]["full_name"])' "$STATE/pull.json")"
+          if [ -n "$base" ] && git -C "$TRUSTED" cat-file -e "$head^{commit}" 2>/dev/null; then
+            merged="$(git -C "$TRUSTED" merge-tree --write-tree "$base" "$head" 2>/dev/null || true)"
+            tree="$(git -C "$TRUSTED" rev-parse "$head^{tree}" 2>/dev/null || true)"
+            vhead="$(git -C "$TRUSTED" show "$head:release-version" 2>/dev/null || true)"
+            vbase="$(git -C "$TRUSTED" show "$base:release-version" 2>/dev/null || true)"
+          else
+            # A fork's commit or an unreadable base cannot establish a tree;
+            # empty facts fail closed in dev_lane.admit for a real promotion.
+            merged=""; tree=""; vhead=""; vbase=""
+          fi
+          printf '%s\n' "$merged" > "$STATE/merged-tree"
+          printf '%s\n' "$tree" > "$STATE/head-tree"
+          printf '%s\n' "$vhead" > "$STATE/version-head"
+          printf '%s\n' "$vbase" > "$STATE/version-base"
+
+      - name: Decide and report one admission result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATE: ${{ runner.temp }}/promotion
+          TRUSTED: ${{ github.workspace }}/admit-trusted
+          OWNER: ${{ github.repository_owner }}
+          DETAILS: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          dev_tip="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"]["sha"])' "$STATE/dev.json")"
+          main_tip="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"]["sha"])' "$STATE/main.json")"
+          python3 "$TRUSTED/scripts/dev_lane.py" admit \
+            --pull "$STATE/pull.json" --checks "$STATE/checks.json" \
+            --repository "$GH_REPO" --owner "$OWNER" \
+            --dev-tip "$dev_tip" --main-tip "$main_tip" \
+            --merged-tree "$(head -n 1 "$STATE/merged-tree")" \
+            --head-tree "$(head -n 1 "$STATE/head-tree")" \
+            --version-head "$(head -n 1 "$STATE/version-head")" \
+            --version-base "$(head -n 1 "$STATE/version-base")" \
+            --details-url "$DETAILS" --out "$STATE/check-run.json" \
+            --github-output "$GITHUB_OUTPUT"
+          gh api --method POST "repos/$GH_REPO/check-runs" \
+            --input "$STATE/check-run.json" > "$STATE/check-run-response.json"
